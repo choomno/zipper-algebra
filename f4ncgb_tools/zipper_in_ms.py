@@ -64,8 +64,9 @@ class Coef:
 
     def __str__(self) -> str:
         if self.char == 0:
-            f: Fraction = self.v
-            return str(f.numerator) if f.denominator == 1 else f"{f.numerator}/{f.denominator}"
+            assert isinstance(self.v, Fraction)
+            return (str(self.v.numerator) if self.v.denominator == 1
+                    else f"{self.v.numerator}/{self.v.denominator}")
         return str(self.v)
 
 
@@ -174,8 +175,9 @@ class Poly:
 # build_relations: mirrors zipper.gap's function of the same name
 # ---------------------------------------------------------------------------
 
-def build_relations(n: int, q_int: int, t_int: int, char: int,
-                    untw: str) -> tuple[list[str], list[Poly]]:
+def build_relations(n: int, q_int: int, t_int: int, char: int, untw: str
+                    ) -> tuple[list[str], list[Poly],
+                               dict[tuple[int, int], Poly]]:
     """Generate variable names and the full list of input relations.
 
     Variable order: x1, x2, ..., x_{n-1}, y1, ..., y_{n-1}. 1-based indices
