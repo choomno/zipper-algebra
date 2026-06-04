@@ -61,21 +61,16 @@ LABEL_TO_IDX = {"Z_2": 22, "T_2": 25, "T_3": 28}
 
 
 def parse_ZT_lines(path):
-    """Parse the ZT cofactor lines using parse_cofactor_line. The line
-    format is identical to the three-rels file; we just map labels to
-    integer indices ourselves."""
+    """Parse the ZT (or any) cofactor file. The parser accepts both Z/T
+    labels (Z_2, T_2, T_3, ...) and the legacy R_<idx> form, so this
+    works on either kind of file."""
     out = []
     with open(path) as f:
         for ln in f:
             s = ln.strip()
             if not s or s.startswith("#"):
                 continue
-            # Split on " * " carefully: pattern is "L * LABEL * R  ::  N / D"
-            # Replace Z_2/T_2/T_3 -> R_22/R_25/R_28 to reuse the parser.
-            line_mod = ln
-            for label, idx in LABEL_TO_IDX.items():
-                line_mod = line_mod.replace(f" {label} ", f" R_{idx} ")
-            parsed = parse_cofactor_line(line_mod)
+            parsed = parse_cofactor_line(ln)
             out.append(parsed)
     return out
 

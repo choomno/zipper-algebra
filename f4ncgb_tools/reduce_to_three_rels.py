@@ -29,6 +29,7 @@ from collections import Counter
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
+from relations_naming import label
 from symbolic_identity_check import (
     VAR_NAMES,
     qt_zero, qt_const, qt_q, qt_t, qt_add, qt_sub, qt_neg, qt_mul, qt_pow,
@@ -227,20 +228,21 @@ def main():
     with open(OUT_FILE, "w") as f:
         f.write("# Three-relation Q(q,t) X_3 cofactor at n=4 (Bigelow zipper algebra).\n")
         f.write("# 166-tuple simplified cofactor further reduced to 3 input relations\n")
-        f.write("# {R_22, R_25, R_28} by eliminating R_26 via the conjugacy\n")
-        f.write("#   R_26 = (sigma_1 sigma_2) * R_25 * (sigma_1 sigma_2)^{-1}\n")
-        f.write("# i.e. each tuple (L, R_26, R) is rewritten as\n")
-        f.write("#   (L * x_1*x_2) * R_25 * (y_2*y_1 * R),\n")
+        f.write("# {Z_2, T_2, T_3} by eliminating T_2_j2 via the conjugacy\n")
+        f.write("#   T_2_j2 = (sigma_1 sigma_2) * T_2 * (sigma_1 sigma_2)^{-1}\n")
+        f.write("# i.e. each tuple (L, T_2_j2, R) is rewritten as\n")
+        f.write("#   (L * x_1*x_2) * T_2 * (y_2*y_1 * R),\n")
         f.write("# then re-canonicalized in B_3 and bucketed.\n")
         f.write("#\n")
         f.write("# Identity holds in the group algebra Q(q,t)[B_3].\n")
         f.write("#\n")
         f.write(f"# Tuple count: {len(items)}  (vs 166 four-relation, vs 695 original)\n")
-        f.write(f"# R_i histogram: {dict(sorted(final_hist.items()))}\n")
+        labeled_hist = {label(i): c for i, c in sorted(final_hist.items())}
+        f.write(f"# Relation histogram: {labeled_hist}\n")
         f.write(f"# Global denominator: D = {den_str}\n")
         f.write("#\n")
         f.write("# IDENTITY (in Q(q,t)[B_3]):\n")
-        f.write("#   sum_j  c_j(q,t) * L_j * R_{i_j} * R'_j  ==  X_3 = S[3][1]\n")
+        f.write("#   sum_j  c_j(q,t) * L_j * <label_j> * R'_j  ==  X_3 = S[3][1]\n")
         f.write("# where L_j, R'_j are canonical B_3 words in {x_1,x_2,y_1,y_2}.\n")
         f.write("# Verified by Garside normalization of the free-algebra residual.\n")
         f.write("#\n")
@@ -248,7 +250,7 @@ def main():
             L_s = mon_to_str(L_word)
             R_s = mon_to_str(R_word)
             num_s = num_to_str(coef_poly)
-            f.write(f"{L_s} * R_{idx} * {R_s}  ::  {num_s} / ({den_str})\n")
+            f.write(f"{L_s} * {label(idx)} * {R_s}  ::  {num_s} / ({den_str})\n")
 
     print(f"[write] Wrote {OUT_FILE}")
     print(f"[stats] Total tuples:        {len(items)}")
