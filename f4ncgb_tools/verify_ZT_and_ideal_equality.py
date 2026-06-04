@@ -239,7 +239,14 @@ def main():
     print("[B.3]   PASS: X_3 in <Z_2, T_2, T_3>")
     print("        Witness: the 161-tuple cofactor verified in (A.2).")
 
-    # (B.4) X_3 in <Z_2, Z_3, T_2> in Q(q,t)[B_4]: UNVERIFIED.
+    # (B.4) X_3 in <Z_2, Z_3, T_2> in Q(q,t)[B_4]: FALSE (disproved by direct
+    # GAP/GBNP computation, gap_scripts/test_n4_zipper_only_plus_T2.gap).
+    #
+    # At n=4 with the real level-3 zipper R_24 (which involves x_3, y_3):
+    #   dim Q(q,t)[B_4] / <R_22, R_23, R_24, R_25> = 214,  not 105 = dim BMW_4.
+    # X_3 reduces to a 12-monomial nonzero residual modulo the Grobner basis.
+    # So X_3 not in <R_22, R_23, R_24, R_25>, and consequently
+    #   <Z_2, T_2, Z_3>  is a proper sub-ideal of  <Z_2, T_2, X_3>  at n=4.
     #
     # Important correction.  The dimension test in test_R28_necessity.gap
     # (case E) used a TRUNCATED polynomial that I called "R_24" at n=3,
@@ -258,13 +265,14 @@ def main():
     # ideal of <Z_2, T_2, X_3>, but the reverse inclusion (equivalently,
     # X_3 in <Z_2, T_2, Z_3>) requires an independent computation at n=4
     # that has not been performed.
-    print("[B.4]   STATUS: <Z_2, T_2, Z_3> subset of <Z_2, T_2, X_3> follows from (B.2).")
-    print("        The reverse inclusion -- i.e., X_3 in <Z_2, T_2, Z_3> in Q(q,t)[B_4]")
-    print("        with Z_3 = real level-3 zipper at n=4 -- is NOT VERIFIED by")
-    print("        the present scripts. The earlier n=3 dimension test used a")
-    print("        truncated polynomial that does not correspond to a relation")
-    print("        of Z_n for any n. The n=4 case requires a separate Grobner")
-    print("        basis computation that has not been performed.")
+    print("[B.4]   STATUS: <Z_2, T_2, Z_3> properly contained in <Z_2, T_2, X_3> at n=4.")
+    print("        The GAP/GBNP computation gap_scripts/test_n4_zipper_only_plus_T2.gap")
+    print("        at (q,t)=(5,7) over GF(2^31-1) gives:")
+    print("          dim Q(q,t)[B_4] / <R_22, R_23, R_24, R_25> = 214")
+    print("          (vs dim BMW_4 = 105)")
+    print("          X_3 mod GB has 12 nonzero monomials,")
+    print("        certifying X_3 NOT in <R_22, R_23, R_24, R_25>.")
+    print("        Therefore <Z_2, T_2, Z_3>  !=  <Z_2, T_2, X_3>  at n=4.")
 
     # Now assemble the chain of inclusions:
     print()
@@ -274,16 +282,16 @@ def main():
     print("  (B.2): Z_3 = (q^2 y_2 y_3 - x_2 x_3 + x_1 x_2 x_3 - q^2 y_1 y_2 y_3) * X_3  (free-alg identity)")
     print("         => <Z_3> subset of <X_3>.")
     print("  (B.3): X_3 in <Z_2, T_2, T_3> in Q(q,t)[B_3] subset Q(q,t)[B_4]  (161-tuple cofactor witness).")
-    print("  (B.4): X_3 in <Z_2, T_2, Z_3> in Q(q,t)[B_4]  --  UNVERIFIED.")
+    print("  (B.4): X_3 in <Z_2, T_2, Z_3> in Q(q,t)[B_4]  --  FALSE (dim test gives 214 != 105).")
     print("")
-    print("  Established equalities in Q(q,t)[B_4]:")
+    print("  Established at n=4:")
     print("    <Z_2, T_2, T_3>  =  <Z_2, T_2, X_3>     (from (B.1) and (B.3))")
-    print("    <Z_2, T_2, Z_3>  subset of  <Z_2, T_2, X_3>     (from (B.2))")
+    print("    <Z_2, T_2, Z_3>  proper subset of  <Z_2, T_2, X_3>     (from (B.2) and (B.4))")
     print("")
-    print("  Conjectured but unverified at n=4:")
-    print("    <Z_2, T_2, Z_3>  =  <Z_2, T_2, X_3>")
-    print("  This would follow from a separate Grobner basis test at n=4")
-    print("  showing X_3 in <Z_2, T_2, Z_3>.  See pending check in n=4 setting.")
+    print("  So Z_3 does NOT replace T_3 (or X_3) in the by-hand presentation at n=4.")
+    print("  The dimension gap is 214 - 105 = 109; explicitly imposing X_3 = 0")
+    print("  (which by the slider recursion also forces X_k = 0 for k >= 4) is")
+    print("  required to recover BMW_4 from the zipper-only algebra modulo T_2.")
 
     print()
     print("=" * 72)
