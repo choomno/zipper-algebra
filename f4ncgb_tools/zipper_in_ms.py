@@ -176,7 +176,8 @@ class Poly:
 # ---------------------------------------------------------------------------
 
 def build_relations(n: int, q_int: int, t_int: int, char: int, untw: str,
-                    framing_power: int = 1
+                    framing_power: int = 1,
+                    theta_power: int = 1
                     ) -> tuple[list[str], list[Poly],
                                dict[tuple[int, int], Poly]]:
     """Generate variable names and the full list of input relations.
@@ -310,7 +311,34 @@ def build_relations(n: int, q_int: int, t_int: int, char: int, untw: str,
                 if untw == "indeterminate":
                     raise NotImplementedError("indeterminate mode needs an extra "
                                               "parameter s; not wired up here")
-                rel = (xProd_rev - q_pow * yProd_rev) * S[(i, j)]
+                # theta_power = m: replace canonical (Theta - q^{i-1}) X_i = 0
+                # with (Theta^m - q^{(i-1)m}) X_i = 0. m = 1 is canonical.
+                if theta_power < 1:
+                    raise ValueError("theta_power must be >= 1")
+                if theta_power == 1:
+                    rel = (xProd_rev - q_pow * yProd_rev) * S[(i, j)]
+                else:
+                    # Theta_{i,j} as a positive word in x's:
+                    #   Theta = (ascending Coxeter on band {j..j+i-2})
+                    #         * (descending Coxeter on band {j..j+i-2})
+                    #         = (x_j x_{j+1} ... x_{j+i-2}) * (x_{j+i-2} ... x_j)
+                    # Verified equivalent to canonical k=1 relation:
+                    #   in the algebra y_desc^{-1} = x_asc, so y_desc^{-1} * x_desc
+                    #   = Theta, and (x_desc - q^{i-1} y_desc) S = 0 multiplies on
+                    #   the left by y_desc^{-1} to give (Theta - q^{i-1}) S = 0.
+                    # For k>=2 the (x_desc^k - q^{...} y_desc^k) form does NOT
+                    # represent Theta^k = (x_asc x_desc)^k S, since x_desc and
+                    # y_desc do not commute. So we build the genuine Theta word.
+                    xProd_asc = x(j)
+                    for kk in range(j + 1, j + i - 1):
+                        xProd_asc = xProd_asc * x(kk)
+                    theta_word = xProd_asc * xProd_rev
+                    thetaPow = theta_word
+                    q_pow_acc = q_pow
+                    for _ in range(theta_power - 1):
+                        thetaPow = thetaPow * theta_word
+                        q_pow_acc = q_pow_acc * q_pow
+                    rel = (thetaPow - q_pow_acc) * S[(i, j)]
                 relations.append(rel)
 
     return var_names, relations, S
@@ -348,6 +376,10 @@ def main() -> int:
                          "(sigma_j^K - t) * S[2][j] = 0 instead of the "
                          "canonical K=1 case. K=1 is canonical; K>=2 gives "
                          "an algebra strictly larger than BMW.")
+    ap.add_argument("--theta-power", type=int, default=1, metavar="M",
+                    help="For i >= 3 untwisting (any 'untwist' mode): use "
+                         "(Theta_i^M - q^{(i-1)M}) * S[i][j] = 0 in place of "
+                         "the canonical M=1 relation. M=1 is canonical.")
     ap.add_argument("--out", required=True, help="output .ms path")
     ap.add_argument("--target", type=int, default=None, metavar="K",
                     help="append the K-strand slider S[K][1] as the last input. "
@@ -359,7 +391,8 @@ def main() -> int:
 
     var_names, relations, S = build_relations(args.n, args.q, args.t, args.char,
                                               args.untwist,
-                                              framing_power=args.framing_power)
+                                              framing_power=args.framing_power,
+                                              theta_power=args.theta_power)
     if args.target is not None:
         target_idx = append_target(relations, S, args.target)
         print(f"Appended S[{args.target}][1] as input #{target_idx} "
