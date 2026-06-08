@@ -283,6 +283,13 @@ def build_relations(n: int, q_int: int, t_int: int, char: int, untw: str,
                 # silly: (sigma_j^2 - t^2) X_{2,j} = 0 (squares-of-both-sides
                 # form). Distinct from the framing_power variant below.
                 rel = (x(j) * x(j) - t * t) * S[(2, j)]
+            elif untw == "jordan":
+                # (sigma_j - t)^2 X_{2,j} = (sigma_j^2 - 2t sigma_j + t^2) X_{2,j} = 0.
+                # This makes sigma_j have eigenvalue t with multiplicity 2 on the
+                # slider line; a Jordan block forms (eigenvector + generalized
+                # eigenvector), forcing the algebra to be NON-semisimple.
+                two_t = t + t
+                rel = (x(j) * x(j) - two_t * x(j) + t * t) * S[(2, j)]
             else:
                 # bigelow with framing_power k:
                 #   (sigma_j^k - t) X_{2,j} = 0  i.e. sigma_j^k * X = t * X.
@@ -394,8 +401,13 @@ def main() -> int:
     ap.add_argument("--t", type=int, default=7, help="t specialization (integer)")
     ap.add_argument("--char", type=int, default=0,
                     help="coefficient characteristic (0 for Q, prime for GF(p))")
-    ap.add_argument("--untwist", choices=["bigelow", "silly_question", "none"],
-                    default="bigelow")
+    ap.add_argument("--untwist", choices=["bigelow", "silly_question", "jordan", "none"],
+                    default="bigelow",
+                    help="'bigelow': (sigma^a - t)X_2 = 0 (the higher-framing variant). "
+                         "'silly_question': (sigma^2 - t^2)X_2 = 0. "
+                         "'jordan': (sigma - t)^2 X_2 = 0, i.e. sigma has eigenvalue t with multiplicity 2 "
+                         "on the slider; INDUCES NON-SEMISIMPLICITY (a deliberate non-rigid framing). "
+                         "'none': no level-2 framing relation at all.")
     ap.add_argument("--framing-power", type=int, default=1, metavar="K",
                     help="In 'bigelow' mode only: use the level-2 relation "
                          "(sigma_j^K - t) * S[2][j] = 0 instead of the "
