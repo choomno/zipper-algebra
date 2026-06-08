@@ -351,37 +351,41 @@ def main():
                     trace_val = (trace_val + c * s) % p
                 T[i][j] = trace_val
 
-        # det T via Gaussian elimination over GF(p)
+        # det T and rank T via Gaussian elimination over GF(p)
         det = 1
+        rank = 0
         M = [row[:] for row in T]
         for col in range(N):
             pivot = -1
-            for r in range(col, N):
+            for r in range(rank, N):
                 if M[r][col] != 0:
                     pivot = r
                     break
             if pivot < 0:
                 det = 0
-                break
-            if pivot != col:
-                M[col], M[pivot] = M[pivot], M[col]
+                continue
+            if pivot != rank:
+                M[rank], M[pivot] = M[pivot], M[rank]
                 det = (-det) % p
-            det = (det * M[col][col]) % p
-            inv_p = pow(M[col][col], p - 2, p)
-            for r in range(col + 1, N):
-                if M[r][col] == 0:
+            det = (det * M[rank][col]) % p
+            inv_p = pow(M[rank][col], p - 2, p)
+            for r in range(N):
+                if r == rank or M[r][col] == 0:
                     continue
                 fac = (M[r][col] * inv_p) % p
                 for c2 in range(col, N):
-                    M[r][c2] = (M[r][c2] - fac * M[col][c2]) % p
+                    M[r][c2] = (M[r][c2] - fac * M[rank][c2]) % p
+            rank += 1
         print(f"[result] det(trace form) mod p = {det}")
-        if det == 0:
-            print("[conclusion] det T = 0: algebra is NOT semisimple at "
-                  "this specialization (rank deficient trace form, "
-                  "which is the Jacobson radical's contribution).")
-        else:
+        print(f"[result] rank(T) = {rank} (out of N = {N})")
+        defect = N - rank
+        if defect == 0:
             print("[conclusion] det T != 0: algebra IS semisimple at "
                   "this specialization (and generically over Q(q,t)).")
+        else:
+            print(f"[conclusion] rank deficit {defect}: algebra is NOT semisimple")
+            print(f"             at this specialization. The radical of the")
+            print(f"             trace form (which contains J(A)) has dim {defect}.")
     else:
         print(f"[trace form] skipped (N = {N} > 250 threshold). To enable, "
               f"raise the threshold or use a faster impl.")
