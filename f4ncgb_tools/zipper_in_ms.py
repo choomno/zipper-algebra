@@ -311,11 +311,22 @@ def build_relations(n: int, q_int: int, t_int: int, char: int, untw: str,
                 if untw == "indeterminate":
                     raise NotImplementedError("indeterminate mode needs an extra "
                                               "parameter s; not wired up here")
-                # theta_power = m: replace canonical (Theta - q^{i-1}) X_i = 0
-                # with (Theta^m - q^{(i-1)m}) X_i = 0. m = 1 is canonical.
-                if theta_power < 1:
+                # theta_power = m: replace canonical (Theta_i - q^{i-1}) X_i = 0
+                # with (Theta_i^m - q^{(i-1)m}) X_i = 0.
+                # Per sliders_and_full_twists.tex:
+                #   - k_i = 1 at i = 3 is FORCED by rigidity of the slider module M
+                #     when paired with canonical framing k_2 = 1.
+                #   - For higher framing k_2 = a, the natural pairing at i = 3 is
+                #     k_3 = a, giving (Theta_3^a - q^{2a}) X_3 = 0.
+                #   - For i >= 4 the "right" k_i is conjectural; we keep canonical
+                #     k_i = 1 (per the paper's note: "forced at i = 3 by rigidity
+                #     but only conjectural for i > 3").
+                # We therefore apply theta_power ONLY at i = 3; at i >= 4 the
+                # relation is canonical regardless of theta_power.
+                effective_power = theta_power if i == 3 else 1
+                if effective_power < 1:
                     raise ValueError("theta_power must be >= 1")
-                if theta_power == 1:
+                if effective_power == 1:
                     rel = (xProd_rev - q_pow * yProd_rev) * S[(i, j)]
                 else:
                     # Theta_{i,j} as a positive word in x's:
@@ -335,7 +346,7 @@ def build_relations(n: int, q_int: int, t_int: int, char: int, untw: str,
                     theta_word = xProd_asc * xProd_rev
                     thetaPow = theta_word
                     q_pow_acc = q_pow
-                    for _ in range(theta_power - 1):
+                    for _ in range(effective_power - 1):
                         thetaPow = thetaPow * theta_word
                         q_pow_acc = q_pow_acc * q_pow
                     rel = (thetaPow - q_pow_acc) * S[(i, j)]
