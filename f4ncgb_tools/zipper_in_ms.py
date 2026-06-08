@@ -344,6 +344,20 @@ def build_relations(n: int, q_int: int, t_int: int, char: int, untw: str,
     return var_names, relations, S
 
 
+def append_zero_sliders(relations: list[Poly], S: dict[tuple[int, int], Poly],
+                        zero_from: int, n: int) -> int:
+    """For each i in [zero_from..n] and each j in [1..n-i+1], add the relation
+    S[i][j] = 0 to `relations` (forcing the i-strand sliders to vanish).
+    Returns the number of relations appended."""
+    added = 0
+    for i in range(zero_from, n + 1):
+        for j in range(1, n - i + 2):
+            if (i, j) in S:
+                relations.append(S[(i, j)])
+                added += 1
+    return added
+
+
 def append_target(relations: list[Poly], S: dict[tuple[int, int], Poly],
                   target_k: int, target_j: int = 1) -> int:
     """Append S[target_k][target_j] as the LAST input relation. Returns the
@@ -379,7 +393,16 @@ def main() -> int:
     ap.add_argument("--theta-power", type=int, default=1, metavar="M",
                     help="For i >= 3 untwisting (any 'untwist' mode): use "
                          "(Theta_i^M - q^{(i-1)M}) * S[i][j] = 0 in place of "
-                         "the canonical M=1 relation. M=1 is canonical.")
+                         "the canonical M=1 relation. M=1 is canonical. NOTE: "
+                         "k_3 = 1 is forced by rigidity per sliders_and_full_twists.tex "
+                         "(rigidity of the slider module); M >= 2 at i = 3 gives a "
+                         "weaker relation that is not consistent with the natural "
+                         "presentation. Recommend leaving at 1.")
+    ap.add_argument("--zero-from", type=int, default=None, metavar="K",
+                    help="Force X_i = 0 for all i >= K by appending S[i][j] = 0 "
+                         "as extra relations for every valid (i,j). Use to test "
+                         "whether forcing a level-K vanishing makes the algebra "
+                         "finite-dimensional (e.g., --zero-from 4 forces X_4 = 0).")
     ap.add_argument("--out", required=True, help="output .ms path")
     ap.add_argument("--target", type=int, default=None, metavar="K",
                     help="append the K-strand slider S[K][1] as the last input. "
@@ -393,6 +416,9 @@ def main() -> int:
                                               args.untwist,
                                               framing_power=args.framing_power,
                                               theta_power=args.theta_power)
+    if args.zero_from is not None:
+        added = append_zero_sliders(relations, S, args.zero_from, args.n)
+        print(f"Appended {added} zero-slider relations for i >= {args.zero_from}")
     if args.target is not None:
         target_idx = append_target(relations, S, args.target)
         print(f"Appended S[{args.target}][1] as input #{target_idx} "
