@@ -175,13 +175,21 @@ class Poly:
 # build_relations: mirrors zipper.gap's function of the same name
 # ---------------------------------------------------------------------------
 
-def build_relations(n: int, q_int: int, t_int: int, char: int, untw: str
+def build_relations(n: int, q_int: int, t_int: int, char: int, untw: str,
+                    framing_power: int = 1
                     ) -> tuple[list[str], list[Poly],
                                dict[tuple[int, int], Poly]]:
     """Generate variable names and the full list of input relations.
 
     Variable order: x1, x2, ..., x_{n-1}, y1, ..., y_{n-1}. 1-based indices
     in monomials map to this order.
+
+    The ``framing_power`` parameter only affects the level-2 untwisting
+    relation in ``bigelow`` mode: with framing_power = k >= 1, the level-2
+    relation becomes (x_j^k - t) * S[2][j], i.e. the eigenvalue equation
+    sigma_j^k * X_{2,j} = t * X_{2,j} (with t fixed, not t^k). k=1 is the
+    canonical Bigelow framing. For k > 1 the slider need not be a sigma_j
+    eigenvector and the resulting algebra is strictly larger than BMW.
     """
     var_names = [f"x{i}" for i in range(1, n)] + [f"y{i}" for i in range(1, n)]
 
@@ -271,9 +279,21 @@ def build_relations(n: int, q_int: int, t_int: int, char: int, untw: str
         # 2-strand
         for j in range(1, n):
             if untw == "silly_question":
+                # silly: (sigma_j^2 - t^2) X_{2,j} = 0 (squares-of-both-sides
+                # form). Distinct from the framing_power variant below.
                 rel = (x(j) * x(j) - t * t) * S[(2, j)]
             else:
-                rel = (x(j) - t) * S[(2, j)]
+                # bigelow with framing_power k:
+                #   (sigma_j^k - t) X_{2,j} = 0  i.e. sigma_j^k * X = t * X.
+                # k=1 is the canonical Bigelow framing; k>=2 is a weaker
+                # eigenvalue equation (k-th-power eigenvalue is t, but the
+                # k-th roots of t are all candidate sigma_j eigenvalues).
+                if framing_power < 1:
+                    raise ValueError("framing_power must be >= 1")
+                lhs = x(j)
+                for _ in range(framing_power - 1):
+                    lhs = lhs * x(j)
+                rel = (lhs - t) * S[(2, j)]
             relations.append(rel)
         # k-strand (k >= 3)
         for i in range(3, n + 1):
@@ -323,6 +343,11 @@ def main() -> int:
                     help="coefficient characteristic (0 for Q, prime for GF(p))")
     ap.add_argument("--untwist", choices=["bigelow", "silly_question", "none"],
                     default="bigelow")
+    ap.add_argument("--framing-power", type=int, default=1, metavar="K",
+                    help="In 'bigelow' mode only: use the level-2 relation "
+                         "(sigma_j^K - t) * S[2][j] = 0 instead of the "
+                         "canonical K=1 case. K=1 is canonical; K>=2 gives "
+                         "an algebra strictly larger than BMW.")
     ap.add_argument("--out", required=True, help="output .ms path")
     ap.add_argument("--target", type=int, default=None, metavar="K",
                     help="append the K-strand slider S[K][1] as the last input. "
@@ -333,7 +358,8 @@ def main() -> int:
     args = ap.parse_args()
 
     var_names, relations, S = build_relations(args.n, args.q, args.t, args.char,
-                                              args.untwist)
+                                              args.untwist,
+                                              framing_power=args.framing_power)
     if args.target is not None:
         target_idx = append_target(relations, S, args.target)
         print(f"Appended S[{args.target}][1] as input #{target_idx} "
