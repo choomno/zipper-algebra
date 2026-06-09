@@ -177,7 +177,9 @@ class Poly:
 
 def build_relations(n: int, q_int: int, t_int: int, char: int, untw: str,
                     framing_power: int = 1,
-                    theta_power: int = 1
+                    theta_power: int = 1,
+                    max_zipper_level: int | None = None,
+                    max_untwist_level: int | None = None
                     ) -> tuple[list[str], list[Poly],
                                dict[tuple[int, int], Poly]]:
     """Generate variable names and the full list of input relations.
@@ -257,7 +259,8 @@ def build_relations(n: int, q_int: int, t_int: int, char: int, untw: str,
         rel = (q * y(j + 1) + Poly.scalar(Coef.one(char) - Coef(q_int, char)) - x(j + 1)
                - q * y(j) * y(j + 1) + x(j) * x(j + 1)) * S[(2, j)]
         relations.append(rel)
-    for i in range(3, n):
+    zip_high = n - 1 if max_zipper_level is None else min(n - 1, max_zipper_level)
+    for i in range(3, zip_high + 1):
         for j in range(1, n - i + 1):
             yProd_after = y(j + 1)
             for k in range(j + 2, j + i):
@@ -304,7 +307,8 @@ def build_relations(n: int, q_int: int, t_int: int, char: int, untw: str,
                 rel = (lhs - t) * S[(2, j)]
             relations.append(rel)
         # k-strand (k >= 3)
-        for i in range(3, n + 1):
+        untw_high = n if max_untwist_level is None else min(n, max_untwist_level)
+        for i in range(3, untw_high + 1):
             for j in range(1, n - i + 2):
                 xProd_rev = x(j + i - 2)
                 yProd_rev = y(j + i - 2)
@@ -421,6 +425,12 @@ def main() -> int:
                          "(rigidity of the slider module); M >= 2 at i = 3 gives a "
                          "weaker relation that is not consistent with the natural "
                          "presentation. Recommend leaving at 1.")
+    ap.add_argument("--max-zipper-level", type=int, default=None, metavar="L",
+                    help="If set, include only zipper relations at level i <= L "
+                         "(i.e., omit zipper relations at levels > L). Default: all.")
+    ap.add_argument("--max-untwist-level", type=int, default=None, metavar="L",
+                    help="If set, include only untwisting relations at level i <= L "
+                         "(i.e., omit untwisting relations at levels > L). Default: all.")
     ap.add_argument("--zero-from", type=int, default=None, metavar="K",
                     help="Force X_i = 0 for all i >= K by appending S[i][j] = 0 "
                          "as extra relations for every valid (i,j). Use to test "
@@ -438,7 +448,9 @@ def main() -> int:
     var_names, relations, S = build_relations(args.n, args.q, args.t, args.char,
                                               args.untwist,
                                               framing_power=args.framing_power,
-                                              theta_power=args.theta_power)
+                                              theta_power=args.theta_power,
+                                              max_zipper_level=args.max_zipper_level,
+                                              max_untwist_level=args.max_untwist_level)
     if args.zero_from is not None:
         added = append_zero_sliders(relations, S, args.zero_from, args.n)
         print(f"Appended {added} zero-slider relations for i >= {args.zero_from}")
