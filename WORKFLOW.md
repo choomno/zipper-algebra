@@ -2,6 +2,15 @@
 
 This document records the computational pipeline used to produce the $X_3 = 0$ cofactor at $n=4$, focused on **what to run, in what order, and why**. The mathematical setting is in `REPORT.md` and the writeup is in `X3_cofactor_n4.tex`; this file is the operational recipe.
 
+> **Repository orientation.** Two distinct projects share this repository:
+>
+> - **Project A — the X_3 cofactor pipeline.** That is this document. All Python lives under `f4ncgb_tools/cofactor/` (Phase 2 through Phase 8 tools, Phase 3 grid drivers + fitters, Phase 4 composers, Phase 5 verifiers). The shared presentation emitter is `f4ncgb_tools/zipper_in_ms.py` (Phase 1) and the shared Gröbner machinery is `f4ncgb_tools/core.py` (parsers, Aho–Corasick, reducer).
+> - **Project B — variant-untwisting quotients of the zipper algebra.** A separate computational note (`braid-research/variant_dimensions.tex`) on the higher-framing variants $\sigma_j^a X_2 = t X_2$ and the Jordan-block variant $(\sigma_j - t)^2 X_2 = 0$. Tools under `f4ncgb_tools/variants/` (Hilbert series, semisimplicity check, trace space, tower inclusion, Markov-trace system). See `f4ncgb_tools/variants/README.md`.
+>
+> Both projects re-use `core.py`, `zipper_in_ms.py`, and the regression suite `f4ncgb_tools/tests.py` (run with `python3 -m f4ncgb_tools.tests`; takes ~0.5 s and pins basic Gröbner-machinery behaviour as well as small variant-algebra verdicts).
+>
+> All `.ms` inputs for the Phase 3 multi-point lift now live under `ms_inputs/qt_sweep/` (was at top level previously).
+
 ## Why the obvious approach fails
 
 The straightforward idea — "run GAP/GBNP's `SGrobnerTrace` over $\mathbb{Q}(q,t)$, reduce $X_3$, extract the cofactor" — does not work, for two reasons:
