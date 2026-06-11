@@ -1,0 +1,97 @@
+// Symbolic verification of Jordan-3 nilpotence over Q(q, t).
+// Letterplace ring with (q, t) as transcendental parameters in the coefficient field.
+
+LIB "freegb.lib";
+
+// Coefficient field Q(q, t); free algebra in x1, x2, y1, y2.
+ring r = (0, q, t), (x1, x2, y1, y2), (c, dp);
+// Letterplace truncation degree:  we need to multiply w * m * w  for m a standard
+// monomial in a 24-dim algebra; reduced terms have degree <= 11 per the Hilbert series.
+// Take 18 as a comfortable safety margin.
+// Hilbert series of Z_3^Jordan ends at degree 11; depth 12 is the minimal
+// safe truncation for the GB computation.  At 4 generators the letterplace
+// space size is 4^12 ~ 1.6e7, tractable.
+ring R = freeAlgebra(r, 12, 4);
+setring R;
+
+// Z_3^Jordan defining ideal.  Notation matches f4ncgb_tools/zipper_in_ms.py:
+//   x_j  = sigma_j,  y_j = sigma_j^{-1},  S_2^(j) = q*y_j + (1-q) - x_j,
+//   Jordan R7:  (x_j - t)^2 * S_2^(j) = 0.
+ideal I =
+  // (R1) invertibility
+  x1*y1 - 1,  y1*x1 - 1,
+  x2*y2 - 1,  y2*x2 - 1,
+  // (R2) braid
+  x1*x2*x1 - x2*x1*x2,
+  y1*y2*y1 - y2*y1*y2,
+  // (R3) far commutation: at n=3 there's no |i-j|>=2, so skip.
+  // (R4) length-3 mixed identities  (derivable from R1..R3 but pre-supplied)
+  x1*x2*y1 - y2*x1*x2,
+  y1*y2*x1 - x2*y1*y2,
+  x1*y2*y1 - y2*y1*x2,
+  y1*x2*x1 - x2*x1*y2,
+  // (R5) level-2 zipper  at j=1
+  (q*y2 + (1-q) - x2 - q*y1*y2 + x1*x2) * (q*y1 + (1-q) - x1),
+  // (R7) Jordan  at j=1, j=2
+  (x1 - t)^2 * (q*y1 + (1-q) - x1),
+  (x2 - t)^2 * (q*y2 + (1-q) - x2),
+  // (R8) level-3 canonical at  n=3, i=3, j=1:  (sigma_2 sigma_1 - q^2 y_2 y_1) S_2^(1) * S_2^(2)...
+  // Actually at n=3 the level-3 zipper R6 and untwist R8 are AT i=3:
+  // R6 at i=3, j=1:  (q^2 y_2 y_3 - x_2 x_3 - q^2 y_1 y_2 y_3 + x_1 x_2 x_3) * S_3^(1)
+  // but n=3 has no x_3, so the level-3 zipper is degenerate.  Following zipper_in_ms.py
+  // at n=3 there's no R6 level-3 (loops over j in [1, n-i+1] = [1, 1] but the slider
+  // S_3^(1) is defined and the only R6 is the level-2 R5 above.
+  // R8 at i=3, n=3:
+  (x2*x1 - q^2*y2*y1) * (q^2*y1*y2 - x1*x2) * (q*y1 + (1-q) - x1);
+
+// Compute two-sided GB.
+print("--- computing two-sided GB ---");
+int t0 = timer;
+option(prot);
+ideal G = twostd(I);
+int tspent = timer - t0;
+print("--- GB computed in " + string(tspent) + " ticks ---");
+print("Number of GB elements: " + string(ncols(G)));
+
+// Reduce  w := (x1 - t) * (q*y1 + (1-q) - x1)   modulo  G.
+print("--- reducing w := (x1 - t)*S_2^(1) ---");
+poly w = (x1 - t) * (q*y1 + (1-q) - x1);
+poly wred = NF(w, G);
+print("w (reduced):");
+print(wred);
+print("Number of terms: " + string(size(wred)));
+
+// Verify w^2 = 0  symbolically.
+print("--- verifying w^2 = 0 ---");
+poly w2 = NF(wred * wred, G);
+print("w^2 reduced:");
+print(w2);
+if (w2 == 0) {
+  print("[VERIFIED]   w^2 == 0  identically in Q(q,t)[A].  N1 holds symbolically.");
+} else {
+  print("[FAIL]   w^2 is NOT zero.  N1 fails symbolically -- there is an error somewhere.");
+}
+
+// Verify  w * m * w = 0  for monomials m involving x_2 / y_2.
+// Picking a few representative m's: 1, x_2, y_2, x_1 x_2, x_2 x_1, y_1 x_2, ...
+print("--- testing w * m * w = 0 for representative m involving x_2 / y_2 ---");
+list mlist = (poly)1, x2, y2, x1*x2, x2*x1, y1*x2, x2*y1, x1*y2, y2*x1, x2*y2, y2*x2;
+int i; int allzero = 1;
+for (i = 1; i <= size(mlist); i++) {
+  poly m = mlist[i];
+  poly wmw = NF(wred * m * wred, G);
+  if (wmw == 0) {
+    print("  m = " + string(m) + ":  w*m*w = 0  [ok]");
+  } else {
+    print("  m = " + string(m) + ":  w*m*w != 0   [** NONZERO **]");
+    print("    w*m*w = " + string(wmw));
+    allzero = 0;
+  }
+}
+if (allzero) {
+  print("[VERIFIED]   w * m * w == 0  for every tested m  (symbolic, over Q(q, t)).");
+} else {
+  print("[NOT VERIFIED]   some w*m*w !== 0 symbolically;  result is genuinely specialization-dependent.");
+}
+
+exit;
