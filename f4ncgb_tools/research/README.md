@@ -39,3 +39,35 @@ slider `X_3`? That min poly *is* the derived (least-imposed) three-strand untwis
 **Trust.** The grid runner is mod-p at 2^31-1 — a scout. The exact statement is the GAP
 FunctionField(Rationals,[q,t]) computation. A self-contained exact path (char-0 grid +
 rational reconstruction with a degree bound) is a TODO once `corelib/reconstruct.py` lands.
+
+## theta_min_poly.py — general n (supersedes theta3_min_poly.py)
+
+Same question at arbitrary `n`: min poly of `Theta_k = x1..x_{k-1} x_{k-1}..x1` on
+`X_k = S[(k,1)]` in the two-strand-only quotient `Z_n`. Per-point f4ncgb basis (mod p, or
+`--char 0` for exact Q), then an incremental Krylov min poly with a **memoized** normal-form
+reducer — the stock `core.reduce_to_basis_*` has no memoization and blows up past n=3
+(a single `Theta_4 * <len-6 monomial>` reduction takes ~40 s; memoized + short-word
+incremental it is milliseconds). Over Q it also checks the min poly against the tower formula.
+
+**n=4 result (the interesting one; n=3 collapses to p*, n=4 does not).** Two-strand-only `Z_4`
+is finite (dim 214 / 404 / 404). `Theta_3` on `X_3` is unchanged (= p*), but `Theta_4` on `X_4`
+is strictly larger:
+
+  g_4(L) = **p*(L) · q^{2d} p*(L / q^2)**,  d = deg p*  (spectrum = roots(p*) ∪ q^2·roots(p*))
+
+  | p_2 | min poly of Theta_4 on X_4 |
+  |-----|----------------------------|
+  | sigma - t    | (L + t)(L + q^2 t) |
+  | (sigma - t)^2 | (L + t)^2 (L + q^2 t)^2 |
+  | sigma^2 - t  | (L^2 - t)(L^2 - q^4 t) |
+
+So the sharpening-to-p* is special to level 3; at level 4 one q^2-dilated copy of p* survives
+(first concrete appearance of `conj:recursion`'s q-power side). **Tower conjecture:**
+`g_k(L) = prod_{j=0}^{k-3} q^{2 j d} p*(L / q^{2 j})`. Verified: mod-p at 3 points, exact Q at 2
+points (all `== tower? YES`), for n=4. n=5 test pending (GB ~1648 elements — large).
+
+**Reproduce.**
+- Mod-p, n=4:  `python3 -m f4ncgb_tools.research.theta_min_poly --n 4 --scratch /tmp`
+- Exact Q + tower check:  `... --n 4 --char 0 --grid 5,7 3,10 --scratch /tmp`
+
+See the repo `NIGHT_LOG.md` "n=4" section for the full write-up and verification status.
