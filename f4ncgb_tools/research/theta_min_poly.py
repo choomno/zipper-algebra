@@ -3,16 +3,22 @@
 X_k in the two-strand-only quotient Z_n / (all zipper + p_2(sigma_j) X_2 = 0), for
 general n. This is the finitization-program readout (see project-research-phase).
 
-Findings (2026-07, cases p_2 in {sigma-t, (sigma-t)^2, sigma^2-t}, p* = reflection):
-  n=3:  min poly of Theta_3 on X_3 = p*                       (sharpening drops all q-powers)
-  n=4:  min poly of Theta_4 on X_4 = p*(L) * q^{2d} p*(L/q^2) (one q^2-dilate survives)
-  tower conjecture:  g_k(L) = prod_{j=0}^{k-3} q^{2 j d} p*(L / q^{2 j}),  d = deg p*
-                     spectrum(Theta_k on X_k) = U_{j=0}^{k-3} q^{2j} * roots(p*)
+Findings (2026-07, cases p_2 in {sigma-t, (sigma-t)^2, sigma^2-t}, p* = reflection), VERIFIED:
+  n=3:   min poly of Theta_3 on X_3 = p*                          (sharpening drops all q-powers)
+  n>=4:  min poly of Theta_k on X_k = p*(L) * q^{(k-2)d} p*(L/q^{k-2}),  d = deg p*  (degree 2d)
+         spectrum(Theta_k on X_k) = roots(p*) U q^{k-2}*roots(p*)  -- ALWAYS one extra q-dilate,
+         whose SCALE q^{k-2} grows with k, but the DEGREE stays 2d.
+  linear examples: Theta_3 -> (L+t);  Theta_4 -> (L+t)(L+q^2 t);  Theta_5 -> (L+t)(L+q^3 t).
+The earlier "tower" guess g_k = prod_{j=0}^{k-3} q^{2jd} p*(L/q^{2j}) (degree growing) was tested
+at n=5 and FALSIFIED (Theta_5 is deg 2, not deg 3). Note the extra factor (L + q^{k-2} t) is
+t-DEPENDENT -- it differs from conj:recursion's guessed pure-q-power form (L - q^{2m}).
 
-Method: per-point f4ncgb Groebner basis (mod p, or --char 0 for exact Q), then the min
-poly of Theta_k on X_k by an incremental Krylov with a MEMOIZED normal-form reducer
-(each distinct word reduced once; Theta applied to already-reduced vectors so words stay
-short). The stock core.reduce_to_basis_* has no memoization and blows up past n=3.
+Method: per-point f4ncgb Groebner basis (mod p, or --char 0 for exact Q), then the min poly of
+Theta_k on X_k by a Krylov linear dependence, applying Theta_k as a COMPOSITION of single-generator
+left-multiplications (generator-action matrices). A MEMOIZED normal-form reducer sees only short
+words (generator * standard monomial, length <= 1+maxstdlen), so memory stays bounded even at n=5
+(dim 3462). The stock core.reduce_to_basis_* has no memoization AND reduces long words -> it blows
+up past n=3 (40 s for one Theta_4*monomial reduction; 13 GB at n=5).
 
 Usage:
   python3 -m f4ncgb_tools.research.theta_min_poly --n 4 --cases linear jordan framing
@@ -112,16 +118,22 @@ def min_poly(nf, standard, Xterms, theta, ring, zero, norm, kmax=None):
     if kmax is None: kmax = 3 * len(standard)  # never binding in practice
     inv = (lambda a: pow(a, P31 - 2, P31)) if ring == "Fp" else (lambda a: Fr(1) / a)
     one = 1 if ring == "Fp" else Fr(1)
-    colcache = {}
-    def apply_theta(vec):
+    # apply Theta = word w_1..w_m as a COMPOSITION of single-generator left-mults:
+    # L_w = M_{w_1} .. M_{w_m}, so apply letters right-to-left; each M_g needs only nf(g*mon)
+    # (short words) -> bounded memory, scales to n>=5. gcol[(g,idx)] cached lazily.
+    gcol = {}
+    def Lg(g, vec):
         out = {}
         for idx, c in vec.items():
-            col = colcache.get(idx)
-            if col is None: col = colcache[idx] = nf(tuple(theta) + standard[idx])
+            key = (g, idx); col = gcol.get(key)
+            if col is None: col = gcol[key] = nf((g,) + standard[idx])
             for i, cc in col.items():
                 out[i] = norm(out.get(i, zero) + c * cc)
                 if out[i] == 0: del out[i]
         return out
+    def apply_theta(vec):
+        for g in reversed(tuple(theta)): vec = Lg(g, vec)
+        return vec
     rows = []; ri = reduce_poly(nf, Xterms, zero, norm)
     i = 0
     while i <= kmax:
@@ -142,8 +154,9 @@ def min_poly(nf, standard, Xterms, theta, ring, zero, norm, kmax=None):
     return None
 
 
-def tower_prediction(case, q, t, ymax):
-    """g_k = prod_{j=0}^{ymax} q^{2 j d} p*(L / q^{2 j})  as ascending coeff list (over Q)."""
+def predicted_min_poly(case, q, t, k):
+    """CORRECTED pattern (verified n=3,4,5), ascending coeff list over Q:
+       k=3  -> p*(L);   k>=4 -> p*(L) * q^{(k-2)d} p*(L/q^{k-2}),  d = deg p*."""
     q = Fr(q); t = Fr(t)
     def mul(a, b):
         r = [Fr(0)] * (len(a) + len(b) - 1)
@@ -151,11 +164,10 @@ def tower_prediction(case, q, t, ymax):
             for j, y in enumerate(b): r[i + j] += x * y
         return r
     ps = [Fr(c) for c in PSTAR[case](t)]; d = len(ps) - 1
-    acc = [Fr(1)]
-    for j in range(ymax + 1):
-        dil = [ps[i] * q ** (2 * j * (d - i)) for i in range(len(ps))]  # q^{2 j d} p*(L/q^{2j})
-        acc = mul(acc, dil)
-    return acc
+    if k <= 3: return ps
+    e = k - 2
+    dil = [ps[i] * q ** (e * (d - i)) for i in range(len(ps))]  # q^{e d} p*(L / q^e)
+    return mul(ps, dil)
 
 
 def build_basis(case, n, q, t, char, scratch):
@@ -195,8 +207,8 @@ def main():
                 deg = len(mp) - 1 if mp else None
                 tag = ""
                 if ring == "Q":
-                    pred = tower_prediction(case, q, t, k - 3)
-                    tag = "  == tower?" + (" YES" if [Fr(c) for c in mp] == pred else " NO")
+                    pred = predicted_min_poly(case, q, t, k)
+                    tag = "  == pattern?" + (" YES" if [Fr(c) for c in mp] == pred else " NO")
                 line += f"deg(Theta_{k})={deg}{tag}   "
             print(line, flush=True)
 

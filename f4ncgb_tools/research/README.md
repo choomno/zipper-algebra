@@ -61,13 +61,26 @@ is strictly larger:
   | (sigma - t)^2 | (L + t)^2 (L + q^2 t)^2 |
   | sigma^2 - t  | (L^2 - t)(L^2 - q^4 t) |
 
-So the sharpening-to-p* is special to level 3; at level 4 one q^2-dilated copy of p* survives
-(first concrete appearance of `conj:recursion`'s q-power side). **Tower conjecture:**
-`g_k(L) = prod_{j=0}^{k-3} q^{2 j d} p*(L / q^{2 j})`. Verified: mod-p at 3 points, exact Q at 2
-points (all `== tower? YES`), for n=4. n=5 test pending (GB ~1648 elements — large).
+So the sharpening-to-p* is special to level 3; at level 4 one q^2-dilated copy of p* survives.
+
+**n=5 result — the tower conjecture is FALSIFIED.** The natural "tower"
+`g_k = prod_{j=0}^{k-3} q^{2jd} p*(L/q^{2j})` (degree growing) predicted linear Theta_5 =
+(L+t)(L+q^2 t)(L+q^4 t), deg 3. The computed answer is deg **2**: `(L+t)(L+q^3 t)`. So the CORRECTED
+pattern is: for k>=4, min poly of Theta_k on X_k = `p*(L) * q^{(k-2)d} p*(L/q^{k-2})` (degree 2d
+always) — ALWAYS one extra q-dilate, whose scale q^{k-2} grows with k (q^2 at k=4, q^3 at k=5), but
+the degree does NOT grow. spectrum = roots(p*) U q^{k-2}*roots(p*). k=3 is the exception (just p*).
+Verified: n=4 exact-Q at 8 grid points x 3 cases + independent from-scratch reducer; n=5 linear at
+2 points (5,7),(3,10), effectively exact (integer coeffs << p). NOTE: the extra factor is
+t-DEPENDENT (-q^{k-2} t), which differs from conj:recursion's guessed pure-q-power form.
 
 **Reproduce.**
 - Mod-p, n=4:  `python3 -m f4ncgb_tools.research.theta_min_poly --n 4 --scratch /tmp`
-- Exact Q + tower check:  `... --n 4 --char 0 --grid 5,7 3,10 --scratch /tmp`
+- Exact Q + pattern check:  `... --n 4 --char 0 --grid 5,7 3,10 --scratch /tmp`
+- n=5 (mod-p; scales via the generator-action method): `... --n 5 --grid 5,7 --scratch /tmp`
+  (the f4ncgb GB at n=5 takes ~10 min / ~6 GB; the min poly itself is bounded-memory).
 
-See the repo `NIGHT_LOG.md` "n=4" section for the full write-up and verification status.
+`min_poly()` applies Theta_k as a composition of single-generator left-multiplications
+(generator-action matrices), so only short words are ever reduced — this is what makes n>=5
+tractable (the earlier long-word incremental reducer hit 13 GB at n=5). See the repo
+`NIGHT_LOG.md` "n=4" section for the full write-up and verification status (incl. the n=5
+tower falsification).
