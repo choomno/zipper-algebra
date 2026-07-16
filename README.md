@@ -1,5 +1,17 @@
 # `zipper-algebra` — computational pipelines for the Bigelow zipper algebra
 
+> **Trust tiers (see `INDEX.md` for the full map).**
+> 1. **Shared/trusted** — `f4ncgb_tools/{zipper_in_ms,core,tests}.py`.
+> 2. **Project A** (frozen main tool) — `f4ncgb_tools/cofactor/`, the exact ℚ(q,t) `X_3=0`
+>    cofactor pipeline; `reproduce_X3_zero.sh` reruns it.
+> 3. **Project B** (results **distrusted**, code partly reusable) — `f4ncgb_tools/variants/`;
+>    see `AUDIT_spec_vs_generic.md` / `LEDGER_claims.md`.
+> 4. **Research phase** (2026-07+) — `f4ncgb_tools/research/`, `gap_scripts/theta3_*.gap`;
+>    see `NIGHT_LOG.md`.
+>
+> Superseded material lives under `archive/`. **Exact char-0 (ℚ(q,t) symbolic, or the
+> f4ncgb grid + rational reconstruction) is load-bearing; a lone mod-p spec is a scout only.**
+
 Two distinct computational projects share this repository. They overlap in
 infrastructure (the Gröbner-basis machinery built on `f4ncgb`) but address
 distinct mathematical questions. After the most recent reorganisation each
