@@ -29,6 +29,28 @@ def _atoms_of(D):
     return {sp.factor(f) for f, _ in sp.factor_list(D)[1]}
 
 
+def wide_fit_denominator(fit_pts, fit_vals, all_pts, all_vals, maxnum=10, maxden=8):
+    """Bivariate rational fit with WIDE numerator/denominator boxes (the small-shape probe in jr
+    fails at n>=4 where numerators are high-degree). Returns the factored sympy denominator or None."""
+    for total in range(0, maxnum + maxden + 1):
+        for dq_n in range(min(total, maxnum) + 1):
+            dt_n = total - dq_n
+            if dt_n > maxnum:
+                continue
+            for ddt in range(min(total, maxden) + 1):
+                for dq_d in range(ddt + 1):
+                    dt_d = ddt - dq_d
+                    if dq_n + dt_n + dq_d + dt_d == 0:
+                        continue
+                    res = jr.fit_rational(fit_pts, fit_vals, all_pts, all_vals, dq_n, dt_n, dq_d, dt_d)
+                    if res is not None:
+                        _, _, den_c, den_m = res
+                        den = sum(sp.Rational(b.numerator, b.denominator) * q ** i * t ** j
+                                  for b, (i, j) in zip(den_c, den_m))
+                        return sp.factor(den)
+    return None
+
+
 def _Dvals(D, pts):
     f = sp.lambdify((q, t), D, "math") if False else None
     out = []
@@ -64,13 +86,13 @@ def reconstruct_gb(spec: Spec, scratch: str, grid=None, n_probe: int = 16, log=p
         for mon in mons:
             slots[(lm, mon)] = [gbs[pt][lm].get(mon, Fr(0)) for pt in all_pts]
 
-    # --- discover atoms from the richest (most-varying) slots ---
+    # --- discover atoms from the richest (most-varying) slots via a WIDE rational fit ---
     rich = sorted(slots.items(), key=lambda kv: -len(set(kv[1])))[:n_probe]
     D = sp.Integer(1)
     for (lm, mon), vals in rich:
         if all(v == vals[0] for v in vals):
             continue
-        d = jr.probe_denominator(fit_pts, vals[:nfit], all_pts, vals)
+        d = wide_fit_denominator(fit_pts, vals[:nfit], all_pts, vals)
         if d is not None:
             D = sp.lcm(D, d)
     atoms = _atoms_of(D)
@@ -85,13 +107,15 @@ def reconstruct_gb(spec: Spec, scratch: str, grid=None, n_probe: int = 16, log=p
             if vals[0] != 0:
                 GEN[lm][mon] = sp.Rational(vals[0].numerator, vals[0].denominator)
             continue
-        expr = jr.fit_entry_with_denominator(fit_pts, vals[:nfit], all_pts, vals, D, Dfit, Dall)
+        expr = jr.fit_entry_with_denominator(fit_pts, vals[:nfit], all_pts, vals, D, Dfit, Dall,
+                                             max_dq=14, max_dt=14)
         if expr is None:
-            d = jr.probe_denominator(fit_pts, vals[:nfit], all_pts, vals)
+            d = wide_fit_denominator(fit_pts, vals[:nfit], all_pts, vals)
             if d is not None:
                 D = sp.lcm(D, d); atoms = _atoms_of(D)
                 Dfit = _Dvals(D, fit_pts); Dall = _Dvals(D, all_pts); healed += 1
-            expr = jr.fit_entry_with_denominator(fit_pts, vals[:nfit], all_pts, vals, D, Dfit, Dall)
+            expr = jr.fit_entry_with_denominator(fit_pts, vals[:nfit], all_pts, vals, D, Dfit, Dall,
+                                                 max_dq=14, max_dt=14)
         if expr is None:
             raise RuntimeError(f"reconstruction failed for {lm} :: {mon}")
         GEN[lm][mon] = sp.cancel(expr)
