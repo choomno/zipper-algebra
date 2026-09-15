@@ -66,7 +66,10 @@ def _parse_ms(path):
             coeff = 1; vs = []
             for f in factors:
                 f = f.strip()
-                if f.lstrip("-").isdigit(): coeff *= int(f)
+                while f.startswith("-"):        # leading sign belongs to the coefficient,
+                    coeff = -coeff; f = f[1:]    # not to a variable name (e.g. "-x2")
+                if not f: continue
+                if f.isdigit(): coeff *= int(f)
                 else: vs.append(f)
             w = tuple(vs)
             poly[w] = poly.get(w, 0) + coeff
