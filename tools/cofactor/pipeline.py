@@ -1,0 +1,260 @@
+#!/usr/bin/env python3
+"""The cofactor pipeline: one driver, any presentation, any target.
+
+    python3 -m tools.cofactor.pipeline --n 4 --target 3,1
+    python3 -m tools.cofactor.pipeline --n 4 --untwist square-zero --max-untwist-level 3 --target 3,1
+    python3 -m tools.cofactor.pipeline --legacy-x3          # the X_3 run, phases 1-10, in place
+
+Phases 1-5 produce a certificate: a finite list of tuples (L, relation, R, c(q,t)) with
+
+    sum_j  c_j(q,t) * L_j * rel_{i_j} * R_j  =  target      in Q(q,t)<x_1..y_{n-1}>,
+
+verified with q,t transcendental.  Phases 6-9 reduce a certificate that already exists; they are
+still the X_3-at-n=4 scripts and run only under --legacy-x3.
+
+What replaced what.  This driver supersedes `reproduce_X3_zero.sh`, which was a bash script whose
+ten phases called nine scripts that shared state through fixed file names in one flat directory,
+hard-coded `n=4`, the anchor `(5,7)`, the basis indices `16/17/102`, the multipliers `q^3, -q^2,
+q(q-1)`, and a six-atom denominator class.  All of those are now arguments or computed data:
+`presentation.Presentation`, `paths.Paths`, `samples.SampleSet`, `skeleton.Skeleton`,
+`atoms.AtomSet`, `lift.Lift`, `cofactor_io.Cofactor`.
+
+The pass criterion is phase 5 and nothing else.  A lift that fits every sampled point can still be
+wrong -- that is how a cofactor fitted on 37 points came to disagree with the exact answer in 695
+of 695 slots -- so the loop grows the grid and re-lifts until the symbolic identity holds, and
+distinguishes "under-sampled" (more points help) from "wrong hypothesis class" (they never will).
+"""
+from __future__ import annotations
+
+import argparse
+import os
+import subprocess
+import sys
+import time
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_TOOLS = os.path.dirname(_HERE)
+_ZA = os.path.dirname(_TOOLS)
+_REPO = os.path.dirname(_ZA)
+for _p in (_HERE, _TOOLS, _REPO):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+import compose as compose_mod                                   # noqa: E402
+import verify as verify_mod                                     # noqa: E402
+from atoms import AtomSet                                       # noqa: E402
+from lift import NeedMoreSamples, WrongClass, lift as do_lift   # noqa: E402
+from paths import Paths                                         # noqa: E402
+from presentation import Presentation                           # noqa: E402
+from samples import SampleSet                                   # noqa: E402
+from skeleton import Skeleton, reduce as reduce_target          # noqa: E402
+from zipper_in_ms import NumericRing                            # noqa: E402
+
+BAR = "=" * 64
+
+
+def phase(n, title):
+    print(f"\n{BAR}\nPHASE {n}: {title}\n{BAR}", flush=True)
+
+
+class NotInIdeal(Exception):
+    """The target does not reduce to zero: it is not in the ideal at this anchor.
+
+    A result, not a failure -- the pipeline's objective is membership *or* a decision. The
+    remainder is the witness, and `Skeleton.remainder_terms` records its size. Note the
+    asymmetry: membership is self-certifying (the cofactor is the proof), non-membership at one
+    anchor is not a proof over Q(q,t) without a certified generic basis.
+    """
+
+    def __init__(self, remainder, skeleton):
+        super().__init__(f"target not in the ideal at the anchor: remainder has "
+                         f"{len(remainder.terms)} terms")
+        self.remainder = remainder
+        self.skeleton = skeleton
+
+
+def run(pres: Presentation, target, anchor, *, start=100, step=40, maxpts=260,
+        legacy=False, refresh=False, jobs=None, atoms_path=None, verbose=True) -> dict:
+    t0 = time.time()
+    paths = Paths.legacy_x3(pres, target, anchor) if legacy else Paths(pres, target, anchor)
+    paths.ensure_dirs()
+    print(f"presentation : {pres.slug()}  hash {pres.content_hash()}  "
+          f"{pres.n_relations()} relations")
+    print(f"target       : {paths.target}")
+    print(f"anchor       : (q,t,char) = {anchor}")
+    print(f"artifacts    : {paths.root}")
+
+    # --- 1. emit ------------------------------------------------------------
+    phase(1, "Emit the presentation at the anchor")
+    ms = paths.anchor_ms()
+    n_rel = pres.emit_ms(str(ms), anchor[0], anchor[1], anchor[2])
+    print(f"{n_rel} relations -> {ms.name}")
+
+    # --- 1b. Groebner basis + proof ----------------------------------------
+    phase("1b", "Groebner basis with proof logging (cached on the input bytes)")
+    samples = SampleSet(paths, atoms=AtomSet.load(atoms_path) if atoms_path else None)
+    res = samples.run_anchor(refresh=refresh)
+    print(f"{'[cache] HIT' if res.cached else '[cache] STORED'}  {res.key}")
+    basis = samples.anchor_basis()
+    proof = samples.anchor_proof()
+    print(f"[size] basis: {len(basis)} elements; proof: {len(proof)} lines")
+
+    # --- 2. skeleton --------------------------------------------------------
+    phase(2, "Skeleton: reduce the target against the anchor basis")
+    ring = NumericRing(anchor[0], anchor[1], anchor[2])
+    tgt = compose_mod.resolve_target(pres, paths.target, ring)
+    steps, remainder = reduce_target(tgt, basis)
+    skel = Skeleton.from_reduction(pres, paths.target, anchor, steps, remainder, basis, proof)
+    skel.save(str(paths.skeleton()))
+    print(f"[skeleton] {paths.target} = {len(skel.steps)} step(s) on {skel.step_keys()}, "
+          f"remainder {skel.remainder_terms} terms")
+    print(f"[skeleton] closure: {len(skel.basis_keys)} basis elements -> {paths.skeleton().name}")
+    if not skel.in_ideal():
+        raise NotInIdeal(remainder, skel)
+
+    # --- 3-5. lift, compose, verify; grow the grid until phase 5 passes -----
+    target_pts = max(start, len(paths.points_on_disk()))
+    attempt = 0
+    while True:
+        attempt += 1
+        phase(3, f"Multi-point lift (attempt {attempt}, target {target_pts} points)")
+        have = paths.points_on_disk()
+        if len(have) < target_pts:
+            print(f"[sample] have {len(have)}, generating {target_pts - len(have)} more ...",
+                  flush=True)
+            samples.grow(target_pts - len(have), jobs=jobs)
+        print(f"[sample] {len(paths.points_on_disk())} points on disk")
+        try:
+            lf = do_lift(skel, samples, atoms=samples.atoms if atoms_path else None)
+        except NeedMoreSamples as e:
+            print(f"[lift] NEED_MORE_SAMPLES: {e}")
+            target_pts += step
+            if target_pts > maxpts:
+                raise SystemExit(f"exceeded --max {maxpts} points without a complete lift")
+            continue
+        except WrongClass as e:
+            print(f"[lift] WRONG_CLASS: {e}")
+            print("  These fits predict points they never saw and are still wrong. More points")
+            print("  cannot fix this: widen the class (atom search box in atoms.infer, or the")
+            print("  numerator bidegree cap max_pq/max_pt), or the fault is in composition.")
+            raise SystemExit(4)
+        lf.save(str(paths.lift()))
+        print(f"[lift] {len(lf.entries)} basis elements lifted from {lf.samples_used} "
+              f"stable points -> {paths.lift().name}")
+        if lf.atom_report:
+            print(f"[atoms] {lf.atoms.names()}  box {lf.atoms.max_exp}")
+
+        phase(4, "Symbolic composition over the input relations")
+        mult_samples = _multiplier_samples(skel, samples)
+        cof = compose_mod.compose(lf, skel, pres, samples=mult_samples)
+        cof.save(str(paths.cofactor("symbolic")))
+        print(f"[size] {len(cof.terms)} tuples -> {paths.cofactor('symbolic').name}")
+
+        phase(5, "Verification: the free-algebra identity over Q(q,t)")
+        rep = verify_mod.check(cof, pres, paths.target)
+        if rep["pass"]:
+            break
+        print("\n[verify] FAILED. The lift fit every sampled point and the identity still does")
+        print("  not hold, so this is a wrong hypothesis class, not an under-sampling: more")
+        print("  points cannot fix it. Widen the class rather than the grid.")
+        raise SystemExit(4)
+
+    out = {"presentation": pres.slug(), "presentation_hash": pres.content_hash(),
+           "target": paths.target, "anchor": list(anchor), "in_ideal": True,
+           "tuples": len(cof.terms), "verify": rep, "points": lf.samples_used,
+           "atoms": lf.atoms.names(), "seconds": time.time() - t0,
+           "cofactor": str(paths.cofactor("symbolic"))}
+    if legacy:
+        _legacy_tail(paths)
+    print(f"\n{BAR}\nCOMPLETE in {out['seconds']:.1f}s -- {paths.cofactor('symbolic')}\n{BAR}")
+    return out
+
+
+def _multiplier_samples(skel, samples) -> dict:
+    """{(q,t): {basis_key: multiplier}} -- the skeleton's multipliers at each stable point,
+    obtained by re-reducing the target against that point's own basis."""
+    out = {}
+    keys = set(skel.step_keys())
+    for (q, t) in samples.stable(skel):
+        try:
+            b = samples.basis(q, t)
+            ring = NumericRing(q, t, samples.char)
+            tgt = compose_mod.resolve_target(samples.paths.pres, skel.target, ring)
+            steps, rem = reduce_target(tgt, b)
+        except Exception:
+            continue
+        if rem.terms:
+            continue
+        vals = {s["basis_key"]: s["mult"] for s in steps if s["basis_key"] in keys}
+        if set(vals) == keys:
+            out[(q, t)] = vals
+    return out
+
+
+def _legacy_tail(paths) -> None:
+    """Phases 6-10 of the X_3 run: still the original scripts, still B_3-only."""
+    scripts = [(6, "Compression: substitute derivable relations", "compress_cofactor.py"),
+               (7, "Simplification: Q(q,t)[B_3] via Garside normalization", "simplify_cofactor.py"),
+               (8, "Conjugacy reduction to three relations", "reduce_to_three_rels.py"),
+               (9, "Relabeling: Z_2, T_2, T_3 convention", "rename_to_ZT.py")]
+    for n, title, script in scripts:
+        phase(n, title)
+        r = subprocess.run([sys.executable, os.path.join(_HERE, script)],
+                           capture_output=True, text=True)
+        print("\n".join(r.stdout.strip().splitlines()[-10:]))
+        if r.returncode != 0:
+            print(r.stderr[-600:])
+            raise SystemExit(f"phase {n} failed ({script})")
+    phase(10, "Final verification: ZT file integrity + ideal-equality logic")
+    r = subprocess.run([sys.executable, os.path.join(_HERE, "verify_ZT_and_ideal_equality.py")],
+                       capture_output=True, text=True)
+    print("\n".join(r.stdout.strip().splitlines()[-25:]))
+    if r.returncode != 0:
+        raise SystemExit("phase 10 failed")
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--n", type=int, default=4)
+    ap.add_argument("--untwist", default="bigelow",
+                    choices=["bigelow", "square-zero", "silly_question", "none"])
+    ap.add_argument("--framing-power", type=int, default=1)
+    ap.add_argument("--theta-power", type=int, default=1)
+    ap.add_argument("--max-zipper-level", type=int, default=None)
+    ap.add_argument("--max-untwist-level", type=int, default=None)
+    ap.add_argument("--extra", action="append", default=[])
+    ap.add_argument("--target", default="3,1",
+                    help="'i,j' for the slider S[i][j], or a name like 'X_3'")
+    ap.add_argument("--anchor", default="5,7", help="q,t of the anchor point")
+    ap.add_argument("--char", type=int, default=0)
+    ap.add_argument("--start", type=int, default=100)
+    ap.add_argument("--step", type=int, default=40)
+    ap.add_argument("--max", type=int, default=260)
+    ap.add_argument("--jobs", type=int, default=None)
+    ap.add_argument("--atoms", default=None, help="an AtomSet JSON; default is to infer")
+    ap.add_argument("--refresh", action="store_true", help="recompute the anchor basis")
+    ap.add_argument("--legacy-x3", action="store_true",
+                    help="write into the historical X_3 artifact names and run phases 6-10")
+    a = ap.parse_args()
+
+    pres = Presentation(a.n, a.untwist, a.framing_power, a.theta_power,
+                        a.max_zipper_level, a.max_untwist_level, extra=tuple(a.extra))
+    q, t = (int(v) for v in a.anchor.split(","))
+    target = tuple(int(v) for v in a.target.split(",")) if "," in a.target else a.target
+    try:
+        run(pres, target, (q, t, a.char), start=a.start, step=a.step, maxpts=a.max,
+            legacy=a.legacy_x3, refresh=a.refresh, jobs=a.jobs, atoms_path=a.atoms)
+    except NotInIdeal as e:
+        print(f"\n{BAR}\nNOT IN THE IDEAL\n{BAR}")
+        print(f"{e}")
+        print(f"The remainder is the witness; the skeleton records it at "
+              f"{e.skeleton.remainder_terms} terms.")
+        print("This is a decision at the anchor, not a proof over Q(q,t): that needs a certified")
+        print("generic Groebner basis (reconstruction_theory.tex, thm:certify).")
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
