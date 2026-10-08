@@ -48,8 +48,8 @@ end;
 runcase("linear (sigma-t)", [ (x1-t*e)*S2[1], (x2-t*e)*S2[2] ],
   [ ["(Theta_3 + t) X_3   [=p*]", Theta3*S31 + t*S31] ]);
 
-# jordan p_2 = (x-t)^2; p* = (lam+t)^2
-runcase("jordan (sigma-t)^2", [ (x1*x1-2*t*x1+t^2*e)*S2[1], (x2*x2-2*t*x2+t^2*e)*S2[2] ],
+# square-zero p_2 = (x-t)^2; p* = (lam+t)^2
+runcase("square-zero (sigma-t)^2", [ (x1*x1-2*t*x1+t^2*e)*S2[1], (x2*x2-2*t*x2+t^2*e)*S2[2] ],
   [ ["(Theta_3 + t) X_3        [proper divisor, expect NONzero]", Theta3*S31 + t*S31],
     ["(Theta_3+t)^2 X_3   [=p*]", Theta3*(Theta3*S31) + 2*t*(Theta3*S31) + t^2*S31] ]);
 

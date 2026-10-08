@@ -31,6 +31,7 @@ import os
 import subprocess
 import sys
 import time
+from fractions import Fraction
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _TOOLS = os.path.dirname(_HERE)
@@ -86,7 +87,7 @@ def run(pres: Presentation, target, anchor, *, start=100, step=40, maxpts=260,
 
     # --- 1. emit ------------------------------------------------------------
     phase(1, "Emit the presentation at the anchor")
-    ms = paths.anchor_ms()
+    ms = paths.anchor_ms
     n_rel = pres.emit_ms(str(ms), anchor[0], anchor[1], anchor[2])
     print(f"{n_rel} relations -> {ms.name}")
 
@@ -94,10 +95,11 @@ def run(pres: Presentation, target, anchor, *, start=100, step=40, maxpts=260,
     phase("1b", "Groebner basis with proof logging (cached on the input bytes)")
     samples = SampleSet(paths, atoms=AtomSet.load(atoms_path) if atoms_path else None)
     res = samples.run_anchor(refresh=refresh)
-    print(f"{'[cache] HIT' if res.cached else '[cache] STORED'}  {res.key}")
+    print(f"{'[cache] HIT ' if res.hit else '[cache] MISS'}  {res.key}"
+          f"{'' if res.hit else f'  ({res.seconds:.1f}s)'}")
     basis = samples.anchor_basis()
     proof = samples.anchor_proof()
-    print(f"[size] basis: {len(basis)} elements; proof: {len(proof)} lines")
+    print(f"[size] basis: {len(basis)} elements; proof: {len(proof)} lines", flush=True)
 
     # --- 2. skeleton --------------------------------------------------------
     phase(2, "Skeleton: reduce the target against the anchor basis")
@@ -105,11 +107,11 @@ def run(pres: Presentation, target, anchor, *, start=100, step=40, maxpts=260,
     tgt = compose_mod.resolve_target(pres, paths.target, ring)
     steps, remainder = reduce_target(tgt, basis)
     skel = Skeleton.from_reduction(pres, paths.target, anchor, steps, remainder, basis, proof)
-    skel.save(str(paths.skeleton()))
+    skel.save(str(paths.skeleton))
     print(f"[skeleton] {paths.target} = {len(skel.steps)} step(s) on {skel.step_keys()}, "
           f"remainder {skel.remainder_terms} terms")
-    print(f"[skeleton] closure: {len(skel.basis_keys)} basis elements -> {paths.skeleton().name}")
-    if not skel.in_ideal():
+    print(f"[skeleton] closure: {len(skel.basis_keys)} basis elements -> {paths.skeleton.name}", flush=True)
+    if not skel.in_ideal:
         raise NotInIdeal(remainder, skel)
 
     # --- 3-5. lift, compose, verify; grow the grid until phase 5 passes -----
@@ -123,32 +125,69 @@ def run(pres: Presentation, target, anchor, *, start=100, step=40, maxpts=260,
             print(f"[sample] have {len(have)}, generating {target_pts - len(have)} more ...",
                   flush=True)
             samples.grow(target_pts - len(have), jobs=jobs)
-        print(f"[sample] {len(paths.points_on_disk())} points on disk")
+        print(f"[sample] {len(paths.points_on_disk())} points on disk", flush=True)
+
+        # The anchor must be GENERIC. A coefficient that is generically non-zero can vanish at
+        # the anchor, collapsing a proof term; then the anchor's term structure is the exception,
+        # every other point looks "unstable", and -- worse -- the lift would size each slot list
+        # by the anchor's term count and silently drop the collapsed one. Measured 2026-09-17 at
+        # n=3 square-zero: (5,7) is degenerate for `x2*x1*y2*x1` (109 proof terms against 110
+        # everywhere else) and 2 of 160 points survived. So: census the shapes, and if the anchor
+        # is not modal, move to a point that is and redo phase 2 there.
+        modal, off_modal = samples.modal_shapes(skel)
+        if off_modal:
+            candidates = samples.stable(skel)
+            if not candidates:
+                raise SystemExit("no point carries the modal proof shape for every skeleton "
+                                 "element; the sample set is too small or the target's reduction "
+                                 "is not stable in (q,t)")
+            new_anchor = (candidates[0][0], candidates[0][1], anchor[2])
+            print(f"[anchor] ({anchor[0]},{anchor[1]}) is DEGENERATE for {off_modal} -- a "
+                  f"generically non-zero coefficient vanishes there.")
+            print(f"[anchor] re-anchoring on {new_anchor[:2]}, which carries the modal shape, "
+                  f"and recomputing the skeleton.")
+            anchor = new_anchor
+            paths = paths.rebase(anchor) if hasattr(paths, "rebase") else type(paths)(
+                pres, target, anchor)
+            paths.ensure_dirs()
+            samples = SampleSet(paths, atoms=samples._atoms)
+            samples.run_anchor()
+            basis, proof = samples.anchor_basis(), samples.anchor_proof()
+            ring = NumericRing(anchor[0], anchor[1], anchor[2])
+            tgt = compose_mod.resolve_target(pres, paths.target, ring)
+            steps, remainder = reduce_target(tgt, basis)
+            skel = Skeleton.from_reduction(pres, paths.target, anchor, steps, remainder,
+                                           basis, proof)
+            skel.save(str(paths.skeleton))
+            print(f"[anchor] new skeleton: {len(skel.steps)} step(s) on {skel.step_keys()}, "
+                  f"remainder {skel.remainder_terms} terms")
+            if not skel.in_ideal:
+                raise NotInIdeal(remainder, skel)
         try:
             lf = do_lift(skel, samples, atoms=samples.atoms if atoms_path else None)
         except NeedMoreSamples as e:
-            print(f"[lift] NEED_MORE_SAMPLES: {e}")
+            print(f"[lift] NEED_MORE_SAMPLES: {e}", flush=True)
             target_pts += step
             if target_pts > maxpts:
                 raise SystemExit(f"exceeded --max {maxpts} points without a complete lift")
             continue
         except WrongClass as e:
-            print(f"[lift] WRONG_CLASS: {e}")
+            print(f"[lift] WRONG_CLASS: {e}", flush=True)
             print("  These fits predict points they never saw and are still wrong. More points")
             print("  cannot fix this: widen the class (atom search box in atoms.infer, or the")
             print("  numerator bidegree cap max_pq/max_pt), or the fault is in composition.")
             raise SystemExit(4)
-        lf.save(str(paths.lift()))
+        lf.save(str(paths.lift))
         print(f"[lift] {len(lf.entries)} basis elements lifted from {lf.samples_used} "
-              f"stable points -> {paths.lift().name}")
+              f"stable points -> {paths.lift.name}")
         if lf.atom_report:
-            print(f"[atoms] {lf.atoms.names()}  box {lf.atoms.max_exp}")
+            print(f"[atoms] {lf.atoms.names()}  box {lf.atoms.max_exp}", flush=True)
 
         phase(4, "Symbolic composition over the input relations")
-        mult_samples = _multiplier_samples(skel, samples)
+        mult_samples = _multiplier_samples(skel, samples, pres)
         cof = compose_mod.compose(lf, skel, pres, samples=mult_samples)
         cof.save(str(paths.cofactor("symbolic")))
-        print(f"[size] {len(cof.terms)} tuples -> {paths.cofactor('symbolic').name}")
+        print(f"[size] {len(cof.terms)} tuples -> {paths.cofactor('symbolic').name}", flush=True)
 
         phase(5, "Verification: the free-algebra identity over Q(q,t)")
         rep = verify_mod.check(cof, pres, paths.target)
@@ -170,22 +209,28 @@ def run(pres: Presentation, target, anchor, *, start=100, step=40, maxpts=260,
     return out
 
 
-def _multiplier_samples(skel, samples) -> dict:
-    """{(q,t): {basis_key: multiplier}} -- the skeleton's multipliers at each stable point,
-    obtained by re-reducing the target against that point's own basis."""
+def _multiplier_samples(skel, samples, pres) -> dict:
+    """{(q,t): {basis_key: multiplier}} -- the skeleton's multipliers at each stable point.
+
+    The multipliers are not constants: each is a ratio of leading coefficients, so it is a
+    rational function to be lifted like any coefficient (WORKFLOW.md notes that their being
+    monomials in q alone is a property of this algebra and this target). They are recovered by
+    re-reducing the target against each point's own basis and keying the steps by leading word,
+    which is what makes them comparable across points whose bases are numbered differently.
+    """
     out = {}
     keys = set(skel.step_keys())
     for (q, t) in samples.stable(skel):
         try:
             b = samples.basis(q, t)
             ring = NumericRing(q, t, samples.char)
-            tgt = compose_mod.resolve_target(samples.paths.pres, skel.target, ring)
+            tgt = compose_mod.resolve_target(pres, skel.target, ring)
             steps, rem = reduce_target(tgt, b)
         except Exception:
             continue
         if rem.terms:
             continue
-        vals = {s["basis_key"]: s["mult"] for s in steps if s["basis_key"] in keys}
+        vals = {b.key[k]: Fraction(mult.v) for (_u, k, _v, mult) in steps if b.key[k] in keys}
         if set(vals) == keys:
             out[(q, t)] = vals
     return out

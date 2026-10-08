@@ -30,9 +30,21 @@ from presentation import Presentation                          # noqa: E402
 import verify                                                  # noqa: E402
 
 LOGS = os.path.join(ZA, "logs_and_traces", "f4ncgb")
-SYMBOLIC = os.path.join(LOGS, "cofactor-X3-n4-Qqt-symbolic.txt")
-LIFT_JSON = os.path.join(LOGS, "basis-symbolic-Qqt.json")
-SKEL_JSON = os.path.join(LOGS, "skeleton-n4-Q.json")
+
+# The legacy-format artifacts (skeleton-n4-Q.json with basis_index; basis-symbolic-Qqt.json with
+# "lifted"; the certificate) come from the FROZEN snapshot, not from logs_and_traces: the
+# pipeline regenerates those live files in the new format, so a test that read them would
+# silently stop comparing against the legacy output the moment the pipeline ran. Per-point bases
+# and proofs still come from logs_and_traces -- the pipeline does not rewrite them.
+FROZEN = os.path.join(REPO, "notes", "pipeline_test", "pre-atoms-20260917")
+
+
+def frozen(name: str) -> str:
+    p = os.path.join(FROZEN, name)
+    return p if os.path.exists(p) else os.path.join(LOGS, name)
+SYMBOLIC = frozen("cofactor-X3-n4-Qqt-symbolic.txt")
+LIFT_JSON = frozen("basis-symbolic-Qqt.json")
+SKEL_JSON = frozen("skeleton-n4-Q.json")
 OUT = os.path.join(REPO, "notes", "refactor", "out", "compose")
 os.makedirs(OUT, exist_ok=True)
 
@@ -45,7 +57,9 @@ TARGET = "S[3][1]"
 def legacy_lift() -> Lift:
     """basis-symbolic-Qqt.json (integer-string keys, 'idx', words as variable names) -> Lift."""
     d = json.load(open(LIFT_JSON))
-    atoms = AtomSet.from_json(d["atoms"])
+    # the frozen snapshot predates the atom feature and carries no "atoms" key; the six
+    # historical atoms are exactly the class the legacy script enumerated.
+    atoms = AtomSet.from_json(d["atoms"]) if "atoms" in d else AtomSet.DEFAULT
     names = PRES.var_names()
     index = {v: i + 1 for i, v in enumerate(names)}
     entries, anchor_index = {}, {}
@@ -130,10 +144,10 @@ class TestCompose(unittest.TestCase):
 
     def test_expansion_sizes_match_the_legacy_transcript(self):
         exp = expand_over_inputs(self.lift)
-        # the driver's phase 4 log records these three
-        self.assertEqual(len(exp["17"]), 33)
-        self.assertEqual(len(exp["16"]), 33)
-        self.assertGreater(len(exp["102"]), 0)
+        # the driver's phase 4 log records basis[68] -> 378 and basis[102] -> 695
+        self.assertEqual(len(exp["102"]), 695)
+        self.assertEqual(len(exp["68"]), 378)
+        self.assertEqual(set(exp), set(self.lift.entries))
 
     def test_composed_body_is_byte_identical_to_the_shipped_certificate(self):
         cof = compose(self.lift, self.skel, PRES,
@@ -177,9 +191,14 @@ class TestVerify(unittest.TestCase):
         self.assertFalse(verify.check(bad, PRES, TARGET, verbose=False)["pass"])
 
     def test_a_cofactor_for_another_algebra_is_refused(self):
+        """Labels coincide between bigelow and square-zero, so only the hash catches this."""
+        tagged = Cofactor.load(SYMBOLIC, pres=PRES)
+        tagged.presentation, tagged.presentation_hash = PRES.slug(), PRES.content_hash()
         other = Presentation(4, "square-zero")
-        with self.assertRaises(KeyError):
-            verify.check(self.cof, other, TARGET, verbose=False)
+        self.assertEqual(PRES.labels(), other.labels())          # the trap being guarded against
+        with self.assertRaises(ValueError):
+            verify.check(tagged, other, TARGET, verbose=False)
+        self.assertTrue(verify.check(tagged, PRES, TARGET, verbose=False)["pass"])
 
     def test_pit_check_agrees_independently(self):
         rep = verify.pit_check(self.cof, PRES, TARGET, verbose=False)

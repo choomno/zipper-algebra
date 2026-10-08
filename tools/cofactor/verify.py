@@ -64,6 +64,17 @@ def check(cof: Cofactor, pres: Presentation | None = None, target=None, verbose=
     """Verify the identity exactly over Q(q,t).  Returns a report; report['pass'] is the verdict."""
     t_start = time.time()
     pres = pres or Presentation(cof.n)
+    # A cofactor is a certificate FOR one algebra. Relation LABELS coincide across presentations
+    # that differ only in the untwisting (T_2 is T_2 in both bigelow and square-zero), so checking
+    # labels is not enough -- it would "verify" a bigelow certificate against square-zero and fail
+    # confusingly, or worse, pass. The presentation hash is the identity; a legacy file carries
+    # none and is taken on trust, which is why new files always carry one.
+    if cof.presentation_hash and cof.presentation_hash != pres.content_hash():
+        raise ValueError(
+            f"this cofactor was built for presentation {cof.presentation or '?'} "
+            f"(hash {cof.presentation_hash}), not {pres.slug()} (hash {pres.content_hash()})")
+    if cof.n != pres.n:
+        raise ValueError(f"cofactor is for n={cof.n}, presentation is n={pres.n}")
     relations, sliders = pres.symbolic_ncpolys()
     tgt_name = target if target is not None else cof.target
     tgt = _symbolic_target(pres, sliders, tgt_name)
@@ -273,10 +284,18 @@ if __name__ == "__main__":
     ap.add_argument("--pit", action="store_true", help="also run the independent grid check")
     a = ap.parse_args()
 
-    cof = Cofactor.load(a.cofactor)
-    pres = Presentation(a.n or cof.n, a.untwist, max_untwist_level=a.max_untwist_level)
-    rep = check(cof, pres, a.target)
+    # A legacy cofactor file carries no header, so the presentation must be supplied; a file
+    # written by cofactor_io carries it and the flags only override.
+    pres = Presentation(a.n or 4, a.untwist, max_untwist_level=a.max_untwist_level)
+    cof = Cofactor.load(a.cofactor, pres=pres)
+    if a.n is None and cof.n != pres.n:
+        pres = Presentation(cof.n, a.untwist, max_untwist_level=a.max_untwist_level)
+    tgt = a.target or cof.target
+    if not tgt:
+        raise SystemExit(f"{os.path.basename(a.cofactor)} carries no target in its header "
+                         f"(a legacy file); pass --target, e.g. --target 'S[3][1]'")
+    rep = check(cof, pres, tgt)
     if a.pit and rep["pass"]:
-        rep2 = pit_check(cof, pres, a.target)
+        rep2 = pit_check(cof, pres, tgt)
         rep["pass"] = rep["pass"] and rep2["pass"]
     raise SystemExit(0 if rep["pass"] else 1)

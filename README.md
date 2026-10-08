@@ -1,12 +1,12 @@
 # `zipper-algebra` — computational pipelines for the Bigelow zipper algebra
 
 > **Trust tiers (see `INDEX.md` for the full map).**
-> 1. **Shared/trusted** — `f4ncgb_tools/{zipper_in_ms,core,tests}.py`.
-> 2. **Project A** (frozen main tool) — `f4ncgb_tools/cofactor/`, the exact ℚ(q,t) `X_3=0`
+> 1. **Shared/trusted** — `tools/{zipper_in_ms,core,tests}.py`.
+> 2. **Project A** (frozen main tool) — `tools/cofactor/`, the exact ℚ(q,t) `X_3=0`
 >    cofactor pipeline; `reproduce_X3_zero.sh` reruns it.
-> 3. **Project B** (results **distrusted**, code partly reusable) — `f4ncgb_tools/variants/`;
+> 3. **Project B** (results **distrusted**, code partly reusable) — `tools/variants/`;
 >    see `AUDIT_spec_vs_generic.md` / `LEDGER_claims.md`.
-> 4. **Research phase** (2026-07+) — `f4ncgb_tools/research/`, `gap_scripts/theta3_*.gap`;
+> 4. **Research phase** (2026-07+) — `tools/research/`, `gap_scripts/theta3_*.gap`;
 >    see `NIGHT_LOG.md`.
 >
 > Superseded material lives under `archive/`. **Exact char-0 (ℚ(q,t) symbolic, or the
@@ -15,8 +15,8 @@
 Two distinct computational projects share this repository. They overlap in
 infrastructure (the Gröbner-basis machinery built on `f4ncgb`) but address
 distinct mathematical questions. After the most recent reorganisation each
-project lives in a single subfolder of `f4ncgb_tools/`, with shared
-utilities at `f4ncgb_tools/`'s root.
+project lives in a single subfolder of `tools/`, with shared
+utilities at `tools/`'s root.
 
 ## Project A — explicit $X_3 = 0$ cofactor
 
@@ -29,15 +29,14 @@ to $X_3$ in the free algebra.
 
 **Documentation.**
 - `WORKFLOW.md` — phase-by-phase operational recipe.
-- `REPORT.md` — mathematical background and intermediate findings.
 - `braid-research/X3_cofactor_n4.tex` — formal writeup.
 
-**Code (all in `f4ncgb_tools/cofactor/`).** See its README for the
+**Code (all in `tools/cofactor/`).** See its README for the
 phase-to-file mapping; the headlines are:
 
 | Phase | Tools |
 |---|---|
-| 1 (input emission)              | `f4ncgb_tools/zipper_in_ms.py` (shared) + `f4ncgb` binary |
+| 1 (input emission)              | `tools/zipper_in_ms.py` (shared) + `f4ncgb` binary |
 | 2 (skeleton extraction)         | `cofactor/extract_cofactor.py` |
 | 3 (multi-point lift, fitters)   | `cofactor/run_lift_grid*.py`, `cofactor/run_fit_*.py`, `cofactor/run_slice_fit.py`, `cofactor/extend_lift_grid.py`, `cofactor/run_holdout_test.py` |
 | 4 (symbolic composition)        | `cofactor/compose_x3_cofactor_qt.py`, `cofactor/write_*_cofactor.py` |
@@ -59,10 +58,10 @@ phase-to-file mapping; the headlines are:
 
 **Goal.** Compute dimensions, semisimplicity, trace spaces and Markov-trace
 linear systems for the variant-untwisting quotients of $\mathcal{Z}_n$ at
-small $n$ (higher-framing $\sigma_j^a X_2 = t X_2$ and Jordan-block
+small $n$ (higher-framing $\sigma_j^a X_2 = t X_2$ and square-zero
 $(\sigma_j - t)^2 X_2 = 0$). The variants strictly enlarge BMW while
 remaining finite-dimensional; the framing case is generically semisimple,
-the Jordan case is generically non-semisimple (the first such example
+the square-zero case is generically non-semisimple (the first such example
 found, with $\dim J = \dim - \dim\mathrm{BMW}_n$ at $n=3,4$).
 
 **Documentation.**
@@ -72,29 +71,29 @@ found, with $\dim J = \dim - \dim\mathrm{BMW}_n$ at $n=3,4$).
   computational protocols" with exact command sequences for each result.
 
 **Code.**
-- `f4ncgb_tools/zipper_in_ms.py` — presentation emitter (shared).
-- `f4ncgb_tools/core.py` — shared utilities (parsers, Aho–Corasick, reducer).
-- `f4ncgb_tools/variants/` — per-question scripts; see its README.
+- `tools/zipper_in_ms.py` — presentation emitter (shared).
+- `tools/core.py` — shared utilities (parsers, Aho–Corasick, reducer).
+- `tools/variants/` — per-question scripts; see its README.
 
 **Data.**
 - `logs_and_traces/variants/` — `.basis` artifacts from the verified runs.
 
-## Shared infrastructure (`f4ncgb_tools/`)
+## Shared infrastructure (`tools/`)
 
 - `core.py` — single source of truth for `.basis` parsing (F_p and Q),
   Aho–Corasick construction on the leading-monomial set, the standard-
   monomial enumerator, and the noncommutative reducer.
 - `zipper_in_ms.py` — presentation emitter; CLI flags select the variant
-  (canonical Bigelow, higher framing, silly-question, Jordan), the
+  (canonical Bigelow, higher framing, silly-question, square-zero), the
   characteristic, and which higher-level relations to include.
-- `tests.py` — regression suite. Run with `python3 -m f4ncgb_tools.tests`;
+- `tests.py` — regression suite. Run with `python3 -m tools.tests`;
   12 tests covering parser correctness, automaton invariants, reduction
-  correctness in both rings, and end-to-end verdicts on BMW_3 and Jordan-3.
+  correctness in both rings, and end-to-end verdicts on BMW_3 and square-zero-3.
 
 ## Running the tests
 
 ```bash
-python3 -m f4ncgb_tools.tests
+python3 -m tools.tests
 ```
 
 All 12 regression tests should pass in well under a second on a laptop.
@@ -102,10 +101,10 @@ All 12 regression tests should pass in well under a second on a laptop.
 ## Quick start: rebuild one variant Hilbert series
 
 ```bash
-python3 f4ncgb_tools/zipper_in_ms.py --n 4 --q 5 --t 7 --char 2147483647 \
+python3 tools/zipper_in_ms.py --n 4 --q 5 --t 7 --char 2147483647 \
     --untwist bigelow --framing-power 2 --out /tmp/example.ms
 /path/to/f4ncgb --maxiter 500 -o /tmp/example.basis /tmp/example.ms
-python3 f4ncgb_tools/variants/compute_dim_aho.py /tmp/example.basis
+python3 tools/variants/compute_dim_aho.py /tmp/example.basis
 ```
 
 ## Coordinates
@@ -120,17 +119,16 @@ trace-form criterion, semisimplicity verdicts, etc.).
 ```
 zipper-algebra/
 ├── README.md                        ← this file
-├── WORKFLOW.md                      ← Project A operational recipe (also covers Project B at a glance)
-├── REPORT.md                        ← Project A mathematical background
+├── WORKFLOW.md                      ← Project A complete record (math + pipeline + verification)
 ├── reproduce_X3_zero.sh             ← Project A reproducibility driver
-├── f4ncgb_tools/
+├── tools/
 │   ├── README.md                    ← pipeline overview
 │   ├── core.py                      ← shared utilities (parsers, AC, reducer)
 │   ├── zipper_in_ms.py              ← presentation emitter (shared)
 │   ├── tests.py                     ← regression suite (12 tests)
 │   ├── cofactor/                    ← Project A code
 │   │   ├── README.md
-│   │   └── 41 .py files
+│   │   └── 40 .py files
 │   └── variants/                    ← Project B code
 │       ├── README.md
 │       └── 8 .py files

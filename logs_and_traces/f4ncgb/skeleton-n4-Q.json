@@ -1,0 +1,59 @@
+{
+ "presentation": "n4-bigelow",
+ "presentation_hash": "091bbb92271ab870",
+ "target": "S[3][1]",
+ "anchor": {
+  "q": 5,
+  "t": 7,
+  "char": 0
+ },
+ "n_steps": 3,
+ "remainder_terms": 0,
+ "steps": [
+  {
+   "left": [],
+   "basis_key": "y1*y2*y1",
+   "right": [],
+   "mult": "125"
+  },
+  {
+   "left": [],
+   "basis_key": "y1*y2*x1",
+   "right": [],
+   "mult": "-25"
+  },
+  {
+   "left": [],
+   "basis_key": "x1*x2*y1",
+   "right": [],
+   "mult": "20"
+  }
+ ],
+ "basis_keys": [
+  "x1*x1",
+  "x1*y1",
+  "x2*x2",
+  "x2*y2",
+  "y1*x1",
+  "y2*x2",
+  "x2*x1*x2",
+  "y1*x2*x1",
+  "y1*y2*x1",
+  "y1*y2*y1",
+  "y2*x1*x2",
+  "y2*y1*x2",
+  "y2*y1*y2",
+  "y2*y1*y1*y2*y1",
+  "y1*y1",
+  "y2*y2",
+  "y1*x2*y1",
+  "y2*x1*y2",
+  "x1*x2*x1*y2",
+  "x1*x2*y1*x2",
+  "x1*x2*y1*y2",
+  "x2*x1*y2*x1",
+  "x2*x1*y2*y1",
+  "x1*y2*y1",
+  "x1*x2*y1"
+ ]
+}

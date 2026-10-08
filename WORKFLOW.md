@@ -10,14 +10,24 @@ This document is **the operational and mathematical record** for Project A: it c
 
 > **Repository orientation.** Two distinct projects share this repository:
 >
-> - **Project A — the $X_3$ cofactor pipeline.** That is this document. All Python lives under `f4ncgb_tools/cofactor/` (Phase 2 through Phase 8 tools, Phase 3 grid drivers + fitters, Phase 4 composers, Phase 5 verifiers). The shared presentation emitter is `f4ncgb_tools/zipper_in_ms.py` (Phase 1) and the shared Gröbner machinery is `f4ncgb_tools/core.py` (parsers, Aho–Corasick, reducer).
-> - **Project B — variant-untwisting quotients of the zipper algebra.** A separate computational note (`braid-research/variant_dimensions.tex`) on the higher-framing variants $\sigma_j^a X_2 = t X_2$ and the Jordan-block variant $(\sigma_j - t)^2 X_2 = 0$. Tools under `f4ncgb_tools/variants/` (Hilbert series, semisimplicity check, trace space, tower inclusion, Markov-trace system). See `f4ncgb_tools/variants/README.md`.
+> - **Project A — the $X_3$ cofactor pipeline.** That is this document. All Python lives under `tools/cofactor/` (Phase 2 through Phase 8 tools, Phase 3 grid drivers + fitters, Phase 4 composers, Phase 5 verifiers). The shared presentation emitter is `tools/zipper_in_ms.py` (Phase 1) and the shared Gröbner machinery is `tools/core.py` (parsers, Aho–Corasick, reducer).
+> - **Project B — variant-untwisting quotients of the zipper algebra.** A separate computational note (`braid-research/variant_dimensions.tex`) on the higher-framing variants $\sigma_j^a X_2 = t X_2$ and the square-zero variant $(\sigma_j - t)^2 X_2 = 0$. Tools under `tools/variants/` (Hilbert series, semisimplicity check, trace space, tower inclusion, Markov-trace system). See `tools/variants/README.md`.
 >
-> Both projects re-use `core.py`, `zipper_in_ms.py`, and the regression suite `f4ncgb_tools/tests.py` (run with `python3 -m f4ncgb_tools.tests`; takes ~0.5 s and pins basic Gröbner-machinery behaviour as well as small variant-algebra verdicts).
+> Both projects re-use `core.py`, `zipper_in_ms.py`, and the regression suite `tools/tests.py` (run with `python3 -m tools.tests`; takes ~0.5 s and pins basic Gröbner-machinery behaviour as well as small variant-algebra verdicts).
 >
 > All `.ms` inputs for the Phase 3 multi-point lift live under `ms_inputs/qt_sweep/`.
 
 ---
+
+
+> **Consolidated 2026-09-17.** The phases below are unchanged as mathematics, but the scripts named
+> in them were merged into `tools/cofactor/` and the bash driver became
+> `tools/cofactor/pipeline.py`. Phase 1 `presentation.py` + `samples.py`; phase 2 `skeleton.py`
+> (+ `proof.py`); phase 3 `lift.py` (+ `atoms.py`); phase 4 `compose.py`; phase 5 `verify.py`
+> (+ `ncpoly.py`); all artifact paths `paths.py`; the certificate format `cofactor_io.py`. Phases
+> 6-9 are still the original `B_3`-at-`n=4` scripts. The originals are in
+> `archive/cofactor-pre-consolidation/`; `notes/REMOVED.md` maps each to its replacement.
+
 
 ## 1. Mathematical setting
 
@@ -117,6 +127,18 @@ The workflow below sidesteps both obstacles by lifting a **reduction skeleton** 
                                                           reductions
 ```
 
+### 4.0 Caching (added 2026-09-16)
+
+Phase 1b is seconds; Phase 3 is ~8 minutes (226 points, MEASURED 12.4 s each, 6-way parallel);
+phases 4-10 take seconds. Earlier notes called Phase 3 "multi-hour" -- that figure belonged to the
+abandoned hypothesis-class fitter sweeps (600 s budget per slot), not to the grid. `tools/cache.py` stores each
+artifact under a key derived from the input file's **content** plus the exact tool flags, so a changed
+input or flag changes the key and nothing goes stale. `reproduce_X3_zero.sh` uses it for phase 1b, so
+the tail of the pipeline can be re-run without redoing the head. `REFRESH=1 bash reproduce_X3_zero.sh`
+forces recomputation; `python3 tools/cache.py list` shows what is stored, `clear` empties it.
+
+Verified: a cached proof and a freshly computed one drive phases 4-10 to byte-identical artifacts.
+
 ### 4.1 Phase 1: single-anchor traced Gröbner basis
 
 **Tool.** `f4ncgb` (Hofstadler & Heisinger 2025) with `--trace`.
@@ -130,12 +152,25 @@ y1*x1 - 1,
 ...                     # 31 relations total
 ```
 
-**Generator.** `f4ncgb_tools/zipper_in_ms.py` — produces the `.ms` file from a Python implementation of the slider/zipper/untwisting construction. It implements an internal noncommutative-polynomial arithmetic module (the `Poly` class) and mirrors the construction in `gap_scripts/zipper.gap` exactly. At $n = 4$ with the Bigelow untwisting there are 31 input relations. CLI:
+**Generator.** `tools/zipper_in_ms.py` — produces the `.ms` file from a Python implementation of the slider/zipper/untwisting construction. It implements an internal noncommutative-polynomial arithmetic module (the `Poly` class) and mirrors the construction in `gap_scripts/zipper.gap` exactly. At $n = 4$ with the Bigelow untwisting there are 31 input relations. CLI:
 ```
-python3 f4ncgb_tools/zipper_in_ms.py --n 4 --q 5 --t 7 --char 2147483647 \
+python3 tools/zipper_in_ms.py --n 4 --q 5 --t 7 --char 2147483647 \
     --untwist bigelow --target 3,1 --out inputs.ms
 ```
-The `--target i,j` flag appends `S[i][j]` as the last "input relation" so the basis indices remain stable for the cofactor extractor.
+**`--target` is NOT used on this route** (corrected 2026-09-16). There are two distinct routes and
+their flags must not be mixed:
+
+- `--target i,j` **with `-e on`**: appends `S[i][j]` as the last input relation so that f4ncgb's own
+  expanded proof line gives the target's cofactor directly. **Rejected** — `extract_cofactor.py`
+  records that f4ncgb 1.0.1's expanded proofs "agree with the basis only modulo the ideal in many
+  cases".
+- **no target, with `-e 0`**: the production route used here. 31 inputs, a **137**-element basis, and
+  non-expanded proofs that Phase 2 re-expands itself.
+
+Appending the target changes the basis: X_3 is already in the ideal, so it becomes available as a
+reducer and S-polynomials that would have produced new elements reduce to zero instead — 32 inputs
+give **131** elements, with *different indices*. The skeleton `X_3 = q^3 B_17 - q^2 B_16 + q(q-1) B_102`
+indexes the 137-element basis, so feeding it a 131-element one would silently misidentify every term.
 
 **Output.**
 - A Gröbner basis $B_0, \ldots, B_{136}$ (137 elements at $n=4$).
@@ -147,7 +182,7 @@ The `--target i,j` flag appends `S[i][j]` as the last "input relation" so the ba
 
 **Goal.** Express $X_3$ as a finite sequence of one-step reductions against the basis $B$, producing a tuple list $X_3 = \sum_\ell c_\ell L_\ell B_{k_\ell} R_\ell$ with each $c_\ell$ a **scalar in the prime field** (not yet in $\mathbb{Q}(q,t)$).
 
-**Tool.** `f4ncgb_tools/cofactor/extract_cofactor.py`. Reads the trace file from Phase 1, identifies the target, runs the one-step reductions, accumulates the four-tuples.
+**Tool.** `tools/cofactor/extract_cofactor.py`. Reads the trace file from Phase 1, identifies the target, runs the one-step reductions, accumulates the four-tuples.
 
 **Observed at $n=4$.** Three reduction steps using basis elements 17, 16, 102. In the chosen monomial order the reduction is canonical: at each step there is a unique basis element whose leading monomial divides the current leading monomial of the residual. The reduction sequence is, in extended form:
 $$X_3 \;\;\to\;\; X_3 - q^3\,B_{17} \;\;\to\;\; X_3 - q^3 B_{17} + q^2 B_{16} \;\;\to\;\; X_3 - q^3 B_{17} + q^2 B_{16} - q(q-1) B_{102} \;=\; 0,$$
@@ -158,7 +193,18 @@ $$X_3 \;=\; q^3\, B_{17} \;-\; q^2\, B_{16} \;+\; q(q-1)\, B_{102}.$$
 
 This property is what makes Phase 3 work. It is **algebra-dependent**; if you take a different target where the multipliers genuinely depend on $t$, this phase still produces a skeleton, but Phase 3 has to lift the multipliers themselves, which is significantly harder.
 
+**The skeleton is data, not prose.** `extract_cofactor.py` writes `logs_and_traces/f4ncgb/skeleton-<tag>-Q.json` — the target, $n$, the anchor, the step list $(L_\ell, k_\ell, R_\ell, c_\ell)$, the transitively-closed `basis_indices`, and the remainder term count. Phase 3 reads that file rather than hard-coding $\{16, 17, 102\}$, and the driver fails if the remainder is nonzero or if the cached lift does not cover the indices the skeleton asks for. Until 2026-09-16 the driver asserted the three indices in a comment with no tool behind them, so a change in Phase 1 could not disagree with Phase 2.
+
+The extractor takes `--n`, `--target i,j`, `--q`, `--t`, `--untwist` and `--max-untwist-level`; it is not specific to $X_3$ at $n=4$. Verified by computing the cofactor of $X_4 = S[4][1]$ at $n=4$ with no code change: 127 steps, 15006 tuples, remainder 0.
+
 ### 4.3 Phase 3: multi-point lift of the proof closure
+
+**The atom set is data (2026-09-17).** The denominator class that `fit_rational` searches — the
+atoms `a_i` of `prop:atoms` and their exponent box — is no longer a constant. `tools/cofactor/atoms.py`
+infers it from the sampled proof coefficients (denominators reconstructed as polynomials along grid
+lines, atoms read off by polynomial divisibility), persists it as `atoms-<tag>-Q.json`, and the lift
+JSON carries it under `atoms`. On the X₃ data the atoms present are `q²+t` and `q−1` only; the
+historical six remain a prior that is extended, never pruned. See `INDEX.md`, Planned features.
 
 **Goal.** For each basis element $B_k$ appearing in the skeleton (transitively closed: 25 basis elements at $n=4$), recover a $\mathbb{Q}(q,t)$-rational expression for each coefficient $c_{k,\ell}$ in $B_k$'s non-expanded proof.
 
@@ -171,9 +217,9 @@ This property is what makes Phase 3 work. It is **algebra-dependent**; if you ta
 4. Output: a symbolic $\mathbb{Q}(q,t)$ expression for every coefficient in every proof of the 25 basis elements. The denominator atom $(t + q^2)$ is the only non-obvious factor; it is required to fit the proof coefficients of basis element 68, and without it the symbolic lift of $B_{68}$ fails. The other five atoms appear regularly throughout. None of the proof coefficients required denominators outside this six-atom set.
 
 **Tools.**
-- `f4ncgb_tools/cofactor/run_lift_grid.py`, `f4ncgb_tools/cofactor/run_lift_grid_canonical.py` — Phase 1 driver across many specializations.
-- `f4ncgb_tools/cofactor/run_fit_polynomial.py`, `f4ncgb_tools/cofactor/run_fit_classes_sweep.py`, `f4ncgb_tools/cofactor/run_slice_fit.py` — rational-function fitters with cross-validation.
-- `f4ncgb_tools/cofactor/extend_lift_grid.py`, `f4ncgb_tools/cofactor/run_holdout_test.py` — grid expansion and holdout testing.
+- `tools/cofactor/run_lift_grid.py`, `tools/cofactor/run_lift_grid_canonical.py` — Phase 1 driver across many specializations.
+- `tools/cofactor/run_fit_polynomial.py`, `tools/cofactor/run_fit_classes_sweep.py`, `tools/cofactor/run_slice_fit.py` — rational-function fitters with cross-validation.
+- `tools/cofactor/extend_lift_grid.py`, `tools/cofactor/run_holdout_test.py` — grid expansion and holdout testing.
 
 **Why this works where direct interpolation fails.** Phase 3 interpolates the *proof log entries* of the basis elements, not the cofactor of $X_3$ itself. The proof log entries are well-defined functions of $(q, t)$ in the appropriate region because `f4ncgb`'s reduction is deterministic given a fixed monomial order and input ordering. By contrast, the cofactor of $X_3$ at different specializations can differ by syzygies (§1.3).
 
@@ -181,7 +227,7 @@ This property is what makes Phase 3 work. It is **algebra-dependent**; if you ta
 
 **Goal.** Substitute each lifted basis-element proof into the reduction skeleton from Phase 2 and multiply out.
 
-**Tool.** `f4ncgb_tools/cofactor/compose_x3_cofactor_qt.py`. Operates symbolically over $\mathbb{Q}(q,t)$ using exact bivariate-polynomial arithmetic (Python `fractions.Fraction` + dictionary representation; no floating point).
+**Tool.** `tools/cofactor/compose_x3_cofactor_qt.py`. Operates symbolically over $\mathbb{Q}(q,t)$ using exact bivariate-polynomial arithmetic (Python `fractions.Fraction` + dictionary representation; no floating point).
 
 Composing the 3-step reduction with the 25 symbolic basis cofactors and collecting terms produces a finite list of two-sided monomial words $(L_j, i_j, R_j)_{j=1}^{695}$ together with a rational coefficient $c_j(q,t)$ for each. The skeleton — the list of 695 quadruples $(L, i, R)$ — is identical at every sample specialization, confirming that the structural composition is data-independent. Only the scalar coefficients $c_j$ vary with $(q,t)$, and they vary as rational functions in $\mathbb{Q}(q,t)$.
 
@@ -197,7 +243,7 @@ The $\mathbb{Q}(q,t)$ cofactor has been verified by four independent methods. To
 
 #### 4.5.1 Free-algebra polynomial identity (decisive)
 
-Script `f4ncgb_tools/cofactor/symbolic_identity_check.py`. Multiply out
+Script `tools/cofactor/symbolic_identity_check.py`. Multiply out
 $$\sum_j c_j(q,t)\, L_j\, R_{i_j}\, R'_j \;-\; X_3$$
 in $\mathbb{Q}(q,t)\langle x_i, y_i\rangle$ symbolically and check that the result is identically zero. No Gröbner basis machinery involved. Time: 0.13 s.
 
@@ -210,7 +256,7 @@ $(q, t) \in \{(43, 7), (47, 11), (53, 13), (59, 17), (61, 11), (67, 17), (71, 5)
 
 #### 4.5.3 Cross-check with multi-point rational interpolation
 
-In parallel with the symbolic derivation, we ran a multi-point lifting pipeline. At 212 sample $(q,t)$ specializations we extracted `f4ncgb`'s cofactor of $X_3$ and recorded the 695 scalar coefficients. We then fit each coefficient sequence as a rational function $N_k(q,t) / D_k(q,t)$ using a sweep over hypothesis classes $(\deg_q N, \deg_t N, \deg_q D, \deg_t D)$, accepting only fits that passed strict three-split exact-rational cross-validation. This procedure produced explicit $\mathbb{Q}(q,t)$ rationals for **623 of the 695 slots** (recorded in `cofactor-X3-n4-Qqt-canonical.txt`).
+In parallel with the symbolic derivation, we ran a multi-point lifting pipeline. At 212 sample $(q,t)$ specializations we extracted `f4ncgb`'s cofactor of $X_3$ and recorded the 695 scalar coefficients. We then fit each coefficient sequence as a rational function $N_k(q,t) / D_k(q,t)$ using a sweep over hypothesis classes $(\deg_q N, \deg_t N, \deg_q D, \deg_t D)$, accepting only fits that passed strict three-split exact-rational cross-validation. This procedure produced explicit $\mathbb{Q}(q,t)$ rationals for **623 of the 695 slots** (recorded in `cofactor-X3-n4-Qqt-canonical.txt` (**cleared 2026-09-16** — no script in the repo produced it, so it was unreproducible; in the snapshot, see `notes/REMOVED.md`)).
 
 On all 623 shared slots, the empirically-fitted expression $N_c / D_c$ and the symbolically-derived expression $N_s / D_s$ agree as rational functions. The check is performed two ways:
 
@@ -233,7 +279,7 @@ The symbolic method bypasses this problem entirely: its skeleton is the 3-step r
 
 #### 4.5.6 Independent engines (Singular and GAP/GBNP)
 
-- **Singular letterplace.** Translate to letterplace representation (`f4ncgb_tools/cofactor/ms_to_singular.py`, `f4ncgb_tools/cofactor/ms_to_singular_lpdiv.py`), run `twostd` to compute a two-sided Gröbner basis, then `reduce(X_3, GB)`. Done at letterplace degree bounds $\{10, 12, 14\}$ over both $\mathbb{Q}$ and $\mathrm{GF}(2^{31}-1)$. Outputs in `singular_run/`.
+- **Singular letterplace.** Translate to letterplace representation (`tools/cofactor/ms_to_singular.py`, `tools/cofactor/ms_to_singular_lpdiv.py`), run `twostd` to compute a two-sided Gröbner basis, then `reduce(X_3, GB)`. Done at letterplace degree bounds $\{10, 12, 14\}$ over both $\mathbb{Q}$ and $\mathrm{GF}(2^{31}-1)$. Outputs in `singular_run/`.
 
 - **GAP/GBNP.** `SGrobner` on the inputs, then `StrongNormalFormNP(X_3, B)`. Done at $(q,t) \in \{(5,7), (11,13)\}$ over $\mathrm{GF}(2^{31}-1)$. Driven by `gap_scripts/zipper.gap`.
 
@@ -249,13 +295,13 @@ The following additional checks are well-defined and would tighten the certifica
 4. **Verification at a long sequence of large prime $(q,t)$.** Evaluate the symbolic expression at 30+ pairs with both $q$ and $t$ in $[10^4, 10^6]$, picking primes. For each, run `f4ncgb` at that specialization to get the ground truth and confirm exact match. Cost: roughly one hour, fully parallel.
 5. **Self-consistency by syzygy normalisation.** Compute a symbolic Gröbner basis of the syzygy module of the 695 cofactor terms and verify that the symbolic cofactor lies in the same syzygy-equivalence class as the canonical-empirical cofactor on the 623 shared slots — strictly stronger than the pointwise/symbolic identity check.
 
-Independent sanity-check drivers in the repo: `f4ncgb_tools/cofactor/run_independent_verify.py`, `f4ncgb_tools/cofactor/independent_verify_three_rels.py`, `f4ncgb_tools/cofactor/verify_three_rels_at_23_29.py`, `f4ncgb_tools/cofactor/run_verify_symbolic_largeqt.py`.
+Independent sanity-check drivers in the repo: `tools/cofactor/run_independent_verify.py`, `tools/cofactor/independent_verify_three_rels.py`, `tools/cofactor/verify_three_rels_at_23_29.py`, `tools/cofactor/run_verify_symbolic_largeqt.py`.
 
 ### 4.6 Phase 6: compression onto an independent generating set
 
 **Goal.** Eliminate derivable input relations from the cofactor.
 
-**Tool.** `f4ncgb_tools/cofactor/compress_cofactor.py`. Substitutes derivations of $R_7, R_{14}, R_{15}, R_{16}, R_{17}$ (the $y$-braid and the four mixed-sign length-3 relations) in terms of $\{R_0, R_1, R_2, R_3, R_6\}$.
+**Tool.** `tools/cofactor/compress_cofactor.py`. Substitutes derivations of $R_7, R_{14}, R_{15}, R_{16}, R_{17}$ (the $y$-braid and the four mixed-sign length-3 relations) in terms of $\{R_0, R_1, R_2, R_3, R_6\}$.
 
 **Output.** `cofactor-X3-n4-Qqt-compressed.txt`, 1077 tuples in 9 input indices $\{0, 1, 2, 3, 6, 22, 25, 26, 28\}$. Common denominator simplifies from $M = q^5 t^4 (q-1)(t+q^2)$ to $M' = t^4 (q-1)(t+q^2)$.
 
@@ -263,7 +309,7 @@ Independent sanity-check drivers in the repo: `f4ncgb_tools/cofactor/run_indepen
 
 **Goal.** Replace each two-sided multiplier by its Garside normal form in the braid group, dropping tuples that lie in the invertibility + braid ideal.
 
-**Tool.** `f4ncgb_tools/cofactor/simplify_cofactor.py`. Implements left-greedy Garside normal form in $B_3$ ($\Delta = \sigma_1\sigma_2\sigma_1$, positive atoms $\{\sigma_1, \sigma_2, \sigma_1\sigma_2, \sigma_2\sigma_1\}$). Re-buckets tuples by their normalized multipliers and target index, merging duplicates and dropping cancellations.
+**Tool.** `tools/cofactor/simplify_cofactor.py`. Implements left-greedy Garside normal form in $B_3$ ($\Delta = \sigma_1\sigma_2\sigma_1$, positive atoms $\{\sigma_1, \sigma_2, \sigma_1\sigma_2, \sigma_2\sigma_1\}$). Re-buckets tuples by their normalized multipliers and target index, merging duplicates and dropping cancellations.
 
 **Output.** `cofactor-X3-n4-Qqt-simplified.txt`, 166 tuples in 4 slider relations $\{R_{22}, R_{25}, R_{26}, R_{28}\}$. The denominator $D = t^4(q-1)(t+q^2)$ is unchanged.
 
@@ -271,13 +317,13 @@ Independent sanity-check drivers in the repo: `f4ncgb_tools/cofactor/run_indepen
 
 **Goal.** Eliminate $R_{26}$ using the $B_3$-conjugacy $R_{26} = (\sigma_1\sigma_2)\, R_{25}\, (\sigma_1\sigma_2)^{-1}$.
 
-**Tool.** `f4ncgb_tools/cofactor/reduce_to_three_rels.py`. Substitutes $(L, R_{26}, R) \mapsto (L \sigma_1 \sigma_2, R_{25}, \sigma_2^{-1}\sigma_1^{-1} R)$ on each $R_{26}$-tuple, re-normalizes in $B_3$, merges duplicates with existing $R_{25}$-tuples.
+**Tool.** `tools/cofactor/reduce_to_three_rels.py`. Substitutes $(L, R_{26}, R) \mapsto (L \sigma_1 \sigma_2, R_{25}, \sigma_2^{-1}\sigma_1^{-1} R)$ on each $R_{26}$-tuple, re-normalizes in $B_3$, merges duplicates with existing $R_{25}$-tuples.
 
 **Output.** `cofactor-X3-n4-Qqt-three-rels.txt`, 161 tuples in 3 input relations $\{R_{22}, R_{25}, R_{28}\}$.
 
 ### 4.9 Optional: relabeling
 
-`f4ncgb_tools/cofactor/rename_to_ZT.py` renames the three relations to $\{Z_2, T_2, T_3\}$ (Z = zipper, T = untwisting, subscript = level). Output: `cofactor-X3-n4-Qqt-ZT.txt`.
+`tools/cofactor/rename_to_ZT.py` renames the three relations to $\{Z_2, T_2, T_3\}$ (Z = zipper, T = untwisting, subscript = level). Output: `cofactor-X3-n4-Qqt-ZT.txt`.
 
 ---
 
@@ -311,9 +357,9 @@ That a 21-slot vanishing locus exists at $q = t + 1$ is striking. This is the lo
 The pipeline is parametric on **the target polynomial** ($X_3 = S[3][1]$ in our case) and **the relation set** ($\mathcal{Z}_n$ at fixed $n$). Re-running it for a different target or a different $n$ requires:
 
 - **Phase 1**: regenerate the `.ms` file via `zipper_in_ms.py --target i,j --n N`. The same `f4ncgb` invocation works.
-- **Phase 2**: rerun `f4ncgb_tools/cofactor/extract_cofactor.py`. The reduction may take more or fewer steps depending on the target's depth.
+- **Phase 2**: rerun `tools/cofactor/extract_cofactor.py`. The reduction may take more or fewer steps depending on the target's depth.
 - **Phase 3**: the multi-point grid and atom set may need expansion if the new target's proof closure introduces new denominator atoms. The fitter handles this if you broaden the atom search; in the worst case, you discover that the cofactor coefficients are not rational on a finite atom set, and the whole approach breaks (this did not happen at $n = 4$ for $X_3$).
-- **Phase 4**: rerun `f4ncgb_tools/cofactor/compose_x3_cofactor_qt.py`. No changes if the skeleton extraction succeeded.
+- **Phase 4**: rerun `tools/cofactor/compose_x3_cofactor_qt.py`. No changes if the skeleton extraction succeeded.
 - **Phases 5–8**: apply as-is. Phase 7's Garside normalization is currently specialized to $B_3$; for larger braid groups it generalizes (the Garside structure exists for every $B_n$) but the script would need to be extended.
 
 The bottleneck-by-far is Phase 3, both in wall time (running `f4ncgb` at 226 points) and in fragility (if the atom set is wrong or the fitting fails on a coefficient, the symbolic lift cannot be assembled). When extending to new targets, **start by checking that the reduction skeleton is independent of $t$ (or of whichever parameter is hard to interpolate)**; if it is, the rest of the pipeline lifts cleanly.
@@ -336,18 +382,18 @@ Step (b) is the obstacle: it is the same obstacle that `f4ncgb`'s non-expanded p
 
 | Phase | Driver | Outputs |
 |---|---|---|
-| 1 | `f4ncgb_tools/zipper_in_ms.py` + `f4ncgb` binary at `~/src/f4ncgb/build-release/f4ncgb` | `*.ms` input, `*.trace` log |
-| 2 | `f4ncgb_tools/cofactor/extract_cofactor.py` | reduction skeleton |
-| 3 | `f4ncgb_tools/cofactor/run_lift_grid*.py`, `f4ncgb_tools/cofactor/run_fit_*.py`, `f4ncgb_tools/cofactor/run_slice_fit.py`, `f4ncgb_tools/cofactor/extend_lift_grid.py`, `f4ncgb_tools/cofactor/run_holdout_test.py` | per-coefficient $\mathbb{Q}(q,t)$ fits |
-| 4 | `f4ncgb_tools/cofactor/compose_x3_cofactor_qt.py` | `logs_and_traces/f4ncgb/cofactor-X3-n4-Qqt-symbolic.txt` |
-| 5 (identity) | `f4ncgb_tools/cofactor/symbolic_identity_check.py` | verification log |
-| 5 (Singular) | `f4ncgb_tools/cofactor/ms_to_singular.py`, `ms_to_singular_lpdiv.py`; outputs in `singular_run/` | letterplace GB & residual |
+| 1 | `tools/zipper_in_ms.py` + `f4ncgb` binary at `~/src/f4ncgb/build-release/f4ncgb` | `*.ms` input, `*.trace` log |
+| 2 | `tools/cofactor/extract_cofactor.py` | reduction skeleton |
+| 3 | `tools/cofactor/run_lift_grid*.py`, `tools/cofactor/run_fit_*.py`, `tools/cofactor/run_slice_fit.py`, `tools/cofactor/extend_lift_grid.py`, `tools/cofactor/run_holdout_test.py` | per-coefficient $\mathbb{Q}(q,t)$ fits |
+| 4 | `tools/cofactor/compose_x3_cofactor_qt.py` | `logs_and_traces/f4ncgb/cofactor-X3-n4-Qqt-symbolic.txt` |
+| 5 (identity) | `tools/cofactor/symbolic_identity_check.py` | verification log |
+| 5 (Singular) | `tools/cofactor/ms_to_singular.py`, `ms_to_singular_lpdiv.py`; outputs in `singular_run/` | letterplace GB & residual |
 | 5 (GAP) | `gap_scripts/zipper.gap` (driven externally) | GAP trace |
-| 5 (cross-checks) | `f4ncgb_tools/cofactor/run_independent_verify.py`, `independent_verify_three_rels.py`, `verify_three_rels_at_23_29.py`, `run_verify_symbolic_largeqt.py`, `verify_cofactor.py`, `verify_ZT_and_ideal_equality.py`, `verify_honest_at_qt.py`, `verify_unified_at_qt.py` | per-method verification logs |
-| 6 | `f4ncgb_tools/cofactor/compress_cofactor.py` | `cofactor-X3-n4-Qqt-compressed.txt` |
-| 7 | `f4ncgb_tools/cofactor/simplify_cofactor.py` | `cofactor-X3-n4-Qqt-simplified.txt` |
-| 8 | `f4ncgb_tools/cofactor/reduce_to_three_rels.py` | `cofactor-X3-n4-Qqt-three-rels.txt` |
-| --- | `f4ncgb_tools/cofactor/rename_to_ZT.py` | `cofactor-X3-n4-Qqt-ZT.txt` |
+| 5 (cross-checks) | `tools/cofactor/run_independent_verify.py`, `independent_verify_three_rels.py`, `verify_three_rels_at_23_29.py`, `run_verify_symbolic_largeqt.py`, `verify_cofactor.py`, `verify_ZT_and_ideal_equality.py`, `verify_honest_at_qt.py`, `verify_unified_at_qt.py` | per-method verification logs |
+| 6 | `tools/cofactor/compress_cofactor.py` | `cofactor-X3-n4-Qqt-compressed.txt` |
+| 7 | `tools/cofactor/simplify_cofactor.py` | `cofactor-X3-n4-Qqt-simplified.txt` |
+| 8 | `tools/cofactor/reduce_to_three_rels.py` | `cofactor-X3-n4-Qqt-three-rels.txt` |
+| --- | `tools/cofactor/rename_to_ZT.py` | `cofactor-X3-n4-Qqt-ZT.txt` |
 | --- | `reproduce_X3_zero.sh` | end-to-end driver from $X_3$ presentation to ZT-form cofactor |
 
 ---

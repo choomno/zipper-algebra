@@ -66,11 +66,19 @@ class Atom:
     def from_json(cls, d):
         return cls(d["name"], {(i, j): c for i, j, c in d["coefs"]})
 
+    def _signature(self):
+        """Coefficients up to overall sign: q-t and t-q are the same atom (a unit apart)."""
+        if not self.coefs:
+            return ()
+        lead = max(self.coefs)
+        sgn = 1 if self.coefs[lead] > 0 else -1
+        return tuple(sorted((m, sgn * c) for m, c in self.coefs.items()))
+
     def __eq__(self, other):
-        return isinstance(other, Atom) and self.coefs == other.coefs
+        return isinstance(other, Atom) and self._signature() == other._signature()
 
     def __hash__(self):
-        return hash(tuple(sorted(self.coefs.items())))
+        return hash(self._signature())
 
     def __repr__(self):
         return f"Atom({self.name})"
@@ -199,6 +207,13 @@ class AtomSet:
         return f"AtomSet({self.names()}, box={self.max_exp})"
 
 
+# The coefficient ring of every result here is Z[q^,t^] (README: "Results must be over
+# Q(q,t) / Z[q^,t^]"), so q and t are UNITS: invertible by definition, present in every atom
+# set, and not something inference can or should discover (along a grid row t is a constant).
+# prop:atoms' content is the genuine, non-unit irreducibles.
+AtomSet.UNITS = AtomSet([Atom("q", {(1, 0): 1}), Atom("t", {(0, 1): 1})], max_exp=[5, 4],
+                        provenance="units of Z[q^,t^]")
+
 # The six atoms the X_3 pipeline has always used, in the positional order every existing
 # lift/cofactor file encodes, with the historical exponent box of gen_denoms_sorted().
 AtomSet.DEFAULT = AtomSet(
@@ -213,128 +228,440 @@ AtomSet.DEFAULT = AtomSet(
 
 
 # ----------------------------------------------------------------------------
-# Inference from sampled denominators
+# Inference: reconstruct each coefficient's denominator as a POLYNOMIAL along grid lines,
+# then read the atoms off by polynomial divisibility.
+#
+# Why not integer divisibility of the sampled denominators?  Because the values of
+# different atoms at a point share small prime factors (at (q,t)=(3,5): q-1 = 2, t-q = 2,
+# q+1 = 4), so "strip a(p) from den(p) as often as it divides" over-strips and a wrong or
+# reducible polynomial can look like an atom.  A univariate rational function through enough
+# points is unique, and polynomial divisibility has no coincidences, so we work there.
 # ----------------------------------------------------------------------------
 
-def _strip(r: int, vals: Iterable[int]) -> int:
-    """Divide r by each value as many times as it divides (values of +-1 or 0 are skipped)."""
-    for v in vals:
-        v = abs(v)
-        if v <= 1:
+def _poly_eval(coefs, x):
+    return sum(c * x ** i for i, c in enumerate(coefs))
+
+
+def _poly_divmod(num, den):
+    """Exact univariate division over Fraction; polynomials as coefficient lists, low->high."""
+    num = [Fraction(c) for c in num]
+    den = [Fraction(c) for c in den]
+    while den and den[-1] == 0:
+        den.pop()
+    if not den:
+        raise ZeroDivisionError
+    q = [Fraction(0)] * max(0, len(num) - len(den) + 1)
+    r = num[:]
+    while len(r) >= len(den) and any(r):
+        if r[-1] == 0:
+            r.pop(); continue
+        k = len(r) - len(den)
+        c = r[-1] / den[-1]
+        q[k] = c
+        for i, d in enumerate(den):
+            r[k + i] -= c * d
+        r.pop()
+    while r and r[-1] == 0:
+        r.pop()
+    return q, r
+
+
+def _solve(aug, ncols):
+    """Exact Gauss-Jordan on an augmented matrix; returns a solution vector or None."""
+    n = len(aug)
+    rank, piv = 0, []
+    for col in range(ncols):
+        pv = next((r for r in range(rank, n) if aug[r][col] != 0), None)
+        if pv is None:
             continue
-        while r % v == 0:
-            r //= v
-    return r
+        aug[rank], aug[pv] = aug[pv], aug[rank]
+        inv = 1 / aug[rank][col]
+        aug[rank] = [x * inv for x in aug[rank]]
+        for r in range(n):
+            if r != rank and aug[r][col] != 0:
+                f = aug[r][col]
+                aug[r] = [a - f * b for a, b in zip(aug[r], aug[rank])]
+        piv.append(col); rank += 1
+    for r in range(n):
+        if all(aug[r][c] == 0 for c in range(ncols)) and aug[r][ncols] != 0:
+            return None
+    sol = [Fraction(0)] * ncols
+    for r, col in enumerate(piv):
+        sol[col] = aug[r][ncols]
+    return sol
+
+
+def reconstruct_univariate(points, holdout=2):
+    """points: [(x, value)] with distinct x.  Find N(x)/D(x), D monic, of minimal total degree
+    that fits all but `holdout` points and PREDICTS the held-out ones.  Returns (N, D) as
+    low->high coefficient lists, or None."""
+    points = sorted(points)
+    if len(points) < holdout + 3:
+        return None
+    fit, hold = points[:-holdout], points[-holdout:]
+    for total in range(0, len(fit) - 1):
+        for dd in range(0, total + 1):
+            dn = total - dd
+            ncols = (dn + 1) + dd                     # D monic: dd free coefficients
+            if len(fit) < ncols:
+                continue
+            aug = []
+            for x, v in fit:
+                v = Fraction(v)
+                row = [Fraction(x) ** i for i in range(dn + 1)]          # N coefficients
+                row += [-v * Fraction(x) ** j for j in range(dd)]       # D coefficients (j < dd)
+                row.append(v * Fraction(x) ** dd)                       # move monic term across
+                aug.append(row)
+            sol = _solve(aug, ncols)
+            if sol is None:
+                continue
+            N = sol[:dn + 1]
+            D = sol[dn + 1:] + [Fraction(1)]
+            ok = True
+            for x, v in hold:
+                d = _poly_eval(D, Fraction(x))
+                if d == 0 or _poly_eval(N, Fraction(x)) / d != Fraction(v):
+                    ok = False; break
+            if ok:
+                # strip a common factor so D is the true reduced denominator
+                return N, D
+    return None
+
+
+def _specialise(coefs: dict, fixed: str, x0) -> list:
+    """Bivariate {(i,j): c} restricted to q = x0 ('q') or t = x0 ('t'); returns a univariate
+    coefficient list in the other variable, low->high."""
+    out = {}
+    for (i, j), c in coefs.items():
+        if fixed == "t":
+            out[i] = out.get(i, 0) + c * Fraction(x0) ** j
+        else:
+            out[j] = out.get(j, 0) + c * Fraction(x0) ** i
+    deg = max(out) if out else 0
+    poly = [out.get(k, Fraction(0)) for k in range(deg + 1)]
+    while len(poly) > 1 and poly[-1] == 0:
+        poly.pop()
+    return poly
 
 
 def _candidate_polys(max_bideg=(2, 1), coef_bound=2):
     """Primitive polynomials of bidegree <= max_bideg with |coefficients| <= coef_bound,
-    non-constant, sign-normalised (leading monomial in (q-degree, t-degree) lex has c > 0),
-    in ascending (total degree, coefficient size)."""
+    non-constant, sign-normalised, in ascending (total degree, coefficient size)."""
     mons = [(i, j) for i in range(max_bideg[0] + 1) for j in range(max_bideg[1] + 1)]
-    mons.sort(reverse=True)                      # leading monomial first
+    mons.sort(reverse=True)
     rng = range(-coef_bound, coef_bound + 1)
-    seen = set()
-    out = []
+    out, seen = [], set()
     for cs in product(rng, repeat=len(mons)):
         coefs = {m: c for m, c in zip(mons, cs) if c}
         if not coefs or list(coefs) == [(0, 0)]:
             continue
-        lead = max(coefs)                        # lex on (i, j)
-        if coefs[lead] < 0:
-            continue                             # its negative is enumerated instead
+        if coefs[max(coefs)] < 0:
+            continue
         if math.gcd(*[abs(c) for c in coefs.values()]) != 1:
-            continue                             # not primitive
+            continue
         key = tuple(sorted(coefs.items()))
         if key in seen:
             continue
         seen.add(key)
-        deg = max(i + j for i, j in coefs)
-        size = sum(abs(c) for c in coefs.values())
-        out.append((deg, size, len(coefs), coefs))
-    out.sort(key=lambda x: (x[0], x[1], x[2]))
-    return [c for _, _, _, c in out]
+        out.append((max(i + j for i, j in coefs), sum(abs(c) for c in coefs.values()), coefs))
+    out.sort(key=lambda x: (x[0], x[1]))
+    return [c for _, _, c in out]
 
 
-def infer(values, seed: AtomSet | None = None, max_bideg=(2, 1), coef_bound=2,
-          min_support=3, verbose=True):
+
+# ----------------------------------------------------------------------------
+# Residual factors: turn "widen the class" into "here is the atom you are missing"
+# ----------------------------------------------------------------------------
+
+def _primitive(coefs: list) -> tuple:
+    """A rational coefficient list -> the primitive integer one, sign-normalised on the lead."""
+    from fractions import Fraction as F
+    cs = [F(c) for c in coefs]
+    den = 1
+    for c in cs:
+        den = den * c.denominator // math.gcd(den, c.denominator)
+    ints = [int(c * den) for c in cs]
+    g = 0
+    for v in ints:
+        g = math.gcd(g, abs(v))
+    if g:
+        ints = [v // g for v in ints]
+    if ints and ints[-1] < 0:
+        ints = [-v for v in ints]
+    return tuple(ints)
+
+
+def residual_factors(lines, verbose=True):
+    """Factor every leftover line denominator over Q and report the irreducible factors.
+
+    `lines` is the [(fixed_var, x0, D)] left by infer() after stripping the atoms it accepted.
+    The brute-force candidate search cannot be widened far -- it enumerates all coefficient
+    vectors in a bidegree box, which is exponential -- so when it fails the useful thing is not a
+    bigger box but the ACTUAL factors, which sympy gets by factoring each univariate residual.
+    Returns {(fixed_var, primitive coefficient tuple): [x0, ...]}.
+    """
+    import sympy as sp
+    x = sp.Symbol("x")
+    out = {}
+    for fixed, x0, D in lines:
+        if len(D) < 2:
+            continue
+        poly = sp.Poly(list(reversed([sp.Rational(c) for c in D])), x)
+        for f, _e in sp.factor_list(poly)[1]:
+            cs = list(reversed(f.all_coeffs()))
+            if len(cs) < 2:
+                continue
+            out.setdefault((fixed, _primitive(cs)), []).append(x0)
+    if verbose and out:
+        print(f"[atoms] residual irreducible factors ({len(out)} distinct):")
+        for (fixed, cs), xs in sorted(out.items(), key=lambda kv: -len(kv[1]))[:8]:
+            var = "q" if fixed == "t" else "t"
+            print(f"[atoms]   {_fmt_univariate(cs, var)}   on {len(xs)} lines "
+                  f"({'t' if fixed == 't' else 'q'} = {sorted(set(xs))[:5]}...)")
+    return out
+
+
+def _fmt_univariate(cs, var) -> str:
+    parts = []
+    for i, c in enumerate(cs):
+        if not c:
+            continue
+        mon = "" if i == 0 else (var if i == 1 else f"{var}^{i}")
+        body = f"{abs(c)}" if not mon else (mon if abs(c) == 1 else f"{abs(c)}*{mon}")
+        parts.append(("-" if c < 0 else "+") + body)
+    return "".join(parts).lstrip("+") or "0"
+
+
+def atoms_from_residual_factors(factors, max_other_deg=4, min_lines=3, verbose=True):
+    """Lift line factors to bivariate atoms.
+
+    A factor of the residual on the line t = t0 is the restriction a(q, t0) of an atom a(q,t).
+    Group the factors by their degree in q, and for each coefficient position interpolate its
+    values across the lines as a polynomial in t (exactly, verified on held-out lines).  This
+    is the same finite-difference argument the rest of the pipeline uses, one variable at a time,
+    and it needs no bidegree box: the degree comes out of the data.
+    """
+    from fractions import Fraction as F
+    by_deg = {}
+    for (fixed, cs), xs in factors.items():
+        by_deg.setdefault((fixed, len(cs)), []).append((cs, xs))
+    found = []
+    for (fixed, ln), group in sorted(by_deg.items()):
+        pts = {}
+        for cs, xs in group:
+            for x0 in xs:
+                pts.setdefault(x0, set()).add(cs)
+        usable = {x0: next(iter(v)) for x0, v in pts.items() if len(v) == 1}
+        if len(usable) < min_lines + 2:
+            continue
+        xs = sorted(usable)
+        coefs = {}
+        ok = True
+        for pos in range(ln):
+            data = [(x0, F(usable[x0][pos])) for x0 in xs]
+            fit = _fit_univariate_exact(data, max_other_deg)
+            if fit is None:
+                ok = False
+                break
+            coefs[pos] = fit
+        if not ok:
+            continue
+        # assemble: coefficient of q^pos is a polynomial in t (or vice versa)
+        bi = {}
+        for pos, poly in coefs.items():
+            for d, c in poly.items():
+                if c == 0:
+                    continue
+                key = (pos, d) if fixed == "t" else (d, pos)
+                bi[key] = bi.get(key, F(0)) + c
+        bi = {k: v for k, v in bi.items() if v}
+        if not bi or all(k == (0, 0) for k in bi):
+            continue
+        den = 1
+        for c in bi.values():
+            den = den * F(c).denominator // math.gcd(den, F(c).denominator)
+        bi = {k: int(F(v) * den) for k, v in bi.items()}
+        a = Atom(poly_str(bi), bi)
+        if a not in found:
+            found.append(a)
+            if verbose:
+                print(f"[atoms]   lifted to a bivariate atom: {a.name}")
+    return found
+
+
+def _fit_univariate_exact(data, max_deg):
+    """Fit {x: value} by a polynomial in x of degree <= max_deg, exactly, with two held out."""
+    from fractions import Fraction as F
+    data = sorted(data)
+    if len(data) < 3:
+        return None
+    fit, hold = data[:-2], data[-2:]
+    for deg in range(max_deg + 1):
+        if len(fit) < deg + 1:
+            break
+        rows = [[F(x) ** i for i in range(deg + 1)] + [F(v)] for x, v in fit[: deg + 1]]
+        sol = _solve(rows, deg + 1)
+        if sol is None:
+            continue
+        good = all(sum(sol[i] * F(x) ** i for i in range(deg + 1)) == F(v)
+                   for x, v in data)
+        if good:
+            return {i: sol[i] for i in range(deg + 1) if sol[i]}
+    return None
+
+
+def infer(values_by_slot: dict, seed: AtomSet | None = None, max_bideg=(2, 1), coef_bound=2,
+          min_lines=3, verbose=True):
     """Infer the atom set from sampled coefficient values.
 
-    values : iterable of ((q, t), Fraction) -- every coefficient the lift will have to fit,
-             at every grid point.  Only the DENOMINATORS are used.
-    seed   : atoms assumed present (their values are stripped first).  None = start from
-             the empty set, which is the honest test of the method.
+    COST, measured 2026-09-17.  This is the expensive step of the pipeline at scale and the
+    numbers should be known before it is called on something large.  At n=4 bigelow: 231 slots,
+    924 line denominators, seconds.  At n=3 square-zero: 834 slots, 20066 line denominators, and
+    the greedy candidate search is O(#candidates x #lines) -- 16k x 20k divisibility tests -- so
+    it runs for tens of minutes.  Two consequences: (1) the result is persisted per
+    (presentation, target) and re-read, never recomputed; (2) the candidate box cannot be widened
+    to fix a miss, because the enumeration is (2*coef_bound+1)^((dq+1)*(dt+1)) -- that is what
+    residual_factors/atoms_from_residual_factors are for.  If this needs to scale further, the
+    fix is to run the greedy search on a SAMPLE of the lines and verify the accepted atoms on the
+    rest, not to enlarge the box.
 
-    Returns (atomset, report).  atomset = seed + discovered, in discovery order, so
-    positions of seed atoms are unchanged.  report['residual'] lists the points where a
-    denominator remained unexplained; non-empty means the class must be widened
-    (larger max_bideg / coef_bound) and is exactly the situation more sampling cannot fix.
+    values_by_slot : {slot: [((q, t), Fraction), ...]} -- for every coefficient the lift must
+                     fit, its value at every grid point.  Grid points sharing a q or a t form
+                     the lines along which denominators are reconstructed.
+    seed           : atoms assumed present.  None = start empty (the honest test).
+
+    Returns (atomset, report).  Seed positions are unchanged; discovered atoms are appended.
+    report['unexplained'] > 0 means some reconstructed denominator has a factor outside the
+    search box -- widen max_bideg / coef_bound.  That is the situation more sampling cannot fix.
     """
     seed = seed if seed is not None else AtomSet([], [])
-    # Pool residual denominators by point: R(p) = lcm over slots of the stripped denominator.
-    pooled: dict[tuple, int] = {}
-    for (q, t), val in values:
-        den = Fraction(val).denominator
-        r = _strip(den, (a.eval(q, t) for a in seed.atoms))
-        if r > 1:
-            pooled[(q, t)] = (pooled.get((q, t), 1) * r) // math.gcd(pooled.get((q, t), 1), r)
-    pts = sorted(pooled)
-    found: list[Atom] = []
-    report = {"seed": seed.names(), "points_with_residual": len(pts), "found": [],
-              "residual": {}, "search": {"max_bideg": max_bideg, "coef_bound": coef_bound}}
-    if not pts:
-        if verbose:
-            print(f"[atoms] seed {seed.names()} explains every denominator at every point")
-        return seed, report
-
-    cands = _candidate_polys(max_bideg, coef_bound)
+    # 1. reconstruct denominators along lines: list of (fixed_var, x0, D_univariate)
+    lines = []
+    n_rec = n_try = 0
+    for slot, pts in values_by_slot.items():
+        by_t, by_q = {}, {}
+        for (q, t), v in pts:
+            by_t.setdefault(t, []).append((q, v))
+            by_q.setdefault(q, []).append((t, v))
+        for fixed, groups in (("t", by_t), ("q", by_q)):
+            for x0, line in groups.items():
+                if len(line) < 6:
+                    continue
+                n_try += 1
+                rec = reconstruct_univariate(line)
+                if rec is None:
+                    continue
+                n_rec += 1
+                D = rec[1]
+                if len(D) > 1:
+                    lines.append((fixed, x0, D))
     if verbose:
-        print(f"[atoms] {len(pts)} points carry residual denominators after stripping "
-              f"{seed.names() or 'nothing'}; searching {len(cands)} candidate polynomials "
-              f"of bidegree <= {max_bideg}, |coef| <= {coef_bound}")
+        print(f"[atoms] reconstructed {n_rec}/{n_try} line denominators over "
+              f"{len(values_by_slot)} slots; {len(lines)} non-trivial")
+    report = {"seed": seed.names(), "lines_reconstructed": n_rec, "lines_tried": n_try,
+              "found": [], "multiplicity": {}, "unexplained": 0,
+              "search": {"max_bideg": list(max_bideg), "coef_bound": coef_bound}}
+
+    # 2. strip the seed atoms (polynomial division, recording multiplicities)
+    mult = {a.name: 0 for a in seed.atoms}
+
+    def strip(atom):
+        m_max = 0
+        for idx, (fixed, x0, D) in enumerate(lines):
+            a1 = _specialise(atom.coefs, fixed, x0)
+            if len(a1) < 2:
+                continue
+            m = 0
+            while len(D) >= len(a1):
+                qq, r = _poly_divmod(D, a1)
+                if r:
+                    break
+                D, m = qq, m + 1
+            lines[idx] = (fixed, x0, D)
+            m_max = max(m_max, m)
+        return m_max
+
+    for a in seed.atoms:
+        mult[a.name] = strip(a)
+
+    # 3. search
+    found = []
     known = set(seed.atoms)
+    cands = _candidate_polys(max_bideg, coef_bound)
     while True:
-        best, best_score = None, 0.0
+        best, best_key = None, None
         for coefs in cands:
             a = Atom(poly_str(coefs), coefs)
             if a in known:
                 continue
-            support, score, ok = 0, 0.0, True
-            for p in pts:
-                v = abs(a.eval(*p))
-                if v <= 1:
-                    continue                     # uninformative at this point
-                if pooled[p] % v != 0:
-                    ok = False
-                    break
-                support += 1
-                score += math.log(v)
-            if ok and support >= min_support and score > best_score:
-                best, best_score = a, score
+            hits, tvals, qvals = 0, set(), set()
+            for fixed, x0, D in lines:
+                if len(D) < 2:
+                    continue
+                a1 = _specialise(coefs, fixed, x0)
+                if len(a1) < 2 or len(a1) > len(D):
+                    continue
+                if not _poly_divmod(D, a1)[1]:
+                    hits += 1
+                    (tvals if fixed == "t" else qvals).add(x0)
+            dep_t = any(j for _, j in coefs)
+            dep_q = any(i for i, _ in coefs)
+            if hits < min_lines:
+                continue
+            if dep_t and len(tvals) < 2 and len(qvals) < 2:
+                continue
+            if dep_q and len(qvals) < 2 and len(tvals) < 2:
+                continue
+            key = (hits,)
+            if best_key is None or key > best_key:
+                best, best_key = a, key
         if best is None:
             break
-        found.append(best)
-        known.add(best)
+        found.append(best); known.add(best)
+        mult[best.name] = strip(best)
         if verbose:
-            print(f"[atoms]   found {best.name}")
-        # strip it and drop points now fully explained
-        for p in list(pts):
-            pooled[p] = _strip(pooled[p], [best.eval(*p)])
-            if pooled[p] == 1:
-                pts.remove(p)
-        if not pts:
+            print(f"[atoms]   found {best.name}  (multiplicity <= {mult[best.name]}, "
+                  f"{best_key[0]} lines)")
+        if all(len(D) < 2 for _, _, D in lines):
             break
 
+    left = sum(1 for _, _, D in lines if len(D) >= 2)
     report["found"] = [a.name for a in found]
-    report["residual"] = {f"{p[0]},{p[1]}": pooled[p] for p in pts}
+    report["multiplicity"] = mult
+    report["unexplained"] = left
+    if left:
+        # Do not just say "widen the box" -- the box cannot be widened far (the candidate search
+        # is exponential in it). Factor what is left and name the missing atoms.
+        try:
+            rf = residual_factors(lines, verbose=verbose)
+            lifted = atoms_from_residual_factors(rf, verbose=verbose)
+        except Exception as e:                      # sympy missing, or a factorisation failure
+            rf, lifted = {}, []
+            if verbose:
+                print(f"[atoms]   (residual factorisation unavailable: {e})")
+        report["residual_factors"] = [_fmt_univariate(cs, "q" if f == "t" else "t")
+                                      for (f, cs) in rf]
+        if lifted:
+            for a in lifted:
+                if a not in found:
+                    found.append(a)
+                    mult[a.name] = strip(a)
+            left = sum(1 for _, _, D in lines if len(D) >= 2)
+            report["found"] = [a.name for a in found]
+            report["multiplicity"] = mult
+        report["unexplained"] = left
     if verbose:
-        if pts:
-            print(f"[atoms] WIDEN THE CLASS: {len(pts)} points keep unexplained denominators, "
-                  f"e.g. {pts[0]} -> {pooled[pts[0]]}. Raise max_bideg / coef_bound.")
+        if left:
+            ex = next(D for _, _, D in lines if len(D) >= 2)
+            print(f"[atoms] WIDEN THE CLASS: {left} reconstructed denominators keep a factor "
+                  f"outside bidegree {max_bideg} / |coef| <= {coef_bound}, e.g. {[str(c) for c in ex]}")
         else:
-            print(f"[atoms] every denominator explained by {seed.names() + report['found']}")
-    return seed.extended(found, provenance=f"inferred from {len(values) if hasattr(values, '__len__') else '?'} "
-                                             f"sampled coefficients; seed {seed.names()}"), report
+            print(f"[atoms] every reconstructed denominator is a product of "
+                  f"{seed.names() + report['found']}")
+    out = seed.extended(found, provenance=f"inferred over {len(values_by_slot)} slots; seed {seed.names()}")
+    # exponent box from observed multiplicities (+1 slack), never below the seed's box
+    out.max_exp = [max(m0, mult.get(a.name, 0) + 1) for a, m0 in zip(out.atoms, out.max_exp)]
+    return out, report
 
 
 if __name__ == "__main__":
@@ -342,12 +669,15 @@ if __name__ == "__main__":
     import random
     random.seed(1)
     six = AtomSet.DEFAULT
-    pts = [(q, t) for q in (3, 5, 7, 11, 13, 17, 19, 23) for t in (3, 5, 7, 11, 13, 17) if q != t]
-    vals = []
-    for p in pts:
-        for exps in [(1, 2, 1, 0, 0, 0), (0, 0, 0, 1, 1, 0), (2, 0, 0, 0, 1, 1), (0, 1, 1, 1, 0, 1)]:
-            vals.append((p, Fraction(random.randint(1, 97), six.eval_denom(exps, *p))))
-    got, rep = infer(vals, seed=None)
-    print(got, rep["residual"] == {})
-    assert set(got.names()) == set(six.names()), got.names()
-    print("OK: rediscovered the six from denominators alone")
+    pts = [(q, t) for q in (3, 5, 7, 8, 9, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47)
+           for t in (3, 5, 7, 11, 13, 17) if q != t]
+    slots = {}
+    for si, exps in enumerate([(1, 2, 1, 0, 0, 0), (0, 0, 0, 1, 1, 0), (2, 0, 0, 0, 1, 1), (0, 1, 1, 1, 0, 1)]):
+        num = {(i, j): random.randint(-5, 5) for i in range(3) for j in range(2)}
+        slots[si] = [(p, Fraction(sum(c * p[0] ** i * p[1] ** j for (i, j), c in num.items()),
+                                  six.eval_denom(exps, *p))) for p in pts]
+    got, rep = infer(slots, seed=AtomSet.UNITS)
+    print(got, "unexplained:", rep["unexplained"])
+    assert set(got.atoms) == set(six.atoms), got.names()
+    assert rep["unexplained"] == 0
+    print("OK: from the units alone, rediscovered the six from denominators")
