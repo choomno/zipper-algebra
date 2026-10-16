@@ -1,5 +1,9 @@
 # `zipper-algebra` — computational pipelines for the Bigelow zipper algebra
 
+The current objective is complete papers and reusable public code. See
+[`RESEARCH_AGENDA.md`](RESEARCH_AGENDA.md) for the research scope, unresolved questions,
+source recovery, and release criteria. The historical project descriptions follow.
+
 > **Trust tiers (see `INDEX.md` for the full map).**
 > 1. **Shared/trusted** — `tools/{zipper_in_ms,core,tests}.py`.
 > 2. **Project A** (frozen main tool) — `tools/cofactor/`, the exact ℚ(q,t) `X_3=0`
