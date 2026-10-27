@@ -1,2 +1,6 @@
 # Content-addressed Gröbner run cache — regenerable
 .cache/
+
+# Python interpreter products
+__pycache__/
+*.py[cod]
