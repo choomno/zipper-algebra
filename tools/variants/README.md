@@ -1,67 +1,32 @@
-# Variant zipper algebras
+# Experimental variant-quotient calculations
 
-Computational tooling for the variant-untwisting quotients of the
-Bigelow zipper algebra studied in
-`braid-research/variant_dimensions.tex`. Each script reads a Gröbner
-basis emitted by `f4ncgb` and answers one question about the resulting
-quotient algebra (dimension, Hilbert series, semisimplicity, trace
-space, tower inclusion, Markov-trace space).
+These scripts explore dimensions, trace forms, radical candidates, tower maps and
+Markov-trace conditions for specified untwisting quotients. They are research
+programs retained with their earlier inputs and outputs; they are outside the
+maintained installed package.
 
-All scripts import shared utilities from `tools/core.py` (the
-parsers, the Aho–Corasick automaton, the noncommutative reducer).
+| Script | Computation |
+| --- | --- |
+| `compute_dim_aho.py` | Standard words and dimension from a supplied basis. |
+| `check_x3_nilpotent.py` | Specialized nilpotence search. |
+| `semisimple_Q.py`, `semisimple_v3.py` | Trace-form calculations over the rationals or a finite field. |
+| `trace_space.py`, `trace_space_fast.py` | Trace-space linear algebra in their stated coefficient domain. |
+| `tower_check.py` | Tests of proposed maps at chosen parameters. |
+| `markov_search.py` | Linear systems for candidate Markov traces. |
+| `square_zero_*`, `explicit_rep_n3.py`, `generic_non_ss.py` | Specialized representation and ideal calculations. |
 
-## Pipeline
+A dimension or normal-form conclusion requires a completed basis of the intended
+ideal, with the coefficient field and specialization stated. Raising an engine
+iteration limit does not prove completion. A calculation at several parameter
+values does not establish the corresponding generic statement. In particular,
+rank agreement modulo primes and generic non-semisimplicity require separate
+justification.
 
-```
-                                                                    char-0 path
-                                                                    ↗
-inputs --> zipper_in_ms --> f4ncgb --> .basis --> compute_dim_aho   trace_space
-.ms (n, untwist, a)                              check_x3_nilpotent  semisimple_Q
-                                                  semisimple_v3     trace_space_fast
-                                                  trace_space_fast  tower_check
-                                                                    markov_search
-```
+The historical [claim ledger](../../LEDGER_claims.md) and
+[specialization audit](../../AUDIT_spec_vs_generic.md) record earlier claims,
+evidence and gaps. They have not all been reestablished by the current package
+tests. Their manuscript references name research sources outside the software
+distribution.
 
-1. **`zipper_in_ms.py`** (at the parent `tools/` level, shared)
-   emits the `f4ncgb` `.ms` input for the variant of choice.
-
-2. **`f4ncgb`** computes the noncommutative Gröbner basis. Run with
-   `--maxiter 200` or higher — the default of 10 silently truncates the
-   F4 saturation loop and produces incomplete bases (see the
-   `--maxiter` discussion in `variant_dimensions.tex`).
-
-3. Downstream analysis scripts (this folder):
-
-   | Script | Question answered |
-   |---|---|
-   | `compute_dim_aho.py` | Hilbert series and total dim |
-   | `check_x3_nilpotent.py` | Is $X_3$ nilpotent in the quotient? |
-   | `semisimple_v3.py` | $F_p$ trace-form rank & det |
-   | `semisimple_Q.py` | $\mathbb{Q}$ trace-form rank & det (char-0 theorem) |
-   | `trace_space.py` | $\dim_\mathbb{Q} A/[A,A]$ |
-   | `trace_space_fast.py` | $\dim_{F_p} A/[A,A]$, online row reduction |
-   | `tower_check.py` | Does $Z_{n-1}^{\mathrm{var}} \hookrightarrow Z_n^{\mathrm{var}}$? |
-   | `markov_search.py` | Markov-trace linear system on $Z_3 \to Z_4$ |
-
-## Tests
-
-```
-python3 -m tools.tests
-```
-
-The suite at `tools/tests.py` pins the following numerical facts:
-
-- `BMW_3` has dim 15 with 4 trace functionals.
-- `BMW_3` is semisimple over $\mathbb{Q}$ ($\det T \ne 0$, rank 15).
-- square-zero-3 has dim 24 with $\mathrm{rank}\,T = 15$ over $\mathbb{Q}$
-  (so $\dim J = 9$).
-- Round-trip parsers and Aho–Corasick automaton match expectations.
-
-Tests must pass after any change to `core.py` or to a variant script.
-
-## Reference
-
-See `braid-research/variant_dimensions.tex` for the full mathematical
-context (algebraic background, results, semisimplicity proofs,
-Markov-trace setup). The §"Reproducible computational protocols"
-section there gives the exact command sequence for each result.
+The older solver integration suite is `tools/tests.py`. See
+[TESTING](../../docs/TESTING.md) for its status and for the maintained CI suite.

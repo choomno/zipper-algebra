@@ -16,7 +16,7 @@
 \maketitle
 
 \section{Purpose and boundary}
-The software studies presentations motivated by zipper relations in quantum
+The installed package \texttt{zipper\_algebra} studies presentations motivated by zipper relations in quantum
 topology and their untwisting quotients. Its initial maintained operations
 construct explicit presentations, expand recorded proofs, compose two-sided
 ideal-membership certificates, and check the resulting identities exactly.
@@ -52,8 +52,8 @@ using braid simplification must supply the corresponding braid/inverse terms
 or use a separately specified group-algebra checker.
 
 \section{The presentation builder}
-The function \texttt{build\_relations\_ring} lives in \path{tools/zipper_in_ms.py}.
-Its front end is the class \texttt{Presentation} in \path{tools/presentation.py}.
+The function \texttt{build\_relations\_ring} lives in \path{src/zipper_algebra/zipper_in_ms.py}.
+Its front end is the class \texttt{Presentation} in \path{src/zipper_algebra/presentation.py}.
 A presentation carries the strand
 count, untwisting choice, framing and twist powers, level limits, zero-slider
 relations and named additional relations. Its symbolic relation content is
@@ -106,10 +106,12 @@ $(\Theta_{3,j}^m-q^{2m})S_{3,j}$. At higher levels the canonical relation remain
 The software does not yet accept an arbitrary untwisting polynomial as input.
 No structural theorem about a variant follows simply from choosing a flag.
 
-Level-limit edge cases and rejection of unrecognised option values still need
-a dedicated builder audit. They are outside the currently supported parameter
-contract. The canonical default and explicitly tested presentations form the
-initial verification boundary.
+The public presentation object rejects unknown untwisting choices, noninteger
+strand counts and powers, level bounds outside $2,\ldots,n$, repeated additional
+relation labels and targets requiring more strands than are present. Numeric
+coefficients use either $\Q$ or $\Z/m\Z$. Calling the latter a field requires
+the additional hypothesis that $m$ is prime; the coefficient backend does not
+perform a primality proof. Nonunits cannot be inverted.
 
 \section{Certificate data and exact conclusion}
 Let $r_1,\ldots,r_s\in F_n$ be the ordered defining relations of a specified
@@ -204,6 +206,39 @@ multiplier per occurrence. A sample with a different contextual schedule is
 excluded. A successful fit is a candidate; the resulting identity still needs
 exact verification.
 
+\section{Exact reconstruction of candidates}
+A sample consists of a distinct parameter point in $\Q^2$ and an exact rational
+value. Repeated locations count once; conflicting values and floating-point
+coefficients are rejected. For a fixed nonzero denominator proposal and a
+numerator bidegree bound, interpolation uses the available fitting rows and
+requires full column rank. A consistent rank-deficient system does not determine
+a unique numerator and is not completed by arbitrarily setting free variables
+to zero. Numerator coefficients belong to $\Q$, rather than necessarily $\Z$.
+
+Univariate rational reconstruction fixes a monic denominator, solves the exact
+linear system, cancels a polynomial greatest common divisor and normalizes the
+result. The reduced denominator must be nonzero at every supplied point, and the
+candidate must match every fitting and held-out value. This prevents a spurious
+cross-multiplied equation $0=0$ from concealing an incorrect sample at a pole.
+
+Held-out locations are reserved before fitting and denominator inference. Their
+coefficients do not participate in inference of the factor family. A passing
+held-out check is additional evidence, not a rational-function identity proof.
+Line restrictions can cause distinct polynomial factors to coincide, so inferred
+exponents are heuristic proposals. They are validated and have a general-search
+fallback. For arbitrary declared factors, absence of a cancellable whole factor
+does not imply coprimality of the numerator and denominator; stronger assertions
+require irreducible, pairwise nonassociate factors.
+
+Failed predictions, an unavailable common reduction shape and exhaustion of the
+chosen degree or factor bounds do not show that more data cannot help. The
+experimental driver retries within its sampling cap and reports an inconclusive
+outcome when it lacks an exact certificate. In particular, reducing to a nonzero
+remainder against an uncertified basis establishes no nonmembership conclusion,
+even at that specialization. The historical exception name
+\texttt{WrongClass} is retained as a subtype of \texttt{NeedMoreSamples}; it is
+an inconclusive diagnostic. Candidate reconstruction is characteristic zero.
+
 \section{Evidence and unsupported conclusions}
 The historical large free-algebra certificate is retained for compatibility
 checks. Smaller braid-algebra certificates use a different ambient equality and
@@ -213,24 +248,25 @@ A finite computation, a small residual, agreement across specializations, or a
 successful process exit does not certify a completed generic Gr\"obner basis.
 A nonzero specialized remainder cannot alone establish generic nonmembership.
 Dimension and trace claims require their own basis-completion and exact-arithmetic
-evidence. Reconstruction and execution interfaces remain experimental until
-their remaining defects have been repaired and reviewed.
+evidence. Exact coefficient reconstruction is a maintained candidate-producing operation.
+Solver execution, generic basis certification and the experiment drivers retain
+separate completion requirements and remain experimental.
 
 \section{Verification commands and source map}
-The initial solver-free regressions cover strict certificate validation,
+The solver-free regressions and distribution checks cover strict certificate validation,
 noncommuting contexts, repeated basis occurrences, schedule alignment, poles,
 target degrees and historical certificate compatibility. See
 \path{docs/TESTING.md} for the maintained commands and optional integrations.
 
 \begin{itemize}
-\item Presentation and coefficient formulas: \path{tools/presentation.py},
-      \path{tools/zipper_in_ms.py}.
-\item Certificate schema and atoms: \path{tools/cofactor/cofactor_io.py},
-      \path{tools/cofactor/atoms.py}.
-\item Symbolic and grid checks: \path{tools/cofactor/verify.py}.
-\item Proof graph: \path{tools/cofactor/proof.py}.
-\item Reduction skeleton: \path{tools/cofactor/skeleton.py}.
-\item Symbolic composition: \path{tools/cofactor/compose.py}.
+\item Presentation: \path{src/zipper_algebra/presentation.py}.
+\item Coefficients and relation formulas: \path{src/zipper_algebra/zipper_in_ms.py}.
+\item Certificate schema: \path{src/zipper_algebra/cofactor/cofactor_io.py}.
+\item Denominator factors: \path{src/zipper_algebra/cofactor/atoms.py}.
+\item Symbolic and grid checks: \path{src/zipper_algebra/cofactor/verify.py}.
+\item Proof graph: \path{src/zipper_algebra/cofactor/proof.py}.
+\item Reduction skeleton: \path{src/zipper_algebra/cofactor/skeleton.py}.
+\item Symbolic composition: \path{src/zipper_algebra/cofactor/compose.py}.
 \item Sample alignment: \path{tools/cofactor/pipeline.py}.
 \end{itemize}
 \end{document}

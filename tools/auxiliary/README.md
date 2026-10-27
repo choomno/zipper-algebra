@@ -1,13 +1,17 @@
-# reduction — post-hoc work on a finished cofactor
+# Historical certificate diagnostics
 
-**Not part of the pipeline.** `cofactor/` produces and verifies the ℚ(q,t) cofactor of X₃; these operate
-on that finished result. They are outside the transitive closure of `reproduce_X3_zero.sh`, so removing
-them cannot affect reproducibility.
+These scripts inspect earlier compressed certificates. Their inputs and
+assumptions are specific to those artifacts; they are outside the maintained
+installed package.
 
-| script | what it does |
-|---|---|
-| `cancel_qm1.py` | Cancels the spurious (q−1) factor from the 161-tuple three-relation cofactor — every numerator carries it. |
-| `check_denom_minimal.py` | Exhaustive proof that `t⁴(t+q²)` is the minimal common denominator of the 161-tuple cofactor. |
-| `independent_verify_three_rels.py` | Re-parses `cofactor-X3-n4-Qqt-three-rels.txt` from scratch and verifies it, deliberately **not** using the symbolic engine that produced it. |
+| Script | Historical purpose |
+| --- | --- |
+| `cancel_qm1.py` | Cancel a common numerator/denominator factor in an earlier certificate. |
+| `check_denom_minimal.py` | Test the displayed common denominator for that fixed expression. |
+| `independent_verify_three_rels.py` | Reparse and check a compressed three-relation expression by an independent route. |
 
-They import from `../cofactor/` (`relations_naming`, `symbolic_identity_check`, `simplify_cofactor`).
+Denominator minimality for a fixed expression is not minimality among every
+possible certificate. Compressed braid-algebra expressions and literal
+free-algebra certificates use different equality checks. The current package
+interface and validation instructions are in [WORKFLOW](../../WORKFLOW.md) and
+[TESTING](../../docs/TESTING.md).

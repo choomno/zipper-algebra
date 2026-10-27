@@ -13,6 +13,9 @@ include tools/cofactor/tests_*.py
 include archive/cofactor-pre-consolidation/extract_cofactor.py
 include logs_and_traces/f4ncgb/cofactor-X3-n4-Qqt-symbolic.txt
 include logs_and_traces/f4ncgb/basis-n4-Q.txt
+include logs_and_traces/f4ncgb/basis-n4-Q-q5-t7.txt
+include logs_and_traces/f4ncgb/basis-n4-Q-q3-t11.txt
+include logs_and_traces/f4ncgb/basis-n4-Q-q7-t13.txt
 global-exclude *.py[cod]
 global-exclude __pycache__
 prune .cache

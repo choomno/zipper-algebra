@@ -7,8 +7,9 @@ Consolidates the fitting half of symbolic_lift_x3.py (SPEC.md, lift.py).  The pi
                                denominator in AtomSet.candidates() order (ascending exponent
                                sum), scale the sampled values, and take the first bidegree in
                                ascending total degree whose determined numerator agrees on
-                               every fitting point. Same enumeration order
-                               as before, so the first-found denominator is the same.
+                               every fitting point. The search order is deterministic;
+                               correcting an invalid or underdetermined fit can change
+                               which candidate is accepted.
   fit_rational_known           the same scaling + numerator fit for ONE candidate, plus a
                                reducedness check; used to try a reconstructed denominator
                                before the full enumeration (the SPEC optimisation).
@@ -29,11 +30,10 @@ Words are whatever the Proof carries (tuples of 1-based variable indices per SPE
 parser's variable-name lists are converted by the caller); lift never interprets them, nor
 the key text, which is owned by proof.Basis.
 
-Measured on the 100-point X_3 grid on disk (tests_lift.py, 231 slots, atoms-n4-Q.json box
-[6,4,2,1,2,1] = 1260 candidates): the enumeration route takes about 1.4 s in total, the
-line-reconstruction route about 100 s, both giving byte-identical entries.  The optimisation
-pays only when the candidate count is large (it grows as the product of the box widths), so
-`lift` uses it only when asked (`known=`) -- see the report in notes/refactor/lift-report.md.
+The denominator candidate count grows as the product of the exponent-box widths.
+`known=` can try a proposed denominator before enumeration; every accepted result still
+needs exact sample validation and final certificate verification. Historical timing
+measurements do not benchmark the current implementation.
 """
 from __future__ import annotations
 
@@ -77,7 +77,7 @@ class WrongClass(NeedMoreSamples):
 
 
 # ----------------------------------------------------------------------------
-# the fitter (symbolic_lift_x3.py, semantics unchanged)
+# exact polynomial and rational-function fitting
 # ----------------------------------------------------------------------------
 
 def poly_eval_qt(coefs, q, t):

@@ -74,7 +74,8 @@ checker or explicit braid and inverse relation terms.
 
 Reconstruction supplies candidates. A fit at sampled parameter values becomes
 a membership result only after exact identity verification. A nonzero remainder
-from a specialized or unfinished basis does not establish generic nonmembership.
+from an uncertified basis establishes no nonmembership conclusion, even at the
+sampled parameter value.
 See the specification for these distinctions and for the relation formulas.
 
 ## Tests and development
