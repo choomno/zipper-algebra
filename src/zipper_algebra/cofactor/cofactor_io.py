@@ -43,25 +43,14 @@ and a trivial denominator; it is an interior node of the reconstruction, never a
 from __future__ import annotations
 
 import os
-import sys
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-PARENT = os.path.dirname(HERE)  # tools/, where zipper_in_ms.py and presentation.py live
 import json
 import re
 from fractions import Fraction
 
-if __package__:
-    from .atoms import AtomSet
-    from ..zipper_in_ms import Coef, Poly, NumericRing, SymbolicRing
-    from ..presentation import Presentation, EXTRA_CATALOGUE, _theta_word
-else:
-    for _p in (HERE, PARENT):
-        if _p not in sys.path:
-            sys.path.insert(0, _p)
-    from atoms import AtomSet
-    from zipper_in_ms import Coef, Poly, NumericRing, SymbolicRing
-    from presentation import Presentation, EXTRA_CATALOGUE, _theta_word
+from .atoms import AtomSet
+from ..zipper_in_ms import Coef, Poly, NumericRing, SymbolicRing
+from ..presentation import Presentation, EXTRA_CATALOGUE, _theta_word
 
 
 HEADER_KEYS = ("presentation", "presentation_hash", "target", "atoms", "n_terms", "producer")

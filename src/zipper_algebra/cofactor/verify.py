@@ -26,27 +26,14 @@ so agreement between them is real evidence rather than a repeated computation.
 from __future__ import annotations
 
 import os
-import sys
 import time
 from fractions import Fraction
 
-_HERE = os.path.dirname(os.path.abspath(__file__))
-_TOOLS = os.path.dirname(_HERE)
-if __package__:
-    from .cofactor_io import Cofactor, symbolic_target
-    from .ncpoly import (NCPoly, qt_add, qt_const, qt_mul, qt_pow, nc_add, nc_is_zero,
-                         nc_mul, nc_scalar, nc_size, nc_sub, nc_zero)
-    from ..presentation import Presentation
-    from ..zipper_in_ms import NumericRing, SymbolicRing, Poly
-else:
-    for _p in (_HERE, _TOOLS):
-        if _p not in sys.path:
-            sys.path.insert(0, _p)
-    from cofactor_io import Cofactor, symbolic_target
-    from ncpoly import (NCPoly, qt_add, qt_const, qt_mul, qt_pow, nc_add, nc_is_zero,
-                         nc_mul, nc_scalar, nc_size, nc_sub, nc_zero)
-    from presentation import Presentation
-    from zipper_in_ms import NumericRing, SymbolicRing, Poly
+from .cofactor_io import Cofactor, symbolic_target
+from .ncpoly import (NCPoly, qt_add, qt_const, qt_mul, qt_pow, nc_add, nc_is_zero,
+                     nc_mul, nc_scalar, nc_size, nc_sub, nc_zero)
+from ..presentation import Presentation
+from ..zipper_in_ms import NumericRing, SymbolicRing, Poly
 
 
 def _atom_qt(atom) -> dict:

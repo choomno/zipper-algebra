@@ -29,20 +29,10 @@ term for term there (tests_proof_skeleton.py).
 """
 from __future__ import annotations
 
-import os
 import re
-import sys
 from fractions import Fraction
 
-_HERE = os.path.dirname(os.path.abspath(__file__))
-_PARENT = os.path.dirname(_HERE)            # tools/, where zipper_in_ms.py lives
-if __package__:
-    from ..zipper_in_ms import Coef, Poly
-else:
-    for _p in (_HERE, _PARENT):
-        if _p not in sys.path:
-            sys.path.insert(0, _p)
-    from zipper_in_ms import Coef, Poly
+from ..zipper_in_ms import Coef, Poly
 
 
 Word = tuple[int, ...]
