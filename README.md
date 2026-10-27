@@ -1,5 +1,12 @@
 # `zipper-algebra` — computational pipelines for the Bigelow zipper algebra
 
+Phase-one work is recorded in [the public scope inventory](docs/PUBLIC_SCOPE.md),
+[the mathematical specification](docs/mathematical-specification/main.tex), and
+[the current test instructions](docs/TESTING.md). The maintained certificate
+checks run without an installed solver or the surrounding private workspace.
+The historical descriptions below retain superseded commands and claims and are
+being reconciled with the supported software boundary.
+
 The current objective is complete papers and reusable public code. See
 [`RESEARCH_AGENDA.md`](RESEARCH_AGENDA.md) for the research scope, unresolved questions,
 source recovery, and release criteria. The historical project descriptions follow.

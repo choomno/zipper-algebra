@@ -15,6 +15,7 @@ import json
 import os
 import re
 import sys
+import tempfile
 import unittest
 from fractions import Fraction
 
@@ -41,15 +42,20 @@ LOGS = os.path.join(ZA, "logs_and_traces", "f4ncgb")
 # pipeline regenerates those live files in the new format, so a test that read them would
 # silently stop comparing against the legacy output the moment the pipeline ran. Per-point bases
 # and proofs still come from logs_and_traces -- the pipeline does not rewrite them.
-FROZEN = os.path.join(REPO, "notes", "pipeline_test", "pre-atoms-20260917")
+FROZEN = os.path.join(ZA, "tests", "fixtures", "legacy_x3")
 
 
 def frozen(name: str) -> str:
     p = os.path.join(FROZEN, name)
     return p if os.path.exists(p) else os.path.join(LOGS, name)
-OUT = os.path.join(REPO, "notes", "refactor", "out", "proof_skeleton")
+_OUTPUT = tempfile.TemporaryDirectory(prefix="zipper-proof-tests-")
+OUT = _OUTPUT.name
+
+
+def tearDownModule():
+    _OUTPUT.cleanup()
 BASIS_PATH = os.path.join(LOGS, "basis-n4-Q.txt")
-PROOF_PATH = os.path.join(LOGS, "proof-n4-Q-noex.txt")
+PROOF_PATH = os.path.join(FROZEN, "proof-n4-Q-noex.txt")
 ANCHOR = (5, 7, 0)
 
 import extract_cofactor as E                          # noqa: E402  (legacy)

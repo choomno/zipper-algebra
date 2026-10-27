@@ -18,35 +18,41 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 TOOLS = os.path.dirname(HERE)
 ZA = os.path.dirname(TOOLS)
 REPO = os.path.dirname(ZA)
-for _p in (HERE, TOOLS, REPO):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
-
-from atoms import AtomSet                                     # noqa: E402
-from cofactor_io import Cofactor                              # noqa: E402
-from compose import compose, expand_over_inputs, numeric_check  # noqa: E402
-from lift import Lift                                          # noqa: E402
-from presentation import Presentation                          # noqa: E402
-import verify                                                  # noqa: E402
+from .atoms import AtomSet
+from .cofactor_io import Cofactor
+from .compose import compose, expand_over_inputs, numeric_check
+from .lift import Lift
+from ..presentation import Presentation
+from . import verify
 
 LOGS = os.path.join(ZA, "logs_and_traces", "f4ncgb")
 
-# The legacy-format artifacts (skeleton-n4-Q.json with basis_index; basis-symbolic-Qqt.json with
-# "lifted"; the certificate) come from the FROZEN snapshot, not from logs_and_traces: the
-# pipeline regenerates those live files in the new format, so a test that read them would
-# silently stop comparing against the legacy output the moment the pipeline ran. Per-point bases
-# and proofs still come from logs_and_traces -- the pipeline does not rewrite them.
-FROZEN = os.path.join(REPO, "notes", "pipeline_test", "pre-atoms-20260917")
+# Immutable pre-consolidation inputs are carried by this repository.
+FROZEN = os.path.join(ZA, "tests", "fixtures", "legacy_x3")
 
 
 def frozen(name: str) -> str:
     p = os.path.join(FROZEN, name)
     return p if os.path.exists(p) else os.path.join(LOGS, name)
-SYMBOLIC = frozen("cofactor-X3-n4-Qqt-symbolic.txt")
+
+
+SYMBOLIC = os.path.join(LOGS, "cofactor-X3-n4-Qqt-symbolic.txt")
 LIFT_JSON = frozen("basis-symbolic-Qqt.json")
 SKEL_JSON = frozen("skeleton-n4-Q.json")
-OUT = os.path.join(REPO, "notes", "refactor", "out", "compose")
-os.makedirs(OUT, exist_ok=True)
+_OUTPUT = None
+OUT = None
+
+
+def setUpModule():
+    global _OUTPUT, OUT
+    _OUTPUT = tempfile.TemporaryDirectory(prefix="zipper-legacy-tests-")
+    OUT = _OUTPUT.name
+
+
+def tearDownModule():
+    if _OUTPUT is not None:
+        _OUTPUT.cleanup()
+
 
 PRES = Presentation(4)
 TARGET = "S[3][1]"

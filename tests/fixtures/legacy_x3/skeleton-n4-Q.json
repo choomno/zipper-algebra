@@ -1,0 +1,37 @@
+{
+ "target": "S[3][1]",
+ "n": 4,
+ "anchor": {
+  "q": 5,
+  "t": 7,
+  "char": 0
+ },
+ "basis_size": 137,
+ "n_steps": 3,
+ "remainder_terms": 0,
+ "steps": [
+  {
+   "basis_index": 17,
+   "left": [],
+   "right": [],
+   "mult": "125"
+  },
+  {
+   "basis_index": 16,
+   "left": [],
+   "right": [],
+   "mult": "-25"
+  },
+  {
+   "basis_index": 102,
+   "left": [],
+   "right": [],
+   "mult": "20"
+  }
+ ],
+ "basis_indices": [
+  16,
+  17,
+  102
+ ]
+}
