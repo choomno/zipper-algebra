@@ -33,25 +33,12 @@ from collections import defaultdict
 from collections.abc import Mapping
 from fractions import Fraction
 
-_HERE = os.path.dirname(os.path.abspath(__file__))
-_TOOLS = os.path.dirname(_HERE)
-if __package__:
-    from .atoms import AtomSet
-    from .cofactor_io import (Cofactor, resolve_target, target_name,
-                             validate_word, validate_qt_polynomial)
-    from .lift import fit_rational
-    from ..presentation import Presentation
-    from ..zipper_in_ms import NumericRing
-else:
-    for _p in (_HERE, _TOOLS):
-        if _p not in sys.path:
-            sys.path.insert(0, _p)
-    from atoms import AtomSet
-    from cofactor_io import (Cofactor, resolve_target, target_name,
-                            validate_word, validate_qt_polynomial)
-    from lift import fit_rational
-    from presentation import Presentation
-    from zipper_in_ms import NumericRing
+from .atoms import AtomSet
+from .cofactor_io import (Cofactor, resolve_target, target_name,
+                         validate_word, validate_qt_polynomial)
+from .lift import NeedMoreSamples, fit_rational
+from ..presentation import Presentation
+from ..zipper_in_ms import NumericRing
 
 
 # ---------------------------------------------------------------------------
@@ -257,11 +244,11 @@ def lift_multipliers(skeleton, samples, atoms: AtomSet, max_pq=5, max_pt=5) -> l
     for index, key in enumerate(keys):
         pts = [(point, vals[index]) for point, vals in ordered_samples]
         if len(pts) < 3:
-            raise ValueError(f"only {len(pts)} points carry a multiplier for step {index} "
+            raise NeedMoreSamples(f"only {len(pts)} points carry a multiplier for step {index} "
                              f"({key!r})")
         res = fit_rational(pts, atoms, max_pq=max_pq, max_pt=max_pt)
         if res is None:
-            raise ValueError(f"no model in the current class for the multiplier of step "
+            raise NeedMoreSamples(f"no model in the current class for the multiplier of step "
                              f"{index} ({key!r})")
         den, num = res
         out.append((dict(num), tuple(den)))
@@ -368,12 +355,8 @@ def numeric_check(cof: Cofactor, pres: Presentation, points=((5, 7), (3, 11), (7
 
 if __name__ == "__main__":
     import argparse
-    if __package__:
-        from .lift import Lift
-        from .skeleton import Skeleton
-    else:
-        from lift import Lift
-        from skeleton import Skeleton
+    from .lift import Lift
+    from .skeleton import Skeleton
 
     ap = argparse.ArgumentParser(description="compose a Q(q,t) cofactor from a lift + skeleton")
     ap.add_argument("--lift", required=True)

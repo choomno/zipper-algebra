@@ -1,37 +1,25 @@
 #!/usr/bin/env python3
-"""AtomSet: the denominator atoms of a presentation, as DATA rather than a constant.
+"""Structured denominator factors for exact rational reconstruction.
 
-`reconstruction_theory.tex`, prop:atoms.  Run Buchberger--Mora on the presentation over
-K = Q(q,t); let d in Z[q,t] be a common denominator of every basis coefficient and of every
-leading coefficient inverted (used as a pivot) during the run.  The ATOMS are the distinct
-irreducible factors of d.  Then every coefficient the lift has to recover is
+An Atom is a nonzero polynomial in Z[q,t]. An AtomSet is an ordered family of these
+polynomials together with exponent search bounds. Its factors need not be irreducible.
+A represented coefficient has the form
 
-        c(q,t) = N(q,t) / prod_i a_i^{e_i},      N in Z[q,t],
+    N(q,t) / product_i atom_i(q,t)**e_i, with N in Q[q,t].
 
-so the atoms ARE the hypothesis class of `fit_rational`, and the exponent box is its size.
+The atom set and bounds specify a finite search family for denominators. Inference from
+sampled coefficients proposes a family; it does not prove that the family contains the
+coefficient functions of a generic basis. Reconstructed candidates must pass held-out
+checks, and the final mathematical conclusion comes from exact certificate verification.
 
-They are a property of the presentation AND the monomial order.  A hard-coded set is therefore
-wrong for any other quotient, and a wrong set cannot be repaired by sampling more points --
-`lift_until_verified.py` failure mode (b).  This module makes the set a computed input.
+Univariate reconstruction uses exact rational arithmetic, rejects underdetermined fits,
+cancels polynomial gcds, and checks the reduced candidate at every supplied location.
+Repeated locations contribute one constraint; inconsistent repeated values are invalid.
 
-How they are obtained.  No vetted engine runs the elimination over Q(q,t) and exposes its
-pivots: f4ncgb has them (linear_algebra.cpp) but only at a specialization, where a pivot is an
-integer; Singular letterplace clears content and discards them, and factoring the leading
-coefficients of its reduced basis provably misses atoms (INDEX.md, measured 2026-09-16).  So
-the atoms are inferred from what the pipeline already produces -- exactly the fallback the
-planned-feature note prescribes.  At a grid point p every proof coefficient is a rational whose
-denominator is a product of specialized pivots, hence divisible by a(p) for each atom a that
-occurs.  Across many points that pins a(q,t) down: a polynomial of small bidegree and small
-integer coefficients that divides the residual denominator at EVERY point is an atom, and a
-wrong polynomial fails divisibility somewhere with overwhelming probability.
-
-This inference is SEARCH.  The PROOF is what the pipeline already does with the result: the
-lift built from the atom set must pass Phase 5's symbolic identity check over Q(q,t) with q,t
-transcendental.  Discover by specialization, prove by transcendence.
-
-Backward compatibility.  `AtomSet.DEFAULT` is the six atoms the pipeline has always used, in
-their historical positional order with the historical exponent box, so that every existing
-lift file, cofactor file and denominator string keeps its meaning byte for byte.
+AtomSet.DEFAULT retains the historical six factors, positional order and search bounds,
+so preserved certificate exponent vectors keep their interpretation. AtomSet.UNITS is the
+historical q,t seed for Laurent coefficient presentations, rather than a universal required
+factor set. Arbitrary nonzero polynomial factors are accepted by certificate verification.
 """
 from __future__ import annotations
 
@@ -274,10 +262,8 @@ class AtomSet:
         return f"AtomSet({self.names()}, box={self.max_exp})"
 
 
-# The coefficient ring of every result here is Z[q^,t^] (README: "Results must be over
-# Q(q,t) / Z[q^,t^]"), so q and t are UNITS: invertible by definition, present in every atom
-# set, and not something inference can or should discover (along a grid row t is a constant).
-# prop:atoms' content is the genuine, non-unit irreducibles.
+# Historical seed for presentations over a Laurent base where q and t are units.
+# The general AtomSet API also accepts other factor families, including the empty family.
 AtomSet.UNITS = AtomSet([Atom("q", {(1, 0): 1}), Atom("t", {(0, 1): 1})], max_exp=[5, 4],
                         provenance="units of Z[q^,t^]")
 
@@ -352,45 +338,98 @@ def _solve(aug, ncols):
     for r in range(n):
         if all(aug[r][c] == 0 for c in range(ncols)) and aug[r][ncols] != 0:
             return None
+    if rank != ncols:
+        return None
     sol = [Fraction(0)] * ncols
     for r, col in enumerate(piv):
         sol[col] = aug[r][ncols]
     return sol
 
 
+def exact_fraction(value):
+    """An exact rational input, excluding bool and implicit binary-float coercion."""
+    if isinstance(value, bool) or not isinstance(value, (int, Fraction)):
+        raise ValueError("sample coordinates and values must be exact rational numbers")
+    return Fraction(value)
+
+
+def normalise_points(points, dimensions):
+    """Sorted, distinct exact samples; consistent repeats do not add information."""
+    values = {}
+    for point in points:
+        if not isinstance(point, (tuple, list)) or len(point) != 2:
+            raise ValueError("each sample must contain a coordinate and a value")
+        location, value = point
+        if dimensions == 1:
+            location = exact_fraction(location)
+        else:
+            if not isinstance(location, (tuple, list)) or len(location) != dimensions:
+                raise ValueError(f"sample locations need {dimensions} coordinates")
+            location = tuple(exact_fraction(v) for v in location)
+        value = exact_fraction(value)
+        if location in values and values[location] != value:
+            raise ValueError(f"conflicting values at sample location {location!r}")
+        values[location] = value
+    return sorted(values.items())
+
+
+def _trim(poly):
+    poly = [Fraction(c) for c in poly]
+    while poly and poly[-1] == 0:
+        poly.pop()
+    return poly
+
+
+def _reduce_univariate_fraction(numerator, denominator):
+    """Cancel a polynomial gcd over Q and normalize the denominator to monic."""
+    numerator, denominator = _trim(numerator), _trim(denominator)
+    if not denominator:
+        raise ValueError("a rational function needs a nonzero denominator")
+    if not numerator:
+        return [Fraction(0)], [Fraction(1)]
+    a, b = numerator, denominator
+    while b:
+        _, remainder = _poly_divmod(a, b)
+        a, b = b, _trim(remainder)
+    common = [c / a[-1] for c in a]
+    numerator, nr = _poly_divmod(numerator, common)
+    denominator, dr = _poly_divmod(denominator, common)
+    assert not _trim(nr) and not _trim(dr)
+    numerator, denominator = _trim(numerator), _trim(denominator)
+    lead = denominator[-1]
+    return [c / lead for c in numerator], [c / lead for c in denominator]
+
+
 def reconstruct_univariate(points, holdout=2):
-    """points: [(x, value)] with distinct x.  Find N(x)/D(x), D monic, of minimal total degree
-    that fits all but `holdout` points and PREDICTS the held-out ones.  Returns (N, D) as
-    low->high coefficient lists, or None."""
-    points = sorted(points)
+    """Reconstruct a reduced rational candidate from distinct exact rational samples.
+
+    Fit on all but `holdout` locations and predict the remaining ones. Every supplied
+    location must be defined and correct after gcd cancellation. Return (N, D), low to
+    high coefficients with D monic, or None when no determined candidate succeeds.
+    Agreement on samples is a reconstruction candidate, not a symbolic identity proof.
+    """
+    if type(holdout) is not int or holdout < 1:
+        raise ValueError("holdout must be a positive integer")
+    points = normalise_points(points, 1)
     if len(points) < holdout + 3:
         return None
-    fit, hold = points[:-holdout], points[-holdout:]
-    for total in range(0, len(fit) - 1):
-        for dd in range(0, total + 1):
+    fit = points[:-holdout]
+    for total in range(len(fit) - 1):
+        for dd in range(total + 1):
             dn = total - dd
-            ncols = (dn + 1) + dd                     # D monic: dd free coefficients
-            if len(fit) < ncols:
-                continue
+            ncols = dn + 1 + dd
             aug = []
-            for x, v in fit:
-                v = Fraction(v)
-                row = [Fraction(x) ** i for i in range(dn + 1)]          # N coefficients
-                row += [-v * Fraction(x) ** j for j in range(dd)]       # D coefficients (j < dd)
-                row.append(v * Fraction(x) ** dd)                       # move monic term across
+            for x, value in fit:
+                row = [x ** i for i in range(dn + 1)]
+                row += [-value * x ** j for j in range(dd)]
+                row.append(value * x ** dd)
                 aug.append(row)
             sol = _solve(aug, ncols)
             if sol is None:
                 continue
-            N = sol[:dn + 1]
-            D = sol[dn + 1:] + [Fraction(1)]
-            ok = True
-            for x, v in hold:
-                d = _poly_eval(D, Fraction(x))
-                if d == 0 or _poly_eval(N, Fraction(x)) / d != Fraction(v):
-                    ok = False; break
-            if ok:
-                # strip a common factor so D is the true reduced denominator
+            N, D = _reduce_univariate_fraction(sol[:dn + 1], sol[dn + 1:] + [Fraction(1)])
+            if all((d := _poly_eval(D, x)) != 0 and _poly_eval(N, x) / d == value
+                   for x, value in points):
                 return N, D
     return None
 
@@ -599,7 +638,8 @@ def infer(values_by_slot: dict, seed: AtomSet | None = None, max_bideg=(2, 1), c
 
     Returns (atomset, report).  Seed positions are unchanged; discovered atoms are appended.
     report['unexplained'] > 0 means some reconstructed denominator has a factor outside the
-    search box -- widen max_bideg / coef_bound.  That is the situation more sampling cannot fix.
+    search box. This is a diagnostic for the sampled reconstruction, not a proof that
+    additional samples cannot help; the search class may also need revision.
     """
     seed = seed if seed is not None else AtomSet([], [])
     # 1. reconstruct denominators along lines: list of (fixed_var, x0, D_univariate)

@@ -33,15 +33,8 @@ import sys
 from dataclasses import dataclass, field
 from fractions import Fraction
 
-_HERE = os.path.dirname(os.path.abspath(__file__))
-if __package__:
-    from .zipper_in_ms import (Poly, NumericRing, SymbolicRing, QTCoef, RelTag,
-                              build_relations_ring)
-else:
-    if _HERE not in sys.path:
-        sys.path.insert(0, _HERE)
-    from zipper_in_ms import (Poly, NumericRing, SymbolicRing, QTCoef, RelTag,
-                              build_relations_ring)
+from .zipper_in_ms import (Poly, NumericRing, SymbolicRing, QTCoef, RelTag,
+                          build_relations_ring)
 
 
 # ---------------------------------------------------------------------------
@@ -84,6 +77,33 @@ class Presentation:
     extra: tuple = field(default_factory=tuple)    # names from EXTRA_CATALOGUE, in order
 
     # --- construction ------------------------------------------------------
+    def __post_init__(self):
+        if type(self.n) is not int or self.n < 2:
+            raise ValueError("n must be an integer at least 2")
+        if self.untwist not in ("bigelow", "square-zero", "silly_question", "none"):
+            raise ValueError(f"unknown untwisting choice {self.untwist!r}")
+        for name in ("framing_power", "theta_power"):
+            value = getattr(self, name)
+            if type(value) is not int or value < 1:
+                raise ValueError(f"{name} must be a positive integer")
+        for name in ("max_zipper_level", "max_untwist_level", "zero_from"):
+            value = getattr(self, name)
+            if value is not None and (type(value) is not int or not 2 <= value <= self.n):
+                raise ValueError(f"{name} must be an integer from 2 to n, or None")
+        if not isinstance(self.extra, tuple) or any(not isinstance(name, str) for name in self.extra):
+            raise ValueError("extra must be a tuple of relation names")
+        if len(set(self.extra)) != len(self.extra):
+            raise ValueError("extra relation names must be distinct")
+        required_strands = {
+            "X_4": 4, "X_5": 5, "(Theta_3-q^2)X_3": 3,
+            "(Theta_4+t)X_4": 4, "(Theta_5+t)X_5": 5,
+        }
+        for name in self.extra:
+            if name not in EXTRA_CATALOGUE:
+                raise ValueError(f"unknown extra relation {name!r}")
+            if self.n < required_strands[name]:
+                raise ValueError(f"extra relation {name!r} requires at least {required_strands[name]} strands")
+
     def var_names(self) -> list[str]:
         return [f"x{i}" for i in range(1, self.n)] + [f"y{i}" for i in range(1, self.n)]
 
@@ -114,6 +134,9 @@ class Presentation:
         return self.build(ring)[2]
 
     def target(self, i: int, j: int, ring) -> Poly:
+        if (type(i) is not int or type(j) is not int
+                or not 2 <= i <= self.n or not 1 <= j <= self.n - i + 1):
+            raise ValueError("slider indices must be integers with 2 <= i <= n and 1 <= j <= n-i+1")
         S = self.sliders(ring)
         if (i, j) not in S:
             raise ValueError(f"S[{i}][{j}] does not exist at n={self.n}; have {sorted(S)}")

@@ -25,16 +25,34 @@ from typing import Iterable
 # Coefficient arithmetic: either Fraction (char=0) or int mod p
 # ---------------------------------------------------------------------------
 
+def _validate_characteristic(char):
+    if type(char) is not int or char < 0 or char == 1:
+        raise ValueError("characteristic must be zero or an integer at least two")
+
+
 class Coef:
-    """Lightweight scalar wrapper supporting both Q and GF(p) backends."""
+    """Exact scalars over Q or Z/mZ; the latter is GF(m) when m is prime."""
     __slots__ = ("v", "char")
 
     def __init__(self, v, char: int):
+        _validate_characteristic(char)
+        if isinstance(v, bool) or not isinstance(v, (int, Fraction)):
+            raise TypeError("coefficients must be exact integers or Fractions")
         self.char = char
+        value = Fraction(v)
         if char == 0:
-            self.v = Fraction(v)
+            self.v = value
         else:
-            self.v = int(v) % char
+            try:
+                inverse = pow(value.denominator, -1, char)
+            except ValueError:
+                raise ZeroDivisionError(
+                    f"coefficient denominator is not invertible modulo {char}") from None
+            self.v = value.numerator * inverse % char
+
+    def _check_parent(self, other):
+        if self.char != other.char:
+            raise TypeError(f"cannot mix coefficients of characteristics {self.char} and {other.char}")
 
     @staticmethod
     def zero(char: int) -> "Coef":
@@ -47,23 +65,28 @@ class Coef:
     def __add__(self, other: "Coef") -> "Coef":
         if not isinstance(other, Coef):
             return NotImplemented
+        self._check_parent(other)
         return Coef(self.v + other.v, self.char)
 
     def __sub__(self, other: "Coef") -> "Coef":
         if not isinstance(other, Coef):
             return NotImplemented
+        self._check_parent(other)
         return Coef(self.v - other.v, self.char)
 
     def __mul__(self, other: "Coef") -> "Coef":
         if not isinstance(other, Coef):
             return NotImplemented
+        self._check_parent(other)
         return Coef(self.v * other.v, self.char)
 
     def __neg__(self) -> "Coef":
         return Coef(-self.v, self.char)
 
     def __eq__(self, other: object) -> bool:
-        return isinstance(other, Coef) and self.v == other.v and self.char == other.char
+        if not isinstance(other, Coef):
+            return NotImplemented
+        return self.v == other.v and self.char == other.char
 
     def is_zero(self) -> bool:
         return self.v == 0
@@ -93,8 +116,18 @@ class QTCoef:
     def __init__(self, v):
         self.char = 0
         if isinstance(v, dict):
-            self.v = {k: Fraction(c) for k, c in v.items() if c != 0}
+            self.v = {}
+            for monomial, coefficient in v.items():
+                if (not isinstance(monomial, tuple) or len(monomial) != 2
+                        or any(type(e) is not int or e < 0 for e in monomial)):
+                    raise ValueError("symbolic monomials need two nonnegative integer exponents")
+                if isinstance(coefficient, bool) or not isinstance(coefficient, (int, Fraction)):
+                    raise TypeError("symbolic coefficients must be exact integers or Fractions")
+                if coefficient:
+                    self.v[monomial] = Fraction(coefficient)
         else:
+            if isinstance(v, bool) or not isinstance(v, (int, Fraction)):
+                raise TypeError("symbolic coefficients must be exact integers or Fractions")
             f = Fraction(v)
             self.v = {(0, 0): f} if f != 0 else {}
 
@@ -149,7 +182,10 @@ class QTCoef:
     __rmul__ = __mul__
 
     def __eq__(self, other):
-        o = self._lift(other)
+        try:
+            o = self._lift(other)
+        except TypeError:
+            return False
         return o is not None and self.v == o.v
 
     def is_zero(self) -> bool:
@@ -177,7 +213,11 @@ class QTCoef:
 
 
 class NumericRing:
-    """q, t specialised to integers, over Q (char 0) or GF(p). The emitter's classic backend."""
+    """Exact parameter values over Q (char 0) or the residue ring Z/mZ.
+
+    A positive modulus describes a field only when it is prime. Callers using
+    field algorithms or emitting input for a prime-field solver must supply a prime.
+    """
     def __init__(self, q_int: int, t_int: int, char: int):
         self.char = char
         self.q = Coef(q_int, char)
@@ -189,7 +229,7 @@ class NumericRing:
         return Coef(v, self.char)
 
     def describe(self) -> str:
-        return f"(q,t)=({self.q_int},{self.t_int}) over " + ("Q" if self.char == 0 else f"GF({self.char})")
+        return f"(q,t)=({self.q_int},{self.t_int}) over " + ("Q" if self.char == 0 else f"Z/{self.char}Z")
 
 
 class SymbolicRing:
@@ -243,10 +283,15 @@ class Poly:
     __slots__ = ("terms", "char")
 
     def __init__(self, char: int):
+        _validate_characteristic(char)
         self.terms: dict[tuple[int, ...], Coef] = {}
         self.char = char
 
     def add_term(self, mon: tuple[int, ...], coef: Coef) -> None:
+        if not isinstance(coef, (Coef, QTCoef)) or coef.char != self.char:
+            raise TypeError("a polynomial term must have the polynomial's coefficient characteristic")
+        if not isinstance(mon, tuple) or any(type(i) is not int or i < 1 for i in mon):
+            raise ValueError("monomials must be tuples of positive integer variable indices")
         if coef.is_zero():
             return
         existing = self.terms.get(mon)
@@ -260,6 +305,10 @@ class Poly:
                 self.terms[mon] = new
 
     def __add__(self, other: "Poly") -> "Poly":
+        if not isinstance(other, Poly):
+            return NotImplemented
+        if self.char != other.char:
+            raise TypeError("cannot mix polynomials of different characteristics")
         result = Poly(self.char)
         for mon, c in self.terms.items():
             result.add_term(mon, c)
@@ -268,6 +317,10 @@ class Poly:
         return result
 
     def __sub__(self, other: "Poly") -> "Poly":
+        if not isinstance(other, Poly):
+            return NotImplemented
+        if self.char != other.char:
+            raise TypeError("cannot mix polynomials of different characteristics")
         result = Poly(self.char)
         for mon, c in self.terms.items():
             result.add_term(mon, c)
@@ -282,6 +335,10 @@ class Poly:
         return result
 
     def __mul__(self, other: "Poly") -> "Poly":
+        if not isinstance(other, Poly):
+            return NotImplemented
+        if self.char != other.char:
+            raise TypeError("cannot mix polynomials of different characteristics")
         result = Poly(self.char)
         for m1, c1 in self.terms.items():
             for m2, c2 in other.terms.items():
@@ -289,6 +346,8 @@ class Poly:
         return result
 
     def scalar_mul(self, c: Coef) -> "Poly":
+        if not isinstance(c, (Coef, QTCoef)) or c.char != self.char:
+            raise TypeError("a scalar must have the polynomial's coefficient characteristic")
         result = Poly(self.char)
         for mon, coef in self.terms.items():
             result.add_term(mon, coef * c)

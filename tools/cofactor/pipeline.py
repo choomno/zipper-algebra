@@ -22,7 +22,8 @@ q(q-1)`, and a six-atom denominator class.  All of those are now arguments or co
 The pass criterion is phase 5 and nothing else.  A lift that fits every sampled point can still be
 wrong -- that is how a cofactor fitted on 37 points came to disagree with the exact answer in 695
 of 695 slots -- so the loop grows the grid and re-lifts until the symbolic identity holds, and
-distinguishes "under-sampled" (more points help) from "wrong hypothesis class" (they never will).
+reports failed reconstruction as inconclusive. A failed candidate can require more independent
+data, a revised hypothesis class, or a correction to the producer.
 """
 from __future__ import annotations
 
@@ -67,23 +68,46 @@ def phase(n, title):
 
 
 class NotInIdeal(Exception):
-    """The target does not reduce to zero: it is not in the ideal at this anchor.
+    """Compatibility exception for an unresolved nonzero reduction remainder.
 
-    A result, not a failure -- the pipeline's objective is membership *or* a decision. The
-    remainder is the witness, and `Skeleton.remainder_terms` records its size. Note the
-    asymmetry: membership is self-certifying (the cofactor is the proof), non-membership at one
-    anchor is not a proof over Q(q,t) without a certified generic basis.
+    A nonzero remainder proves non-membership only against a certified complete basis.
+    The experimental pipeline does not supply such a certificate, so this outcome is
+    inconclusive, including at the specialized anchor.
     """
 
     def __init__(self, remainder, skeleton):
-        super().__init__(f"target not in the ideal at the anchor: remainder has "
+        super().__init__(f"uncertified target reduction: remainder has "
                          f"{len(remainder.terms)} terms")
         self.remainder = remainder
         self.skeleton = skeleton
 
 
+def _inconclusive(pres, paths, anchor, maxpts, reason, cofactor=None):
+    report = {"status": "inconclusive", "verified": False, "in_ideal": None,
+              "presentation": pres.slug(), "presentation_hash": pres.content_hash(),
+              "target": paths.target, "anchor": list(anchor), "max_points": maxpts,
+              "reason": reason}
+    if cofactor is not None:
+        report["candidate_cofactor"] = str(cofactor)
+    return report
+
+
+def _unresolved_remainder(pres, paths, anchor, maxpts, skeleton):
+    report = _inconclusive(pres, paths, anchor, maxpts,
+                           "nonzero remainder against an uncertified basis")
+    report.update({"remainder_terms": skeleton.remainder_terms,
+                   "basis_completeness": "uncertified", "skeleton": str(paths.skeleton)})
+    return report
+
+
 def run(pres: Presentation, target, anchor, *, start=100, step=40, maxpts=260,
         legacy=False, refresh=False, jobs=None, atoms_path=None, verbose=True) -> dict:
+    if any(type(value) is not int or value < 1 for value in (start, step, maxpts)):
+        raise ValueError("start, step and maxpts must be positive integers")
+    if start > maxpts:
+        raise ValueError("start must not exceed maxpts")
+    if len(anchor) != 3 or type(anchor[2]) is not int or anchor[2] != 0:
+        raise ValueError("rational reconstruction requires a characteristic-zero anchor")
     if __package__:
         from .samples import SampleSet
     else:
@@ -124,10 +148,10 @@ def run(pres: Presentation, target, anchor, *, start=100, step=40, maxpts=260,
           f"remainder {skel.remainder_terms} terms")
     print(f"[skeleton] closure: {len(skel.basis_keys)} basis elements -> {paths.skeleton.name}", flush=True)
     if not skel.in_ideal:
-        raise NotInIdeal(remainder, skel)
+        return _unresolved_remainder(pres, paths, anchor, maxpts, skel)
 
     # --- 3-5. lift, compose, verify; grow the grid until phase 5 passes -----
-    target_pts = max(start, len(paths.points_on_disk()))
+    target_pts = min(maxpts, max(start, len(paths.points_on_disk())))
     attempt = 0
     while True:
         attempt += 1
@@ -150,9 +174,13 @@ def run(pres: Presentation, target, anchor, *, start=100, step=40, maxpts=260,
         if off_modal:
             candidates = samples.stable(skel)
             if not candidates:
-                raise SystemExit("no point carries the modal proof shape for every skeleton "
-                                 "element; the sample set is too small or the target's reduction "
-                                 "is not stable in (q,t)")
+                reason = ("no sample carries the modal proof shape for every skeleton "
+                          "element; no stable reconstruction is available")
+                print(f"[anchor] INCONCLUSIVE: {reason}", flush=True)
+                if target_pts >= maxpts:
+                    return _inconclusive(pres, paths, anchor, maxpts, reason)
+                target_pts = min(target_pts + step, maxpts)
+                continue
             new_anchor = (candidates[0][0], candidates[0][1], anchor[2])
             print(f"[anchor] ({anchor[0]},{anchor[1]}) is DEGENERATE for {off_modal} -- a "
                   f"generically non-zero coefficient vanishes there.")
@@ -174,21 +202,15 @@ def run(pres: Presentation, target, anchor, *, start=100, step=40, maxpts=260,
             print(f"[anchor] new skeleton: {len(skel.steps)} step(s) on {skel.step_keys()}, "
                   f"remainder {skel.remainder_terms} terms")
             if not skel.in_ideal:
-                raise NotInIdeal(remainder, skel)
+                return _unresolved_remainder(pres, paths, anchor, maxpts, skel)
         try:
             lf = do_lift(skel, samples, atoms=samples.atoms if atoms_path else None)
         except NeedMoreSamples as e:
-            print(f"[lift] NEED_MORE_SAMPLES: {e}", flush=True)
-            target_pts += step
-            if target_pts > maxpts:
-                raise SystemExit(f"exceeded --max {maxpts} points without a complete lift")
+            print(f"[lift] INCONCLUSIVE: {e}", flush=True)
+            if target_pts >= maxpts:
+                return _inconclusive(pres, paths, anchor, maxpts, str(e))
+            target_pts = min(target_pts + step, maxpts)
             continue
-        except WrongClass as e:
-            print(f"[lift] WRONG_CLASS: {e}", flush=True)
-            print("  These fits predict points they never saw and are still wrong. More points")
-            print("  cannot fix this: widen the class (atom search box in atoms.infer, or the")
-            print("  numerator bidegree cap max_pq/max_pt), or the fault is in composition.")
-            raise SystemExit(4)
         lf.save(str(paths.lift))
         print(f"[lift] {len(lf.entries)} basis elements lifted from {lf.samples_used} "
               f"stable points -> {paths.lift.name}")
@@ -196,8 +218,15 @@ def run(pres: Presentation, target, anchor, *, start=100, step=40, maxpts=260,
             print(f"[atoms] {lf.atoms.names()}  box {lf.atoms.max_exp}", flush=True)
 
         phase(4, "Symbolic composition over the input relations")
-        mult_samples = _multiplier_samples(skel, samples, pres)
-        cof = compose_mod.compose(lf, skel, pres, samples=mult_samples)
+        try:
+            mult_samples = _multiplier_samples(skel, samples, pres)
+            cof = compose_mod.compose(lf, skel, pres, samples=mult_samples)
+        except NeedMoreSamples as e:
+            print(f"[compose] INCONCLUSIVE: {e}", flush=True)
+            if target_pts >= maxpts:
+                return _inconclusive(pres, paths, anchor, maxpts, str(e))
+            target_pts = min(target_pts + step, maxpts)
+            continue
         cof.save(str(paths.cofactor("symbolic")))
         print(f"[size] {len(cof.terms)} tuples -> {paths.cofactor('symbolic').name}", flush=True)
 
@@ -205,12 +234,16 @@ def run(pres: Presentation, target, anchor, *, start=100, step=40, maxpts=260,
         rep = verify_mod.check(cof, pres, paths.target)
         if rep["pass"]:
             break
-        print("\n[verify] FAILED. The lift fit every sampled point and the identity still does")
-        print("  not hold, so this is a wrong hypothesis class, not an under-sampling: more")
-        print("  points cannot fix it. Widen the class rather than the grid.")
-        raise SystemExit(4)
+        print("\n[verify] Candidate identity failed exact verification; reconstruction is "
+              "inconclusive.")
+        if target_pts >= maxpts:
+            return _inconclusive(pres, paths, anchor, maxpts,
+                                 "candidate failed exact verification",
+                                 paths.cofactor("symbolic"))
+        target_pts = min(target_pts + step, maxpts)
 
-    out = {"presentation": pres.slug(), "presentation_hash": pres.content_hash(),
+    out = {"status": "verified", "verified": True,
+           "presentation": pres.slug(), "presentation_hash": pres.content_hash(),
            "target": paths.target, "anchor": list(anchor), "in_ideal": True,
            "tuples": len(cof.terms), "verify": rep, "points": lf.samples_used,
            "atoms": lf.atoms.names(), "seconds": time.time() - t0,
@@ -304,16 +337,14 @@ def main() -> int:
     q, t = (int(v) for v in a.anchor.split(","))
     target = tuple(int(v) for v in a.target.split(",")) if "," in a.target else a.target
     try:
-        run(pres, target, (q, t, a.char), start=a.start, step=a.step, maxpts=a.max,
+        result = run(pres, target, (q, t, a.char), start=a.start, step=a.step, maxpts=a.max,
             legacy=a.legacy_x3, refresh=a.refresh, jobs=a.jobs, atoms_path=a.atoms)
     except NotInIdeal as e:
-        print(f"\n{BAR}\nNOT IN THE IDEAL\n{BAR}")
-        print(f"{e}")
-        print(f"The remainder is the witness; the skeleton records it at "
-              f"{e.skeleton.remainder_terms} terms.")
-        print("This is a decision at the anchor, not a proof over Q(q,t): that needs a certified")
-        print("generic Groebner basis (reconstruction_theory.tex, thm:certify).")
-        return 2
+        print(f"INCONCLUSIVE: {e}; the basis has no completeness certificate")
+        return 3
+    if result.get("status") == "inconclusive":
+        print(f"INCONCLUSIVE: {result['reason']}")
+        return 3
     return 0
 
 

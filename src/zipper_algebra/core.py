@@ -34,111 +34,101 @@ PolyQ = list[tuple[Fraction, Mon]]
 # Parsers
 # ---------------------------------------------------------------------------
 
-_FP_TERM = re.compile(r"^(-?\d+)(?:\*(.+))?$")
-_Q_TERM = re.compile(r"^(\d+)(?:/(\d+))?(?:\*(.+))?$")
+_TERM = re.compile(r"^(?P<sign>[+-]?)(?:(?P<coef>\d+(?:/\d+)?)(?:\*(?P<word>.+))?|(?P<bare>[A-Za-z_].*))$")
+_VARIABLE = re.compile(r"^[A-Za-z_][A-Za-z_0-9]*$")
 
 
 def _parse_mon(s: str) -> Mon:
-    return tuple(v.strip() for v in s.split("*"))
+    words = tuple(v.strip() for v in s.split("*"))
+    if any(not _VARIABLE.fullmatch(v) for v in words):
+        raise ValueError(f"invalid word {s!r}")
+    return words
+
+
+def _line_terms(line: str):
+    # Both pretty printed bases and the emitter's compact +/- syntax are accepted.
+    if re.search(r"[A-Za-z_0-9]\s+[A-Za-z_0-9]", line):
+        raise ValueError(f"missing operator in polynomial {line!r}")
+    line = re.sub(r"\+\s*-", "-", line)
+    compact = re.sub(r"\s+", "", line)
+    position = 0
+    for match in re.finditer(r"[+-]?[^+-]+", compact):
+        if match.start() != position:
+            raise ValueError(f"invalid polynomial {line!r}")
+        position = match.end()
+        yield match.group()
+    if position != len(compact):
+        raise ValueError(f"invalid polynomial {line!r}")
+
+
+def _parse_term(term: str, *, integers=False):
+    match = _TERM.fullmatch(term)
+    if match is None:
+        raise ValueError(f"invalid polynomial term {term!r}")
+    sign = -1 if match.group("sign") == "-" else 1
+    coefficient = sign * Fraction(match.group("coef") or 1)
+    if integers and coefficient.denominator != 1:
+        raise ValueError("a finite-field basis must use integer residue coefficients")
+    word = match.group("word") or match.group("bare")
+    monomial = _parse_mon(word) if word else ()
+    return (int(coefficient) if integers else coefficient), monomial
+
+
+def _basis_rows(path: str, *, integers=False):
+    with open(path) as stream:
+        for line_number, raw in enumerate(stream, 1):
+            line = raw.strip()
+            if not line:
+                continue
+            if line.endswith(","):
+                line = line[:-1].strip()
+            if not line or "," in line:
+                raise ValueError(f"{path}:{line_number}: invalid polynomial separator")
+            coefficients = {}
+            try:
+                for term in _line_terms(line):
+                    coefficient, word = _parse_term(term, integers=integers)
+                    coefficients[word] = coefficients.get(word, 0) + coefficient
+            except (ValueError, ZeroDivisionError) as error:
+                raise ValueError(f"{path}:{line_number}: {error}") from error
+            terms = [(coefficient, word) for word, coefficient in coefficients.items()
+                     if coefficient]
+            if terms:
+                yield terms[0][1], terms
 
 
 def parse_basis_Fp(path: str) -> list[tuple[Mon, PolyFp]]:
-    """Parse an ``f4ncgb`` ``.basis`` file with integer (mod-p) coefficients.
+    """Read integer residue coefficients and ordered words from an f4ncgb basis.
 
-    Each line is one polynomial in the basis, terms listed in monomial-order
-    decreasing (so the first term carries the leading monomial). Returns a
-    list of ``(leading_monomial, terms)`` pairs.
+    The modulus is supplied later to the reducer. Fractions are rejected here,
+    since this reader cannot convert them without knowing that modulus.
     """
-    polys: list[tuple[Mon, PolyFp]] = []
-    with open(path) as f:
-        for raw in f:
-            line = raw.strip().rstrip(",")
-            if not line:
-                continue
-            terms: PolyFp = []
-            for term in line.replace(" - ", " + -").split(" + "):
-                term = term.strip()
-                if not term:
-                    continue
-                m = _FP_TERM.match(term)
-                if m:
-                    coef = int(m.group(1))
-                    mon = _parse_mon(m.group(2)) if m.group(2) else ()
-                else:
-                    coef = 1
-                    mon = _parse_mon(term)
-                terms.append((coef, mon))
-            if terms:
-                polys.append((terms[0][1], terms))
-    return polys
+    return list(_basis_rows(path, integers=True))
 
 
 def parse_basis_Q(path: str) -> list[tuple[Mon, PolyQ]]:
-    """Parse an ``f4ncgb`` ``.basis`` file with rational coefficients.
+    """Read exact rational coefficients and ordered words from an f4ncgb basis.
 
-    Coefficients can be integers or fractions ``n/d``. Returns
-    ``(leading_monomial, terms)`` pairs where each coefficient is a
-    :class:`Fraction`.
+    Signed bare words, rational leading coefficients and scalar relations are
+    supported. Zero polynomials are omitted, and repeated words are collected.
+    The input order must be the engine's decreasing monomial order.
     """
-    polys: list[tuple[Mon, PolyQ]] = []
-    with open(path) as f:
-        for raw in f:
-            line = raw.strip().rstrip(",")
-            if not line:
-                continue
-            terms: PolyQ = []
-            for term in line.replace(" - ", " + -").split(" + "):
-                term = term.strip()
-                if not term:
-                    continue
-                sign = 1
-                rest = term
-                if rest.startswith("-"):
-                    sign = -1
-                    rest = rest[1:]
-                m = _Q_TERM.match(rest)
-                if m:
-                    num = int(m.group(1))
-                    den = int(m.group(2)) if m.group(2) else 1
-                    coef = Fraction(sign * num, den)
-                    mon = _parse_mon(m.group(3)) if m.group(3) else ()
-                else:
-                    coef = Fraction(sign)
-                    mon = _parse_mon(rest)
-                terms.append((coef, mon))
-            if terms:
-                polys.append((terms[0][1], terms))
-    return polys
+    return list(_basis_rows(path))
 
 
 def parse_leading_monomials(path: str) -> list[Mon]:
-    """Parse only the leading monomials from a ``.basis`` file (Hilbert-series
-    computations need nothing else)."""
-    lms: list[Mon] = []
-    with open(path) as f:
-        for raw in f:
-            line = raw.strip().rstrip(",")
-            if not line:
-                continue
-            # Leading term ends at the first " + " or " - " separator after
-            # column 0; everything before the first " + "/" - " is the leading
-            # term (coefficient optional).
-            best = -1
-            for sep in (" + ", " - "):
-                idx = line.find(sep, 1)
-                if idx > 0 and (best < 0 or idx < best):
-                    best = idx
-            head = line[:best] if best > 0 else line
-            m = re.match(r"^([0-9]+/[0-9]+|[0-9]+)\*?", head)
-            if m and (head[m.end():].lstrip("*") or "").strip() != "":
-                mon_str = head[m.end():].lstrip("*").strip()
-            else:
-                mon_str = head.strip()
-            if mon_str == "" or mon_str.isdigit():
-                # Pure-scalar basis element ⇒ ideal is the whole algebra
-                return [()]
-            lms.append(_parse_mon(mon_str))
+    """Read leading words, using the same signed-term grammar as both full readers.
+
+    A nonzero scalar relation gives the unit ideal, represented by ``[()]``.
+    An explicit zero polynomial contributes no leading word.
+    """
+    lms = []
+    for word, _terms in _basis_rows(path):
+        if not word:
+            return [()]
+        lms.append(word)
     return lms
+
 
 
 def collect_variables(polys: list[tuple[Mon, Any]]) -> list[str]:
@@ -238,6 +228,8 @@ def enumerate_standard_monomials(
     Returns ``None`` if the count exceeds ``max_total`` (used as a budget
     to abort on possibly-infinite quotients).
     """
+    if is_match[0]:
+        return []  # The empty leading word divides every word, including the unit.
     result: list[tuple[int, Mon]] = [(0, ())]
     frontier: deque[tuple[int, Mon]] = deque([(0, ())])
     while frontier:
@@ -264,6 +256,8 @@ def find_leading_match(
     """The leftmost substring of ``word`` that equals some leading monomial,
     returned as ``(start, end, lm)``. ``None`` if ``word`` is standard.
     """
+    if is_match[0]:
+        return (0, 0, ())
     state = 0
     for i, v in enumerate(word):
         if (state, v) not in delta:
@@ -306,7 +300,10 @@ def lm_to_tail_Fp(
     out: dict[Mon, PolyFp] = {}
     for lm, terms in polys:
         lead = terms[0][0]
-        inv = pow(lead, p - 2, p)
+        try:
+            inv = pow(lead, -1, p)
+        except ValueError:
+            raise ValueError(f"leading coefficient {lead} is not invertible modulo {p}") from None
         out[lm] = [((-c * inv) % p, mon) for c, mon in terms[1:]]
     return out
 
@@ -345,13 +342,14 @@ def reduce_to_basis_Fp(
     worklist = list(word_terms)
     while worklist:
         coef, word = worklist.pop()
+        coef %= p
         if coef == 0:
             continue
         idx = mon_idx.get(word)
         if idx is not None:
             new = (out.get(idx, 0) + coef) % p
-            if new == 0 and idx in out:
-                del out[idx]
+            if new == 0:
+                out.pop(idx, None)
             else:
                 out[idx] = new
             continue

@@ -3,18 +3,18 @@
 
 Consolidates the fitting half of symbolic_lift_x3.py (SPEC.md, lift.py).  The pieces:
 
-  fit_poly_qt / fit_rational   the fitter, unchanged in semantics: for each candidate
+  fit_poly_qt / fit_rational   exact full-rank fitting: for each candidate
                                denominator in AtomSet.candidates() order (ascending exponent
                                sum), scale the sampled values, and take the first bidegree in
-                               ascending total degree whose numerator, fitted on the first M+2
-                               sorted points, agrees on every point.  Same enumeration order
+                               ascending total degree whose determined numerator agrees on
+                               every fitting point. Same enumeration order
                                as before, so the first-found denominator is the same.
   fit_rational_known           the same scaling + numerator fit for ONE candidate, plus a
                                reducedness check; used to try a reconstructed denominator
                                before the full enumeration (the SPEC optimisation).
-  line_denominator             per-slot denominator lower bound from univariate rational
-                               reconstruction along the grid lines (what atoms.infer does per
-                               line, reimplemented locally because infer keeps it private).
+  line_denominator             heuristic denominator exponent proposal from univariate
+                               reconstruction along grid lines. Specialization can merge
+                               factors, so this proposal need not bound the generic exponents.
   stable_points                the stability filter by LM re-identification: a point is stable
                                for a key if its basis has an element with that leading word and
                                the element's proof has the anchor's term structure
@@ -22,8 +22,8 @@ Consolidates the fitting half of symbolic_lift_x3.py (SPEC.md, lift.py).  The pi
                                compared, so a renumbered basis is still stable.
   lift                         the held-out protocol of symbolic_lift_x3.main: HOLDOUT =
                                max(4, n // 10) points are never fitted and every fit must predict
-                               them; result types NeedMoreSamples / WrongClass replace the exit
-                               codes 3 / 4.
+                               them; rejected fits raise NeedMoreSamples, with WrongClass
+                               retained as a compatibility subtype for held-out rejection.
 
 Words are whatever the Proof carries (tuples of 1-based variable indices per SPEC; the legacy
 parser's variable-name lists are converted by the caller); lift never interprets them, nor
@@ -41,10 +41,9 @@ import json
 import time
 from fractions import Fraction
 
-try:                                    # python3 -m tools.cofactor.<x> from zipper-algebra/
-    from .atoms import AtomSet, infer as infer_atoms, reconstruct_univariate
-except ImportError:                     # run as a script, or with tools/cofactor on sys.path
-    from atoms import AtomSet, infer as infer_atoms, reconstruct_univariate
+from .atoms import (AtomSet, infer as infer_atoms, reconstruct_univariate,
+                    exact_fraction, normalise_points)
+
 
 Anchor = tuple  # (q, t, char); char 0 = Q
 
@@ -54,17 +53,23 @@ Anchor = tuple  # (q, t, char); char 0 = Q
 # ----------------------------------------------------------------------------
 
 class NeedMoreSamples(Exception):
-    """The grid is too small: a slot had no model in the class at this point count, or the
-    point count cannot support a held-out check.  More points can fix this."""
+    """Reconstruction is inconclusive for the current samples and search class.
+
+    More independent samples or a revised class may help. A candidate fit still requires
+    exact certificate verification; this exception makes no non-membership claim.
+    """
 
     def __init__(self, msg, slots=()):
         super().__init__(msg)
         self.slots = list(slots)
 
 
-class WrongClass(Exception):
-    """A fit agreed with every point shown and still mispredicted held-out ones.  More points
-    cannot fix this; widen the hypothesis class (atoms, exponent box, numerator bidegree)."""
+class WrongClass(NeedMoreSamples):
+    """Compatibility name for a rejected held-out fit, an inconclusive reconstruction.
+
+    More independent data or a revised search class can help. This exception does not
+    establish that the entire hypothesis class is wrong. New callers catch NeedMoreSamples.
+    """
 
     def __init__(self, msg, slots=()):
         super().__init__(msg)
@@ -82,7 +87,11 @@ def poly_eval_qt(coefs, q, t):
 
 def fit_poly_qt(points, max_deg_q, max_deg_t):
     """Fit a polynomial p(q,t) of bidegree <= (max_deg_q, max_deg_t) to the
-    samples. Returns the dict of coefficients (or None if infeasible)."""
+    samples. Returns a uniquely determined coefficient dictionary, or None.
+    Duplicate locations count once; conflicting or inexact samples are rejected."""
+    if any(type(d) is not int or d < 0 for d in (max_deg_q, max_deg_t)):
+        raise ValueError("degree bounds must be nonnegative integers")
+    points = normalise_points(points, 2)
     basis_mons = [(i, j) for i in range(max_deg_q + 1)
                   for j in range(max_deg_t + 1)]
     M = len(basis_mons)
@@ -118,6 +127,8 @@ def fit_poly_qt(points, max_deg_q, max_deg_t):
     for i in range(n):
         if all(aug[i][c] == 0 for c in range(M)) and aug[i][M] != 0:
             return None
+    if rank != M:
+        return None
     coefs = {m: Fraction(0) for m in basis_mons}
     for ri, col in enumerate(pivot_col):
         coefs[basis_mons[col]] = aug[ri][M]
@@ -125,25 +136,26 @@ def fit_poly_qt(points, max_deg_q, max_deg_t):
 
 
 def _scale_by_denominator(points, atoms, denom_exps):
-    """points sorted by (q,t).  val * den(q,t) at every point, or None as soon as the
-    denominator vanishes or the scaled value is not an integer (then this candidate cannot
-    give a polynomial numerator)."""
+    """Scale exact rational samples by a candidate denominator, rejecting its poles.
+
+    Polynomial numerators have coefficients in Q; scaled values need not be integers.
+    """
     scaled = []
     for (q, t), val in points:
         d_val = atoms.eval_denom(denom_exps, q, t)
         if d_val == 0:
             return None
         v = val * Fraction(d_val)
-        if v.denominator != 1:
-            return None
         scaled.append(((q, t), v))
     return scaled
 
 
 def _fit_numerator(scaled, max_pq, max_pt):
-    """Bidegrees by ascending total degree; the numerator is fitted on the first M+2 points
-    and must agree on all.  Returns the coefficient dict (zeros included, as fit_poly_qt
-    returns it) or None."""
+    """Try bidegrees by total degree, using every sample for rank and consistency.
+
+    At least two samples beyond the coefficient count are required. A degenerate prefix
+    must not hide independent rows later in the data. Returns a coefficient dict or None.
+    """
     for total_deg in range(max_pq + max_pt + 1):
         for dq in range(min(total_deg, max_pq) + 1):
             dt = total_deg - dq
@@ -152,8 +164,7 @@ def _fit_numerator(scaled, max_pq, max_pt):
             M = (dq + 1) * (dt + 1)
             if len(scaled) < M + 2:
                 continue
-            fit_pts = scaled[:M + 2]
-            res = fit_poly_qt(fit_pts, dq, dt)
+            res = fit_poly_qt(scaled, dq, dt)
             if res is None:
                 continue
             ok = True
@@ -172,8 +183,10 @@ def fit_rational(points, atoms: AtomSet, max_pq=5, max_pt=5, candidates=None):
     """Try (denom, numerator-degrees) until a perfect fit is found that matches ALL
     sample points.  `candidates` defaults to atoms.candidates(); pass it in when fitting
     many slots against one atom set.  Returns (denom_exps, num_coefs) or None."""
-    points = list(points)
-    points.sort()
+    if any(type(d) is not int or d < 0 for d in (max_pq, max_pt)):
+        raise ValueError("degree bounds must be nonnegative integers")
+    atoms.validate()
+    points = normalise_points(points, 2)
     if candidates is None:
         candidates = atoms.candidates()
     for denom_exps in candidates:
@@ -213,23 +226,30 @@ def _divisible(num: dict, atom: dict) -> bool:
 
 
 def is_reduced(atoms: AtomSet, denom_exps, num: dict) -> bool:
-    """num / prod atoms^exps is in lowest terms: no atom with a positive exponent divides num."""
+    """Compatibility predicate: no whole used atom divides the numerator.
+
+    This is not a general polynomial gcd check. Composite atoms can share a proper factor
+    with the numerator. With irreducible pairwise nonassociate atoms, the predicate does
+    imply coprimality of the represented numerator and denominator.
+    """
     return not any(e > 0 and _divisible(num, a.coefs) for a, e in zip(atoms.atoms, denom_exps))
 
 
 def fit_rational_known(points, atoms: AtomSet, denom_exps, max_pq=5, max_pt=5):
-    """fit_rational restricted to ONE candidate denominator, accepted only if the fit is
-    reduced.  Then it is what the enumeration finds first: any candidate d with c*d a
-    polynomial is a multiple of the reduced denominator g (Z[q,t] is a UFD and the atoms are
-    irreducible), so d >= g componentwise and d has a larger exponent sum unless d == g,
-    while fit_rational enumerates by ascending exponent sum.  (The one way the two can
-    differ: a spurious lower-degree numerator passing every fit point, which the held-out
-    check then rejects -- fit_rational would raise WrongClass where this route succeeds.)
-    Returns (denom_exps, num_coefs) or None."""
-    points = list(points)
-    points.sort()
+    """Try one bounded denominator, with no removable whole declared atom.
+
+    Return (denom_exps, num_coefs), or None. As for fit_rational, the fitted numerator is
+    determined by the exact samples in its selected degree box. This shortcut need not
+    choose the same representation as enumeration. For composite atoms, a proper common
+    factor can remain; is_reduced checks only cancellation of whole declared atoms.
+    """
+    if any(type(d) is not int or d < 0 for d in (max_pq, max_pt)):
+        raise ValueError("degree bounds must be nonnegative integers")
+    atoms.validate()
+    points = normalise_points(points, 2)
     denom_exps = tuple(denom_exps)
-    if len(denom_exps) != len(atoms) or any(e < 0 or e > m for e, m in zip(denom_exps, atoms.max_exp)):
+    atoms.validate_exponents(denom_exps)
+    if any(e > m for e, m in zip(denom_exps, atoms.max_exp)):
         return None                     # outside the box: the enumeration could never find it
     scaled = _scale_by_denominator(points, atoms, denom_exps)
     if scaled is None:
@@ -285,13 +305,16 @@ def _poly_divmod(num, den):
 
 
 def line_denominator(points, atoms: AtomSet, min_line=6, max_lines=None):
-    """Exponent tuple over `atoms` of the denominator of the rational function through
-    `points` [((q,t), value)], read off the grid lines: on each line with >= min_line points
-    (fixed t varying q, or fixed q varying t) reconstruct N(x)/D(x) with D monic and reduced,
-    and take for every atom the largest multiplicity of its specialisation in any D.  An atom
-    that specialises to a constant on a line (q on a fixed-q line) is invisible there.  The
-    result is a lower bound that is exact on generic lines; fit_rational_known verifies it.
-    `max_lines` keeps only the longest lines per direction.  None when no line reconstructs."""
+    """Propose denominator exponents from reduced rational reconstructions on grid lines.
+
+    On sufficiently long fixed-q or fixed-t lines, successively divide the reconstructed
+    denominator by specialized atoms and retain maximal observed multiplicities. Factors
+    can collide or cancel under specialization, so this is a heuristic proposal, not a
+    componentwise lower bound on generic exponents. fit_rational_known validates a proposed
+    representation; enumeration is the fallback. Return None when no line reconstructs.
+    max_lines limits the number of longest lines considered in each direction.
+    """
+    points = normalise_points(points, 2)
     by_t, by_q = {}, {}
     for (q, t), v in points:
         by_t.setdefault(t, []).append((q, v))
@@ -461,11 +484,23 @@ def lift(skeleton, samples, atoms: AtomSet | None = None, holdout: int | None = 
     known    : the SPEC optimisation.  "lines" computes each slot's denominator by
                line_denominator() and tries it before the enumeration; a dict
                {(key, i): exps} supplies denominators from elsewhere; None (default)
-               enumerates only.  The result is the same either way (fit_rational_known).
+               enumerates only. The shortcut can select a different valid candidate; it
+               must pass the same held-out and final identity checks.
 
-    Raises NeedMoreSamples / WrongClass with the failed slots, as the exit codes 3 / 4 did:
-    a held-out failure anywhere takes precedence over a missing model.
+    Raises NeedMoreSamples (including its legacy WrongClass subtype) with rejected
+    slots. Held-out rejection is inconclusive; more data or a revised class may help.
     """
+    if holdout is not None and (type(holdout) is not int or holdout < 1):
+        raise ValueError("holdout must be a positive integer")
+    if (len(skeleton.anchor) != 3 or type(skeleton.anchor[2]) is not int
+            or skeleton.anchor[2] != 0):
+        raise ValueError("rational reconstruction requires characteristic-zero samples")
+    sample_char = getattr(samples, "char", 0)
+    if type(sample_char) is not int or sample_char != 0:
+        raise ValueError("rational reconstruction requires characteristic-zero samples")
+    if any(type(d) is not int or d < 0 for d in (max_pq, max_pt)):
+        raise ValueError("degree bounds must be nonnegative integers")
+    normalise_points([(skeleton.anchor[:2], 0)], 2)
     t_total = time.time()
     q0, t0 = skeleton.anchor[0], skeleton.anchor[1]
     anchor_proof, anchor_basis = samples.proof(q0, t0), samples.basis(q0, t0)
@@ -487,6 +522,8 @@ def lift(skeleton, samples, atoms: AtomSet | None = None, holdout: int | None = 
         stable = samples.stable(skeleton)
     else:
         stable = stable_points(keys, anchor_proof, anchor_basis, samples)
+    stable = list(dict.fromkeys(normalise_points([(point, 0)], 2)[0][0]
+                                for point in stable))
     if verbose:
         print(f"  {len(stable)} stable samples of {len(samples.points)}")
     # values per slot at every stable point, then the proofs can go
@@ -497,24 +534,27 @@ def lift(skeleton, samples, atoms: AtomSet | None = None, holdout: int | None = 
         for k in keys:
             terms = proof.terms[basis.index_by_key[k]]
             for i in range(n_terms[k]):
-                values[(k, i)].append(((q, t), terms[i][0]))
-
-    atom_report = None
-    if atoms is None:
-        if verbose:
-            print("Inferring the atom set from the sampled denominators...")
-        atoms, atom_report = infer_atoms(values, seed=AtomSet.DEFAULT, verbose=verbose)
-        if verbose:
-            print(f"  atoms: {atoms.names()}  box {atoms.max_exp}")
-            if atom_report["unexplained"]:
-                print(f"  WARNING: {atom_report['unexplained']} reconstructed denominators have "
-                      f"a factor outside the search box {atom_report['search']}; the lift below "
-                      f"may fail with WrongClass. Widen the box in atoms.infer().")
+                values[(k, i)].append(((q, t), exact_fraction(terms[i][0])))
 
     n = len(stable)
     h = holdout_size(n) if holdout is None else holdout
     if n <= h + 2:
         raise NeedMoreSamples(f"{n} samples cannot support a held-out check (need > {h + 2})")
+
+    atom_report = None
+    if atoms is None:
+        if verbose:
+            print("Inferring the atom set from the sampled denominators...")
+        atoms, atom_report = infer_atoms(
+            {slot: points[:n - h] for slot, points in values.items()},
+            seed=AtomSet.DEFAULT, verbose=verbose)
+        if verbose:
+            print(f"  atoms: {atoms.names()}  box {atoms.max_exp}")
+            if atom_report["unexplained"]:
+                print(f"  WARNING: {atom_report['unexplained']} reconstructed denominators have "
+                      f"a factor outside the search box {atom_report['search']}; the lift below "
+                      f"may need more data or a revised search class in atoms.infer().")
+
     n_fit = n - h
     if verbose:
         print(f"  fitting on {n_fit}, holding out {h} for verification")
@@ -549,9 +589,7 @@ def lift(skeleton, samples, atoms: AtomSet | None = None, holdout: int | None = 
             den, num = res
             for (hq, ht), want in pts_hold:
                 d_val = atoms.eval_denom(den, hq, ht)
-                if d_val == 0:
-                    continue
-                if poly_eval_qt(num, hq, ht) / Fraction(d_val) != want:
+                if d_val == 0 or poly_eval_qt(num, hq, ht) / Fraction(d_val) != want:
                     terms_out.append(None)
                     failed.append((k, i, "holdout"))
                     break
@@ -571,9 +609,9 @@ def lift(skeleton, samples, atoms: AtomSet | None = None, holdout: int | None = 
         held = [f for f in failed if len(f) > 2]
         nofit = [f for f in failed if len(f) == 2]
         if held:
-            raise WrongClass(f"{len(held)} coefficient(s) fit every point shown and still "
-                             f"mispredict unseen ones; widen the class (max_pq/max_pt, atoms, "
-                             f"box)", held)
+            raise WrongClass(f"{len(held)} coefficient(s) failed held-out validation; "
+                             f"reconstruction is inconclusive and needs more independent "
+                             f"data or a revised search class", held)
         raise NeedMoreSamples(f"{len(nofit)} coefficient(s) had no model in the current class "
                               f"at {n} points", nofit)
     return Lift(atoms, entries, n, h, tuple(skeleton.anchor), anchor_index, atom_report, timing)
