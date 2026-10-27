@@ -27,12 +27,16 @@ from fractions import Fraction
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _PARENT = os.path.dirname(_HERE)            # tools/, where zipper_in_ms.py lives
-for _p in (_HERE, _PARENT):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
+if __package__:
+    from ..zipper_in_ms import Coef, Poly
+    from .proof import Basis, Proof, Word, Expanded, leading_term, mon_sort_key
+else:
+    for _p in (_HERE, _PARENT):
+        if _p not in sys.path:
+            sys.path.insert(0, _p)
+    from zipper_in_ms import Coef, Poly
+    from proof import Basis, Proof, Word, Expanded, leading_term, mon_sort_key
 
-from zipper_in_ms import Coef, Poly  # noqa: E402
-from proof import Basis, Proof, Word, Expanded, leading_term, mon_sort_key  # noqa: E402
 
 Anchor = tuple[int, int, int]                       # (q, t, char); char 0 = Q
 Step = tuple[Word, int, Word, Coef]                 # (left, basis_idx, right, mult)

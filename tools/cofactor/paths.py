@@ -48,11 +48,14 @@ _HERE = Path(__file__).resolve().parent          # tools/cofactor
 _TOOLS = _HERE.parent                            # tools
 _ZA = _TOOLS.parent                              # zipper-algebra
 _REPO = _ZA.parent
-for _p in (str(_HERE), str(_TOOLS), str(_REPO)):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
+if __package__:
+    from ..presentation import Presentation
+else:
+    for _p in (str(_HERE), str(_TOOLS), str(_REPO)):
+        if _p not in sys.path:
+            sys.path.insert(0, _p)
+    from presentation import Presentation
 
-from presentation import Presentation  # noqa: E402
 
 Anchor = tuple[int, int, int]            # (q, t, char); char 0 = Q
 

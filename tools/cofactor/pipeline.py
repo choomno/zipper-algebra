@@ -37,19 +37,27 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _TOOLS = os.path.dirname(_HERE)
 _ZA = os.path.dirname(_TOOLS)
 _REPO = os.path.dirname(_ZA)
-for _p in (_HERE, _TOOLS, _REPO):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
+if __package__:
+    from . import compose as compose_mod, verify as verify_mod
+    from .atoms import AtomSet
+    from .lift import NeedMoreSamples, WrongClass, lift as do_lift
+    from .paths import Paths
+    from ..presentation import Presentation
+    from .skeleton import Skeleton, reduce as reduce_target
+    from ..zipper_in_ms import NumericRing
+else:
+    for _p in (_HERE, _TOOLS, _REPO):
+        if _p not in sys.path:
+            sys.path.insert(0, _p)
+    import compose as compose_mod
+    import verify as verify_mod
+    from atoms import AtomSet
+    from lift import NeedMoreSamples, WrongClass, lift as do_lift
+    from paths import Paths
+    from presentation import Presentation
+    from skeleton import Skeleton, reduce as reduce_target
+    from zipper_in_ms import NumericRing
 
-import compose as compose_mod                                   # noqa: E402
-import verify as verify_mod                                     # noqa: E402
-from atoms import AtomSet                                       # noqa: E402
-from lift import NeedMoreSamples, WrongClass, lift as do_lift   # noqa: E402
-from paths import Paths                                         # noqa: E402
-from presentation import Presentation                           # noqa: E402
-from samples import SampleSet                                   # noqa: E402
-from skeleton import Skeleton, reduce as reduce_target          # noqa: E402
-from zipper_in_ms import NumericRing                            # noqa: E402
 
 BAR = "=" * 64
 
@@ -76,6 +84,10 @@ class NotInIdeal(Exception):
 
 def run(pres: Presentation, target, anchor, *, start=100, step=40, maxpts=260,
         legacy=False, refresh=False, jobs=None, atoms_path=None, verbose=True) -> dict:
+    if __package__:
+        from .samples import SampleSet
+    else:
+        from samples import SampleSet
     t0 = time.time()
     paths = Paths.legacy_x3(pres, target, anchor) if legacy else Paths(pres, target, anchor)
     paths.ensure_dirs()
@@ -210,16 +222,20 @@ def run(pres: Presentation, target, anchor, *, start=100, step=40, maxpts=260,
 
 
 def _multiplier_samples(skel, samples, pres) -> dict:
-    """{(q,t): {basis_key: multiplier}} -- the skeleton's multipliers at each stable point.
+    """{(q,t): [multiplier, ...]} in skeleton-step order, at compatible stable points.
 
     The multipliers are not constants: each is a ratio of leading coefficients, so it is a
     rational function to be lifted like any coefficient (WORKFLOW.md notes that their being
     monomials in q alone is a property of this algebra and this target). They are recovered by
-    re-reducing the target against each point's own basis and keying the steps by leading word,
-    which is what makes them comparable across points whose bases are numbered differently.
+    re-reducing the target against each point's own basis.  A sample is usable only when its
+    ordered (left word, basis key, right word) signatures match the anchor's.  Basis keys
+    identify the elements across changed basis numbering; step positions distinguish repeated
+    uses, including repeated uses in the same context.  A different reduction schedule is
+    skipped rather than assigning its multipliers to unrelated anchor steps.
     """
     out = {}
-    keys = set(skel.step_keys())
+    signatures = [(tuple(s["left"]), s["basis_key"], tuple(s["right"]))
+                  for s in skel.steps]
     for (q, t) in samples.stable(skel):
         try:
             b = samples.basis(q, t)
@@ -230,9 +246,9 @@ def _multiplier_samples(skel, samples, pres) -> dict:
             continue
         if rem.terms:
             continue
-        vals = {b.key[k]: Fraction(mult.v) for (_u, k, _v, mult) in steps if b.key[k] in keys}
-        if set(vals) == keys:
-            out[(q, t)] = vals
+        point_signatures = [(tuple(u), b.key[k], tuple(v)) for u, k, v, _mult in steps]
+        if point_signatures == signatures:
+            out[(q, t)] = [Fraction(mult.v) for _u, _k, _v, mult in steps]
     return out
 
 

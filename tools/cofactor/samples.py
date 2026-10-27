@@ -53,10 +53,16 @@ for _p in (str(_HERE), str(_TOOLS), str(_REPO)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from atoms import AtomSet  # noqa: E402
-from cache import Cache  # noqa: E402
-from paths import Anchor, Paths  # noqa: E402
-from proof import Basis, Proof  # noqa: E402
+if __package__:
+    from .atoms import AtomSet
+    from ..cache import Cache
+    from .paths import Anchor, Paths
+    from .proof import Basis, Proof
+else:
+    from atoms import AtomSet
+    from cache import Cache
+    from paths import Anchor, Paths
+    from proof import Basis, Proof
 from repo_settings import settings  # noqa: E402
 
 __all__ = ["Anchor", "DEFAULT_FLAGS", "EXCLUDED_Q", "RunResult", "run_f4ncgb", "f4ncgb_key",

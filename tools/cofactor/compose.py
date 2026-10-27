@@ -30,20 +30,28 @@ from __future__ import annotations
 import os
 import sys
 from collections import defaultdict
+from collections.abc import Mapping
 from fractions import Fraction
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _TOOLS = os.path.dirname(_HERE)
-for _p in (_HERE, _TOOLS):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
-
-from atoms import AtomSet                                      # noqa: E402
-from cofactor_io import Cofactor, resolve_target, target_name   # noqa: E402
-from lift import fit_rational                                   # noqa: E402
-from presentation import Presentation                           # noqa: E402
-from relations_naming import label                              # noqa: E402
-from zipper_in_ms import NumericRing                            # noqa: E402
+if __package__:
+    from .atoms import AtomSet
+    from .cofactor_io import (Cofactor, resolve_target, target_name,
+                             validate_word, validate_qt_polynomial)
+    from .lift import fit_rational
+    from ..presentation import Presentation
+    from ..zipper_in_ms import NumericRing
+else:
+    for _p in (_HERE, _TOOLS):
+        if _p not in sys.path:
+            sys.path.insert(0, _p)
+    from atoms import AtomSet
+    from cofactor_io import (Cofactor, resolve_target, target_name,
+                            validate_word, validate_qt_polynomial)
+    from lift import fit_rational
+    from presentation import Presentation
+    from zipper_in_ms import NumericRing
 
 
 # ---------------------------------------------------------------------------
@@ -147,9 +155,49 @@ def _order(entries: dict) -> list:
     return out
 
 
-def expand_over_inputs(lift, keys=None) -> dict:
+def _validate_context(word, pres=None):
+    if pres is not None:
+        validate_word(word, pres.n)
+    elif (not isinstance(word, (tuple, list))
+          or any(type(v) is not int or v < 1 for v in word)):
+        raise ValueError("proof contexts must contain positive integer variable indices")
+
+
+def _validate_lift(lift, pres=None):
+    """Validate every proof entry before zero terms can hide malformed data."""
+    lift.atoms.validate()
+    if not isinstance(lift.entries, Mapping):
+        raise ValueError("lift entries must be a mapping")
+    limit = len(pres.labels()) if pres is not None else None
+    for key, terms in lift.entries.items():
+        if not isinstance(terms, (tuple, list)):
+            raise ValueError(f"lift entry {key!r} must contain a list of proof terms")
+        for term in terms:
+            if not isinstance(term, (tuple, list)) or len(term) != 6:
+                raise ValueError(f"lift entry {key!r} has a malformed proof term")
+            den, num, left, kind, ref, right = term
+            lift.atoms.validate_exponents(den)
+            validate_qt_polynomial(num)
+            _validate_context(left, pres)
+            _validate_context(right, pres)
+            if kind == "input":
+                if type(ref) is not int or ref < 0 or (limit is not None and ref >= limit):
+                    raise ValueError(f"lift entry {key!r} has invalid input relation index {ref!r}")
+            elif kind == "basis":
+                try:
+                    exists = ref in lift.entries
+                except TypeError:
+                    raise ValueError(f"lift entry {key!r} has an invalid basis key") from None
+                if not exists:
+                    raise KeyError(f"{key!r} references {ref!r}, which is not in the lift")
+            else:
+                raise ValueError(f"lift entry {key!r} has unknown proof kind {kind!r}")
+
+
+def expand_over_inputs(lift, keys=None, pres=None) -> dict:
     """{key: {(left_word, input_index, right_word): rat}} -- each needed basis element written
     over the input relations alone."""
+    _validate_lift(lift, pres)
     rat = Rat(lift.atoms)
     entries = lift.entries
     keys = set(entries) if keys is None else set(keys)
@@ -183,18 +231,38 @@ def expand_over_inputs(lift, keys=None) -> dict:
 def lift_multipliers(skeleton, samples, atoms: AtomSet, max_pq=5, max_pt=5) -> list:
     """Fit each skeleton step's multiplier over Q(q,t) from its values at the sample points.
 
-    samples: {(q, t): {basis_key: Fraction}} -- the multiplier of each step at that point, as
-    produced by re-reducing the target against the point's own basis.
+    samples: {(q, t): [Fraction, ...]}, in skeleton-step order, as produced by
+    re-reducing the target with the same contextual step sequence at each point.
+    A basis-key mapping is accepted for legacy callers only when all step keys are unique:
+    it cannot identify separate occurrences of the same basis element.
     """
+    keys = [s["basis_key"] for s in skeleton.steps]
+    ordered_samples = []
+    for point, vals in sorted(samples.items()):
+        if isinstance(vals, Mapping):
+            if len(set(keys)) != len(keys):
+                raise ValueError("basis-key multiplier samples are ambiguous for repeated "
+                                 "basis elements; use values in skeleton-step order")
+            if set(vals) != set(keys):
+                raise ValueError(f"multiplier sample {point!r} does not carry every step key")
+            vals = [vals[k] for k in keys]
+        else:
+            vals = list(vals)
+        if len(vals) != len(keys):
+            raise ValueError(f"multiplier sample {point!r} has {len(vals)} values for "
+                             f"{len(keys)} skeleton steps")
+        ordered_samples.append((point, vals))
+
     out = []
-    for step in skeleton.steps:
-        key = step["basis_key"]
-        pts = [((q, t), vals[key]) for (q, t), vals in sorted(samples.items()) if key in vals]
+    for index, key in enumerate(keys):
+        pts = [(point, vals[index]) for point, vals in ordered_samples]
         if len(pts) < 3:
-            raise ValueError(f"only {len(pts)} points carry a multiplier for {key!r}")
+            raise ValueError(f"only {len(pts)} points carry a multiplier for step {index} "
+                             f"({key!r})")
         res = fit_rational(pts, atoms, max_pq=max_pq, max_pt=max_pt)
         if res is None:
-            raise ValueError(f"no model in the current class for the multiplier of {key!r}")
+            raise ValueError(f"no model in the current class for the multiplier of step "
+                             f"{index} ({key!r})")
         den, num = res
         out.append((dict(num), tuple(den)))
     return out
@@ -214,14 +282,33 @@ def multipliers_at_anchor(skeleton, atoms: AtomSet) -> list:
 def compose(lift, skeleton, pres: Presentation, multipliers=None, samples=None,
             producer="tools/cofactor/compose.py", verbose=True) -> Cofactor:
     """The target's cofactor over the input relations, as a Cofactor."""
+    if getattr(skeleton, "remainder_terms", 0) != 0:
+        raise ValueError("cannot compose a membership certificate from a nonzero remainder")
+    for name, data in (("skeleton", skeleton), ("lift", lift)):
+        recorded_hash = getattr(data, "presentation_hash", "")
+        recorded_presentation = getattr(data, "presentation", "")
+        if recorded_hash and recorded_hash != pres.content_hash():
+            raise ValueError(f"{name} belongs to a different presentation (hash mismatch)")
+        if recorded_presentation and recorded_presentation != pres.slug():
+            raise ValueError(f"{name} belongs to presentation {recorded_presentation!r}, "
+                             f"not {pres.slug()!r}")
     atoms = lift.atoms
     rat = Rat(atoms)
+    for step in skeleton.steps:
+        if not isinstance(step, Mapping) or any(k not in step for k in ("basis_key", "left", "right")):
+            raise ValueError("a skeleton step needs a basis key and left/right contexts")
+        _validate_context(step["left"], pres)
+        _validate_context(step["right"], pres)
+        try:
+            hash(step["basis_key"])
+        except TypeError:
+            raise ValueError("skeleton basis keys must be hashable") from None
     keys = [s["basis_key"] for s in skeleton.steps]
     missing = [k for k in keys if k not in lift.entries]
     if missing:
         raise KeyError(f"the lift is missing skeleton elements {missing}")
 
-    expanded = expand_over_inputs(lift)
+    expanded = expand_over_inputs(lift, pres=pres)
     if verbose:
         for k in keys:
             print(f"  {k}: {len(expanded[k])} R-input terms")
@@ -230,10 +317,20 @@ def compose(lift, skeleton, pres: Presentation, multipliers=None, samples=None,
         if samples is None:
             raise ValueError("compose needs either multipliers= or samples= to lift them from")
         multipliers = lift_multipliers(skeleton, samples, atoms)
+    multipliers = list(multipliers)
+    if len(multipliers) != len(skeleton.steps):
+        raise ValueError(f"{len(multipliers)} multipliers for {len(skeleton.steps)} "
+                         "skeleton steps")
+    for mult in multipliers:
+        if not isinstance(mult, (tuple, list)) or len(mult) != 2:
+            raise ValueError("each multiplier must have a numerator and denominator vector")
+        validate_qt_polynomial(mult[0])
+        atoms.validate_exponents(mult[1])
 
     acc: dict = {}
-    for mult, key in zip(multipliers, keys):
-        for k2, r in expanded[key].items():
+    for mult, step in zip(multipliers, skeleton.steps):
+        for (left, idx, right), r in expanded[step["basis_key"]].items():
+            k2 = (tuple(step["left"]) + left, idx, right + tuple(step["right"]))
             acc[k2] = rat.add(acc[k2], rat.mul(mult, r)) if k2 in acc else rat.mul(mult, r)
     acc = {k: v for k, v in acc.items() if v[0]}
 
@@ -271,8 +368,12 @@ def numeric_check(cof: Cofactor, pres: Presentation, points=((5, 7), (3, 11), (7
 
 if __name__ == "__main__":
     import argparse
-    from lift import Lift
-    from skeleton import Skeleton
+    if __package__:
+        from .lift import Lift
+        from .skeleton import Skeleton
+    else:
+        from lift import Lift
+        from skeleton import Skeleton
 
     ap = argparse.ArgumentParser(description="compose a Q(q,t) cofactor from a lift + skeleton")
     ap.add_argument("--lift", required=True)

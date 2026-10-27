@@ -36,11 +36,14 @@ from fractions import Fraction
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _PARENT = os.path.dirname(_HERE)            # tools/, where zipper_in_ms.py lives
-for _p in (_HERE, _PARENT):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
+if __package__:
+    from ..zipper_in_ms import Coef, Poly
+else:
+    for _p in (_HERE, _PARENT):
+        if _p not in sys.path:
+            sys.path.insert(0, _p)
+    from zipper_in_ms import Coef, Poly
 
-from zipper_in_ms import Coef, Poly  # noqa: E402
 
 Word = tuple[int, ...]
 
