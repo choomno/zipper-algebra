@@ -352,7 +352,10 @@ class Cofactor:
                 continue
             m = _R_LABEL_RE.match(lab)
             if m:
-                out.append(int(m.group(1)))
+                idx = int(m.group(1))
+                if idx >= len(by_label):
+                    raise ValueError(f"relation index {idx} is outside this presentation")
+                out.append(idx)
                 continue
             raise ValueError(f"relation label {lab!r} is not one of {pres.slug()}'s "
                              f"{len(by_label)} labels")
@@ -523,6 +526,8 @@ class Cofactor:
                 if idx is not None:
                     raise ValueError(f"two relation indices in {ln!r}")
                 idx = int(p[1:-1])
+                if idx < 0 or (labels is not None and idx >= len(labels)):
+                    raise ValueError(f"relation index {idx} is outside this presentation")
             elif idx is None:
                 left.append(p)
             else:

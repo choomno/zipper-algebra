@@ -158,6 +158,14 @@ class TestVerifierValidation(unittest.TestCase):
         with self.assertRaises(ValueError):
             atoms.parse_denom_str("(2*t+1)^-1")
 
+    def test_legacy_extraction_rejects_invalid_relation_indices(self):
+        for labels in (None, self.pres.labels()):
+            with self.subTest(labels=labels), self.assertRaisesRegex(ValueError, "relation index"):
+                Cofactor._parse_extract_line("+1 * () * [-1] * ()", {}, AtomSet([]), labels)
+        with self.assertRaisesRegex(ValueError, "relation index"):
+            Cofactor._parse_extract_line("+1 * () * [999] * ()", {}, AtomSet([]),
+                                         self.pres.labels())
+
     def test_legacy_certificate_body_round_trips(self):
         source = HERE.parent.parent / "logs_and_traces/f4ncgb/cofactor-X3-n4-Qqt-symbolic.txt"
         cof = Cofactor.load(str(source), pres=self.pres)
