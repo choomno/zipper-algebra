@@ -4,3 +4,8 @@
 # Python interpreter products
 __pycache__/
 *.py[cod]
+
+# Python distribution products
+build/
+dist/
+*.egg-info/
