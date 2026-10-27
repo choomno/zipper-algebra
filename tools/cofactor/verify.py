@@ -8,8 +8,9 @@ never reveals.  What makes a result a result is this check:
     sum_j  c_j(q,t) * L_j * rel_{i_j} * R_j  ==  target       in Q(q,t)<x_1..y_{n-1}>,
 
 an identity between two free-algebra polynomials, verified exactly.  Denominators are cleared by
-the LCM M of the c_j, so the identity becomes one in Z[q,t]<X>, and both sides are compared term by
-term.  No specialisation, no genericity argument, no bad locus.
+the common denominator M of the c_j, so the identity becomes one in Q[q,t]<X>, and both sides
+are compared term by term. M must be a nonzero polynomial. The conclusion is over Q(q,t);
+specializations of the displayed rational identity require its denominators to remain nonzero.
 
 Ported from symbolic_identity_check.py, which was the trusted verifier but only for X_3 at n=4:
 it carried a 130-line hand copy of the presentation (now `Presentation.symbolic_ncpolys`, the
@@ -31,16 +32,21 @@ from fractions import Fraction
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _TOOLS = os.path.dirname(_HERE)
-for _p in (_HERE, _TOOLS):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
-
-from cofactor_io import Cofactor, resolve_target                      # noqa: E402
-from ncpoly import (NCPoly, qt_add, qt_const, qt_mul, qt_pow,          # noqa: E402
-                    nc_add, nc_is_zero, nc_mul, nc_scalar, nc_size,
-                    nc_sub, nc_zero)
-from presentation import Presentation                                  # noqa: E402
-from zipper_in_ms import NumericRing                                   # noqa: E402
+if __package__:
+    from .cofactor_io import Cofactor, symbolic_target
+    from .ncpoly import (NCPoly, qt_add, qt_const, qt_mul, qt_pow, nc_add, nc_is_zero,
+                         nc_mul, nc_scalar, nc_size, nc_sub, nc_zero)
+    from ..presentation import Presentation
+    from ..zipper_in_ms import NumericRing, SymbolicRing, Poly
+else:
+    for _p in (_HERE, _TOOLS):
+        if _p not in sys.path:
+            sys.path.insert(0, _p)
+    from cofactor_io import Cofactor, symbolic_target
+    from ncpoly import (NCPoly, qt_add, qt_const, qt_mul, qt_pow, nc_add, nc_is_zero,
+                         nc_mul, nc_scalar, nc_size, nc_sub, nc_zero)
+    from presentation import Presentation
+    from zipper_in_ms import NumericRing, SymbolicRing, Poly
 
 
 def _atom_qt(atom) -> dict:
@@ -63,21 +69,18 @@ def _atom_powers(atoms, max_exps) -> list:
 def check(cof: Cofactor, pres: Presentation | None = None, target=None, verbose=True) -> dict:
     """Verify the identity exactly over Q(q,t).  Returns a report; report['pass'] is the verdict."""
     t_start = time.time()
+    if pres is None and not cof.presentation_hash:
+        raise ValueError("a certificate without a presentation hash requires explicit pres=")
     pres = pres or Presentation(cof.n)
     # A cofactor is a certificate FOR one algebra. Relation LABELS coincide across presentations
     # that differ only in the untwisting (T_2 is T_2 in both bigelow and square-zero), so checking
     # labels is not enough -- it would "verify" a bigelow certificate against square-zero and fail
     # confusingly, or worse, pass. The presentation hash is the identity; a legacy file carries
     # none and is taken on trust, which is why new files always carry one.
-    if cof.presentation_hash and cof.presentation_hash != pres.content_hash():
-        raise ValueError(
-            f"this cofactor was built for presentation {cof.presentation or '?'} "
-            f"(hash {cof.presentation_hash}), not {pres.slug()} (hash {pres.content_hash()})")
-    if cof.n != pres.n:
-        raise ValueError(f"cofactor is for n={cof.n}, presentation is n={pres.n}")
+    cof.validate(pres)
     relations, sliders = pres.symbolic_ncpolys()
     tgt_name = target if target is not None else cof.target
-    tgt = _symbolic_target(pres, sliders, tgt_name)
+    tgt = symbolic_target(pres, tgt_name)
     labels = pres.labels()
     index_of = {lab: i for i, lab in enumerate(labels)}
     t_built = time.time()
@@ -92,6 +95,8 @@ def check(cof: Cofactor, pres: Presentation | None = None, target=None, verbose=
     M_poly = qt_const(1)
     for pw, e in zip(powers, lcm):
         M_poly = qt_mul(M_poly, pw[e])
+    if not M_poly:
+        raise ValueError("the clearing denominator must be a nonzero polynomial")
     if verbose:
         print(f"[lcm]   M = {atoms.denom_str(lcm)}")
         print(f"[lcm]   M has {len(M_poly)} terms when expanded.")
@@ -154,23 +159,8 @@ def check(cof: Cofactor, pres: Presentation | None = None, target=None, verbose=
 
 
 def _symbolic_target(pres: Presentation, sliders: dict, name) -> NCPoly:
-    """The target as an NCPoly over Q[q,t].  Accepts 'S[i][j]', 'X_k', (i, j), or an NCPoly."""
-    if isinstance(name, dict):
-        return name
-    if isinstance(name, (tuple, list)) and len(name) == 2:
-        key = (int(name[0]), int(name[1]))
-    else:
-        s = str(name).strip()
-        if s.startswith("S[") and s.count("[") == 2:
-            i, j = s[2:].replace("]", "").split("[")
-            key = (int(i), int(j))
-        elif s.upper().startswith("X_"):
-            key = (int(s[2:]), 1)
-        else:
-            raise ValueError(f"cannot resolve target {name!r} symbolically")
-    if key not in sliders:
-        raise ValueError(f"target S{list(key)} does not exist at n={pres.n}")
-    return sliders[key]
+    """Compatibility wrapper around the shared target resolver."""
+    return symbolic_target(pres, name)
 
 
 # ---------------------------------------------------------------------------
@@ -182,20 +172,24 @@ def pit_check(cof: Cofactor, pres: Presentation | None = None, target=None,
     """Verify the cleared identity by evaluation on an integer grid, a posteriori.
 
     Both sides of `M * target == sum_j N_j * (M/D_j) * L_j * rel * R_j` are free-algebra
-    polynomials whose word-coefficients lie in Z[q,t] of a bidegree that can be READ OFF the
+    polynomials whose word-coefficients lie in Q[q,t] of a bidegree that can be READ OFF the
     certificate.  A polynomial of bidegree (Dq, Dt) vanishing on a (Dq+1) x (Dt+1) integer
     product grid is identically zero, so agreement on such a grid is a proof, not a sample.
     Shares no arithmetic with `check` -- it only ever evaluates at integers.
     """
     t0 = time.time()
+    if pres is None and not cof.presentation_hash:
+        raise ValueError("a certificate without a presentation hash requires explicit pres=")
     pres = pres or Presentation(cof.n)
+    cof.validate(pres)
     tgt_name = target if target is not None else cof.target
+    tgt_sym = symbolic_target(pres, tgt_name)
     labels = pres.labels()
     index_of = {lab: i for i, lab in enumerate(labels)}
     atoms = cof.atoms
     lcm = cof.lcm_denominator()
 
-    # a posteriori bidegree bound: deg(M) + max_j deg(N_j) + deg of the relations in (q,t)
+    # Bound both the cleared cofactor sum and the cleared target separately.
     def bidegree(p: dict):
         return (max((i for i, _ in p), default=0), max((j for _, j in p), default=0))
 
@@ -215,7 +209,11 @@ def pit_check(cof: Cofactor, pres: Presentation | None = None, target=None,
         for coef in r.values():
             bi, bj = bidegree(coef)
             rq, rt = max(rq, bi), max(rt, bj)
-    Dq, Dt = dq + nq + rq, dt + nt + rt
+    tq = tt = 0
+    for coef in tgt_sym.values():
+        bi, bj = bidegree(coef)
+        tq, tt = max(tq, bi), max(tt, bj)
+    Dq, Dt = max(dq + nq + rq, dq + tq), max(dt + nt + rt, dt + tt)
     grid_q = _grid_points(Dq + 1)
     grid_t = _grid_points(Dt + 1)
     if verbose:
@@ -226,7 +224,7 @@ def pit_check(cof: Cofactor, pres: Presentation | None = None, target=None,
     for q in grid_q:
         for t in grid_t:
             ring = NumericRing(q, t, 0)
-            tgt = resolve_target(pres, tgt_name, ring)
+            tgt = _evaluate_target(tgt_sym, ring, q, t)
             rels = pres.relations(ring)
             M = Fraction(atoms.eval_denom(lcm, q, t))
             acc = None
@@ -235,7 +233,11 @@ def pit_check(cof: Cofactor, pres: Presentation | None = None, target=None,
                         for (i, j), v in num.items())
                 if not c:
                     continue
-                scale = M / Fraction(atoms.eval_denom(den, q, t))
+                # Evaluate the polynomial M/D directly. Dividing evaluations would be 0/0
+                # at a grid point on a denominator's zero set, although the cleared
+                # identity is a polynomial identity and is defined there.
+                complement = tuple(top - e for top, e in zip(lcm, den))
+                scale = Fraction(atoms.eval_denom(complement, q, t))
                 lp, rp = _word_poly(left, ring), _word_poly(right, ring)
                 piece = (lp * rels[index_of[lab]] * rp).scalar_mul(ring.scalar(c * scale))
                 acc = piece if acc is None else acc + piece
@@ -252,20 +254,27 @@ def pit_check(cof: Cofactor, pres: Presentation | None = None, target=None,
 
 
 def _symbolic_build(pres: Presentation):
-    from zipper_in_ms import SymbolicRing
     names, rels, S, tags = pres.build(SymbolicRing())
     return names, [{m: dict(c.v) for m, c in r.terms.items()} for r in rels], S, tags
 
 
 def _word_poly(word, ring):
-    from zipper_in_ms import Poly
     p = Poly(ring.char)
     p.add_term(tuple(word), ring.one)
     return p
 
 
+def _evaluate_target(target, ring, q, t):
+    p = Poly(0)
+    for word, num in target.items():
+        c = sum(Fraction(v) * Fraction(q) ** i * Fraction(t) ** j
+                for (i, j), v in num.items())
+        p.add_term(word, ring.scalar(c))
+    return p
+
+
 def _grid_points(n: int) -> list:
-    """n distinct small integers avoiding 0, 1 and -1 (they collapse atoms like q-1, q+1)."""
+    """n distinct small integers. Cleared polynomials can also be evaluated at poles."""
     out, k = [], 2
     while len(out) < n:
         out.append(k)

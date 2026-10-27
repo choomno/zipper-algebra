@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from fractions import Fraction
 from itertools import product
 from typing import Iterable
@@ -50,7 +51,29 @@ class Atom:
 
     def __init__(self, name: str, coefs: dict):
         self.name = name
-        self.coefs = {k: int(v) for k, v in coefs.items() if int(v) != 0}
+        self.coefs = dict(coefs)
+        self.validate()
+        self.coefs = {k: int(v) for k, v in self.coefs.items() if v != 0}
+
+    def validate(self):
+        """A denominator factor must be a nonzero polynomial in Z[q,t].
+
+        Irreducibility is useful for reconstruction, but is not needed for verification.
+        Check again at verification boundaries: these objects are mutable.
+        """
+        if not isinstance(self.name, str) or not self.name.strip() or self.name == "1":
+            raise ValueError("an atom needs a nonempty name other than the reserved name '1'")
+        if not isinstance(self.coefs, dict):
+            raise ValueError("atom coefficients must be a polynomial dictionary")
+        for mon, c in self.coefs.items():
+            if (not isinstance(mon, tuple) or len(mon) != 2
+                    or any(type(e) is not int or e < 0 for e in mon)):
+                raise ValueError("atom monomials must be pairs of nonnegative integers")
+            if (isinstance(c, bool) or not isinstance(c, (int, Fraction))
+                    or Fraction(c).denominator != 1):
+                raise ValueError("atom coefficients must be exact integers")
+        if not any(self.coefs.values()):
+            raise ValueError("a denominator atom must be a nonzero polynomial")
 
     def eval(self, q, t):
         return sum(c * q ** i * t ** j for (i, j), c in self.coefs.items())
@@ -108,8 +131,23 @@ class AtomSet:
                  provenance: str = ""):
         self.atoms = list(atoms)
         self.max_exp = list(max_exp) if max_exp is not None else [3] * len(self.atoms)
-        assert len(self.max_exp) == len(self.atoms)
         self.provenance = provenance
+        self.validate()
+
+    def validate(self):
+        for atom in self.atoms:
+            if not isinstance(atom, Atom):
+                raise ValueError("an atom set must contain Atom objects")
+            atom.validate()
+        if len(set(self.names())) != len(self.atoms):
+            raise ValueError("denominator atom names must be distinct")
+        self.validate_exponents(self.max_exp)
+
+    def validate_exponents(self, exps):
+        if not isinstance(exps, (tuple, list)) or len(exps) != len(self.atoms):
+            raise ValueError(f"denominator exponent vector must have length {len(self.atoms)}")
+        if any(type(e) is not int or e < 0 for e in exps):
+            raise ValueError("denominator exponents must be nonnegative integers")
 
     # --- the denominator algebra used by every phase -------------------------
     def __len__(self):
@@ -119,6 +157,7 @@ class AtomSet:
         return [a.name for a in self.atoms]
 
     def eval_denom(self, exps, q, t):
+        self.validate_exponents(exps)
         out = 1
         for a, e in zip(self.atoms, exps):
             if e:
@@ -126,22 +165,32 @@ class AtomSet:
         return out
 
     def denom_str(self, exps) -> str:
+        self.validate_exponents(exps)
         parts = []
         for a, e in zip(self.atoms, exps):
             if not e:
                 continue
-            base = a.name if len(a.coefs) == 1 and abs(next(iter(a.coefs.values()))) == 1 \
+            base = a.name if re.fullmatch(r"[A-Za-z_][A-Za-z_0-9]*", a.name) \
                 else f"({a.name})"
             parts.append(base if e == 1 else f"{base}^{e}")
         return "*".join(parts) if parts else "1"
 
     @staticmethod
     def lcm(e1, e2):
+        AtomSet._validate_pair(e1, e2)
         return tuple(max(a, b) for a, b in zip(e1, e2))
 
     @staticmethod
     def mul(e1, e2):
+        AtomSet._validate_pair(e1, e2)
         return tuple(a + b for a, b in zip(e1, e2))
+
+    @staticmethod
+    def _validate_pair(e1, e2):
+        if (not isinstance(e1, (tuple, list)) or not isinstance(e2, (tuple, list))
+                or len(e1) != len(e2)
+                or any(type(e) is not int or e < 0 for e in (*e1, *e2))):
+            raise ValueError("denominator vectors must have equal lengths and nonnegative integer powers")
 
     def zero(self):
         return tuple(0 for _ in self.atoms)
@@ -153,18 +202,36 @@ class AtomSet:
         if s in ("", "1"):
             return tuple(exps)
         by_name = {a.name: k for k, a in enumerate(self.atoms)}
-        for piece in s.split("*"):
+        # Atom names themselves can contain products, e.g. (2*t+1).
+        factors, start, depth = [], 0, 0
+        for i, ch in enumerate(s):
+            if ch == "(":
+                depth += 1
+            elif ch == ")":
+                depth -= 1
+                if depth < 0:
+                    raise ValueError(f"unbalanced denominator {s!r}")
+            elif ch == "*" and depth == 0:
+                factors.append(s[start:i])
+                start = i + 1
+        if depth:
+            raise ValueError(f"unbalanced denominator {s!r}")
+        factors.append(s[start:])
+        for piece in factors:
             piece = piece.strip()
             e = 1
             # split a trailing ^e that is not inside parentheses
             if "^" in piece and not piece.endswith(")"):
                 base, _, ex = piece.rpartition("^")
                 piece, e = base, int(ex)
+                if e < 0:
+                    raise ValueError("denominator exponents must be nonnegative integers")
             if piece.startswith("(") and piece.endswith(")"):
                 piece = piece[1:-1]
             if piece not in by_name:
                 raise ValueError(f"unknown denominator factor {piece!r}; atoms are {self.names()}")
             exps[by_name[piece]] += e
+        self.validate_exponents(exps)
         return tuple(exps)
 
     def candidates(self):

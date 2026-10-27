@@ -47,17 +47,22 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PARENT = os.path.dirname(HERE)  # tools/, where zipper_in_ms.py and presentation.py live
-for _p in (HERE, PARENT):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
+import json
+import re
+from fractions import Fraction
 
-import json  # noqa: E402
-import re  # noqa: E402
-from fractions import Fraction  # noqa: E402
+if __package__:
+    from .atoms import AtomSet
+    from ..zipper_in_ms import Coef, Poly, NumericRing, SymbolicRing
+    from ..presentation import Presentation, EXTRA_CATALOGUE, _theta_word
+else:
+    for _p in (HERE, PARENT):
+        if _p not in sys.path:
+            sys.path.insert(0, _p)
+    from atoms import AtomSet
+    from zipper_in_ms import Coef, Poly, NumericRing, SymbolicRing
+    from presentation import Presentation, EXTRA_CATALOGUE, _theta_word
 
-from atoms import AtomSet  # noqa: E402
-from zipper_in_ms import Coef, Poly, NumericRing  # noqa: E402
-from presentation import Presentation, EXTRA_CATALOGUE, _theta_word  # noqa: E402
 
 HEADER_KEYS = ("presentation", "presentation_hash", "target", "atoms", "n_terms", "producer")
 _HEADER_RE = re.compile(r"^#\s*([a-z_]+):\s*(.*)$")
@@ -74,6 +79,24 @@ _R_LABEL_RE = re.compile(r"^R_(\d+)$")
 def var_names(n: int) -> list[str]:
     """The presentation's variable order: x1..x_{n-1}, y1..y_{n-1}."""
     return [f"x{i}" for i in range(1, n)] + [f"y{i}" for i in range(1, n)]
+
+
+def validate_word(word, n: int):
+    if (not isinstance(word, (tuple, list))
+            or any(type(v) is not int or not 1 <= v <= 2 * (n - 1) for v in word)):
+        raise ValueError(f"a word must use integer variable indices from 1 to {2 * (n - 1)}")
+
+
+def validate_qt_polynomial(poly):
+    """Validate the polynomial coefficient domain Q[q,t], without coercing floats."""
+    if not isinstance(poly, dict):
+        raise ValueError("a coefficient polynomial must be a dictionary")
+    for mon, c in poly.items():
+        if (not isinstance(mon, tuple) or len(mon) != 2
+                or any(type(e) is not int or e < 0 for e in mon)):
+            raise ValueError("coefficient monomials must be pairs of nonnegative integers")
+        if isinstance(c, bool) or not isinstance(c, (int, Fraction)):
+            raise ValueError("polynomial coefficients must be exact rational numbers")
 
 
 def word_str(word: tuple, names: list[str]) -> str:
@@ -171,7 +194,9 @@ def resolve_target(pres: Presentation, target, ring) -> Poly:
     from presentation.EXTRA_CATALOGUE (optionally written "EXTRA[name]")."""
     if isinstance(target, Poly):
         return target
-    if isinstance(target, tuple) and len(target) == 2:
+    if isinstance(target, (tuple, list)) and len(target) == 2:
+        if any(type(v) is not int for v in target):
+            raise ValueError("slider indices must be integers")
         return pres.target(target[0], target[1], ring)
     if not isinstance(target, str):
         raise TypeError(f"target must be a Poly, an (i, j) pair or a string, not {type(target).__name__}")
@@ -179,7 +204,7 @@ def resolve_target(pres: Presentation, target, ring) -> Poly:
     m = _S_TARGET_RE.match(s)
     if m:
         return pres.target(int(m.group(1)), int(m.group(2)), ring)
-    m = _X_TARGET_RE.match(s)
+    m = _X_TARGET_RE.match(s.upper())
     if m:
         return pres.target(int(m.group(1)), 1, ring)
     name = s[6:-1] if s.startswith("EXTRA[") and s.endswith("]") else target
@@ -188,6 +213,38 @@ def resolve_target(pres: Presentation, target, ring) -> Poly:
         return EXTRA_CATALOGUE[name](S, ring, lambda i, j: _theta_word(i, j, ring, pres.n))
     raise ValueError(f"cannot resolve target {target!r}: not S[i][j], X_k or an EXTRA name "
                      f"{sorted(EXTRA_CATALOGUE)}")
+
+
+def symbolic_target(pres: Presentation, target) -> dict:
+    """Resolve one target in the free algebra over Q[q,t].
+
+    The resolver used by numeric evaluation handles names and slider pairs. Direct NCPoly
+    dictionaries and characteristic-zero Poly values are also accepted, with validation.
+    """
+    if isinstance(target, dict):
+        out = target
+    else:
+        p = resolve_target(pres, target, SymbolicRing())
+        if p.char != 0:
+            raise ValueError("a symbolic verification target must have characteristic zero")
+        out = {}
+        for word, coef in p.terms.items():
+            if coef.char != 0:
+                raise ValueError("a symbolic verification target must have characteristic zero")
+            if isinstance(coef.v, dict):
+                out[word] = dict(coef.v)
+            elif isinstance(coef.v, (int, Fraction)) and not isinstance(coef.v, bool):
+                out[word] = {(0, 0): coef.v}
+            else:
+                raise ValueError("target coefficients must be exact polynomials in q,t")
+    clean = {}
+    for word, coef in out.items():
+        validate_word(word, pres.n)
+        validate_qt_polynomial(coef)
+        nz = {mon: Fraction(c) for mon, c in coef.items() if c != 0}
+        if nz:
+            clean[tuple(word)] = nz
+    return clean
 
 
 def target_name(target: str) -> str:
@@ -212,7 +269,7 @@ class Cofactor:
                  presentation_hash: str = "", target: str = "", producer: str = "",
                  anchor=None, notes=()):
         self.terms = list(terms)
-        self.n = int(n)
+        self.n = n
         self.atoms = atoms
         self.presentation = presentation
         self.presentation_hash = presentation_hash
@@ -220,6 +277,41 @@ class Cofactor:
         self.producer = producer
         self.anchor = tuple(anchor) if anchor is not None else None
         self.notes = list(notes)
+        self.validate()
+
+    def validate(self, pres: Presentation | None = None):
+        """Check certificate data before arithmetic, including after in-memory mutation.
+
+        A valid certificate is a finite free-algebra identity over Q(q,t). Search bounds
+        in atoms.max_exp do not restrict exponents occurring in a composed certificate.
+        """
+        if type(self.n) is not int or self.n < 2:
+            raise ValueError("a cofactor strand count must be an integer at least 2")
+        if not isinstance(self.atoms, AtomSet):
+            raise ValueError("a cofactor must have an AtomSet")
+        self.atoms.validate()
+        if not isinstance(self.presentation_hash, str):
+            raise ValueError("presentation hash must be a string")
+        labels = None
+        if pres is not None:
+            if self.n != pres.n:
+                raise ValueError(f"cofactor is for n={self.n}, presentation is n={pres.n}")
+            if self.presentation_hash and self.presentation_hash != pres.content_hash():
+                raise ValueError(f"cofactor presentation hash {self.presentation_hash} does not match "
+                                 f"{pres.slug()} ({pres.content_hash()})")
+            labels = set(pres.labels())
+        for term in self.terms:
+            if not isinstance(term, (tuple, list)) or len(term) != 5:
+                raise ValueError("each cofactor term must have five fields")
+            left, lab, right, num, den = term
+            validate_word(left, self.n)
+            validate_word(right, self.n)
+            if not isinstance(lab, str) or not lab:
+                raise ValueError("relation labels must be nonempty strings")
+            if labels is not None and lab not in labels:
+                raise ValueError(f"unknown relation label {lab!r} for {pres.slug()}")
+            validate_qt_polynomial(num)
+            self.atoms.validate_exponents(den)
 
     @classmethod
     def from_presentation(cls, pres: Presentation, target: str, atoms: AtomSet, terms,
@@ -276,6 +368,7 @@ class Cofactor:
     def evaluate(self, q: int, t: int, pres: Presentation) -> Poly:
         """sum_j c_j(q,t) * L_j * R_{i_j} * R'_j over Q at the integer point (q, t).
         Raises ZeroDivisionError if a denominator atom vanishes there."""
+        self.validate(pres)
         ring = NumericRing(q, t, 0)
         _, relations, _, _ = pres.build(ring)
         idxs = self.relation_indices(pres)
@@ -287,8 +380,8 @@ class Cofactor:
             n_val = sum(c * Fraction(q) ** i * Fraction(t) ** j for (i, j), c in num.items())
             if n_val == 0:
                 continue
-            lp = Poly(0); lp.add_term(left, Coef.one(0))
-            rp = Poly(0); rp.add_term(right, Coef.one(0))
+            lp = Poly(0); lp.add_term(tuple(left), Coef.one(0))
+            rp = Poly(0); rp.add_term(tuple(right), Coef.one(0))
             acc = acc + (lp * relations[idx] * rp).scalar_mul(Coef(n_val / d_val, 0))
         return acc
 
@@ -320,6 +413,7 @@ class Cofactor:
         return out
 
     def save(self, path: str) -> None:
+        self.validate()
         with open(path, "w") as f:
             for ln in self.header_lines():
                 f.write(ln + "\n")

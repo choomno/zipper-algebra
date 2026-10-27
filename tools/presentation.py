@@ -34,11 +34,14 @@ from dataclasses import dataclass, field
 from fractions import Fraction
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-if _HERE not in sys.path:
-    sys.path.insert(0, _HERE)
-
-from zipper_in_ms import (Poly, NumericRing, SymbolicRing, QTCoef, RelTag,  # noqa: E402
-                          build_relations_ring)
+if __package__:
+    from .zipper_in_ms import (Poly, NumericRing, SymbolicRing, QTCoef, RelTag,
+                              build_relations_ring)
+else:
+    if _HERE not in sys.path:
+        sys.path.insert(0, _HERE)
+    from zipper_in_ms import (Poly, NumericRing, SymbolicRing, QTCoef, RelTag,
+                              build_relations_ring)
 
 
 # ---------------------------------------------------------------------------
