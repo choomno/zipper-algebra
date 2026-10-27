@@ -52,8 +52,9 @@ using braid simplification must supply the corresponding braid/inverse terms
 or use a separately specified group-algebra checker.
 
 \section{The presentation builder}
-The source is \path{tools/zipper_in_ms.py:build_relations_ring}, accessed through
-\path{tools/presentation.py:Presentation}. A presentation carries the strand
+The function \texttt{build\_relations\_ring} lives in \path{tools/zipper_in_ms.py}.
+Its front end is the class \texttt{Presentation} in \path{tools/presentation.py}.
+A presentation carries the strand
 count, untwisting choice, framing and twist powers, level limits, zero-slider
 relations and named additional relations. Its symbolic relation content is
 hashed; readable relation labels alone do not identify an algebra.
@@ -227,9 +228,9 @@ target degrees and historical certificate compatibility. See
 \item Certificate schema and atoms: \path{tools/cofactor/cofactor_io.py},
       \path{tools/cofactor/atoms.py}.
 \item Symbolic and grid checks: \path{tools/cofactor/verify.py}.
-\item Proof graph and reduction skeleton: \path{tools/cofactor/proof.py},
-      \path{tools/cofactor/skeleton.py}.
-\item Symbolic composition and sample alignment: \path{tools/cofactor/compose.py},
-      \path{tools/cofactor/pipeline.py}.
+\item Proof graph: \path{tools/cofactor/proof.py}.
+\item Reduction skeleton: \path{tools/cofactor/skeleton.py}.
+\item Symbolic composition: \path{tools/cofactor/compose.py}.
+\item Sample alignment: \path{tools/cofactor/pipeline.py}.
 \end{itemize}
 \end{document}
