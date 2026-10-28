@@ -3088,6 +3088,12 @@
       "role": "Maintained presentation, arithmetic, proof, reconstruction, production or verification implementation"
     },
     {
+      "path": "src/zipper_algebra/coefficients.py",
+      "bytes": 7734,
+      "sha256": "03ee4362e7089f828c5e90bfbf81f71984db29b8c3ec3cb9587d56b5ac7804db",
+      "role": "Maintained presentation, arithmetic, proof, reconstruction, production or verification implementation"
+    },
+    {
       "path": "src/zipper_algebra/cofactor/__init__.py",
       "bytes": 85,
       "sha256": "5dd58dbaf04cde20a98ed3eba2cdac022dd5bb0a162acd1ed12b920fd4c496ef",
@@ -3148,15 +3154,33 @@
       "role": "Maintained presentation, arithmetic, proof, reconstruction, production or verification implementation"
     },
     {
+      "path": "src/zipper_algebra/msolve.py",
+      "bytes": 5109,
+      "sha256": "18c0c3f3cf6cac5f33206328d2dd11097f68aec1b2b955f45400f858b69cc79c",
+      "role": "Maintained presentation, arithmetic, proof, reconstruction, production or verification implementation"
+    },
+    {
+      "path": "src/zipper_algebra/polynomial.py",
+      "bytes": 4748,
+      "sha256": "dbfe6d85dbce8f3ed4a769de0b215d4d96b47c5ce29e99f64ff3b9598f4bbdaf",
+      "role": "Maintained presentation, arithmetic, proof, reconstruction, production or verification implementation"
+    },
+    {
       "path": "src/zipper_algebra/presentation.py",
       "bytes": 11074,
       "sha256": "c8902534076489b6aaadf636af9b1cfa92a1d425e6b26c478a234a530d627853",
       "role": "Maintained presentation, arithmetic, proof, reconstruction, production or verification implementation"
     },
     {
+      "path": "src/zipper_algebra/relations.py",
+      "bytes": 13168,
+      "sha256": "bf40277dc037f77b7ccc86566b8337c0ed49aaa0e9f82fd9a5b226a54404d4a7",
+      "role": "Maintained presentation, arithmetic, proof, reconstruction, production or verification implementation"
+    },
+    {
       "path": "src/zipper_algebra/zipper_in_ms.py",
-      "bytes": 31180,
-      "sha256": "fb10726f0245e80759938cb7c299616ac34724931af74d049891667ec0c6a6f3",
+      "bytes": 865,
+      "sha256": "4c0ade92ab6e750dc058bcc40f1ee23179e905540f0a0771a3f55911df925ccf",
       "role": "Maintained presentation, arithmetic, proof, reconstruction, production or verification implementation"
     },
     {
@@ -3247,6 +3271,12 @@
       "path": "tests/test_lift_coverage.py",
       "bytes": 14898,
       "sha256": "2e715ac70f8cd518b039de06d6a420757333345208c730d3e1cc95828dfeba17",
+      "role": "Reproduction regression, installation check or immutable historical proof fixture"
+    },
+    {
+      "path": "tests/test_module_boundaries.py",
+      "bytes": 3134,
+      "sha256": "769c21c2836507afa61676c3d93ac1c29c4a066b2b4a424825c6cdc3f3189a9a",
       "role": "Reproduction regression, installation check or immutable historical proof fixture"
     },
     {
