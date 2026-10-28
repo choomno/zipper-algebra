@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import subprocess
 import sys
 import tempfile
 from threading import Barrier
@@ -16,9 +17,10 @@ from unittest.mock import patch
 
 from zipper_algebra import Presentation
 from zipper_algebra.execution import ArtifactError, ExecutionError, RunConfig, run_point
+from zipper_algebra.execution import pipeline
 from zipper_algebra.execution.artifacts import (
     ARTIFACT_NAMES, canonical_json, digest_bytes, file_identity, load_record,
-    publish, validate_proofs,
+    prepare_output_root, publish, validate_proofs,
 )
 from zipper_algebra.execution.config import DEFAULT_FLAGS
 from zipper_algebra.zipper_in_ms import NumericRing
@@ -186,6 +188,70 @@ class TestRunConfiguration(RunnerFixture):
             with self.subTest(target=target), self.assertRaises(ValueError):
                 run_point(self.pres, target, self.point, self.config())
         self.assertFalse(self.counter.exists())
+        self.assertFalse((self.root / "output").exists())
+
+
+class TestOutputRootProtection(RunnerFixture):
+    def test_custom_output_and_cache_roots_ignore_generated_artifacts_in_git(self):
+        subprocess.run(["git", "init", "--quiet", str(self.root)], check=True)
+        config = self.config(output_root=self.root / "custom-computation",
+                             cache_root=self.root / "custom-shared-cache")
+        run = run_point(self.pres, "X_2", self.point, config)
+        for root in (config.output_root, config.cache_root):
+            with self.subTest(root=root):
+                self.assertEqual((root / ".gitignore").read_text(), "*\n!.gitignore\n")
+                self.assertEqual(subprocess.run(
+                    ["git", "check-ignore", "--quiet", str(root / run.key / "record.json")],
+                    cwd=self.root).returncode, 0)
+                self.assertEqual(subprocess.run(
+                    ["git", "check-ignore", "--quiet", str(root / ".gitignore")],
+                    cwd=self.root).returncode, 1)
+        self.assertEqual(set(path.name for path in run.directory.iterdir()), set(ARTIFACT_NAMES))
+
+    def test_reused_runs_prepare_missing_output_and_cache_markers(self):
+        config = self.config(cache_root=self.root / "cache")
+        first = run_point(self.pres, "X_2", self.point, config)
+        for root in (config.output_root, config.cache_root):
+            (root / ".gitignore").unlink()
+        reused = run_point(self.pres, "X_2", self.point, config)
+        self.assertTrue(reused.hit)
+        self.assertEqual(reused.directory, first.directory)
+        for root in (config.output_root, config.cache_root):
+            self.assertEqual((root / ".gitignore").read_text(), "*\n!.gitignore\n")
+        other = replace(config, output_root=self.root / "from-cache")
+        copied = run_point(self.pres, "X_2", self.point, other)
+        self.assertTrue(copied.hit)
+        self.assertEqual((other.output_root / ".gitignore").read_text(), "*\n!.gitignore\n")
+        self.assertEqual(self.counter.read_text(), "1")
+
+    def test_existing_custom_ignore_policy_survives_repeated_preparation(self):
+        config = self.config(cache_root=self.root / "cache")
+        custom = b"# project-specific output rules\n*.txt\n"
+        for root in (config.output_root, config.cache_root):
+            root.mkdir()
+            (root / ".gitignore").write_bytes(custom)
+        run_point(self.pres, "X_2", self.point, config)
+        run_point(self.pres, "X_2", self.point, config)
+        for root in (config.output_root, config.cache_root):
+            self.assertEqual((root / ".gitignore").read_bytes(), custom)
+
+    def test_invalid_root_or_marker_propagates_filesystem_errors(self):
+        occupied = self.root / "occupied"
+        occupied.write_text("existing file")
+        with self.assertRaises(FileExistsError):
+            prepare_output_root(occupied)
+        root = self.root / "blocked-marker"
+        (root / ".gitignore").mkdir(parents=True)
+        with self.assertRaises(FileExistsError):
+            prepare_output_root(root)
+
+    def test_pipeline_prepares_root_and_sample_markers_before_execution(self):
+        config = self.config("exit", output_root=self.root / "custom-pipeline")
+        result = pipeline.run(self.pres, "X_2", self.point, config,
+                              start=1, step=1, maxpts=1, verbose=False)
+        self.assertEqual(result["execution_status"], "failed")
+        for root in (config.output_root, config.output_root / "samples"):
+            self.assertEqual((root / ".gitignore").read_text(), "*\n!.gitignore\n")
 
 
 class TestSolverExecution(RunnerFixture):
@@ -405,6 +471,7 @@ class TestCompletedRunRecords(RunnerFixture):
                 futures = [workers.submit(publish_one) for _ in range(2)]
                 results = [future.result(timeout=15) for future in futures]
         self.assertEqual(len(failures), 1)
+        self.assertEqual((destination / ".gitignore").read_text(), "*\n!.gitignore\n")
         self.assertEqual(results[0], results[1])
         names, inputs, _, _ = self.pres.build(NumericRing(*self.point))
         loaded = load_record(destination, run.key, run.record["request"], inputs, names)

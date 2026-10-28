@@ -15,6 +15,7 @@ this script does not produce a certified generic nonsemisimplicity theorem.
 from __future__ import annotations
 
 import argparse
+from experiments.output import prepare_output_dir
 import os
 import random
 import subprocess
@@ -743,7 +744,7 @@ def main() -> int:
         workdir = tempfile.mkdtemp(prefix="generic_nonss_")
     else:
         workdir = args.workdir
-        os.makedirs(workdir, exist_ok=True)
+        prepare_output_dir(workdir)
 
     def hd(s: str) -> None:
         print()

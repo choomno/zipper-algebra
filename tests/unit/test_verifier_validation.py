@@ -1,13 +1,16 @@
 """Adversarial certificate checks independent of solver binaries and cached samples."""
 from __future__ import annotations
 
+from contextlib import redirect_stdout
+from io import StringIO
+import subprocess
 import sys
 import tempfile
 import unittest
 from fractions import Fraction
 from pathlib import Path
 
-from tests.support import ROOT
+from tests.support import LEGACY_X3
 from zipper_algebra.cofactor.atoms import Atom, AtomSet
 from zipper_algebra.cofactor.cofactor_io import Cofactor, symbolic_target
 from zipper_algebra.presentation import Presentation
@@ -104,6 +107,38 @@ class TestVerifierValidation(unittest.TestCase):
         self.assertTrue(check(cof, self.pres, {}, verbose=False)["pass"])
         self.assertTrue(pit_check(cof, self.pres, {}, verbose=False)["pass"])
 
+    def test_verification_displays_actual_polynomial_for_misleading_atom_name(self):
+        polynomial = {(1, 0): 1, (0, 0): -1}
+        atoms = AtomSet([Atom("t+5", polynomial)])
+        # The two coefficients 1/(q-1) and (q-2)/(q-1) each have a pole at q=1;
+        # their sum is 1, so the nonzero relation is an exact target.
+        rel = self.pres.labels()[0]
+        cof = self.certificate([((), rel, (), {(0, 0): 1}, (1,)),
+                                ((), rel, (), {(1, 0): 1, (0, 0): -2}, (1,))], atoms)
+        target = self.pres.symbolic_ncpolys()[0][0]
+        for verifier in (check, pit_check):
+            with self.subTest(verifier=verifier.__name__), redirect_stdout(StringIO()) as output:
+                report = verifier(cof, self.pres, target)
+                self.assertTrue(report["pass"])
+                self.assertEqual(report["lcm"], "(q-1)")
+                self.assertEqual(report["lcm_exps"], [1])
+                self.assertIn("M = (q-1)", output.getvalue())
+                self.assertNotIn("t+5", output.getvalue())
+        with self.assertRaises(ZeroDivisionError):
+            cof.evaluate(1, 2, self.pres)
+        self.assertEqual(atoms.denom_str((1,)), "(t+5)")
+        self.assertEqual(cof.header["atoms"]["atoms"][0]["name"], "t+5")
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "misleading-name.txt"
+            cof.save(path)
+            restored = Cofactor.load(path, pres=self.pres)
+            self.assertEqual(restored.header, cof.header)
+            self.assertEqual(restored.terms, cof.terms)
+            self.assertIn("(t+5)", Cofactor.strip_header(path.read_text()))
+            described = subprocess.run([sys.executable, "-m", "zipper_algebra.cofactor.cofactor_io",
+                                        str(path)], check=True, capture_output=True, text=True)
+            self.assertIn("LCM denominator: (q-1)", described.stdout)
+
     def test_laurent_grid_forgery_is_rejected(self):
         # The old PIT bound ignored negative powers. This nonzero Laurent polynomial
         # vanishes at every q in the old n=4 grid, giving a false positive.
@@ -167,7 +202,7 @@ class TestVerifierValidation(unittest.TestCase):
                                          self.pres.labels())
 
     def test_legacy_certificate_body_round_trips(self):
-        source = ROOT / "logs_and_traces/f4ncgb/cofactor-X3-n4-Qqt-symbolic.txt"
+        source = LEGACY_X3 / "cofactor-X3-n4-Qqt-symbolic.txt"
         cof = Cofactor.load(str(source), pres=self.pres)
         self.assertTrue(check(cof, self.pres, "X_3", verbose=False)["pass"])
         with tempfile.TemporaryDirectory() as directory:

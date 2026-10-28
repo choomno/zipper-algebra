@@ -63,13 +63,11 @@ cmake --build ../f4ncgb-source/build-release
 Build the default target: the target named `f4ncgb` is the library, while the
 executable target is `f4ncgb_bin`.
 
-The recovered record reports 31 sanitizer tests and 23 accepted-input output
-comparisons. During the current cleanup the patch was checked against the exact
-base source. The strengthened patch and all 31 tests then passed in a fresh
+All 31 tests passed in the recorded
 [Ubuntu 24.04 GitHub build](https://github.com/choomno/f4ncgb/actions/runs/40625473978)
-at `789504d7c7da6af6946faecb73421b037766a5b8`. A local compiler and CMake
-remain absent from the preparation environment. The 23 historical output comparisons
-used iteration caps and do not assert completed Gröbner bases.
+at `789504d7c7da6af6946faecb73421b037766a5b8` and locally on Fedora 44. The
+historical 23 accepted-input output comparisons used iteration caps and do not
+assert completed Gröbner bases.
 
 Pass the resulting executable explicitly to `zipper-algebra discover --solver`.
 The installed command takes output/cache locations and limits directly; it does

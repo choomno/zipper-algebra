@@ -4,20 +4,45 @@
     {
       "path": "basis-symbolic-Qqt.json",
       "sha256": "e8b6cf035584afd1940dcad34b87f06669321af022857d974d1fc2c7b5f966a5",
-      "source_record": "../notes/pipeline_test/pre-atoms-20260917/basis-symbolic-Qqt.json",
-      "role": "Immutable historical regression fixture; no rerun or new mathematical claim."
+      "role": "Immutable historical regression fixture; no rerun or new mathematical claim.",
+      "source_path": "tests/fixtures/legacy_x3/basis-symbolic-Qqt.json"
     },
     {
       "path": "skeleton-n4-Q.json",
       "sha256": "86fb48fcce303866288824132ef55ab5183d2cd93097b45d5c71341f625f0f3b",
-      "source_record": "../notes/pipeline_test/pre-atoms-20260917/skeleton-n4-Q.json",
-      "role": "Immutable historical regression fixture; no rerun or new mathematical claim."
+      "role": "Immutable historical regression fixture; no rerun or new mathematical claim.",
+      "source_path": "tests/fixtures/legacy_x3/skeleton-n4-Q.json"
     },
     {
       "path": "proof-n4-Q-noex.txt",
       "sha256": "def87c2ad8921be5e8a0c3e5efbf50fbd82741b8bd3f7e4593c2fb48aec7c03c",
-      "source_record": "../notes/refactor/out/paths_samples/proof-n4-Q-noex.txt",
+      "role": "Immutable historical regression fixture; no rerun or new mathematical claim.",
+      "source_path": "tests/fixtures/legacy_x3/proof-n4-Q-noex.txt"
+    },
+    {
+      "path": "basis-n4-Q.txt",
+      "sha256": "3ea67767a9d2aff8dfa07bcd266dcee1038b75d8ecfd2df990b23d92422c64de",
+      "source_path": "logs_and_traces/f4ncgb/basis-n4-Q.txt",
+      "role": "Immutable historical regression fixture; no rerun or new mathematical claim."
+    },
+    {
+      "path": "basis-n4-Q-q3-t11.txt",
+      "sha256": "2cabea810a8cec96c6c241c5bdb04c1797b83a1e41592b854f054740acde9982",
+      "source_path": "logs_and_traces/f4ncgb/basis-n4-Q-q3-t11.txt",
+      "role": "Immutable historical regression fixture; no rerun or new mathematical claim."
+    },
+    {
+      "path": "basis-n4-Q-q7-t13.txt",
+      "sha256": "0a00f8bd3aed1c395b9069f8e2077643b97fae0918d73cd4aa35ebdd690a3592",
+      "source_path": "logs_and_traces/f4ncgb/basis-n4-Q-q7-t13.txt",
+      "role": "Immutable historical regression fixture; no rerun or new mathematical claim."
+    },
+    {
+      "path": "cofactor-X3-n4-Qqt-symbolic.txt",
+      "sha256": "e2b07c73598a380f2b5ea529b00de85dc553591110e49273f3202b4e0b0d76d6",
+      "source_path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Qqt-symbolic.txt",
       "role": "Immutable historical regression fixture; no rerun or new mathematical claim."
     }
-  ]
+  ],
+  "source_commit": "d30b36aa2da0819dfa28954bd9223ef72163edf5"
 }

@@ -23,8 +23,9 @@ python ci/run_tests.py --suite reproduction
 
 These selections partition the full suite without overlap or omissions. The fast
 selection includes all non-reproduction cases, including execution-boundary,
-CLI and installation regressions. The reproduction selection checks the saved
-large certificates and frozen historical implementation.
+CLI and installation regressions. The reproduction selection checks the 695-term
+certificate fixtures and frozen historical implementation. The curated 129-term certificate lives under
+`examples/x3/`. No default test selection requires the optional bulk archive.
 
 ## What the tests establish
 
@@ -43,7 +44,9 @@ Historical comparisons use immutable fixtures under `tests/fixtures/legacy_x3/`
 and a frozen implementation under `tests/reference/`. That implementation shares
 the coefficient kernel with the package. Its purpose is historical equivalence;
 the separate symbolic and degree-grid checks have their own stated independence.
-The retained 695-term witness is a computational regression case.
+The retained 695-term witness and its numeric bases are computational regression
+cases. The current example is checked as a free-algebra identity using both
+symbolic accumulation and a degree-bounded product grid.
 
 ## Maintained package coverage
 
@@ -104,8 +107,10 @@ installs the zipper-algebra wheel, and exercises a small two-generator test
 presentation with `X_2=0` explicitly imposed. It checks native input/output,
 proof identities, coefficient reconstruction, the result bundle and both
 certificate checks outside this workspace. Full four-strand discovery and
-other research computations run locally. The workflow and `ci/check_solver.py`
-record the pinned source and commands.
+other research computations run locally. A local full four-strand run produced
+the curated 129-term certificate from 100 fresh parameter points, with both exact
+checks passing; see the [reproduction guide](X3_REPRODUCTION.md). The workflow
+and `ci/check_solver.py` record the pinned source and commands.
 
 The documentation job validates local links, deterministic inventory
 regeneration and recorded hashes, then compiles the mathematical reference.
@@ -127,7 +132,9 @@ the output PDF only after success. The committed
 and its source are included in the source archive. CI also retains its newly
 compiled PDF as an artifact. PDF bytes can vary across compiler/font versions.
 
-The inventory covers the larger audit corpus. The [reproduction guide](X3_REPRODUCTION.md)
-distinguishes that corpus from inputs needed for fresh production or checking
-one certificate. Original sources for retired drivers are pinned to their
-historical Git revision rather than silently kept as executable dependencies.
+The inventory covers the curated current source, example, fixtures and test/build
+support. The separate `data/research-archive.json` pins optional historical data
+by Git revision, path and SHA-256 hash. The
+[reproduction guide](X3_REPRODUCTION.md) gives restore commands and explains which
+data each route uses. Original sources for retired drivers are pinned to their
+historical Git revision.

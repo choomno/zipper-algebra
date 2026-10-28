@@ -2,7 +2,7 @@
 """Equivalence tests for proof.py and skeleton.py against extract_cofactor.py on the X3 artifacts.
 
 Every assertion is an EQUALITY between the legacy script's output and the new modules' on
-logs_and_traces/f4ncgb/basis-n4-Q.txt and proof-n4-Q-noex.txt (the (5,7) anchor over Q), plus
+tests/fixtures/legacy_x3/basis-n4-Q.txt and proof-n4-Q-noex.txt (the (5,7) anchor over Q), plus
 synthetic cases for what the legacy could not do (forward references; leading-word collisions).
 Inputs are immutable; outputs use a temporary directory.
 
@@ -10,36 +10,31 @@ Inputs are immutable; outputs use a temporary directory.
 """
 from __future__ import annotations
 
-import glob
 import json
 import os
-import re
-import sys
 import tempfile
 import unittest
 from fractions import Fraction
 
-from tests.support import ROOT, LOGS as LOG_DIR, LEGACY_X3
+from tests.support import LEGACY_X3
 from tests.reference import legacy_x3 as E
 from zipper_algebra.cofactor.proof import Basis, Proof, mon_sort_key, word_text
 from zipper_algebra.cofactor.skeleton import Skeleton, reduce, compose_at, evaluate, closure
 from zipper_algebra.presentation import Presentation
 from zipper_algebra.zipper_in_ms import NumericRing, Poly, Coef
 
-LOGS = str(LOG_DIR)
 FROZEN = str(LEGACY_X3)
 
 
 def frozen(name: str) -> str:
-    p = os.path.join(FROZEN, name)
-    return p if os.path.exists(p) else os.path.join(LOGS, name)
+    return os.path.join(FROZEN, name)
 _OUTPUT = tempfile.TemporaryDirectory(prefix="zipper-proof-tests-")
 OUT = _OUTPUT.name
 
 
 def tearDownModule():
     _OUTPUT.cleanup()
-BASIS_PATH = os.path.join(LOGS, "basis-n4-Q.txt")
+BASIS_PATH = os.path.join(FROZEN, "basis-n4-Q.txt")
 PROOF_PATH = os.path.join(FROZEN, "proof-n4-Q-noex.txt")
 ANCHOR = (5, 7, 0)
 
@@ -253,8 +248,9 @@ class TestSkeleton(unittest.TestCase):
         self.assertEqual(self.skel.closure_indices(reordered),
                          [last - index for index in self.skel.closure_indices(_Shared.basis)])
         ok, missing = 0, []
-        for path in sorted(glob.glob(os.path.join(LOGS, "basis-n4-Q-q*-t*.txt"))):
-            q, t = map(int, re.search(r"q(\d+)-t(\d+)", path).groups())
+        points = ((3, 11), (7, 13))
+        for q, t in points:
+            path = frozen(f"basis-n4-Q-q{q}-t{t}.txt")
             bp = Basis.load(path, 0, names)
             try:
                 self.skel.step_indices(bp); self.skel.closure_indices(bp)
@@ -265,7 +261,8 @@ class TestSkeleton(unittest.TestCase):
             f.write(f"points whose basis carries every skeleton key: {ok}/{ok + len(missing)}\n")
             for pt, why in missing:
                 f.write(f"  {pt}: {why}\n")
-        self.assertGreater(ok, 0)
+        self.assertEqual(missing, [])
+        self.assertEqual(ok, len(points))
 
 
 class TestKeyCollisions(unittest.TestCase):

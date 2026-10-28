@@ -14,6 +14,7 @@ Strategy:
 """
 from __future__ import annotations
 import argparse
+from experiments.output import prepare_output_dir
 import os
 from pathlib import Path
 import sys
@@ -553,7 +554,7 @@ def main(argv=None) -> int:
     parser.add_argument("--input", type=Path, default=COF_FILE)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
-    args.output.parent.mkdir(parents=True, exist_ok=True)
+    prepare_output_dir(args.output.parent)
     t_start = time.time()
     relations, X3 = build_inputs_and_X3()
     print(f"[build] {len(relations)} relations, X_3 with {nc_size(X3)} mons")

@@ -20,6 +20,20 @@ class ArtifactError(ValueError):
     """A recorded computation does not match its declared inputs or proof."""
 
 
+def prepare_output_root(root: Path):
+    """Keep generated output local while preserving an existing ignore policy."""
+    if (root / ".git").exists():
+        raise ArtifactError("output directory must not be a Git checkout root")
+    root.mkdir(parents=True, exist_ok=True)
+    marker = root / ".gitignore"
+    try:
+        with marker.open("x") as stream:
+            stream.write("*\n!.gitignore\n")
+    except FileExistsError:
+        if not marker.is_file():
+            raise
+
+
 def _contained(path: Path, parent: Path):
     if not path.resolve().is_relative_to(parent.resolve()):
         raise ArtifactError("artifact location leaves its configured directory")
@@ -152,7 +166,7 @@ def publish(root: Path, key: str, source: Path, request: dict, basis_entries: in
     Interruption before replacing record.json leaves an older selected generation
     intact. Unselected generations cannot be discovered as completed samples.
     """
-    root.mkdir(parents=True, exist_ok=True)
+    prepare_output_root(root)
     slot = root / key
     _contained(slot, root)
     slot.mkdir(exist_ok=True)

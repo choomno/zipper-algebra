@@ -16,7 +16,6 @@ simplify_cofactor.py.  Parsing and summation are written inline.
 """
 from __future__ import annotations
 import argparse
-import os
 from pathlib import Path
 import sys
 
@@ -34,7 +33,6 @@ from .legacy_format import (
     build_inputs_and_X3,
 )
 from .simplify_cofactor import normalize_word, canonical_word
-COF_FILE = str(Path(__file__).resolve().parents[2] / "logs_and_traces/f4ncgb/cofactor-X3-n4-Qqt-three-rels.txt")
 
 
 # ---------------------------------------------------------------------------
@@ -198,7 +196,7 @@ def nc_normalize_mod_B3(p):
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input", type=Path, default=COF_FILE)
+    parser.add_argument("--input", type=Path, required=True, help="generated certificate from the preceding stage")
     args = parser.parse_args(argv)
     t0 = time.time()
 

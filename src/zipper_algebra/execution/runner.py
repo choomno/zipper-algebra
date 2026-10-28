@@ -8,7 +8,7 @@ import tempfile
 import time
 
 from .artifacts import (ArtifactError, canonical_json, digest_bytes, file_identity, load_record,
-                        publish, validate_proofs)
+                        prepare_output_root, publish, validate_proofs)
 from .config import RunConfig
 from ..cofactor.artifacts import presentation_identity, target_identity
 from ..cofactor.cofactor_io import resolve_target, target_name
@@ -69,6 +69,9 @@ def run_point(pres, target: str, point: tuple[int, int, int], config: RunConfig,
                    "flags": list(config.arguments()), "timeout_seconds": config.timeout_seconds},
     }
     key = digest_bytes(canonical_json(request))
+    prepare_output_root(config.output_root)
+    if config.cache_root is not None:
+        prepare_output_root(config.cache_root)
     if not refresh:
         loaded = load_record(config.output_root, key, request, inputs, names)
         if loaded is not None:
@@ -79,7 +82,6 @@ def run_point(pres, target: str, point: tuple[int, int, int], config: RunConfig,
                 directory, record = publish(config.output_root, key, loaded[0], request,
                                             loaded[1]["basis_entries"])
                 return SolverRun(key, directory, record, True, 0)
-    config.output_root.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=".solver-", dir=config.output_root) as temporary:
         stage = Path(temporary)
         input_path = stage / "input.ms"

@@ -14,8 +14,10 @@ zipper-algebra emit --n 4 --q 5 --t 7 --char 0 --out input.ms --json
 
 Both use one relation builder. The presentation hash identifies the ordered
 symbolic defining data, independently of specialization. Labels alone do not
-identify an algebra. The discovery route always keeps its target separate from
-the defining relations.
+identify an algebra. Discovery never automatically adjoins its target. Explicit
+`--extra` and `--zero-from` options are part of the selected defining presentation;
+they can make membership tautological. A certificate then concerns that augmented
+presentation.
 
 ## Produce a certificate
 
@@ -54,7 +56,7 @@ path. An interrupted publication preserves the preceding valid result.
 
 ```sh
 zipper-algebra verify \
-  logs_and_traces/f4ncgb/cofactor-X3-n4-Qqt-symbolic.txt \
+  examples/x3/certificate.txt \
   --n 4 --target X_3 --pit --json
 ```
 
@@ -92,5 +94,10 @@ does not prove a rational-function identity.
 [TESTING](docs/TESTING.md) describes the unit, integration and reproduction suites,
 coverage gate, isolated distributions and native solver integration.
 [INDEX](INDEX.md) maps the source and experimental recipes.
+The curated example is a 129-term free-algebra certificate. The older 695-term
+witness and its recomposition inputs are regression fixtures under
+`tests/fixtures/legacy_x3/`. Optional historical data can be restored with
+`python -m experiments.restore_data --output .research-data`; the
+[reproduction guide](docs/X3_REPRODUCTION.md) describes the pinned archive.
 The compact braid-algebra transformations retain their own explicit equality
 conventions under [experiments/x3](experiments/x3/README.md).

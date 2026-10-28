@@ -101,6 +101,24 @@ class TestAtomArithmetic(unittest.TestCase):
         self.assertEqual(restored.to_json(), family.to_json())
         self.assertEqual(a.AtomSet.from_json({"atoms": [q.to_json()]}).max_exp, [3])
 
+    def test_polynomial_display_uses_coefficients_and_preserves_historical_spelling(self):
+        defaults = a.AtomSet.DEFAULT
+        exponents = (2, 1, 2, 1, 2, 1)
+        expected = "q^2*t*(q-1)^2*(t-q)*(t+q^2)^2*(q+1)"
+        self.assertEqual(defaults.denom_polynomial_str(exponents), expected)
+        self.assertEqual(defaults.denom_polynomial_str(exponents), defaults.denom_str(exponents))
+        self.assertEqual(defaults.denom_polynomial_str(defaults.zero()), "1")
+        self.assertEqual(a.AtomSet([]).denom_polynomial_str(()), "1")
+        family = a.AtomSet([a.Atom("t+5", {(1, 0): 1, (0, 0): -1}),
+                            a.Atom("q", {(1, 1): -2, (0, 0): 3}),
+                            a.Atom("constant", {(0, 0): -2})])
+        self.assertEqual(family.denom_polynomial_str((1, 2, 1)),
+                         "(q-1)*(-2*q*t+3)^2*(-2)")
+        self.assertEqual(family.denom_str((1, 2, 1)), "(t+5)*q^2*constant")
+        self.assertEqual(family.eval_denom((1, 2, 1), 2, 3), -162)
+        with self.assertRaises(ValueError):
+            family.denom_polynomial_str((1,))
+
     def test_malformed_families_and_denominators_are_rejected(self):
         q = a.Atom("q", {(1, 0): 1})
         for values in (["q"], [q, q]):

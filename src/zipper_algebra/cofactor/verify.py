@@ -43,7 +43,10 @@ def _atom_powers(atoms, max_exps) -> list:
 
 
 def check(cof: Cofactor, pres: Presentation | None = None, target=None, verbose=True) -> dict:
-    """Verify the identity exactly over Q(q,t).  Returns a report; report['pass'] is the verdict."""
+    """Verify the identity exactly over Q(q,t); report['pass'] is the verdict.
+
+    report['lcm'] displays the actual polynomial factors independently of atom names.
+    """
     t_start = time.time()
     if pres is None and not cof.presentation_hash:
         raise ValueError("a certificate without a presentation hash requires explicit pres=")
@@ -67,13 +70,14 @@ def check(cof: Cofactor, pres: Presentation | None = None, target=None, verbose=
 
     atoms = cof.atoms
     lcm = cof.lcm_denominator()
+    lcm_display = atoms.denom_polynomial_str(lcm)
     powers = _atom_powers(atoms, lcm)
     M_poly = qt_const(1)
     for pw, e in zip(powers, lcm):
         M_poly = qt_mul(M_poly, pw[e])
     # Validation gives nonzero atoms, so their product is nonzero in Q[q,t].
     if verbose:
-        print(f"[lcm]   M = {atoms.denom_str(lcm)}")
+        print(f"[lcm]   M = {lcm_display}")
         print(f"[lcm]   M has {len(M_poly)} terms when expanded.")
 
     total: NCPoly = nc_zero()
@@ -106,7 +110,7 @@ def check(cof: Cofactor, pres: Presentation | None = None, target=None, verbose=
     ok = nc_is_zero(diff)
     report = {"pass": ok, "tuples": len(cof.terms), "relations_used": sorted(used),
               "labels_used": sorted({cof.terms[i][1] for i in range(len(cof.terms))}),
-              "lcm": atoms.denom_str(lcm), "lcm_exps": list(lcm),
+              "lcm": lcm_display, "lcm_exps": list(lcm),
               "residual_monomials": 0 if ok else nc_size(diff),
               "seconds": time.time() - t_start, "target": tgt_name,
               "presentation": pres.slug(), "presentation_hash": pres.content_hash()}
@@ -119,7 +123,7 @@ def check(cof: Cofactor, pres: Presentation | None = None, target=None, verbose=
             print(f"      Q(q,t)<{','.join(names)}>.")
             print(f"      Tuples used:           {len(cof.terms)}")
             print(f"      Distinct R_i used:     {sorted(used)}")
-            print(f"      LCM cleared:           M = {atoms.denom_str(lcm)}")
+            print(f"      LCM cleared:           M = {lcm_display}")
             print(f"      Total wall time:       {report['seconds']:.2f}s")
         else:
             print(f"FAIL: residual has {nc_size(diff)} non-zero NC monomial(s).")
@@ -160,6 +164,7 @@ def pit_check(cof: Cofactor, pres: Presentation | None = None, target=None,
     index_of = {lab: i for i, lab in enumerate(labels)}
     atoms = cof.atoms
     lcm = cof.lcm_denominator()
+    lcm_display = atoms.denom_polynomial_str(lcm)
 
     # Bound both the cleared cofactor sum and the cleared target separately.
     def bidegree(p: dict):
@@ -189,6 +194,7 @@ def pit_check(cof: Cofactor, pres: Presentation | None = None, target=None,
     grid_q = _grid_points(Dq + 1)
     grid_t = _grid_points(Dt + 1)
     if verbose:
+        print(f"[pit]   M = {lcm_display}")
         print(f"[pit]   bidegree bound ({Dq},{Dt}) read off the certificate; "
               f"grid {len(grid_q)}x{len(grid_t)} = {len(grid_q) * len(grid_t)} points")
 
@@ -222,6 +228,7 @@ def pit_check(cof: Cofactor, pres: Presentation | None = None, target=None,
         print("[pit]   " + ("PASS: identity holds on the full grid -- exact by interpolation"
                             if ok else f"FAIL at {len(bad)} point(s), e.g. {bad[:3]}"))
     return {"pass": ok, "bidegree": [Dq, Dt], "grid": [len(grid_q), len(grid_t)],
+            "lcm": lcm_display, "lcm_exps": list(lcm),
             "failures": bad[:10], "seconds": time.time() - t0}
 
 

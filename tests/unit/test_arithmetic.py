@@ -6,7 +6,7 @@ import tempfile
 import unittest
 
 from zipper_algebra import core
-from tests.support import ROOT
+from tests.support import LEGACY_X3
 from zipper_algebra.zipper_in_ms import Coef, NumericRing, Poly, QTCoef
 
 
@@ -133,7 +133,7 @@ class TestBasisGrammar(unittest.TestCase):
                 self.parse(text, core.parse_basis_Q)
 
     def test_preserved_basis_and_leading_reader_agree(self):
-        path = ROOT / "logs_and_traces/f4ncgb/basis-n4-Q.txt"
+        path = LEGACY_X3 / "basis-n4-Q.txt"
         parsed = core.parse_basis_Q(str(path))
         self.assertEqual(len(parsed), 137)
         self.assertEqual([leading for leading, _ in parsed], core.parse_leading_monomials(str(path)))

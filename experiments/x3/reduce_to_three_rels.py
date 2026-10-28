@@ -21,6 +21,7 @@ checked by Garside-normalization mod B_3 of the residual against X_3.
 
 from __future__ import annotations
 import argparse
+from experiments.output import prepare_output_dir
 import os
 from pathlib import Path
 import sys
@@ -42,8 +43,6 @@ from .simplify_cofactor import (
     normalize_word, canonical_word,
 )
 
-ROOT = str(Path(__file__).resolve().parents[2])
-SRC_FILE = os.path.join(ROOT, "logs_and_traces/f4ncgb/cofactor-X3-n4-Qqt-simplified.txt")
 
 # w = sigma_1 sigma_2 = x_1 x_2   (free-algebra word)
 W_WORD: Tuple[int, ...] = (SIGMA1, SIGMA2)
@@ -62,10 +61,10 @@ def parse_lines(path: str):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input", type=Path, default=SRC_FILE)
+    parser.add_argument("--input", type=Path, required=True, help="generated certificate from the preceding stage")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
-    args.output.parent.mkdir(parents=True, exist_ok=True)
+    prepare_output_dir(args.output.parent)
     t_start = time.time()
     print("=" * 72)
     print("Reduction: eliminate R_26 via R_26 = (sigma_1 sigma_2) R_25 (sigma_1 sigma_2)^{-1}")

@@ -2,8 +2,9 @@
 
 These scripts explore dimensions, trace forms, radical candidates, tower maps and
 Markov-trace conditions for specified untwisting quotients. They are research
-programs retained with their earlier inputs and outputs; they are outside the
-maintained installed package.
+programs outside the maintained installed package. Their historical inputs
+and outputs are optional external research data listed in
+[`data/research-archive.json`](../../data/research-archive.json).
 
 | Script | Computation |
 | --- | --- |
@@ -38,3 +39,20 @@ terms that happen to occur in a basis file. Trace/rank recipes likewise take
 `--n`; their quotient-algebra interpretation still requires completed-basis
 evidence. The tower and Markov recipes explicitly use their stated three- and
 four-strand alphabets.
+
+The symbolic square-zero representation and trace-form recipes share the ignored
+`runs/variants/` directory, separate from restored archives. They retain their legacy
+Sympy-pickle cache format. Generate those local caches with the representation
+producer before running the trace-form recipe:
+
+```sh
+python -m experiments.variants.square_zero_regular_rep_qt
+python -m experiments.variants.square_zero_traceform_qt
+```
+
+Set `ZIPPER_EXPERIMENT_OUTPUT` to use another input and output directory for both
+recipes. Historical results can separately be restored for provenance and
+inspection with `python -m experiments.restore_data --group variants`. Restoration
+copies verified bytes without loading Python objects. An exact JSON matrix export
+is included in that archive under `data/variants/` for inspection without using
+pickle. The recorded calculations retain the interpretation limits above.

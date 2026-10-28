@@ -2,7 +2,7 @@
 """Equivalence tests for cofactor_io / compose / verify against the shipped X_3 artifacts.
 
 The claim under test is not "the new modules run" but "they produce the same bytes and the same
-verdict as the scripts they replace".  Everything here reads `logs_and_traces/f4ncgb/`; nothing
+verdict as the scripts they replace".  Everything here reads `tests/fixtures/legacy_x3/`; nothing
 writes there.
 """
 from __future__ import annotations
@@ -11,12 +11,11 @@ import json
 from copy import deepcopy
 import os
 from pathlib import Path
-import sys
 import tempfile
 import unittest
 from fractions import Fraction
 
-from tests.support import ROOT, LOGS as LOG_DIR, LEGACY_X3
+from tests.support import LEGACY_X3
 
 from zipper_algebra.cofactor.atoms import AtomSet
 from zipper_algebra.cofactor.cofactor_io import Cofactor
@@ -25,18 +24,16 @@ from zipper_algebra.cofactor.lift import Lift
 from zipper_algebra.presentation import Presentation
 from zipper_algebra.cofactor import verify
 
-LOGS = str(LOG_DIR)
 
 # Immutable pre-consolidation inputs are carried by this repository.
 FROZEN = str(LEGACY_X3)
 
 
 def frozen(name: str) -> str:
-    p = os.path.join(FROZEN, name)
-    return p if os.path.exists(p) else os.path.join(LOGS, name)
+    return os.path.join(FROZEN, name)
 
 
-SYMBOLIC = os.path.join(LOGS, "cofactor-X3-n4-Qqt-symbolic.txt")
+SYMBOLIC = os.path.join(FROZEN, "cofactor-X3-n4-Qqt-symbolic.txt")
 LIFT_JSON = frozen("basis-symbolic-Qqt.json")
 SKEL_JSON = frozen("skeleton-n4-Q.json")
 _OUTPUT = None

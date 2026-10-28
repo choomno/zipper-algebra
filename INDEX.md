@@ -34,8 +34,8 @@ been retired; use the installed package and commands.
 | `tests/integration/` | CLI, installation, coverage and computation-outcome checks. |
 | `tests/reproduction/` | Saved certificate and historical proof comparisons. |
 | `tests/reference/` | Frozen historical implementation used by those comparisons. |
-| `tests/fixtures/legacy_x3/` | Immutable lift, skeleton and canonical anchor proof. |
-| `examples/` | Executable small examples. |
+| `tests/fixtures/legacy_x3/` | Immutable 695-term witness, lift, skeleton, canonical anchor proof and numeric bases. |
+| `examples/` | Executable small examples and the curated 129-term X_3 certificate. |
 | `experiments/variants/` | Specialized quotient, trace, radical and representation calculations. |
 | `experiments/research/` | Slider/lasso minimal-polynomial investigations. |
 | `experiments/survey/` | Per-point observations with explicit coefficient domains and completion limits. |
@@ -47,11 +47,16 @@ available while shared arithmetic and presentation construction use the package.
 
 ## Scientific data and documentation
 
-`logs_and_traces/` and `ms_inputs/` retain scientific inputs and outputs.
-`data/aliases.json` maps removed duplicate names to canonical bytes.
+`data/research-archive.json` records the pinned historical artifact paths and
+SHA-256 hashes. Restore the archive on demand with
+`python -m experiments.restore_data --output .research-data`, or select the
+`x3-history`, `variants` or `gap` group with `--group`.
+The manifest’s `previous_aliases` field records historical duplicate names. Default tests and fresh
+production need no restored bulk data.
 The [Singular producer](singular_run/README.md) and `archive/gap/` preserve
-independent specialized calculations. The reconstruction manuscript remains
-at `reconstruction_theory.tex` and its compiled PDF.
+source programs for independent specialized calculations; their saved logs and
+bases are in the optional archive. The reconstruction manuscript source remains
+at `reconstruction_theory.tex`.
 
 - [README](README.md): mathematical purpose, installation and principal commands.
 - [Mathematical reference](docs/mathematical-specification/main.tex): definitions, hypotheses and exact conclusions.

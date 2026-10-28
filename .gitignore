@@ -47,3 +47,15 @@ CONTRIBUTING.MD
 .coverage.*
 coverage.json
 htmlcov/
+
+# Generated research runs and optional historical datasets
+/runs/
+/.research-data/
+/reproduction/
+/ms_inputs/
+/logs_and_traces/
+*.ms
+*.pkl
+*.pickle
+grobner_zipper_*.gap
+/reconstruction_theory.pdf

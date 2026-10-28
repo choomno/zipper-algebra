@@ -79,6 +79,7 @@ if a.mode=='closure':
     sys.exit(0)
 Path(a.o).write_text(basis+'\n')
 proof=(str(scale)+'*' if scale!=1 else '')+'[i%d]'%index
+if a.mode=='bad-proof':proof='[i0]'
 if a.mode=='shape' and q!=5:proof+=' +[i0] -[i0]'
 Path(a.p).write_text(proof+'\n')
 '''
@@ -360,6 +361,14 @@ class TestInstalledDiscoveryCommands(DiscoveryFixture):
             code = cli.main(arguments)
         return code, output.getvalue(), errors.getvalue()
 
+    def invoke_with_producer(self, arguments):
+        # Supply only the interpreter prefix missing from the installed CLI;
+        # discovery, cache/proof validation and subprocess execution all run.
+        def configuration(*args, **kwargs):
+            return RunConfig(*args, command_prefix=(self.root/'producer.py',), **kwargs)
+        with patch('zipper_algebra.execution.config.RunConfig', side_effect=configuration):
+            return self.invoke(arguments)
+
     def test_emit_json_and_text_preserve_bare_presentation(self):
         path = self.root/'inputs'/'bare.ms'
         code, output, errors = self.invoke(['emit','--n','2','--out',str(path),'--json'])
@@ -368,6 +377,76 @@ class TestInstalledDiscoveryCommands(DiscoveryFixture):
         self.assertEqual(len(path.read_text().splitlines())-2, 3)
         self.assertEqual(self.invoke(['emit','--n','2','--out',str(path)])[0], 0)
         self.assertIn('Wrote', self.invoke(['emit','--n','2','--out',str(path)])[1])
+
+    def test_failed_rerun_replaces_verified_selection_and_preserves_immutable_products(self):
+        script = self.root/'producer.py'
+        atoms_path = self.root/'atoms.json'
+        self.atoms.save(atoms_path)
+        for failure in ('output-record', 'cache-record', 'bad-proof', 'exit'):
+            with self.subTest(failure=failure):
+                script.write_text(PRODUCER)
+                output, cache = self.root/failure/'output', self.root/failure/'cache'
+                for directory in (output, cache):
+                    directory.mkdir(parents=True)
+                    (directory/'.gitignore').write_text('existing output policy\n')
+                arguments = ['discover', '--n', '2', '--zero-from', '2', '--target', 'X_2',
+                             '--solver', sys.executable, '--output', str(output), '--cache', str(cache),
+                             '--atoms', str(atoms_path), '--start', '7', '--step', '2',
+                             '--max', '9', '--json']
+                code, text, errors = self.invoke_with_producer(arguments)
+                self.assertEqual(code, 0, errors or text)
+                prior = json.loads(text)
+                self.assertTrue(prior['verified'])
+                prior_files = {Path(path): Path(path).read_bytes()
+                               for path in prior['artifacts'].values()}
+                for run in prior['runs']:
+                    for name in run['files']:
+                        path = Path(run['directory'])/name
+                        prior_files[path] = path.read_bytes()
+                selected = Path(prior['runs'][0]['record'])
+                if failure == 'output-record':
+                    selected.write_text('{}')
+                elif failure == 'cache-record':
+                    selected.unlink()  # Force lookup of the configured shared cache.
+                    (cache/prior['runs'][0]['key']/'record.json').write_text('{}')
+                else:
+                    script.write_text(PRODUCER.replace(
+                        "default='plain'", "default='"+failure+"'"))
+                    arguments.append('--refresh')
+                code, text, errors = self.invoke_with_producer(arguments)
+                self.assertEqual(code, 3, errors or text)
+                result = json.loads(text)
+                self.assertEqual(result, json.loads((output/'result.json').read_text()))
+                self.assertEqual(result['status'], 'inconclusive')
+                self.assertEqual(result['execution_status'], 'failed')
+                self.assertFalse(result['verified'])
+                self.assertIsNone(result['in_ideal'])
+                self.assertFalse(result['basis_complete'])
+                for field in ('certificate', 'artifacts', 'generation', 'files', 'exact'):
+                    self.assertNotIn(field, result)
+                expected = ('invalid run record' if failure.endswith('record') else
+                            'input-ideal identity' if failure == 'bad-proof' else 'code 9')
+                self.assertIn(expected, result['reason'])
+                for path, contents in prior_files.items():
+                    self.assertEqual(path.read_bytes(), contents)
+                for directory in (output, cache):
+                    self.assertEqual((directory/'.gitignore').read_text(), 'existing output policy\n')
+
+    def test_invalid_discovery_configuration_preserves_prior_selection(self):
+        prior = self.discover()
+        marker = self.config.output_root/'result.json'
+        contents = marker.read_bytes()
+        atoms_path = self.root/'atoms.json'
+        self.atoms.save(atoms_path)
+        arguments = ['discover', '--n', '2', '--zero-from', '2', '--target', 'X_2',
+                     '--solver', sys.executable,
+                     '--output', str(self.config.output_root), '--atoms', str(atoms_path),
+                     '--start', '10', '--max', '9', '--json']
+        code, text, errors = self.invoke_with_producer(arguments)
+        self.assertEqual(code, 2, errors)
+        self.assertEqual(json.loads(text)['status'], 'invalid-input')
+        self.assertEqual(marker.read_bytes(), contents)
+        self.assertTrue(Path(prior['certificate']).is_file())
 
     def test_discover_dispatches_explicit_configuration_and_exit_statuses(self):
         args=['discover','--n','2','--zero-from','2','--target','X_2',

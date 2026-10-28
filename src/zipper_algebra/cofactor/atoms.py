@@ -159,6 +159,7 @@ class AtomSet:
         return out
 
     def denom_str(self, exps) -> str:
+        """Formal atom names for certificate persistence; names need not describe polynomials."""
         self.validate_exponents(exps)
         parts = []
         for a, e in zip(self.atoms, exps):
@@ -167,6 +168,28 @@ class AtomSet:
             base = a.name if re.fullmatch(r"[A-Za-z_][A-Za-z_0-9]*", a.name) \
                 else f"({a.name})"
             parts.append(base if e == 1 else f"{base}^{e}")
+        return "*".join(parts) if parts else "1"
+
+    def denom_polynomial_str(self, exps) -> str:
+        """Display the actual polynomial factors, independently of their formal names.
+
+        Retain the historical order of terms in t-q and t+q^2 when their coefficient
+        dictionaries agree exactly. All other factors use the canonical formatter.
+        Unlike denom_str, this display is not a serialization of exponent vectors.
+        """
+        self.validate_exponents(exps)
+        parts = []
+        for atom, exponent in zip(self.atoms, exps):
+            if not exponent:
+                continue
+            if atom.coefs == {(0, 1): 1, (1, 0): -1}:
+                polynomial = "t-q"
+            elif atom.coefs == {(0, 1): 1, (2, 0): 1}:
+                polynomial = "t+q^2"
+            else:
+                polynomial = poly_str(atom.coefs)
+            base = polynomial if polynomial in ("q", "t") else f"({polynomial})"
+            parts.append(base if exponent == 1 else f"{base}^{exponent}")
         return "*".join(parts) if parts else "1"
 
     @staticmethod

@@ -1,6 +1,8 @@
 """Small regression checks for exploratory recipe frontends and their domains."""
 from fractions import Fraction
 import importlib.util
+import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -16,6 +18,24 @@ from zipper_algebra import Presentation, core
 
 
 class TestExperimentalRecipeBoundaries(unittest.TestCase):
+    @unittest.skipUnless(importlib.util.find_spec('sympy'), 'symbolic recipe needs the inference extra')
+    def test_fresh_variant_caches_are_separate_from_restored_historical_data(self):
+        root = Path(__file__).resolve().parents[1]
+        environment = dict(os.environ)
+        environment.pop('ZIPPER_EXPERIMENT_OUTPUT', None)
+        result = subprocess.run(
+            [sys.executable, '-c',
+             'import json; '
+             'from experiments.variants import square_zero_regular_rep_qt as producer; '
+             'from experiments.variants import square_zero_traceform_qt as trace; '
+             'print(json.dumps([producer.OUT_PKL, trace.REGREP_PKL, trace.OUT_PKL]))'],
+            cwd=root, env=environment, text=True, capture_output=True, check=True, timeout=20)
+        fresh = {Path(name).resolve() for name in json.loads(result.stdout)}
+        catalog = json.loads((root / 'data/research-archive.json').read_text())
+        historical = {root / '.research-data' / entry['path'] for entry in catalog['files']}
+        self.assertTrue(all(path.parent == root / 'runs/variants' for path in fresh))
+        self.assertTrue(fresh.isdisjoint(historical))
+
     def test_unit_ideal_has_no_standard_word_including_the_unit(self):
         delta, matches, _, count = core.build_aho_corasick([()], ['x1', 'y1'])
         self.assertEqual(hilbert_series(delta, matches, count, ['x1', 'y1'], 4), [0] * 5)

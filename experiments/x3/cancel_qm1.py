@@ -18,6 +18,7 @@ same Garside-normalization route as simplify_cofactor.py.
 """
 from __future__ import annotations
 import argparse
+from experiments.output import prepare_output_dir
 import os
 from pathlib import Path
 import sys
@@ -33,8 +34,6 @@ from .legacy_format import (
 from .simplify_cofactor import normalize_word, canonical_word
 from .relations_naming import label
 
-ROOT = str(Path(__file__).resolve().parents[2])
-SRC = os.path.join(ROOT, "logs_and_traces/f4ncgb/cofactor-X3-n4-Qqt-three-rels.txt")
 
 
 def divide_by_qm1(num):
@@ -91,10 +90,10 @@ def divide_by_qm1(num):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input", type=Path, default=SRC)
+    parser.add_argument("--input", type=Path, required=True, help="generated certificate from the preceding stage")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
-    args.output.parent.mkdir(parents=True, exist_ok=True)
+    prepare_output_dir(args.output.parent)
     # 1) Parse the 161-tuple file
     tuples = []
     for ln in open(args.input):

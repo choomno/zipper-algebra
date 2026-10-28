@@ -38,6 +38,7 @@ plumbing for that.
 
 from __future__ import annotations
 import argparse
+from experiments.output import prepare_output_dir
 import os
 from pathlib import Path
 import sys
@@ -57,8 +58,6 @@ from .legacy_format import (
     parse_cofactor_line, parse_numerator, parse_denominator,
 )
 
-ROOT = str(Path(__file__).resolve().parents[2])
-SRC_FILE = os.path.join(ROOT, "logs_and_traces/f4ncgb/cofactor-X3-n4-Qqt-compressed.txt")
 
 
 # ===========================================================================
@@ -359,10 +358,10 @@ def den_to_qtpoly(den_4t, qpow, tpow, qm1pow, tpq2pow) -> "QTPoly":
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input", type=Path, default=SRC_FILE)
+    parser.add_argument("--input", type=Path, required=True, help="generated certificate from the preceding stage")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
-    args.output.parent.mkdir(parents=True, exist_ok=True)
+    prepare_output_dir(args.output.parent)
     t_start = time.time()
     print("=" * 72)
     print("Simplification: B_3 Garside normal form for X_3 cofactor multipliers.")

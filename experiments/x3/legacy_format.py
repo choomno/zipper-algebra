@@ -19,7 +19,7 @@ from zipper_algebra.cofactor.ncpoly import (
     nc_scalar, nc_is_zero, nc_size,
 )
 ROOT = str(Path(__file__).resolve().parents[2])
-COF_FILE = os.path.join(ROOT, "logs_and_traces/f4ncgb/cofactor-X3-n4-Qqt-symbolic.txt")
+COF_FILE = os.path.join(ROOT, "tests/fixtures/legacy_x3/cofactor-X3-n4-Qqt-symbolic.txt")
 N_STRANDS = 4
 VAR_NAMES = Presentation(N_STRANDS).var_names()
 VAR_INDEX = {name: i + 1 for i, name in enumerate(VAR_NAMES)}

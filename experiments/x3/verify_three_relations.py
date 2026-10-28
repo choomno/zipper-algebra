@@ -9,7 +9,6 @@ specializations or dimensions.
 
 from __future__ import annotations
 import argparse
-import os
 from pathlib import Path
 import sys
 
@@ -26,8 +25,6 @@ from .legacy_format import (
 )
 from .simplify_cofactor import normalize_word, canonical_word
 
-ROOT = str(Path(__file__).resolve().parents[2])
-SRC_FILE = os.path.join(ROOT, "logs_and_traces/f4ncgb/cofactor-X3-n4-Qqt-three-rels.txt")
 
 # Label -> original relation index
 LABEL_TO_IDX = {"Z_2": 22, "T_2": 25, "T_3": 28}
@@ -118,7 +115,7 @@ def main(argv=None):
     print(f"[setup] X_3 = S[3][1] has {nc_size(X3)} monomials in the free algebra.")
 
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input", type=Path, default=SRC_FILE)
+    parser.add_argument("--input", type=Path, required=True, help="generated certificate from the preceding stage")
     args = parser.parse_args(argv)
     parsed_ZT = parse_ZT_lines(args.input)
     print(f"[parse] {len(parsed_ZT)} tuples in {args.input.name}.")

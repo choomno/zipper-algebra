@@ -10,8 +10,9 @@ There are three useful routes:
 
 The [mathematical reference](mathematical-specification/mathematical-specification.pdf)
 defines the algebras, coefficients, localization and verification conclusions.
-The [full audit inventory](x3-reproduction-files.json) includes historical
-experiments and samples; it is not a list of files to manipulate manually.
+The [source inventory](x3-reproduction-files.json) records the curated current
+files. Bulk historical experiments and samples are available through the pinned
+archive described below.
 
 ## Fresh production
 
@@ -26,7 +27,7 @@ pinned revision and parser patch are documented in the
 python -m pip install '.[inference]'
 zipper-algebra discover --n 4 --target X_3 \
   --solver /absolute/path/to/f4ncgb \
-  --solver-revision f152bb0-with-bundled-parser-patch \
+  --solver-revision 789504d7c7da6af6946faecb73421b037766a5b8 \
   --output runs/x3 --cache runs/solver-cache \
   --anchor 5,7 --start 100 --step 40 --max 260 --jobs 1 --json
 ```
@@ -37,13 +38,23 @@ initial mathematical data are the selected defining presentation and target.
 Saved lifts, cofactors, a populated cache and the old research workspace are
 not inputs.
 
-The four-strand computation can be expensive. A small existing consequence
+A local fresh run at source revision
+`d30b36aa2da0819dfa28954bd9223ef72163edf5` used 100 fresh parameter points,
+99 compatible samples and 107 reconstructed coefficient slots. It produced a
+129-term certificate in 172.205 seconds including validation; reported F4 time
+was about 5.36 seconds and coefficient reconstruction about 2.521 seconds. Exact
+symbolic verification and a 25 by 7 product grid both passed. The curated
+[example](../examples/x3/certificate.txt) is this free-algebra certificate.
+These are local results; CI exercises a smaller native solver integration.
+Timing and coefficient choices can vary across runs.
+
+A small existing consequence
 exercises the same route without adding its target as a defining relation:
 
 ```sh
 zipper-algebra discover --n 3 --target '(Theta_3-q^2)X_3' \
   --solver /absolute/path/to/f4ncgb \
-  --solver-revision f152bb0-with-bundled-parser-patch \
+  --solver-revision 789504d7c7da6af6946faecb73421b037766a5b8 \
   --output runs/three-strand --start 12 --step 12 --max 96 --json
 ```
 
@@ -79,7 +90,7 @@ All paths below are relative to `src/zipper_algebra/`.
 
 | Stage | Initial data and output | Principal source |
 | --- | --- | --- |
-| 1. Construct the presentation | Parameters become an ordered alphabet, relations, labels and symbolic identity. The target is kept separate. | `presentation.py`, `relations.py` |
+| 1. Construct the presentation | Parameters become an ordered alphabet, relations, labels and symbolic identity. The target is not automatically adjoined. | `presentation.py`, `relations.py` |
 | 2. Emit and solve at an anchor | The defining polynomials become msolve input. f4ncgb emits basis polynomials and nonexpanded proofs. Every basis identity is reconstructed against the actual inputs before publication. | `execution/runner.py`, `execution/config.py`, `execution/artifacts.py` |
 | 3. Record the target reduction | Ordered left/right contexts, basis keys and multipliers become a reduction skeleton with a dependency closure. | `cofactor/proof.py`, `cofactor/skeleton.py` |
 | 4. Obtain compatible samples | Fresh parameter points produce validated proofs; leading-word keys and contextual proof shapes align their coefficients. A nonmodal anchor may be replaced. | `execution/sampling.py` |
@@ -100,22 +111,23 @@ zipper-algebra emit --n 4 --q 5 --t 7 --char 0 \
 ```
 
 The canonical four-strand input has 31 relations in six free generators and
-presentation hash `091bbb92271ab870`. Its emitted bytes match
-`logs_and_traces/f4ncgb/zipper-n4-Q-q5-t7.ms`. A target is never appended by the
-discovery command.
+presentation hash `091bbb92271ab870`. The historical anchor input is available
+in the `inputs` archive group. Discovery never automatically appends its target.
+Explicit zeroing and extra relations are part of the selected presentation and
+can make membership immediate; the resulting certificate concerns that presentation.
 
-## Check the retained identity
+## Check the curated example
 
 From the source checkout after installation:
 
 ```sh
 zipper-algebra verify \
-  logs_and_traces/f4ncgb/cofactor-X3-n4-Qqt-symbolic.txt \
+  examples/x3/certificate.txt \
   --n 4 --target X_3 --pit --json
 ```
 
 Success is exit code `0`, overall `"pass": true`, and passing `exact` and
-`pit` reports. The retained witness has 695 collected terms. New valid
+`pit` reports. The curated example has 129 collected terms. New valid
 certificates can differ in coefficients, contexts and term count.
 
 The first checker compares the cleared identity symbolically. The second uses
@@ -125,10 +137,13 @@ the identity with separate arithmetic. Neither route needs the old solver,
 sample collection or thesis source. A false identity has code `1`; invalid data
 has code `2`.
 
-## Recompose the retained witness
+## Recompose the historical regression witness
 
-This comparison starts from the frozen symbolic lift and skeleton and recreates
-the certificate body byte for byte:
+The older 695-term witness is retained as
+`tests/fixtures/legacy_x3/cofactor-X3-n4-Qqt-symbolic.txt`, alongside its frozen
+symbolic lift, skeleton, anchor proof and numeric bases. This comparison starts
+from those lift and skeleton fixtures and recreates the historical certificate
+body byte for byte:
 
 ```sh
 python -m unittest \
@@ -149,13 +164,13 @@ exactly before replacing its output. New bound artifacts include the coefficient
 domain, ordered generators and relations, full presentation digest, target
 polynomial and applicable order. Historical readers remain explicit.
 
-## Compact certificates and independent calculations
+## Historical calculations
 
-The retained compression sequence is:
+The `x3-history` archive group includes the historical compression sequence:
 
-| File under `logs_and_traces/f4ncgb/` | Role |
+| File under the restored `logs_and_traces/f4ncgb/` | Role |
 | --- | --- |
-| `cofactor-X3-n4-Qqt-symbolic.txt` | 695-term free-algebra witness. |
+| `cofactor-X3-n4-Qqt-symbolic.txt` | 695-term free-algebra witness, also retained as a regression fixture. |
 | `cofactor-X3-n4-Qqt-compressed.txt` | 1077-term substitution of dependent relations. |
 | `cofactor-X3-n4-Qqt-simplified.txt` | 166-term braid-normalized expression. |
 | `cofactor-X3-n4-Qqt-three-rels.txt` | 161-term expression over three relations. |
@@ -169,10 +184,10 @@ written parser/summation with its shared arithmetic and normalization dependenci
 identified.
 
 The [Singular producer](../singular_run/README.md) preserves the 31-relation
-specialized reduction at `(q,t)=(5,7)`. GAP/GBNP scripts and saved bases under
-`archive/gap/` supply another historical route. Their specialized conclusions,
-degree bounds and old path/completion assumptions remain distinct from a generic
-rational-function certificate.
+specialized reduction at `(q,t)=(5,7)`. GAP/GBNP source programs remain under
+`archive/gap/`; their saved bases are in the `gap` archive group. Their specialized
+conclusions, degree bounds and old path/completion assumptions remain distinct
+from a generic rational-function certificate.
 
 ## Historical provenance and file inventory
 
@@ -185,20 +200,31 @@ python ci/build_x3_manifest.py --check
 python ci/check_x3_manifest.py
 ```
 
-The main retained data are the canonical input and basis, the three frozen
-files under `tests/fixtures/legacy_x3/`, the symbolic certificate stages,
-specialized bases/cofactors, and the numeric coefficient collection.
-[data/aliases.json](../data/aliases.json) records the historical names and
-canonical destinations of byte-identical files removed from the current tree.
-The two old coefficient-collection names referred to the same 212 samples and
-695 coefficient slots.
+The current checkout keeps one certificate example and the immutable data used
+by the regression suite. Bulk inputs, logs, saved bases and variant survey results
+are recorded in [data/research-archive.json](../data/research-archive.json), pinned
+to Git revision `d30b36aa2da0819dfa28954bd9223ef72163edf5` with original paths and
+SHA-256 hashes. Restore all groups or a selected group into a separate directory:
+
+```sh
+python -m experiments.restore_data --output .research-data
+python -m experiments.restore_data --group x3-history --output .research-data
+python -m experiments.restore_data --group variants --output .research-data
+python -m experiments.restore_data --group gap --output .research-data
+```
+
+The restore command verifies the recorded hashes. Paths below that output
+directory follow the historical repository layout. The default tests, checking
+the curated example and fresh production need no restored archive.
+The archive manifest’s `previous_aliases` field records the historical names of
+byte-identical duplicates. The two old coefficient-collection names referred to
+the same 212 samples and 695 coefficient slots.
 
 The `reproduce-` input/basis/proof triplet is a different experiment:
 it has **32 relations including the target itself**, and 131 basis/proof entries.
 Its proof uses the appended target. It is not the canonical 31-relation,
 137-entry computation and cannot establish membership in that original ideal.
-The archived transcript records the corrected computation; the canonical
-137-entry proof remains under `tests/fixtures/legacy_x3/`.
+The canonical 137-entry proof remains under `tests/fixtures/legacy_x3/`.
 
 Old per-point nonexpanded proof logs were not recovered. Consequently the
 original numerical fitting cannot be replayed solely from retained samples;

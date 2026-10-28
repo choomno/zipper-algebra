@@ -1,25 +1,26 @@
 # Compact X₃ certificate experiments
 
-These commands reproduce the retained certificate compression and check its
+These commands reproduce certificate compression and check its
 braid-group-algebra identity. They use the installed `zipper_algebra` package
 and run from the source checkout. They do not run a Gröbner-basis solver.
 
-The input is the retained 695-term free-algebra certificate. The stages produce
+The input is the 695-term free-algebra certificate retained as
+`tests/fixtures/legacy_x3/cofactor-X3-n4-Qqt-symbolic.txt`. The stages produce
 1077, 166 and 161 terms. The last two expressions use equality in
 `Q(q,t)[B_3]`; they are not literal free-word identities. Their recorded common
 denominator is `t^4*(q-1)*(t+q^2)`.
 
 ```sh
 python -m pip install -e .
-python -m experiments.x3.compress_cofactor --output reproduction/compressed.txt
+python -m experiments.x3.compress_cofactor --output runs/x3-compact/compressed.txt
 python -m experiments.x3.simplify_cofactor \
-  --input reproduction/compressed.txt --output reproduction/simplified.txt
+  --input runs/x3-compact/compressed.txt --output runs/x3-compact/simplified.txt
 python -m experiments.x3.reduce_to_three_rels \
-  --input reproduction/simplified.txt --output reproduction/three-rels.txt
+  --input runs/x3-compact/simplified.txt --output runs/x3-compact/three-rels.txt
 python -m experiments.x3.verify_three_relations \
-  --input reproduction/three-rels.txt
+  --input runs/x3-compact/three-rels.txt
 python -m experiments.x3.independent_verify_three_rels \
-  --input reproduction/three-rels.txt
+  --input runs/x3-compact/three-rels.txt
 ```
 
 Each transformation checks its resulting identity. The two final commands
@@ -28,9 +29,10 @@ and summation; both routes share presentation construction, polynomial
 arithmetic and Garside normalization. The checks do not establish a claim
 about replacing `T_3` with `Z_3` based on old specialized dimension calculations.
 
-Writers require an explicit output path, so the retained data are not their
-default destinations. Each stage's default input is its corresponding retained
-artifact, which permits checking a single stage separately.
+Compression defaults to the retained 695-term fixture. Every later stage and
+checker requires an explicit input path; writers also require an explicit output
+path. The generated 1077-, 166- and 161-term expressions are not tracked. The
+commands above place them under the ignored `runs/x3-compact/` directory.
 
 | Module | Purpose |
 | --- | --- |

@@ -17,44 +17,29 @@ HISTORICAL_REVISION = "0db1dd9e2a33fb0e5d07e216c8a5354911446e97"
 # Keep selection rules visible here rather than relying on the current Git
 # index, caches, an enclosing workspace or an unversioned generator.
 FAMILIES = (
-    ("src/zipper_algebra/**/*.py", "Maintained presentation, arithmetic, production or verification source"),
-    ("tests/**/*.py", "Regression, integration, reproduction or frozen implementation comparison"),
-    ("tests/fixtures/legacy_x3/*", "Immutable symbolic lift, reduction skeleton or canonical anchor proof"),
-    ("ci/*.py", "Installation, test, coverage, documentation or inventory validation support"),
-    ("examples/*.py", "Executable mathematical example used by regression checks"),
-    ("experiments/**/*.py", "Retained research recipe or independent computational comparison"),
-    ("ms_inputs/qt_sweep/*.ms", "Retained specialized solver input or reference presentation"),
-    ("logs_and_traces/f4ncgb/basis-n4-Q*.txt", "Retained specialized solver basis"),
-    ("logs_and_traces/f4ncgb/cofactor-X3-*.txt", "Retained numeric cofactor or symbolic certificate stage"),
-    ("archive/gap/traces/grobner_zipper_bigelow-untraced-[34]-*.gap", "Saved finite-field basis for the GBNP comparison"),
+    ("src/zipper_algebra/**/*.py", "Maintained implementation used by presentation, production or verification"),
+    ("tests/**/*.py", "Mathematical regression, installation or independent implementation comparison"),
+    ("tests/fixtures/legacy_x3/*", "Curated historical X3 regression fixture or its provenance manifest"),
+    ("ci/*.py", "Installation, test, coverage, documentation or inventory support"),
+    ("experiments/x3/*.py", "Compact X3 transformations and checks"),
+    ("examples/x3/*", "Sparse current X3 output example and its reproduction instructions"),
 )
 
 EXACT = {
     ".coveragerc": "Complete line and branch measurement, including Python subprocesses",
-    ".github/workflows/ci.yml": "Hosted test, solver integration, coverage and documentation execution",
+    ".gitattributes": "Stable source line endings and byte-preserving fixture rules",
+    ".gitignore": "Generated runs, caches and historical datasets stay untracked",
+    ".github/workflows/ci.yml": "Hosted software tests, small solver integration and documentation checks",
     "MANIFEST.in": "Source-distribution inclusion rules",
-    "pyproject.toml": "Package dependencies and installed command entry point",
-    "data/aliases.json": "Hashes, canonical destinations and roles of deduplicated historical data",
+    "pyproject.toml": "Package dependencies and installed commands",
+    "data/research-archive.json": "Checksums and pinned source for optional historical research data",
+    "experiments/output.py": "Ignore markers for generated research output directories",
+    "experiments/__init__.py": "Research recipe package marker",
+    "experiments/restore_data.py": "Optional restoration of archived data outside the source tree",
     "patches/f4ncgb/msolve-parser-fix.patch": "Pinned external-solver parser correction",
     "patches/f4ncgb/LICENSE": "License accompanying the solver correction",
-    "singular_run/x3-membership-Q.sing": "Preserved canonical 31-relation Singular reduction producer at q=5, t=7",
-    "logs_and_traces/reproduce-X3-zero-transcript.txt": "Historical corrected 31-relation production transcript",
-    "logs_and_traces/f4ncgb/zipper-n4-Q-q5-t7.ms": "Original bare 31-relation canonical anchor input",
-    "logs_and_traces/f4ncgb/atoms-n4-Q.json": "Historical denominator-family reconstruction prior",
-    "logs_and_traces/f4ncgb/skeleton-n4-Q.json": "Recorded canonical anchor reduction skeleton",
-    "logs_and_traces/f4ncgb/basis-symbolic-Qqt.json": "Retained newer-schema symbolic basis-proof reconstruction",
-    "logs_and_traces/f4ncgb/basis-symbolic-Qqt.txt": "Historical symbolic lift rendering from a different revision",
-    "logs_and_traces/f4ncgb/lift_samples/coefficients.json": "212 numeric cofactor samples with 695 coefficient slots",
-    "logs_and_traces/f4ncgb/reproduce-zipper-n4-Q-q5-t7.ms": "Older augmented input: 31 canonical relations plus X3 itself",
-    "logs_and_traces/f4ncgb/reproduce-basis-n4-Q.txt": "131-entry basis of the older target-augmented presentation",
-    "logs_and_traces/f4ncgb/reproduce-proof-n4-Q-noex.txt": "131-entry augmented-presentation proof using appended target input",
-    "logs_and_traces/f4ncgb/X3-membership-singular-independent.txt": "Independent specialized Singular membership summary",
+    "singular_run/x3-membership-Q.sing": "Independent specialized Singular producer for the canonical presentation",
 }
-
-for name in ("Q_d12", "Q_d14", "GFp_d10", "GFp_d14"):
-    EXACT[f"logs_and_traces/f4ncgb/singular_X3_{name}.log"] = "Independent specialized Singular execution output"
-for name in ("zipper", "traced_X3_witness_n3", "reduce_X3_against_B", "trace_replay", "test_n4_presentation"):
-    EXACT[f"archive/gap/{name}.gap"] = "Historical independent GBNP presentation, witness or replay route"
 
 REQUIRED = (
     "src/zipper_algebra/presentation.py",
@@ -62,12 +47,11 @@ REQUIRED = (
     "tests/fixtures/legacy_x3/proof-n4-Q-noex.txt",
     "tests/fixtures/legacy_x3/basis-symbolic-Qqt.json",
     "tests/fixtures/legacy_x3/skeleton-n4-Q.json",
-    "logs_and_traces/f4ncgb/zipper-n4-Q-q5-t7.ms",
-    "logs_and_traces/f4ncgb/basis-n4-Q.txt",
-    "logs_and_traces/f4ncgb/cofactor-X3-n4-Qqt-symbolic.txt",
-    "data/aliases.json",
+    "tests/fixtures/legacy_x3/basis-n4-Q.txt",
+    "tests/fixtures/legacy_x3/cofactor-X3-n4-Qqt-symbolic.txt",
+    "examples/x3/certificate.txt",
+    "data/research-archive.json",
 )
-
 
 def build(root=ROOT):
     root = Path(root).resolve()
@@ -82,19 +66,24 @@ def build(root=ROOT):
     for name in REQUIRED:
         if name not in roles:
             raise ValueError(f"Required reproduction input or source is absent: {name}")
-    aliases = json.loads((root / "data/aliases.json").read_text())
-    if aliases.get("schema") != "zipper-data-aliases-v1":
-        raise ValueError("Unknown historical-data alias schema")
-    for alias in aliases["aliases"]:
-        name = alias["canonical_path"]
-        path = root / name
-        if not path.resolve().is_relative_to(root):
-            raise ValueError(f"Canonical data alias leaves the checkout: {name}")
-        content = path.read_bytes()
-        if (len(content) != alias["bytes"]
-                or hashlib.sha256(content).hexdigest() != alias["sha256"]):
-            raise ValueError(f"Canonical data differs from its recorded historical alias: {name}")
-        roles.setdefault(name, alias["role"])
+    archive = json.loads((root / "data/research-archive.json").read_text())
+    if archive.get("schema") != "zipper-research-archive-v1":
+        raise ValueError("Unknown historical research archive schema")
+    revision = archive.get("source_revision", "")
+    if len(revision) != 40 or any(c not in "0123456789abcdef" for c in revision):
+        raise ValueError("Historical research archive needs a full pinned Git revision")
+    seen = set()
+    for entry in archive["files"]:
+        name = entry["path"]
+        relative = Path(name)
+        if (relative.is_absolute() or ".." in relative.parts or "\\" in name
+                or name in seen or entry["group"] not in archive["groups"]):
+            raise ValueError(f"Invalid archived research path: {name}")
+        seen.add(name)
+        digest = entry["sha256"]
+        if (type(entry["bytes"]) is not int or entry["bytes"] < 0 or len(digest) != 64
+                or any(c not in "0123456789abcdef" for c in digest)):
+            raise ValueError(f"Invalid archived research identity: {name}")
     files = []
     for name, role in sorted(roles.items()):
         path = root / name
@@ -111,7 +100,7 @@ def build(root=ROOT):
     prefix = "archive/cofactor-pre-consolidation/"
     return {
         "schema": "zipper-x3-reproduction-files-v1",
-        "scope": "Repository audit inventory: maintained source, retained historical evidence, and test/build support. Fresh production is managed by the installed discovery command.",
+        "scope": "Curated X3 source and fixture inventory. Bulk historical data are optional and catalogued separately in data/research-archive.json. Fresh production uses the installed discovery command.",
         "excluded": "This inventory, reader documentation, private working records, workspace configuration, caches and retired duplicate files.",
         "historical_sources": [
             {"path": prefix + name, "revision": HISTORICAL_REVISION,

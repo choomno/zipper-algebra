@@ -16,7 +16,7 @@ from ..cofactor.lift import NeedMoreSamples, lift
 from ..cofactor.skeleton import Skeleton, reduce
 from ..cofactor.verify import check
 from ..coefficients import NumericRing
-from .artifacts import ArtifactError, canonical_json, digest_bytes, file_identity
+from .artifacts import ArtifactError, canonical_json, digest_bytes, file_identity, prepare_output_root
 from .runner import ExecutionError
 from .sampling import SampleSet
 
@@ -101,7 +101,7 @@ def run(pres, target, anchor, config, *, start=100, step=40, maxpts=260,
         raise ValueError("anchor must be an integer (q,t,0) tuple")
     identity, polynomial = presentation_identity(pres), target_identity(pres, target)
     root = Path(config.output_root)
-    root.mkdir(parents=True, exist_ok=True)
+    prepare_output_root(root)
     order = {"solver": config.monomial_order, "reduction": REDUCTION_ORDER}
     samples = SampleSet(pres, target, anchor, replace(config, output_root=root / "samples"), atoms)
     started = time.monotonic()
@@ -176,5 +176,5 @@ def run(pres, target, anchor, config, *, start=100, step=40, maxpts=260,
             if desired >= maxpts:
                 return finish("inconclusive", reason)
             desired = min(desired + step, maxpts)
-    except ExecutionError as error:
+    except (ExecutionError, ArtifactError) as error:
         return finish("inconclusive", str(error), execution_status="failed")

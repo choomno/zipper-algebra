@@ -65,6 +65,8 @@ class SampleSet:
         return result
 
     def run_anchor(self, *, refresh=False):
+        if not admissible(*self.anchor[:2], self.atoms):
+            raise ValueError("anchor is excluded by the sampling policy or lies on a denominator zero")
         return self.run_point(*self.anchor[:2], refresh=refresh)
 
     def basis(self, q, t):

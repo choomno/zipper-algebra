@@ -553,7 +553,7 @@ if __name__ == "__main__":
     cof = Cofactor.load(a.path, pres=pres, target=a.target)
     print(cof)
     print(f"  labels: {cof.labels()}")
-    print(f"  LCM denominator: {cof.atoms.denom_str(cof.lcm_denominator())}")
+    print(f"  LCM denominator: {cof.atoms.denom_polynomial_str(cof.lcm_denominator())}")
     if a.out:
         cof.save(a.out)
         print(f"  wrote {a.out}")

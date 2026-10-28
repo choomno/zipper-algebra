@@ -76,11 +76,11 @@ PIPELINE
    gives the lower bound dim A >= N. A matching generic upper bound is separate;
    specialization and matching sample words do not establish it.
 
-For retained historical results, prefer the non-executable exact JSON data
-under data/variants/; its format and provenance are documented in that
-folder's README. This experimental producer currently still writes its existing
-pickle payload for compatibility with the symbolic trace-form recipe. It no
-longer exports executable Python source.
+Historical results are optional external research data listed in
+data/research-archive.json. Restore them with experiments.restore_data or run
+this producer to regenerate its pickle payload for the symbolic trace-form
+recipe. The default output directory is runs/variants;
+ZIPPER_EXPERIMENT_OUTPUT overrides it.
 
 Run with the sympy venv:
     python -m experiments.variants.square_zero_regular_rep_qt
@@ -104,12 +104,13 @@ import sympy as sp
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
+from experiments.output import prepare_output_dir
 from zipper_algebra import core                            # noqa: E402
 from zipper_algebra import Presentation
 
 F4NCGB = os.environ.get("F4NCGB", "f4ncgb")
 OUT_DIR = os.environ.get("ZIPPER_EXPERIMENT_OUTPUT",
-                         os.path.join(os.path.dirname(os.path.dirname(HERE)), "logs_and_traces", "variants"))
+                         os.path.join(os.path.dirname(os.path.dirname(HERE)), "runs", "variants"))
 OUT_PKL = os.path.join(OUT_DIR, "square-zero-n3-regrep-qt.pkl")
 
 GENERATORS = ["x1", "x2", "y1", "y2"]
@@ -871,7 +872,7 @@ def main():
 
     # ---- step 6: save artifacts ---------------------------------------
     print("\n[STEP 6] SAVING ARTIFACTS")
-    os.makedirs(OUT_DIR, exist_ok=True)
+    prepare_output_dir(OUT_DIR)
     payload = {
         "description": "Candidate regular-representation matrices for Z_3^square-zero over Q(q,t)",
         "basis_complete": False,

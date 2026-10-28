@@ -90,7 +90,7 @@ Then run from any working directory:
 ```sh
 zipper-algebra discover --n 4 --target X_3 \
   --solver /absolute/path/to/f4ncgb \
-  --solver-revision f152bb0-with-bundled-parser-patch \
+  --solver-revision 789504d7c7da6af6946faecb73421b037766a5b8 \
   --output runs/x3 --cache runs/solver-cache \
   --anchor 5,7 --start 100 --step 40 --max 260 --jobs 1 --json
 ```
@@ -106,25 +106,26 @@ are in the guide.
 
 ### Audit the result
 
-Run from the repository root after installation. This checks the saved 695-term
-cofactor identity exactly, using both symbolic accumulation and a degree-bounded
-product grid:
+Run from the repository root after installation. The curated example contains a
+129-term cofactor identity. Check it exactly using symbolic accumulation and a
+degree-bounded product grid:
 
 ```sh
 python -m zipper_algebra describe --n 4 --json
 python -m zipper_algebra verify \
-  logs_and_traces/f4ncgb/cofactor-X3-n4-Qqt-symbolic.txt \
+  examples/x3/certificate.txt \
   --n 4 --target X_3 --pit --json > x3-verification.json
 ```
 
 Success means exit code `0` and `"pass": true` in the overall, `exact`, and `pit`
-reports in `x3-verification.json`; the exact report records 695 terms. The
+reports in `x3-verification.json`; the exact report records 129 terms. The
 presentation options select the four-strand canonical untwisting presentation.
 The command checks a generic rational-function identity, with specialization
 conditions explained in the mathematical reference. It needs no algebra solver.
 
-To reproduce the certificate body from the saved symbolic coefficients and
-reduction skeleton, then replay the retained numeric proof expansion:
+The older 695-term witness, symbolic lift, reduction skeleton and numeric proof
+data are retained under `tests/fixtures/legacy_x3/` for regression comparisons.
+Recompose that witness and replay the historical proof expansion with:
 
 ```sh
 python -m unittest \
@@ -138,7 +139,7 @@ the second must report 16 passing tests. These replay saved proof data; they do
 not rerun the original sampling and interpolation.
 
 The [reproduction guide](docs/X3_REPRODUCTION.md) maps every substantial source,
-input and output to its role, including the later compact certificate and the
+input and output to its role, with links to the optional historical data and
 independent specialized calculations. Its [file inventory](docs/x3-reproduction-files.json)
 records exact paths, sizes and SHA-256 hashes. Check those against the checkout:
 
@@ -147,9 +148,11 @@ python ci/check_x3_manifest.py
 ```
 
 The [f4ncgb parser patch and build instructions](patches/f4ncgb/README.md)
-provide the external dependency for fresh discovery. Old per-point proof logs
-remain missing; the new command generates its own. The retained large certificate is auditable computational
-evidence, rather than the latest mathematical proof.
+provide the external dependency for fresh discovery. A local fresh four-strand
+run produced the curated example from 100 fresh parameter points, with 99
+compatible samples and 107 reconstructed coefficient slots. Exact symbolic and
+product-grid checks passed. This full computation is separate from the smaller
+native solver integration run in CI.
 
 The same operation is available in Python:
 
@@ -159,7 +162,7 @@ from zipper_algebra.cofactor.verify import check
 
 presentation = Presentation(n=4)
 certificate = Cofactor.load(
-    "logs_and_traces/f4ncgb/cofactor-X3-n4-Qqt-symbolic.txt",
+    "examples/x3/certificate.txt",
     pres=presentation,
 )
 report = check(certificate, presentation, target="X_3", verbose=False)
@@ -185,14 +188,19 @@ checks, package checks and optional integrations.
 | `tests/` | Regression tests, installation checks and immutable fixtures. |
 | `docs/` | Mathematical reference, reproduction guide and testing instructions. |
 | `experiments/` | Research recipes, specialized transformations and independent comparisons. |
-| `examples/` | Small executable examples. |
-| `data/` | Exact result data and historical aliases for deduplicated files. |
-| `logs_and_traces/`, `ms_inputs/` | Historical scientific artifacts and inputs, retained with their provenance. |
-| `gap_scripts/`, `singular_run/`, `archive/` | Independent or older computational paths and saved experiments. |
+| `examples/` | Small executable examples and the curated X_3 certificate. |
+| `data/` | Pinned archive manifest and historical aliases. |
+| `gap_scripts/`, `singular_run/`, `archive/` | Source programs for independent and older computational paths. |
 
-The installed wheel contains the maintained package, not the private recovery
-workspace or the research archive. The execution layer validates solver proofs
-and exact certificate identities. Variant surveys, dimension and trace recipes
+All historical scientific data remain available in pinned Git revision
+`d30b36aa2da0819dfa28954bd9223ef72163edf5`. Restore selected inputs, logs, saved
+bases and variant results on demand with
+`python -m experiments.restore_data --output .research-data`; see the
+[reproduction guide](docs/X3_REPRODUCTION.md). Default tests and fresh production
+use the curated checkout directly.
+
+The installed wheel contains the maintained package. The execution layer
+validates solver proofs and exact certificate identities. Variant surveys, dimension and trace recipes
 retain separate completion and exactness requirements. [INDEX](INDEX.md) maps those sources.
 
 ## References

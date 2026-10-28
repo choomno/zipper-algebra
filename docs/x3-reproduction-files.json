@@ -1,6 +1,6 @@
 {
   "schema": "zipper-x3-reproduction-files-v1",
-  "scope": "Repository audit inventory: maintained source, retained historical evidence, and test/build support. Fresh production is managed by the installed discovery command.",
+  "scope": "Curated X3 source and fixture inventory. Bulk historical data are optional and catalogued separately in data/research-archive.json. Fresh production uses the installed discovery command.",
   "excluded": "This inventory, reader documentation, private working records, workspace configuration, caches and retired duplicate files.",
   "historical_sources": [
     {
@@ -60,3220 +60,190 @@
       "role": "Complete line and branch measurement, including Python subprocesses"
     },
     {
+      "path": ".gitattributes",
+      "bytes": 653,
+      "sha256": "9c42c89b62081ef44ad84da3f4801ff815c6a5100be507cf23ea41824a0b2301",
+      "role": "Stable source line endings and byte-preserving fixture rules"
+    },
+    {
       "path": ".github/workflows/ci.yml",
       "bytes": 6742,
       "sha256": "6d306a321601286f30f84b028f30cb07b0634afe0f2bbe9630ef7018c9a72240",
-      "role": "Hosted test, solver integration, coverage and documentation execution"
+      "role": "Hosted software tests, small solver integration and documentation checks"
+    },
+    {
+      "path": ".gitignore",
+      "bytes": 1035,
+      "sha256": "e793e657550cbfcea29568bbec7fe85660c1307ab7c8264d65ea93a628089218",
+      "role": "Generated runs, caches and historical datasets stay untracked"
     },
     {
       "path": "MANIFEST.in",
-      "bytes": 769,
-      "sha256": "c5fe8dae37c36d0e4729dbf342b127ea6bf9d5e0c835325952f63fc4605df0fb",
+      "bytes": 1360,
+      "sha256": "03faa61db010da7f430b46851850678db133f428b261facadc9ab9a17d5e7272",
       "role": "Source-distribution inclusion rules"
-    },
-    {
-      "path": "archive/gap/reduce_X3_against_B.gap",
-      "bytes": 2848,
-      "sha256": "804d5a761a20f5a9b6574c27b2f75fdb6ba63b919963fb88516816b5616d88f0",
-      "role": "Historical independent GBNP presentation, witness or replay route"
-    },
-    {
-      "path": "archive/gap/test_n4_presentation.gap",
-      "bytes": 4382,
-      "sha256": "ef001f1134c72d1c57ea5b067e162fb719b5911e52981b158890569b68a667a1",
-      "role": "Historical independent GBNP presentation, witness or replay route"
-    },
-    {
-      "path": "archive/gap/trace_replay.gap",
-      "bytes": 16982,
-      "sha256": "63c9f1823c105a4beda0e4e8c87ca6406006a3d2ee62c373a623d21e7b539fc8",
-      "role": "Historical independent GBNP presentation, witness or replay route"
-    },
-    {
-      "path": "archive/gap/traced_X3_witness_n3.gap",
-      "bytes": 5320,
-      "sha256": "bd8311f61067590f57273bc3df2fa0c90c24582d7993ee69aa54e171be47b421",
-      "role": "Historical independent GBNP presentation, witness or replay route"
-    },
-    {
-      "path": "archive/gap/traces/grobner_zipper_bigelow-untraced-3-(2^31-1)-11-13.gap",
-      "bytes": 13621,
-      "sha256": "de9eda2d9d61c5d33fa757bad504447e179be4b9cad0fb8a2a1a6b89e0852e0c",
-      "role": "Saved finite-field basis for the GBNP comparison"
-    },
-    {
-      "path": "archive/gap/traces/grobner_zipper_bigelow-untraced-3-(2^31-1)-5-7.gap",
-      "bytes": 13600,
-      "sha256": "453f288c540cabfdb8173aeb00a2023ef40806a264179a44d99422eb1d7937e1",
-      "role": "Saved finite-field basis for the GBNP comparison"
-    },
-    {
-      "path": "archive/gap/traces/grobner_zipper_bigelow-untraced-4-(2^31-1)-11-13.gap",
-      "bytes": 66145,
-      "sha256": "df5b698502eb2385019d95ec6519005aea3d47abe44c30a4f5f75ae67ade434e",
-      "role": "Saved finite-field basis for the GBNP comparison"
-    },
-    {
-      "path": "archive/gap/traces/grobner_zipper_bigelow-untraced-4-(2^31-1)-5-7.gap",
-      "bytes": 65545,
-      "sha256": "5bebcb1b8e692c13f0e999e8e16475507c21b5617e8d79608aaa3c28d47655a9",
-      "role": "Saved finite-field basis for the GBNP comparison"
-    },
-    {
-      "path": "archive/gap/traces/grobner_zipper_bigelow-untraced-4-(2^31-1)-7-11.gap",
-      "bytes": 75832,
-      "sha256": "7dbe214aa62c43b220af05fb6b5efd1a97a918e57ec4987b1b3ee295df2b5ac5",
-      "role": "Saved finite-field basis for the GBNP comparison"
-    },
-    {
-      "path": "archive/gap/zipper.gap",
-      "bytes": 20127,
-      "sha256": "d75baa5f735422493adbcf079f16924c2dc933e7bcef6dcd3f30f0d72a7be2d5",
-      "role": "Historical independent GBNP presentation, witness or replay route"
     },
     {
       "path": "ci/build_docs.py",
       "bytes": 3526,
       "sha256": "111fa1e4049229a4b6ab682658214b00d7d3cf9cfae632804080423b5a95878c",
-      "role": "Installation, test, coverage, documentation or inventory validation support"
+      "role": "Installation, test, coverage, documentation or inventory support"
     },
     {
       "path": "ci/build_x3_manifest.py",
-      "bytes": 8073,
-      "sha256": "a5d730b9bbd53b94b749cbeff9663edfe6f4b3557b1d1a7471793bc08d1cf65d",
-      "role": "Installation, test, coverage, documentation or inventory validation support"
+      "bytes": 6754,
+      "sha256": "d9343b155040cbc3eec359847d04922ac301dfe64a232e5830ca309f8e227372",
+      "role": "Installation, test, coverage, documentation or inventory support"
     },
     {
       "path": "ci/check_coverage.py",
       "bytes": 2066,
       "sha256": "18a55f65cc34c563de329fdbe839db6c61f5a1c5f1d3c373369bd1605aa2886c",
-      "role": "Installation, test, coverage, documentation or inventory validation support"
+      "role": "Installation, test, coverage, documentation or inventory support"
     },
     {
       "path": "ci/check_distribution.py",
-      "bytes": 3764,
-      "sha256": "fbc413cc03158070c50d4d87a3255be7a86889fc9ea6797a0893c258958c62ce",
-      "role": "Installation, test, coverage, documentation or inventory validation support"
+      "bytes": 6734,
+      "sha256": "c4ffc569c9f5473b90f0c39d3a97b1bcac96a9c8dbf5562faf61e903d46a89c6",
+      "role": "Installation, test, coverage, documentation or inventory support"
     },
     {
       "path": "ci/check_docs.py",
       "bytes": 925,
       "sha256": "38283a4c9101bd09a4c146b7e0649d89dd2ede8744833dda79b5c5a1e7e2b744",
-      "role": "Installation, test, coverage, documentation or inventory validation support"
+      "role": "Installation, test, coverage, documentation or inventory support"
     },
     {
       "path": "ci/check_installed.py",
-      "bytes": 2352,
-      "sha256": "c05b160c26c8af8eda67fbce1967f0f44e73d973adbd7429261bdac7c8e6424c",
-      "role": "Installation, test, coverage, documentation or inventory validation support"
+      "bytes": 2354,
+      "sha256": "7435dd3b76afe9f2440fb77a991caa5f785f3cefc3ff45a54f7b38a33c71a95b",
+      "role": "Installation, test, coverage, documentation or inventory support"
     },
     {
       "path": "ci/check_optional_inference.py",
       "bytes": 496,
       "sha256": "cc9def6aececddeb2ea2804effa8186fc609ffff23a30661774c903de2f7f15a",
-      "role": "Installation, test, coverage, documentation or inventory validation support"
+      "role": "Installation, test, coverage, documentation or inventory support"
     },
     {
       "path": "ci/check_sdist.py",
-      "bytes": 2494,
-      "sha256": "98fa3197ad3608d048f3d22c248cc2c65e41c2ebbd6a5684bd4b93a6b2b76975",
-      "role": "Installation, test, coverage, documentation or inventory validation support"
+      "bytes": 3399,
+      "sha256": "6cdac34252e87dcff5b95f95c4c5d843e5f008dc8d753ec82c23967cb5fbfdd8",
+      "role": "Installation, test, coverage, documentation or inventory support"
     },
     {
       "path": "ci/check_solver.py",
       "bytes": 5308,
       "sha256": "9c0a79ecbd4287c08ff7b8083600a48c13ee03471c0e4dff8c3b7120d29bf16d",
-      "role": "Installation, test, coverage, documentation or inventory validation support"
+      "role": "Installation, test, coverage, documentation or inventory support"
     },
     {
       "path": "ci/check_x3_manifest.py",
       "bytes": 1834,
       "sha256": "c7b23cc157bf92d699920027e8ff097de81e12f205a23c0bd7bd7aeab2984bf6",
-      "role": "Installation, test, coverage, documentation or inventory validation support"
+      "role": "Installation, test, coverage, documentation or inventory support"
     },
     {
       "path": "ci/run_tests.py",
       "bytes": 1549,
       "sha256": "37d493cc04d5d817a7861c7b70fdb9d0882d9abb28dcf0c3a8567a95dcc8b7ed",
-      "role": "Installation, test, coverage, documentation or inventory validation support"
+      "role": "Installation, test, coverage, documentation or inventory support"
     },
     {
-      "path": "data/aliases.json",
-      "bytes": 3284,
-      "sha256": "26ab88799329f33eb38166c1b19f47c418bf5e4811b13ece3a357f8d45007155",
-      "role": "Hashes, canonical destinations and roles of deduplicated historical data"
+      "path": "data/research-archive.json",
+      "bytes": 105122,
+      "sha256": "42808d8331623a98b961d921cf03a271f3cec537d2f013310198801b3bb1fd40",
+      "role": "Checksums and pinned source for optional historical research data"
     },
     {
-      "path": "examples/infer_denominators.py",
-      "bytes": 1232,
-      "sha256": "6841eb5e4b7140fe0365ecad4c679d36996fa96df43bebb0a19c56b730c77094",
-      "role": "Executable mathematical example used by regression checks"
+      "path": "examples/x3/README.md",
+      "bytes": 1846,
+      "sha256": "a7704a2d8e4225a2dd1b7b1fc29cf826346ef7d6b2e1f24c9a831cbc0bf3762e",
+      "role": "Sparse current X3 output example and its reproduction instructions"
+    },
+    {
+      "path": "examples/x3/certificate.txt",
+      "bytes": 11006,
+      "sha256": "f110a1aee32f8dde234bdc65fa0f57221d287655aaa930e50cc24ad6f20af071",
+      "role": "Sparse current X3 output example and its reproduction instructions"
     },
     {
       "path": "experiments/__init__.py",
       "bytes": 83,
       "sha256": "05cbc251cb66ee0dd4b677255b244d5a8e7175e3cc2803860b7fe570fae3aa99",
-      "role": "Retained research recipe or independent computational comparison"
+      "role": "Research recipe package marker"
     },
     {
-      "path": "experiments/research/__init__.py",
-      "bytes": 0,
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "role": "Retained research recipe or independent computational comparison"
+      "path": "experiments/output.py",
+      "bytes": 608,
+      "sha256": "fc6f8c5d456c2835a59c95743d2b1dabc59a0ef9cf3370565649007ac51c2f9e",
+      "role": "Ignore markers for generated research output directories"
     },
     {
-      "path": "experiments/research/theta3_min_poly.py",
-      "bytes": 5117,
-      "sha256": "da61f772ee60fb5e20afcd2d4bf0f8af11921db042ff9f6ebb7784b09132a137",
-      "role": "Retained research recipe or independent computational comparison"
-    },
-    {
-      "path": "experiments/research/theta_min_poly.py",
-      "bytes": 9629,
-      "sha256": "a60ed17ab6614b8c16fc4d149d38083aec1175689e11debdd492d439d5a4f565",
-      "role": "Retained research recipe or independent computational comparison"
-    },
-    {
-      "path": "experiments/survey/__init__.py",
-      "bytes": 160,
-      "sha256": "f1fc968ababfa546062290eee0be30ad81abcdcbb981ee1827ed9d5729c3de85",
-      "role": "Retained research recipe or independent computational comparison"
-    },
-    {
-      "path": "experiments/survey/pointalg.py",
-      "bytes": 2443,
-      "sha256": "df96980b7341d160a1b06040ab4b92c09154e1c69143abf42469f395bba626e0",
-      "role": "Retained research recipe or independent computational comparison"
-    },
-    {
-      "path": "experiments/survey/reconstruct.py",
-      "bytes": 5936,
-      "sha256": "ba191160eb435eb88ea7ea8ef2950bb442c0a8f795795df0ee4a635833b8b7de",
-      "role": "Retained research recipe or independent computational comparison"
-    },
-    {
-      "path": "experiments/survey/run.py",
-      "bytes": 3423,
-      "sha256": "70d4c2d6823afc996accd4be123ce14538c596be0c2897257b6069ad2a819a52",
-      "role": "Retained research recipe or independent computational comparison"
-    },
-    {
-      "path": "experiments/survey/semisimple.py",
-      "bytes": 2376,
-      "sha256": "53d55b3f2d5918b10b658cc48f806ab24f3cfeaedb685533ef50560413503d30",
-      "role": "Retained research recipe or independent computational comparison"
-    },
-    {
-      "path": "experiments/survey/spec.py",
-      "bytes": 1479,
-      "sha256": "2b8749bcb9d10a8432835d6e0b11fe1ed73ed9c1107a4aacd667106590971d3d",
-      "role": "Retained research recipe or independent computational comparison"
-    },
-    {
-      "path": "experiments/survey/structural.py",
-      "bytes": 5219,
-      "sha256": "b66c8c8af719e0d81fbdf9b8cdf312d134e8b7fb1c86d1613d2724f385853adb",
-      "role": "Retained research recipe or independent computational comparison"
-    },
-    {
-      "path": "experiments/survey/survey.py",
-      "bytes": 2909,
-      "sha256": "53e69d27fe16edd625c9d1ea964f9e95341a1784f28fb4e07f3fa438beaa961d",
-      "role": "Retained research recipe or independent computational comparison"
-    },
-    {
-      "path": "experiments/variants/__init__.py",
-      "bytes": 0,
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "role": "Retained research recipe or independent computational comparison"
-    },
-    {
-      "path": "experiments/variants/check_x3_nilpotent.py",
-      "bytes": 5548,
-      "sha256": "2919d99d403cbe8f2fed36425e839eb971e07502a2c3044d6034651a497f792a",
-      "role": "Retained research recipe or independent computational comparison"
-    },
-    {
-      "path": "experiments/variants/compute_dim_aho.py",
-      "bytes": 4275,
-      "sha256": "50184823ae4b1421b11a30e397161d87720beaeca9e4ab7bdfa3f8efa401c29f",
-      "role": "Retained research recipe or independent computational comparison"
-    },
-    {
-      "path": "experiments/variants/explicit_rep_n3.py",
-      "bytes": 10238,
-      "sha256": "1dac0cdb77faf86c6da07fbad585c9dc588ed235a183e865f14e22c1e3e2ece9",
-      "role": "Retained research recipe or independent computational comparison"
-    },
-    {
-      "path": "experiments/variants/generic_non_ss.py",
-      "bytes": 39150,
-      "sha256": "2389aec22beadb9224192a9d31afe7e1cb5a20eb35a1cfc35326e57d3f708eec",
-      "role": "Retained research recipe or independent computational comparison"
-    },
-    {
-      "path": "experiments/variants/markov_search.py",
-      "bytes": 23527,
-      "sha256": "db1b6b819ed300e6b1e642426465a7601789e4f06c722edfeb8dfcbadb53901a",
-      "role": "Retained research recipe or independent computational comparison"
-    },
-    {
-      "path": "experiments/variants/semisimple_Q.py",
-      "bytes": 6627,
-      "sha256": "2e2f15c9bd3ea385bb48bf600783ea8469b54a47bef801a10a75d28a1eabdbc2",
-      "role": "Retained research recipe or independent computational comparison"
-    },
-    {
-      "path": "experiments/variants/semisimple_v3.py",
-      "bytes": 7515,
-      "sha256": "8b52bb552075ac8c2935526c07e6c26cf7f6269a4ff6b866951f65871fbff726",
-      "role": "Retained research recipe or independent computational comparison"
-    },
-    {
-      "path": "experiments/variants/sigma_min_poly.py",
-      "bytes": 28180,
-      "sha256": "be970b6dec67c4a1f6267e19eef1b370e371bef92f9bd1daf4cd75d6c149f09f",
-      "role": "Retained research recipe or independent computational comparison"
-    },
-    {
-      "path": "experiments/variants/square_zero_ideal_nilpotence.py",
-      "bytes": 27575,
-      "sha256": "9af9c6a9f695ffe400ad24fdb71262f67cecc735214d4e95a2f61f5b6775d005",
-      "role": "Retained research recipe or independent computational comparison"
-    },
-    {
-      "path": "experiments/variants/square_zero_regular_rep_qt.py",
-      "bytes": 38226,
-      "sha256": "3407f8bbeadf6c4fa6091b8dddc469de40916521448d39f111fe725785641a7e",
-      "role": "Retained research recipe or independent computational comparison"
-    },
-    {
-      "path": "experiments/variants/square_zero_traceform_qt.py",
-      "bytes": 30018,
-      "sha256": "a725eaeefa6534357d3084c654ac0964b93ee7197c2918eab2dc0c0aec830218",
-      "role": "Retained research recipe or independent computational comparison"
-    },
-    {
-      "path": "experiments/variants/tower_check.py",
-      "bytes": 5148,
-      "sha256": "a7160d758b86fe1a90a093c30d764ca51896eb9649accd04a2076549b7f2063b",
-      "role": "Retained research recipe or independent computational comparison"
-    },
-    {
-      "path": "experiments/variants/trace_space.py",
-      "bytes": 4423,
-      "sha256": "94e14e3871fe5b01c2f21f5407c6d206e0e9d62b088a37dd1668faf190581942",
-      "role": "Retained research recipe or independent computational comparison"
-    },
-    {
-      "path": "experiments/variants/trace_space_fast.py",
-      "bytes": 7170,
-      "sha256": "54f72a2169a204da0a0781e5a8e5bbc9e7878d9413e704ad059435d2304f3722",
-      "role": "Retained research recipe or independent computational comparison"
+      "path": "experiments/restore_data.py",
+      "bytes": 11683,
+      "sha256": "a9a5803d151d644f955fc393d12f9f117a34e3a138a0c4271885e52eae6441dc",
+      "role": "Optional restoration of archived data outside the source tree"
     },
     {
       "path": "experiments/x3/__init__.py",
       "bytes": 79,
       "sha256": "b1d795c3b9414eaf1c058c5b8a0d9f42a649cfa75a375f52f659832ea3aeb429",
-      "role": "Retained research recipe or independent computational comparison"
+      "role": "Compact X3 transformations and checks"
     },
     {
       "path": "experiments/x3/cancel_qm1.py",
-      "bytes": 9151,
-      "sha256": "66a72a6f5b282991a4b67dc7b85c14f3d64cd0cfeb65090932ed52255f1008f2",
-      "role": "Retained research recipe or independent computational comparison"
+      "bytes": 9110,
+      "sha256": "85998754c4a99f9f176ca0a41c09296d7bd153fbf4d31344924f09d0ccf187ed",
+      "role": "Compact X3 transformations and checks"
     },
     {
       "path": "experiments/x3/check_denom_minimal.py",
       "bytes": 4746,
       "sha256": "01c2517e7128d5a98a641d4bb716d86c74cd8adaa414a23d9ed580193107d922",
-      "role": "Retained research recipe or independent computational comparison"
+      "role": "Compact X3 transformations and checks"
     },
     {
       "path": "experiments/x3/compress_cofactor.py",
-      "bytes": 39942,
-      "sha256": "58ec77c59dabdb8f4de1f6dd6e3c80c2f08d8beb2848e171a9683fb905ad4f78",
-      "role": "Retained research recipe or independent computational comparison"
+      "bytes": 39977,
+      "sha256": "b4f7083a612e8e72da32721ccf1232da6bcc15128f1935a029fd1ac8c5ec9127",
+      "role": "Compact X3 transformations and checks"
     },
     {
       "path": "experiments/x3/independent_verify_three_rels.py",
-      "bytes": 10490,
-      "sha256": "0e72daa8edbfda122b95afaf020fa3d4670bca634b32f9cfba64206b5f92fa09",
-      "role": "Retained research recipe or independent computational comparison"
+      "bytes": 10419,
+      "sha256": "fe636b52bb9ef7edf28b15dbd601b304a4f272f3cd2f6393895547b58bcce2fe",
+      "role": "Compact X3 transformations and checks"
     },
     {
       "path": "experiments/x3/legacy_format.py",
-      "bytes": 4589,
-      "sha256": "bf3a894a999668819793414518b8ac937c5e38f100f56dce37bb16632931e6a0",
-      "role": "Retained research recipe or independent computational comparison"
+      "bytes": 4591,
+      "sha256": "deee35c24687b679dfe5c1135f50636223e6396d090ecbdf70335b67bdc08990",
+      "role": "Compact X3 transformations and checks"
     },
     {
       "path": "experiments/x3/reduce_to_three_rels.py",
-      "bytes": 12266,
-      "sha256": "87818c194501d2fe50e4ec711beb360b0370b1ebd38fcbdddae3800a4535f5d4",
-      "role": "Retained research recipe or independent computational comparison"
+      "bytes": 12215,
+      "sha256": "535054f5e9b42b846a014b106ee9cf798c41136ed2d844999d532f958bfa5cf7",
+      "role": "Compact X3 transformations and checks"
     },
     {
       "path": "experiments/x3/relations_naming.py",
       "bytes": 3015,
       "sha256": "79ea5f238a3d18af5555fda1c978f05c4f1f22abdd8848d570573e8ae454880d",
-      "role": "Retained research recipe or independent computational comparison"
+      "role": "Compact X3 transformations and checks"
     },
     {
       "path": "experiments/x3/simplify_cofactor.py",
-      "bytes": 27359,
-      "sha256": "e38892a515bc30417ed04a336342d17361297d1b52b3d68e168dd4f263a5d3ef",
-      "role": "Retained research recipe or independent computational comparison"
+      "bytes": 27308,
+      "sha256": "e470db8c93e837411d2f07a379635eecc7789daad16472d4a9d48911af8e6643",
+      "role": "Compact X3 transformations and checks"
     },
     {
       "path": "experiments/x3/verify_three_relations.py",
-      "bytes": 7541,
-      "sha256": "a121f376eb09eeac3ac9b7fce384d87878c810c5d2166c23a0ba2624b18b32be",
-      "role": "Retained research recipe or independent computational comparison"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/X3-membership-singular-independent.txt",
-      "bytes": 1471,
-      "sha256": "51aa317232ab75d127e6e0fd839dd614206bc22a5d3be7faed45031e243247d4",
-      "role": "Independent specialized Singular membership summary"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/atoms-n4-Q.json",
-      "bytes": 783,
-      "sha256": "27a614b0a93cdb035122d0028f401bba58eec8c4dbbe3c27f75ad260b7aea9fc",
-      "role": "Historical denominator-family reconstruction prior"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q11-t13.txt",
-      "bytes": 26948,
-      "sha256": "c2472dbcbf529440d216285cf5309aa52dacb002b6fe7528233126c84ce9898b",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q11-t17.txt",
-      "bytes": 26952,
-      "sha256": "427d353748e6341c9766675886f34718ba1ddb571531a68edfefd23d08f2f31a",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q11-t19.txt",
-      "bytes": 26972,
-      "sha256": "23abd95fcc68df6a907224c78d20ee479a9840feba78fd48250c8e0c15cc92f1",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q11-t3.txt",
-      "bytes": 26538,
-      "sha256": "2e6a0cfdb329c4a7ece18d35efdaf68546fff70fee76eb3837b0e75c511f58c8",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q11-t5.txt",
-      "bytes": 26466,
-      "sha256": "c6dfc21c5214d962f1f21fc9c9f7bf2cd644c342763b0db89efcd1d77d609b53",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q11-t7.txt",
-      "bytes": 26538,
-      "sha256": "c23ff70b9f2e310c77122be994db14923f5a99a7251b61ebc3ee2c9277b59ef9",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q13-t11.txt",
-      "bytes": 26928,
-      "sha256": "e1dad4b1888304724986dc96a224679ac95f539da57c14152aefd8481b286ce3",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q13-t17.txt",
-      "bytes": 26960,
-      "sha256": "27921dbfe08634a5d5862ed13d3a912b3055f2d3319f676887f404058b6818d9",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q13-t19.txt",
-      "bytes": 26968,
-      "sha256": "5e3edf33aa70c19fe6df33102b591c02e84743859273fc86d8f3dc9f01f59677",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q13-t3.txt",
-      "bytes": 26668,
-      "sha256": "5d4f6b52f3244b3f8e5e5232321cd79529393f0f34f455c1f88f7e9ddec5c622",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q13-t5.txt",
-      "bytes": 26618,
-      "sha256": "eaa7515cd9541b72e8fb90a0593bda15ee9a4db01edacb3130408e23a4bfadf7",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q13-t7.txt",
-      "bytes": 26683,
-      "sha256": "99d703cfd7f549df062a248c08de0d5fed376dfbbbfb3a47905c86d6b4e3e148",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q17-t11.txt",
-      "bytes": 27044,
-      "sha256": "20d50f6ba081c26f24c3eec71f5540a5bdda985767757160be72b325ef4fc4a8",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q17-t13.txt",
-      "bytes": 27026,
-      "sha256": "30fd2e103942f953538e29537c52953da4ff2a1705602d1f56430f47db81a6a0",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q17-t19.txt",
-      "bytes": 26988,
-      "sha256": "262dbb464042a3b9ab3f5fd452b96dfa3ef1d45e0c97e28b0af8075a25a8dc13",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q17-t3.txt",
-      "bytes": 26842,
-      "sha256": "43c499acb4216facba898e4a1e4fb085cd0c8182022ed88bdf2bf872d4d2d74a",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q17-t5.txt",
-      "bytes": 26919,
-      "sha256": "bafaf3fd1496031b53cad8d547af738692e25074f369cfba96b2ebf683c76bbe",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q17-t7.txt",
-      "bytes": 27129,
-      "sha256": "318e465cd85a1724c29d21ca1a091fce573c9040e61499248326e9c1408d13d7",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q19-t11.txt",
-      "bytes": 27158,
-      "sha256": "8a22b768d0eb4a57021e9610b02ff523847865571b2a29a554e83355ae3729dc",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q19-t13.txt",
-      "bytes": 27132,
-      "sha256": "12950e230787dd503ace5bb9120c79381ae6773671ed4d3f8c0a85f8d156ebb4",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q19-t17.txt",
-      "bytes": 26998,
-      "sha256": "cdf396202c4896a499116f17bfd772b7261fad356b4d675e8ef86e3bc05ae048",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q19-t3.txt",
-      "bytes": 26821,
-      "sha256": "903d80556b4c112e1483d6024c554fa917517a5fa65bb7dc906a3170609aa3b5",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q19-t5.txt",
-      "bytes": 27020,
-      "sha256": "193661e40081c17eb6820d59de34d70c148ef2854da26ebcaf967f4776f4483b",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q19-t7.txt",
-      "bytes": 27167,
-      "sha256": "9bbedab6631608a6ba42a27581a01dcc7e027f45789d523f082cf6b48e4bb087",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q23-t11.txt",
-      "bytes": 27117,
-      "sha256": "8f73d428fb12290e6c1b0990b22df2b86e811d434207c91092352b42bc336109",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q23-t13.txt",
-      "bytes": 27303,
-      "sha256": "65b7555a5d4cb87c24a2bc98ad9ef7070dceb61a1ac4f6b6692f21437be861ec",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q23-t17.txt",
-      "bytes": 27239,
-      "sha256": "551048e1a5d43336c4fb3aa13167b53b70ccbf720e6afb55fd29875623544c01",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q23-t29.txt",
-      "bytes": 27371,
-      "sha256": "3738b4b92c0517a2cbef0e637e04541ed988f39d081a7a05b1f718d8f9bccd96",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q23-t3.txt",
-      "bytes": 27036,
-      "sha256": "30d512de64b53888571e9b775acda49d70256eb71f34118fe6cd7cac3880deb2",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q23-t5.txt",
-      "bytes": 27265,
-      "sha256": "3893a95718512cad0574168827417de9047092f10d5349ad9dd469e00d8baa5d",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q23-t7.txt",
-      "bytes": 27265,
-      "sha256": "93ae779c173a4092db25778bbbfc258565bd48de5b5a9e94144c01644a0578d9",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q29-t11.txt",
-      "bytes": 27398,
-      "sha256": "6b6a35cefb7fbf6d3d345a3b2dff613a51700bdeaf9964409207fc7b0a50dfe9",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q29-t13.txt",
-      "bytes": 27509,
-      "sha256": "b5fdf1d75bb5501321ae40883673855fc58fd7c526d14e83a0be7c83a14e23dc",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q29-t17.txt",
-      "bytes": 27464,
-      "sha256": "43f3398a1d5316f8324b6da051391d261a333be98ec113125651496f57305ab0",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q29-t3.txt",
-      "bytes": 27192,
-      "sha256": "cb7e426858815f67b7acdf3fb1107d9200c0e007721e49c610110d87db239d2e",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q29-t5.txt",
-      "bytes": 27360,
-      "sha256": "a546f67b9f7f63f1272eb27e7388f2bab568297ab44dd9267112e611f570d6c1",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q29-t7.txt",
-      "bytes": 27193,
-      "sha256": "0d3d65815508e970ba56c12d1ee2e94f5c2f692a6bbd19ebe3e1c2e26ab217e1",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q3-t11.txt",
-      "bytes": 24031,
-      "sha256": "2cabea810a8cec96c6c241c5bdb04c1797b83a1e41592b854f054740acde9982",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q3-t13.txt",
-      "bytes": 24222,
-      "sha256": "112dc7d206b4117a7dd0cde9086bc50db295a0a5222248cd2cc6b171c9d66971",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q3-t17.txt",
-      "bytes": 24154,
-      "sha256": "ede32b9349232ac49e7329c5751ec72ab0b23e9e0f29ff90c03129726790333e",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q3-t19.txt",
-      "bytes": 24259,
-      "sha256": "66bcd2dfa682d23b4a30fa145821a55b2c8f070e0aa5652dae8042a8ef044bdf",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q3-t5.txt",
-      "bytes": 23825,
-      "sha256": "7c44ea38ab41fa373e72a0dcd3a9c5bea52072496a881ee733dc963e93264c12",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q3-t7.txt",
-      "bytes": 23967,
-      "sha256": "1d0ba1a05049f6bb9a14094376b4880f475527c9eed46bf886301d1b8db9bd0c",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q31-t11.txt",
-      "bytes": 27508,
-      "sha256": "19ea60c0eb111e04ded1abf1352512e5dca1a785b078851887f42465a8adf760",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q31-t13.txt",
-      "bytes": 27516,
-      "sha256": "d54d806fc19a5bab2959e3fbc843a384dc6f4a4eed2ca30c0e6cddd278d88829",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q31-t17.txt",
-      "bytes": 27519,
-      "sha256": "157e05c2acd6075e8bf7245f49c7659a389176bde4cd6db93ba6bec36cbac8f9",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q31-t3.txt",
-      "bytes": 27138,
-      "sha256": "fd381ec0c780da5271e95b0e0d9369e9c9a708baa4f9cf452ded98c12f769050",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q31-t37.txt",
-      "bytes": 27650,
-      "sha256": "a40cbf4a39305d2f450e8543fe027fa2b19c6138e91de0bfd67ad54ebaa1c670",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q31-t5.txt",
-      "bytes": 27221,
-      "sha256": "47d5ce2363584c246039dda264d5ccbf9acebaf449d8e30eff12845ded16feee",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q31-t7.txt",
-      "bytes": 27362,
-      "sha256": "b43c0542b7b6b218ce62abfe9b87883d0479586a1b7736d819b183ec4f2894a4",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q37-t11.txt",
-      "bytes": 28015,
-      "sha256": "eb2b4650727193f98228deed415d71f3e0344ac0fb4763ec7e7a395ce0ff6e5c",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q37-t13.txt",
-      "bytes": 28015,
-      "sha256": "81345f4abf8f8089688e1ce4e302c3f9785c6bdfb96550e7bbb95e25b9bf1a73",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q37-t17.txt",
-      "bytes": 27997,
-      "sha256": "2288b4eed3515a55ecb84189bb3c3ab2aa50dde6e344533f7f4540463110a6ac",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q37-t3.txt",
-      "bytes": 27868,
-      "sha256": "adf5c58722f1bb4b6b0427eff57fc80af7b1ac64fd2f9f1e2548e42c35e7e312",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q37-t5.txt",
-      "bytes": 27936,
-      "sha256": "d7cc810c8ceddc3a9f75b6c801939d2437c6a6724db19e0777d7bbaac477628e",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q37-t7.txt",
-      "bytes": 27977,
-      "sha256": "4d5e91961e31d4ad145dbd2e220a42d728d78fe4ac7eee30ced93f39ab45979d",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q41-t11.txt",
-      "bytes": 28113,
-      "sha256": "eb944603e0f173129c3a8ab674fc1b4faa276a23effca737b484e45454ec8482",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q41-t13.txt",
-      "bytes": 28113,
-      "sha256": "b26118fa88b649ae22014db794c7a8c84f9c9a1df7d7b9e5411d966eaaa8ba2b",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q41-t17.txt",
-      "bytes": 28037,
-      "sha256": "20b2a808d080f32bd8b49d6a12997c96577da3e60349ab52ba196af09bc45ab7",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q41-t3.txt",
-      "bytes": 27953,
-      "sha256": "57e5f5fb3d8f8e696880f6e003327e168d9f4258ad6e182ea71f2eff4c854085",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q41-t5.txt",
-      "bytes": 27840,
-      "sha256": "04dc74f979909b94084bc918905ebb13d86fcb1929d08277f8249905e954b5af",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q41-t7.txt",
-      "bytes": 28070,
-      "sha256": "cbc31681cfa1a92f47d6687295682fa04e6eebe2eadb37034988867d3f83d1a3",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q43-t11.txt",
-      "bytes": 28115,
-      "sha256": "a4008bcf652d492224dd4154d0ad110546c451b8fe1423a9aebfa58d0f397a06",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q43-t13.txt",
-      "bytes": 28125,
-      "sha256": "5fdf57ad29ff1cc87c7b944b8b5568677b217bf5ba74ba6451013ee53cf0f512",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q43-t17.txt",
-      "bytes": 28128,
-      "sha256": "7b5b3c77b2559182873221a20fe98ece8ed2bffd19913e793d9d41dfd517942f",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q43-t3.txt",
-      "bytes": 27884,
-      "sha256": "720767df325776b061d728cb62c82b0d7f5ccc1b3859ea1ff97b331918518781",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q43-t5.txt",
-      "bytes": 27995,
-      "sha256": "83657f5d4578fdeabdb4c058bdad894f008433d158bc5532806d34803cce36a8",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q43-t7.txt",
-      "bytes": 27903,
-      "sha256": "9aab9f0d93034cd0b3712260e627afddfadc54f93b2394aa272fd77481d533c2",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q47-t11.txt",
-      "bytes": 28199,
-      "sha256": "5eebf86487a4d2c6b0eaf4f1d163365a96d589856ac07f6ecbc11cc104381384",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q47-t13.txt",
-      "bytes": 28198,
-      "sha256": "45eb1cd450db4607eb78e2167060af3dde498d257dfc444a996abb9a93f0fbf0",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q47-t17.txt",
-      "bytes": 28198,
-      "sha256": "c3f453d5ce7fea2acf9205e584ba35afb7dcb07d7f6e71d00edf4f2f4cef46c5",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q47-t3.txt",
-      "bytes": 28024,
-      "sha256": "723107cd45ce53e1a640a910b894c333a3667d78fed80931cc110ddea79ccbf4",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q47-t5.txt",
-      "bytes": 28142,
-      "sha256": "55f54fef24e6335438f1695054bda6793250dd8cc96ad2193a889a7b8aa7adf4",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q47-t7.txt",
-      "bytes": 28142,
-      "sha256": "ae07b2f9bf7013f794f31677b391cd36ee17105208836f4535d778d1a7e02a11",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q5-t11.txt",
-      "bytes": 24821,
-      "sha256": "404361e613020ce2b02819e4569def03434bd6ecc706c88253d9ef636956a0d1",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q5-t13.txt",
-      "bytes": 24859,
-      "sha256": "5ce951e1d1e7ba29368ede46d68951005a44d12e63c4596f3e3a57b0f589ffea",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q5-t17.txt",
-      "bytes": 24908,
-      "sha256": "13640864e3f8cc2d78d69fa1283a7f6ef7abb8a8c83089dcb2738c72bfe77c7a",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q5-t19.txt",
-      "bytes": 24833,
-      "sha256": "cc4eb3e7257535943dfa402062ade77e072b7ac8ce3ac904abff7fa69780a0e9",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q5-t3.txt",
-      "bytes": 24519,
-      "sha256": "6582d4ebfc043afc8856a60ff62b292ace2d9f01674ac61d398b8317b3eba53f",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q7-t11.txt",
-      "bytes": 24926,
-      "sha256": "d9b9973810a1d0de21011ba0559a225d63d6cc891c6efc3a094f6a7e0ea0814b",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q7-t13.txt",
-      "bytes": 24798,
-      "sha256": "0a00f8bd3aed1c395b9069f8e2077643b97fae0918d73cd4aa35ebdd690a3592",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q7-t17.txt",
-      "bytes": 25208,
-      "sha256": "d62f67b7fc91e3d478bc1367fca1890cca3ed8a66690024e7536ab61b7ae5ed6",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q7-t19.txt",
-      "bytes": 25228,
-      "sha256": "fe54851f24d83cb1241dd9769f1f0107c43cea7cd88740ebde532b72173fe36b",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q7-t3.txt",
-      "bytes": 24710,
-      "sha256": "9afa51b75b47d2dfa85f3721fac07fcd718abb6b10b6e586fe47fdf9bdb23619",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q7-t5.txt",
-      "bytes": 24768,
-      "sha256": "d905016c06b69dcee05935a60cd4c3678040ae79b7472be775a9b607ab6e6d3f",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q8-t11.txt",
-      "bytes": 24888,
-      "sha256": "53f40641b401af0f07c2272b65976fe3cdc9bfe58fd15408e7e1d99e21110ea4",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q8-t13.txt",
-      "bytes": 25024,
-      "sha256": "a054cc23a93f04868eaddb9cfd3d3f3312c209698dcf6fc2de03a61c24129edf",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q8-t17.txt",
-      "bytes": 25227,
-      "sha256": "76591413141ecda6521ca7d99fbf586ff3bfd8969c0a32c71c2b65ae276ca453",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q8-t19.txt",
-      "bytes": 25274,
-      "sha256": "ab983071bdb74cbff5a097b1d89d808358221691f9e1ac66fd216e4a9933d344",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q8-t3.txt",
-      "bytes": 24812,
-      "sha256": "43179dfcbba14c1a2059f6b83633ceb28f1ae2fde64b2c11b7c4a34779af88f7",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q8-t5.txt",
-      "bytes": 24841,
-      "sha256": "72e1062fc57c68f108ef0e9a89e2481da7fb43b8e439586f9c836a85cb69fc7d",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q8-t7.txt",
-      "bytes": 24058,
-      "sha256": "835e9270a6f7522da273a766100e721583268ce3a91356b23405c8377fccc35e",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q9-t11.txt",
-      "bytes": 24895,
-      "sha256": "3f021a32aa8cef9de59bf9607591df412899eea67226fdc6e123c8a5af613eb2",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q9-t13.txt",
-      "bytes": 25220,
-      "sha256": "d7fbd9da987b113c8065300b1e0a5705e44dbe11028d756e939e87bdef27ce4a",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q9-t17.txt",
-      "bytes": 25153,
-      "sha256": "a11dfbff85cb1ef62a97d7e2641134d323672bb658ec1bc928eeb9f6324318f2",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q9-t19.txt",
-      "bytes": 25365,
-      "sha256": "d0122a255f36110f003af8641636a9c5c7beeeae4d8858ec32c7c76ca47edb49",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q9-t3.txt",
-      "bytes": 24697,
-      "sha256": "8b3361731aad43d411ccca8a94bd0d3cb18ae62b7af05925952d6f5ec024fb58",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q9-t5.txt",
-      "bytes": 24844,
-      "sha256": "98e72c5c29c3c0325f4211a6200e3a9e0599d181bf6f1bd902ad52ea4e84bbd8",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q9-t7.txt",
-      "bytes": 24826,
-      "sha256": "401f66f38543c451965481d8fb287c753312034be73be168b85429a5285a3094",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q.txt",
-      "bytes": 24670,
-      "sha256": "3ea67767a9d2aff8dfa07bcd266dcee1038b75d8ecfd2df990b23d92422c64de",
-      "role": "Retained specialized solver basis"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-symbolic-Qqt.json",
-      "bytes": 92316,
-      "sha256": "b6c97eeef503a31880a17d7a7ab3f330759603a0564a115991f069673d1a310a",
-      "role": "Retained newer-schema symbolic basis-proof reconstruction"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/basis-symbolic-Qqt.txt",
-      "bytes": 15404,
-      "sha256": "e483ce8c693bae8e144763dd7d7d6e0bb8d64393dbb91fcfaba87dd2f7ca8e2c",
-      "role": "Historical symbolic lift rendering from a different revision"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q11-t17.txt",
-      "bytes": 24742,
-      "sha256": "948fadb7c0697b8438cf1ec642fe6e28ad8d85ad88fad78e9e80451a3fe07adf",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q11-t19.txt",
-      "bytes": 24129,
-      "sha256": "cbfeb3c6aac3d150371bd713f7881717b45a1e2712d9e3a3f82c50d59e19e09d",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q11-t3.txt",
-      "bytes": 23099,
-      "sha256": "cdfb29021ea393c14dcc9fdabef6096fb2c8987a97f5a6c57fdb610b0bae6908",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q11-t5.txt",
-      "bytes": 22935,
-      "sha256": "9006838ac633d6fa6676acb81dc0c21a5c4d7dea3a4ab05ed5794cb539f370df",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q11-t7.txt",
-      "bytes": 23739,
-      "sha256": "1fdbba08419f4758f79b1dc61f1fe52947129d856f488e8a2bfe8e1a1db23225",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q13-t11.txt",
-      "bytes": 23812,
-      "sha256": "cf9df83eb9dbd0f36cc742a1ad469f99e886c2cad754d39495b92bb6a15d2074",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q13-t17.txt",
-      "bytes": 24524,
-      "sha256": "3ed29fb7a784e2de2c4cc2c56cd578ad19f8c03fd17cd8ee228b445cd9280517",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q13-t19.txt",
-      "bytes": 24895,
-      "sha256": "61efa36420ba74a9d03add66334034a39ee42e7eed5d00a82dac85aa846822ce",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q13-t3.txt",
-      "bytes": 23013,
-      "sha256": "6d09b7b539f86024330aeecef758170055bbb6ad87d111392d28a0a036715ae6",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q13-t5.txt",
-      "bytes": 23510,
-      "sha256": "505cb4285ad4b80e7e548735fa9eb77001c349a0c53babe01011a8bad80cff9b",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q13-t7.txt",
-      "bytes": 23776,
-      "sha256": "44619504cbe298b7ee599d333e3304d59503189340e0da02c416a3baebfde911",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q17-t11.txt",
-      "bytes": 24509,
-      "sha256": "0a68149a5ff996d80925ade44de97646df2520116d1e2397cc8e0e05f1b4aa50",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q17-t13.txt",
-      "bytes": 25056,
-      "sha256": "1a5d0989e00282fdd4e380e88cb9fbfa02f00f8755daed3eb9f82c5de9a1e8c2",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q17-t3.txt",
-      "bytes": 23513,
-      "sha256": "634357698dd7ec71e9b4cf4e3c5992ff91e1567330afbb6572fc35aa207a8fec",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q17-t5.txt",
-      "bytes": 24058,
-      "sha256": "37c21330a360597750b4b54c04d721140b6f6a23824e821600d20fd0237f8125",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q17-t7.txt",
-      "bytes": 24227,
-      "sha256": "8ac76eeadefb5fb076f70287299e3ebfe25e44e9a7c7b4aa199aa980a966e634",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q19-t11.txt",
-      "bytes": 24626,
-      "sha256": "284c818550ec75eb7d934368b313598a5d20660b27990115192b08cc2aa8ff63",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q19-t13.txt",
-      "bytes": 25104,
-      "sha256": "790ca65ddea8c3a9ae02a3352cc91afff9ae5dcacf273a109abf9104c323ee72",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q19-t17.txt",
-      "bytes": 24643,
-      "sha256": "fff4cd069bf8c181662210d017f753feae2dbc48baae5b743bc13a9b03c381c9",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q19-t3.txt",
-      "bytes": 23434,
-      "sha256": "e7366b56025158f35d874665512f6cc7ce2df7db2f5994b965fa535552d5827d",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q19-t5.txt",
-      "bytes": 24096,
-      "sha256": "026d3771818e5feeb06d0d148469e7546a01c4812819554b1b2b9a830ae5fa9f",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q19-t7.txt",
-      "bytes": 24641,
-      "sha256": "60c0390fdd47028ed603f614cd0b42e2e4ea106e2eff2f1ff8ae3c5a141341cf",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q23-t11.txt",
-      "bytes": 24655,
-      "sha256": "18049d02deada49755e649e04e3e10df9155081b97dad7b4e20af1f9109b0344",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q23-t13.txt",
-      "bytes": 25575,
-      "sha256": "1155cde043b6f715e79ba6305137d3105b6874b5697611166dc66497e75f7ffc",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q23-t17.txt",
-      "bytes": 25534,
-      "sha256": "b8082d46b78cfd41f541430025aaead6287d4acb2dd070278066d3455929e0a1",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q23-t3.txt",
-      "bytes": 24005,
-      "sha256": "a3dee4b514208eee95573dc206deb1a6e290306ea1f7a27189b916f0612b297d",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q23-t5.txt",
-      "bytes": 24800,
-      "sha256": "1e3c1217bb54b78e3f475456375fb1333a059da5d0787d28ff5596cdca67adb5",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q23-t7.txt",
-      "bytes": 25003,
-      "sha256": "360fd9ba0220754cb6852332bed61fd4cc60e0c4b6f7622b69232d5fc8887452",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q29-t11.txt",
-      "bytes": 25624,
-      "sha256": "fd655c8e0fbfa9dbc31b2d9217a8d73cfb484d4c87cb9d7dd4db0e78d8be1e4d",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q29-t13.txt",
-      "bytes": 25628,
-      "sha256": "425e5247620546ec51c5e4a7d3c28b1881156f4469b305e798ca68bb486b6c6e",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q29-t17.txt",
-      "bytes": 25875,
-      "sha256": "a2f8ceb6d29f1002472ef385e680ff2e7d37473bfb3c5b86d5c0f76fdd410066",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q29-t3.txt",
-      "bytes": 24419,
-      "sha256": "455be402a93834ebae0f0e1aed0bbe25284a9c44b77cab31bd1c8d1d0e8a6991",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q29-t5.txt",
-      "bytes": 25143,
-      "sha256": "13726ed8f5c1dde585ef0896501b588070a541872d57f679182fa63efa233bd4",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q29-t7.txt",
-      "bytes": 24643,
-      "sha256": "952400d4d3337b0e6fa82f35c2cad7d22129d99162dc6177aa2e1e58fa0ce9e7",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q3-t11.txt",
-      "bytes": 22176,
-      "sha256": "8bae8576009da46f7fb492cbb3b344b7fdccba6631b8f5397f87d8b14bc37d4d",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q3-t13.txt",
-      "bytes": 22400,
-      "sha256": "c2213bedeee46a13a531eaa4ec8e4ed5eb4aaa37527cd1120bcc4f10df1ac0be",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q3-t17.txt",
-      "bytes": 22363,
-      "sha256": "eee3b5fd018772e29164f1932710c5bfff456f0414177bc9c522173a1679df85",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q3-t19.txt",
-      "bytes": 22710,
-      "sha256": "d16a829a83f1c195cb7d1de5b83b6466117461f08358074ac08eec61b1d4baf0",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q3-t5.txt",
-      "bytes": 21205,
-      "sha256": "50bb7c11628bc344f9cc804405ad3dd3bbd0bdeec453701fad4d59e264f23da0",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q3-t7.txt",
-      "bytes": 21518,
-      "sha256": "b5d84f5f118908671333f5babff2f353f500fdda3b6efaf6195e1df50f960e8a",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q31-t11.txt",
-      "bytes": 25490,
-      "sha256": "60ee9bf5c2e12d4c9caecf9bdcdfad4e75ad020c4e42c7fda0ea6b3a091ffe2e",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q31-t13.txt",
-      "bytes": 26225,
-      "sha256": "fe89708229952f4985ed79593c5b12931f779d5b858a68f324220104205e0a9a",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q31-t17.txt",
-      "bytes": 25981,
-      "sha256": "d6159ad96fc14ddbc23b4f55ff9d2b69fdd58bed07e27706507598e84a7f97cc",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q31-t3.txt",
-      "bytes": 24362,
-      "sha256": "4730e39e0a27b14c5e885ebd6e518e078e37ca1058c4b7a2e67f74db2e863a8b",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q31-t5.txt",
-      "bytes": 24391,
-      "sha256": "147f6b0c5d100209bcdfb2385de67c6ac8cee0c8f2209f0343df56dfe8c32fe8",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q31-t7.txt",
-      "bytes": 25406,
-      "sha256": "c80ffa05b7a65bd4a8f3f1e157d016e97e731d2bf36a4e5963266941006e747d",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q37-t11.txt",
-      "bytes": 25887,
-      "sha256": "3367317839151cec42ccd9bcefa9963826b1db6f3f8d6219d68c33b36287e4cf",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q37-t13.txt",
-      "bytes": 26654,
-      "sha256": "a624bc60bae13ddb99ada8b87b0f97752791487c9a7f4ace8a9e50515433dcdd",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q37-t17.txt",
-      "bytes": 25740,
-      "sha256": "65df6127047d683bbcbb35c13ad9a39c50f764e123ad8b4f32807213cf305a65",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q37-t3.txt",
-      "bytes": 24295,
-      "sha256": "806b3afb16578c9505e5d1a4318c903ca77f82d1835f83016c6372450e2ed296",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q37-t5.txt",
-      "bytes": 25252,
-      "sha256": "3d163d7585d93a39e603921fba2a7cb90b3e4ae28496c63e55dab6c23f7fe704",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q37-t7.txt",
-      "bytes": 25526,
-      "sha256": "e93d3ccc22b61d32d3f0d67bfbe69d9e3f956bc8e5af596e097e45b5caeb7590",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q41-t11.txt",
-      "bytes": 26153,
-      "sha256": "7cbe4de1c9441cab1be6b556cf5247580608c1652b667d43e8a5ff8042376aa0",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q41-t13.txt",
-      "bytes": 26581,
-      "sha256": "ec1b682931404a73ab3f4c7c412789dbee53ef02ce61ae8619a57a960fc1cbb7",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q41-t17.txt",
-      "bytes": 26790,
-      "sha256": "a3683baa79b0e77d735fd0bdd278b8918efad6b6fcd4a61a1e21f03f18b7c159",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q41-t3.txt",
-      "bytes": 25150,
-      "sha256": "15cc1de48559b67a63d2b2a77ce20c6b26dbb1138490681a02e1b3b05e0a1b13",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q41-t5.txt",
-      "bytes": 25289,
-      "sha256": "f3bc33b385a7f8b0c650416b1376660245c5c88580c2d4d73fdc9e4ae7d95905",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q41-t7.txt",
-      "bytes": 25654,
-      "sha256": "8b68324c0f6636f2fe5ddcdcbe0dd9b167c925acb0a5f11504c30d19eadbac94",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q43-t11.txt",
-      "bytes": 26052,
-      "sha256": "1e53707f6c7a9383dfa3fa8fe724e63a7481f2f51dc559229f1651f8d8a930a7",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q43-t13.txt",
-      "bytes": 25977,
-      "sha256": "32ae7fd50de34ff264029b5e8516696e0ad1002f9a072c389fd6538d7c0d3efb",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q43-t17.txt",
-      "bytes": 26562,
-      "sha256": "2d699bb49dc3813b2a561f4a1ddb8eaee1d9546c9ce3bfb1040e4dd8813d6001",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q43-t3.txt",
-      "bytes": 25066,
-      "sha256": "b48d6a6909740328e784cae7a00ffc5bf91548e9b4ce7eba2fd4796ceb9b3863",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q43-t5.txt",
-      "bytes": 25324,
-      "sha256": "f8b9e3c6404f419088487b1a0a4d67af718f0c8ba87a77beaade06d9cf701a86",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q43-t7.txt",
-      "bytes": 25445,
-      "sha256": "3ea849d4525996c93a0040dec893347cc819c5341333e5421a3cc53735f299c0",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q47-t11.txt",
-      "bytes": 26199,
-      "sha256": "562cb7115f58ff95c0883f8a5d29ccc5d6e18908ab618489e581b8181ee07222",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q47-t13.txt",
-      "bytes": 26945,
-      "sha256": "ea70326eef7e808a91ed3abf475d55a482d33163d52b3922aac9daa0788356df",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q47-t17.txt",
-      "bytes": 27042,
-      "sha256": "56480d90aecde892a1800f79addfc7d4b531ae20cac4a8b6f6dd0e1e8241a2b8",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q47-t3.txt",
-      "bytes": 25440,
-      "sha256": "a5f9f5e872f4a5552d636c5c546ca724beb932facd9205bbcedd6fa1865993c0",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q47-t5.txt",
-      "bytes": 25921,
-      "sha256": "ea6ee72b9bbf2306bd033081a09d4fa0f20514165754427676b1cb0a3c302020",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q47-t7.txt",
-      "bytes": 26322,
-      "sha256": "b1a724ee745a981525d10bf2e03f3d466bcf0888f8d9405bc7a2542fc2787ea3",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q5-t11.txt",
-      "bytes": 22834,
-      "sha256": "e12f5026d5923e26502b8f2a0468bd7a5abddf8b86caafbad8efd37acdb79977",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q5-t13.txt",
-      "bytes": 23075,
-      "sha256": "b1a923bb278c2774304e9af56c2b4965bef06660ed478539582b251cbb30afe3",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q5-t17.txt",
-      "bytes": 23458,
-      "sha256": "db4444394afc6a0c3fe18c1cec356dfb17c0d7cafceb97b05c3356682548f4f6",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q5-t19.txt",
-      "bytes": 23446,
-      "sha256": "2ba4b2db014d50a8ef1abbe17de7a9a506e0ca359271885fab01a6e3e7719c0a",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q5-t3.txt",
-      "bytes": 21433,
-      "sha256": "156d749cbff84b8cfef5fc663330fc93fedc9a90a54a8694c789372ed8049dc2",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q5-t7.txt",
-      "bytes": 22291,
-      "sha256": "3e9bbebd93ea0640cd4965b8d062c71cd0942699942fa1cd80809bc0f2e262c2",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q7-t11.txt",
-      "bytes": 22952,
-      "sha256": "5d064a780898c6ff7d19a411bfa5b3c9dd0b9ffa0724797de82e0f57ecffb224",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q7-t13.txt",
-      "bytes": 23715,
-      "sha256": "49f87e42bc2156f0789017b0606a6c713665fd462fd779da17febe114134a87e",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q7-t17.txt",
-      "bytes": 23552,
-      "sha256": "6699fda19c1f79edfdeb09d29746b3e748bebd7db747e5fe3e9705f7f5ec8980",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q7-t19.txt",
-      "bytes": 24114,
-      "sha256": "0c8db6b69a14740b3c87bc5b25cf826ae08676d054f61572f9903c97ba5586e4",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q7-t3.txt",
-      "bytes": 21868,
-      "sha256": "c6f7693a43a3e7b6fab51e5c4a57dac1f300d4369eefe02ce9d7da4a7f962642",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q7-t5.txt",
-      "bytes": 22166,
-      "sha256": "a2a23b1b08eae816812ca1d2426692d1fb7c1fe06bf36c5aadccd85fdcfeafc4",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q8-t11.txt",
-      "bytes": 23516,
-      "sha256": "58092bc23f88bdd6f64b907cf95b5dabbb40040edf866a784db8af0f576d6dde",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q8-t13.txt",
-      "bytes": 23537,
-      "sha256": "345e8ea2fef41e794063893f6a61602bd8363af09f86e39720aacaa27d83cee3",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q8-t17.txt",
-      "bytes": 24203,
-      "sha256": "f6e40b51d239d28f3089e1f1237ebbb83564bef344952bb4fd013885ec4f6388",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q8-t19.txt",
-      "bytes": 24470,
-      "sha256": "23e77c41af834593403ed6f9ebf9399c3ea7788e251501e6a0eb513de4586fd2",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q8-t3.txt",
-      "bytes": 22638,
-      "sha256": "365d71ca16f2e5745b132d046d73119b8bee202c7b7875d2d950d1bec977b107",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q8-t5.txt",
-      "bytes": 23029,
-      "sha256": "ec2bdec1aa28173658d2543863c55b747ae391aa16672a6dac36108afb71ec9b",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q8-t7.txt",
-      "bytes": 22275,
-      "sha256": "81985712bb9b748fdb49da8e0cb30477a3c18ec4a534f2a5e9521ad9078f2014",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q9-t11.txt",
-      "bytes": 23763,
-      "sha256": "440bade3314c07d444569486fe44f61b752a29a030ca092c2e1ec4e7f8cf31ed",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q9-t13.txt",
-      "bytes": 24037,
-      "sha256": "769a94aeaa017ed3b3067dfbd9aad7378bf649a79d07f0697e1692b20f36fe5b",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q9-t17.txt",
-      "bytes": 23975,
-      "sha256": "7da78477a59e336d84ed1e93e7c311746ac9d0be950a9c3cdd0d42ce88affd7b",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q9-t19.txt",
-      "bytes": 24075,
-      "sha256": "88eedb1b134b1fb90bbf89d6d29ccb17be0e479da649907c8d0fecdda8881cfe",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q9-t3.txt",
-      "bytes": 20186,
-      "sha256": "39be64bdf0d4a28065690c485178c36239e42136e2234f86d21d2d0598896971",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q9-t5.txt",
-      "bytes": 23163,
-      "sha256": "cc056f04d55c0f0a505932160e39f02d0280ec80e080e51afa8bde3bcb50a580",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q-q9-t7.txt",
-      "bytes": 22688,
-      "sha256": "fe0e486814d677b38066a343b8c802c4abe4110d7c8ffa87b3fd0d371b7cfe8c",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q.txt",
-      "bytes": 22778,
-      "sha256": "4453e1742c2c49326e46443a65faecefef8bf31bd6c624c7c1292538c8f16d77",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Qqt-compressed.txt",
-      "bytes": 119765,
-      "sha256": "abc7e1acfe82f2f6131996767ea68ee3a33b2cfb93a025e7a5aa429bd85e4467",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Qqt-simplified.txt",
-      "bytes": 20554,
-      "sha256": "fa606099c82895816d66ae6de0b3d67783e324dadf7e236141767c4d07815a55",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Qqt-symbolic.txt",
-      "bytes": 79023,
-      "sha256": "e2b07c73598a380f2b5ea529b00de85dc553591110e49273f3202b4e0b0d76d6",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Qqt-three-rels.txt",
-      "bytes": 19905,
-      "sha256": "a6c20c7165bcefaa9eafe023b09d6e80f5592aefec2135b5905619aa97c35086",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/lift_samples/coefficients.json",
-      "bytes": 9992730,
-      "sha256": "db32d13a246281ce3cae0e9241e64b152977cdbba3293721bd743bc14d54a645",
-      "role": "212 numeric cofactor samples with 695 coefficient slots"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/reproduce-basis-n4-Q.txt",
-      "bytes": 25696,
-      "sha256": "09824cd2e380a2493260ed4862b6a55a5666142cdd315b4fd8e63f794377f650",
-      "role": "131-entry basis of the older target-augmented presentation"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/reproduce-proof-n4-Q-noex.txt",
-      "bytes": 75244,
-      "sha256": "382cbcd5812b996b4013d52c277339cf80a364b66208236e3cab76c926e7275e",
-      "role": "131-entry augmented-presentation proof using appended target input"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/reproduce-zipper-n4-Q-q5-t7.ms",
-      "bytes": 2359,
-      "sha256": "0f70f593f93feeffd1be74f1e7887cf095bf9e2c8b98dc366e6802bf63f12d48",
-      "role": "Older augmented input: 31 canonical relations plus X3 itself"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/singular_X3_GFp_d10.log",
-      "bytes": 3860,
-      "sha256": "aa082248922b5d1a24a5993e7332d18e01f7b32524cc5c6d8afa44892c9f73ad",
-      "role": "Independent specialized Singular execution output"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/singular_X3_GFp_d14.log",
-      "bytes": 19900,
-      "sha256": "b60a600bcabb0fa6f0d7d7a9565ca7f913fd462d6fe1d2c98300c67c67657874",
-      "role": "Independent specialized Singular execution output"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/singular_X3_Q_d12.log",
-      "bytes": 6182,
-      "sha256": "bb31f445a4a85eaaf3984febbbedc0d269ab4e60d4efb7bcf4a70b51311c2733",
-      "role": "Independent specialized Singular execution output"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/singular_X3_Q_d14.log",
-      "bytes": 19886,
-      "sha256": "5258e6ba0d4f3dd395a5643c2175e2e388a2673ceefc236c7f57c1f26b825c9e",
-      "role": "Independent specialized Singular execution output"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/skeleton-n4-Q.json",
-      "bytes": 820,
-      "sha256": "359d8d9d2f3675cfaa11a57710ac8b323865d7a97f7620086d884eb88be18141",
-      "role": "Recorded canonical anchor reduction skeleton"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/zipper-n4-Q-q5-t7.ms",
-      "bytes": 2295,
-      "sha256": "db9083a5bd0462bcc5e60179427ca4050c436ad8a79e7dea3ae91c2ee2c2ac01",
-      "role": "Original bare 31-relation canonical anchor input"
-    },
-    {
-      "path": "logs_and_traces/reproduce-X3-zero-transcript.txt",
-      "bytes": 8598,
-      "sha256": "cbd2ae4e613b597a20a0f63a39f4fb9842c5ef606875a8652986ccd2edbd291a",
-      "role": "Historical corrected 31-relation production transcript"
-    },
-    {
-      "path": "logs_and_traces/variants/square-zero-n3-regrep-qt.pkl",
-      "bytes": 8466,
-      "sha256": "fc727a8cf28d85bc8e88761657876de73cfa271a362ad56a1824d8380ed4ca5e",
-      "role": "Exact regular-representation matrix data for the square-zero three-strand experiment."
-    },
-    {
-      "path": "logs_and_traces/variants/square-zero-n3-traceform-T-qt.pkl",
-      "bytes": 32533,
-      "sha256": "3d8b958963d149d5b6d3b3f7d269297843f9ba525f095e963aed590db2fcabb2",
-      "role": "Exact trace-form matrix data for the square-zero three-strand experiment."
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q10-t11.ms",
-      "bytes": 2389,
-      "sha256": "f2d57e96598ecf6544ae97db4f88f2b37876ddd7c20ba759024dc90fac6df1dd",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q10-t13.ms",
-      "bytes": 2392,
-      "sha256": "456ec80a49546a99f5d49e60997f5958a1b44bf15212ef025f4716647dd6e853",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q10-t17.ms",
-      "bytes": 2392,
-      "sha256": "6927eced2250214a877888b073dada8def49d4d42a468fc4719bcd8f991f5db0",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q10-t19.ms",
-      "bytes": 2395,
-      "sha256": "70e6ddfa7621183adb9e14277111a0c1a374e8e9bf0b5f1c57fc18109bfef8dc",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q10-t3.ms",
-      "bytes": 2386,
-      "sha256": "6ec7e949086e8aa94a72ee58291e3feb438c84a1ee7ad03adde09c214daaac64",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q10-t5.ms",
-      "bytes": 2386,
-      "sha256": "876f569575e1215d07cd2b70f00d9545b6f9b8ba6cdc882295fdc6f449a5694f",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q10-t7.ms",
-      "bytes": 2386,
-      "sha256": "6c2b442be853f757267d1e01a43159012c19a6ee47ce898433a82e766cc7b35d",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q11-t13.ms",
-      "bytes": 2430,
-      "sha256": "6d1f81612d9ac86c3257bf80b55a634dbae9b05961790cea7ae4d01f6bf322da",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q11-t17.ms",
-      "bytes": 2430,
-      "sha256": "38c2f335f2b9a96928364b809e50e7c06b46262c9c1c00d4b1b148f16e3aea5d",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q11-t19.ms",
-      "bytes": 2430,
-      "sha256": "63c597164dec7ee99e929f66f48f2927e8db81b51ff8422bc917182a7c4974a3",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q11-t23.ms",
-      "bytes": 2433,
-      "sha256": "94e0f26490cc0b05a0c81e98f0b9e9f904fb8b9589cc4657f8fdaa156eb2fbbd",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q11-t29.ms",
-      "bytes": 2433,
-      "sha256": "a1e7cb315c2063a29e9d2f569e43405d59e41e3b06bdadf3c5eb0bfdf15f2fef",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q11-t3.ms",
-      "bytes": 2424,
-      "sha256": "e301c2c782e1e77a282f80fc10753a50ff500e080cdb373f1b65261f9e6b7e16",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q11-t31.ms",
-      "bytes": 2433,
-      "sha256": "3179bedca71832b3ecc60739d254159ac5b888387015699a82ed579cb288d2c4",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q11-t37.ms",
-      "bytes": 2433,
-      "sha256": "ec9993124f2b9cf6b64a8011747e7e9f7e33ec70466e2b2f010596257a42c77f",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q11-t41.ms",
-      "bytes": 2433,
-      "sha256": "a70fff2895cd7ebe5ed41c2d157541b380dad57a361fafb311ef0d4c4a0b6740",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q11-t43.ms",
-      "bytes": 2433,
-      "sha256": "7ac374fc2f74690cd2bc93a21a10455d80ff853716c38af76c4c3b08b5e2a312",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q11-t47.ms",
-      "bytes": 2433,
-      "sha256": "dff0ff15648a5794a7ca1c186d82775f0e60b678eb7780af95b578ed94a05885",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q11-t5.ms",
-      "bytes": 2424,
-      "sha256": "b4f0f5c40f6286f25c03e38e06a5417d766e992018958b28dfc92d28a502e886",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q11-t53.ms",
-      "bytes": 2433,
-      "sha256": "cf77ec02d441ad56fcac5b66b445090b41d7ecd5a547aafd5a6bbf714e9a1170",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q11-t7.ms",
-      "bytes": 2424,
-      "sha256": "6b88a2adaf639dcb927f2d65c1b8ba2335dcc13b3fccbfb2eda137118243b5df",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q12-t11.ms",
-      "bytes": 2415,
-      "sha256": "4e26bc01ee90d35c2b2be42c46649f0fd925ce7ded84c85c90a5751d2fca0296",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q12-t13.ms",
-      "bytes": 2430,
-      "sha256": "5124f073fc7e51427947525c02aa3b29677abc570db4f22e1ffe5d76197689b5",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q12-t17.ms",
-      "bytes": 2430,
-      "sha256": "72ea87205b6090c9da967a493537d3663465a7b6d9f96569e2d46c6ff938d89e",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q12-t19.ms",
-      "bytes": 2430,
-      "sha256": "6a8da40ee80cf981847f236f75acca66db5b3431f862e3a69ea5d16092541fcc",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q12-t3.ms",
-      "bytes": 2424,
-      "sha256": "a880fe17fdaf594deb6cddf7c9ec8c2e539918cb9253c043145faf7182aba744",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q12-t5.ms",
-      "bytes": 2424,
-      "sha256": "377782320bc3ccda4dd4a885e6d65859791663f3f2a3a00326563c53590f7155",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q12-t7.ms",
-      "bytes": 2424,
-      "sha256": "6be91937d253adc9e44313c8f284bf9a7e6e22ac1e47dce5bcc1b313ba60e48e",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q13-t11.ms",
-      "bytes": 2425,
-      "sha256": "ecc8c513c6efbb72763277df32c037dbaf0ca1a380b8fb3c8eba6889960a9fe1",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q13-t17.ms",
-      "bytes": 2431,
-      "sha256": "cf0a2af8d2703c375afd7618a45655ab90940377f57aa73349286cb335ad165a",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q13-t19.ms",
-      "bytes": 2431,
-      "sha256": "7d91109fd177fa0191b7a891d5a9ac22492349e65289aa31406a032bc23eb746",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q13-t23.ms",
-      "bytes": 2434,
-      "sha256": "64ca356d2b5aa49dc10d54cffad0a86ca2f211c55aa3fc1a80d2ad89af5c852f",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q13-t29.ms",
-      "bytes": 2434,
-      "sha256": "1cf3fcd9f36371daecdd2cf1f2ab758655b109a94f307d2016eb3040077964b0",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q13-t3.ms",
-      "bytes": 2425,
-      "sha256": "dc9cfabdff60f9b61b4b6ff02fe3a21558ec14797c233fefd9ae2460ea4dca82",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q13-t37.ms",
-      "bytes": 2434,
-      "sha256": "bd19a62a0376ccdf21baf59636c8a0a1baedd65297dec112000419c1a6102f67",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q13-t41.ms",
-      "bytes": 2434,
-      "sha256": "4cb2b118a7998cde6bf8418510c130a69daf19a22767539dac052e5356af3c20",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q13-t43.ms",
-      "bytes": 2434,
-      "sha256": "2147669a13d1dec0982403bfdaefb895bdd96ce15ad826e55643a072dd10c556",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q13-t47.ms",
-      "bytes": 2434,
-      "sha256": "72c0989479b770f42b8b9aaae5df3a1b36aca94cd793fa13779943c9410674b5",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q13-t5.ms",
-      "bytes": 2425,
-      "sha256": "ee2c8c6e3e76a92985b9ccd9c38a5bf6ac090235426384a63b2738ad32ce283c",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q13-t53.ms",
-      "bytes": 2434,
-      "sha256": "76b143a152a01319c90f58598cebde2929237e5c6de13283ac1dfb1bce466070",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q13-t7.ms",
-      "bytes": 2425,
-      "sha256": "8c6f44e4edccc2150e2cd7d064b0cae5b48190cf2ddeaf1a56120e9c455de98c",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q14-t11.ms",
-      "bytes": 2434,
-      "sha256": "dbee2288487d403a6a1dcd3943b327f6e0ae9dfa30bf1ab9fd3bc0be3e3ab071",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q14-t13.ms",
-      "bytes": 2419,
-      "sha256": "e076590787bc29079646889ac0bc360de49389ccba1678ebdecf2d0e1c8b026e",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q14-t17.ms",
-      "bytes": 2434,
-      "sha256": "409b92cddadeb25d8d293301d54f6aa914a8be859de946fdb538cea3626ad53d",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q14-t19.ms",
-      "bytes": 2434,
-      "sha256": "69d25110cacda2a90bf4273a93881a9c42297585ba95edbba859b265e04645fc",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q14-t3.ms",
-      "bytes": 2431,
-      "sha256": "8c336771fb7e2aec0bc5e2885c300f0a243a29870b1f2817e492fb5f2fbb7778",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q14-t5.ms",
-      "bytes": 2428,
-      "sha256": "b655136511507c80e6d77eb0a5c1c5992996e5aae8bce1bba8ca6c37c49c190e",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q14-t7.ms",
-      "bytes": 2428,
-      "sha256": "8ebf702fc9a657e79b54696a83acbe8211dc64806ac31a8e6a9b8fbc6a5e97d4",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q15-t11.ms",
-      "bytes": 2440,
-      "sha256": "1f1e244d912a3f9c399d1f04002924386b5c6808d17bdd1fd19a7c51cf13f93c",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q15-t13.ms",
-      "bytes": 2434,
-      "sha256": "6f279ec68f4f86caa9a1d8c1900ac278fe1739a7263188f2e095194d97750942",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q15-t17.ms",
-      "bytes": 2440,
-      "sha256": "d1c35543cc8bfb83fce45245d754c1729e161483bb4d78de1bf7e210e4846aaf",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q15-t19.ms",
-      "bytes": 2440,
-      "sha256": "461d2976ff00779da174b44addb1cf7fdb160bdde62c744f963cd1ff4ec3f63d",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q15-t3.ms",
-      "bytes": 2437,
-      "sha256": "e13fc80418225a4dcf147a8e4212c2a76408ac1db3c8c1605bb5481163e14002",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q15-t5.ms",
-      "bytes": 2434,
-      "sha256": "2ed6b03b3abafd8099b20dc44e90f17148993d0b6c208c2caa55d57d3f3e3dc1",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q15-t7.ms",
-      "bytes": 2437,
-      "sha256": "05468d6b8f6f2b28112de32eae2206dc8a9a80bfd446120132793077f2c704fb",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q16-t11.ms",
-      "bytes": 2446,
-      "sha256": "4e5c9389c61e0303061405c86bbb2d9c52549e6e763bba3fa232bbbba009bb36",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q16-t13.ms",
-      "bytes": 2446,
-      "sha256": "f1913030fe8850c2d52b7407cb822311f8c425b5e2c1772f25d793d57a3b5481",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q16-t17.ms",
-      "bytes": 2446,
-      "sha256": "09d47e1a787f8568451a8944900695dd9ce5637dfcfa2a6177950b3ddf080b99",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q16-t19.ms",
-      "bytes": 2446,
-      "sha256": "5416386ee52f9b9a059d0ca193cd7b13e90024cb73222d2d6fd2e091e58cec11",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q16-t3.ms",
-      "bytes": 2443,
-      "sha256": "038b11f2925b1fa5bcd562a392ecda77cbae7288482a70e33d66efb55c198417",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q16-t5.ms",
-      "bytes": 2443,
-      "sha256": "17abf41f4ceb33c52157934bfe4f5f410eefbe1cf2424b2d1d660a321b94c1fa",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q16-t7.ms",
-      "bytes": 2446,
-      "sha256": "5b51bb5545bea659cbefeafe9fbd36096e16e2fed705670fc1ccdef3208c7f62",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q17-t11.ms",
-      "bytes": 2452,
-      "sha256": "a1267503b78c9e3deef6dcc93d8291163fd3f08bd5c7b13e8247ced8f47a851d",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q17-t13.ms",
-      "bytes": 2452,
-      "sha256": "f8abe0027e908a0b616aeaed4463decd0678fa2a80bd5eae34d76141211e3154",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q17-t19.ms",
-      "bytes": 2452,
-      "sha256": "b667bd5f5491fa319f63b10dcdf7c924d50ff2b9b27f0e97cf76ad3c5610591a",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q17-t3.ms",
-      "bytes": 2449,
-      "sha256": "86f9347a2edb126d5095ff59e32d338e59f347c86faad0f8c49e43e64182dce4",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q17-t5.ms",
-      "bytes": 2449,
-      "sha256": "0c3ab4ab6adbf45f407980ae2aa1aa9e620cb153e0a72cea12a3a8de953cd992",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q17-t7.ms",
-      "bytes": 2452,
-      "sha256": "22732a231ea9c53f64527634eb466e0fb55a9179818ae4e3db250553d71c347c",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q18-t11.ms",
-      "bytes": 2459,
-      "sha256": "9aaaef83e2becd7b1f57722af63cf093e82f556b22657f4c6b5e5b47e27fc3ed",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q18-t13.ms",
-      "bytes": 2459,
-      "sha256": "08cf80196efd6d497f2144b6859cdf2539fd3a03df3dd93c20444fb8b53f0d41",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q18-t17.ms",
-      "bytes": 2444,
-      "sha256": "d42d94f1090aee85ffdc96636449fdce960b04eaf4b5d6f5a97529a55c5ada2f",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q18-t19.ms",
-      "bytes": 2459,
-      "sha256": "1bf5bbbad8351eedf93d709101519ff2f91adff7d9678a62cf1bd8dcdf13214d",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q18-t3.ms",
-      "bytes": 2456,
-      "sha256": "f9f0d53164e6ce84e439c22b9905caf97cff4fed061bed179642b4b3d3459498",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q18-t5.ms",
-      "bytes": 2456,
-      "sha256": "95dc26ff0a8fde93ea8c87248abca12002c11fa02a7cf1a08574df22f35d541f",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q18-t7.ms",
-      "bytes": 2462,
-      "sha256": "e072db8bee3fb7862b96263ca73d33b4217cd03fabce8c8e5a400ad54960969c",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q19-t11.ms",
-      "bytes": 2461,
-      "sha256": "eeb769f98a93d4bcb4e1ee0f408ac314c6b7a92da8dfc5d0b9c16ba58f5e5d6f",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q19-t13.ms",
-      "bytes": 2461,
-      "sha256": "c298918c50a231cb10e44d241b76091d1913f1d952d8a12dc91e46a4d4e7371a",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q19-t17.ms",
-      "bytes": 2455,
-      "sha256": "c5b80ee138e82a62a24d74290711b19ca9946f7da050738302214e47b531449c",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q19-t3.ms",
-      "bytes": 2458,
-      "sha256": "745de174d4afa876e9fcb6f1d22ca3d35b9c6f29c0a222b6765389347cd546cd",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q19-t5.ms",
-      "bytes": 2458,
-      "sha256": "fa8fb20f20def18ff87c1f5aeb4d755a8ba9b74c59687127911be0bd1910baf0",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q19-t7.ms",
-      "bytes": 2464,
-      "sha256": "648b47fa9159aceaa68680777ab1dae6a8933e6a02a94416c248e0ec88269550",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q2-t3.ms",
-      "bytes": 2145,
-      "sha256": "7f693149249bdc455d3386d3aae6576c9d4a8d8321c802c1cbe687e50cd9a864",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q2-t5.ms",
-      "bytes": 2148,
-      "sha256": "be9d9a9f1007f7ce1835dccfeb0ca6cb91f0e63e6b9e3fa98505eab4316bb3f1",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q20-t11.ms",
-      "bytes": 2463,
-      "sha256": "aec461c4c88d181d3e9f83344c18b807df7b4d3f452c627b2fdb5bea85d7cb67",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q20-t13.ms",
-      "bytes": 2463,
-      "sha256": "46a0120c2d59e28352400ace7a98cbee6a58afe8d81309a150c302b6e51cb3e9",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q20-t17.ms",
-      "bytes": 2463,
-      "sha256": "98a307f928cacf7185b27d63fadc0d9b653916116c50982e0cb46bb76a795466",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q20-t19.ms",
-      "bytes": 2448,
-      "sha256": "02e127204efc32378987567d7ca91ee8f4123d9fbce050faff11ab5a6781e41a",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q20-t3.ms",
-      "bytes": 2460,
-      "sha256": "7c06d4b3d9161eca97bd6121b43dd7d01b350310259a01a5a9bf1bed26e239d9",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q20-t5.ms",
-      "bytes": 2463,
-      "sha256": "3b7b68a8db360ae475360c878cb20cbc61a6974cbdf8f4a8596399df9951c5f4",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q20-t7.ms",
-      "bytes": 2466,
-      "sha256": "8c2badbd7caf235d720f619e4c33205f9348bf6c8a6c0a0029c97d0e5fa13c52",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q21-t11.ms",
-      "bytes": 2463,
-      "sha256": "43630e1e028916c75a43e1641dc7a17b1d9d5bcb359853b904ad218c4a2bbf60",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q21-t13.ms",
-      "bytes": 2463,
-      "sha256": "8694a26c42860a1c47de6e7abf38c8ca199b3180ca834b5dac24aa141b6cc41d",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q21-t17.ms",
-      "bytes": 2463,
-      "sha256": "2a6d584a02a0da2a6d0ec5986656abceec60ea9eeb163822110ba86d9b30fb6a",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q21-t19.ms",
-      "bytes": 2457,
-      "sha256": "924008eca183f866505ffe7f3bb896722a15d97093f4367ca1ae877df456d0c8",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q21-t3.ms",
-      "bytes": 2460,
-      "sha256": "7a123d26595868513aa3226e9f21463d64737598b2a66ea6053eee74d9b2a46f",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q21-t5.ms",
-      "bytes": 2466,
-      "sha256": "6fce1b077cc988370142b6f9c9244cd27d4b3e77e702b709668074b230d8200c",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q21-t7.ms",
-      "bytes": 2466,
-      "sha256": "3469d7a0807a491f50402ba10a929dc76c373540ffb45fce0bd5ae5c2160a869",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q22-t11.ms",
-      "bytes": 2493,
-      "sha256": "833b3c352a62be4d22739c7cac4def200fb33915fd50f63b526a58e9916744e2",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q22-t13.ms",
-      "bytes": 2490,
-      "sha256": "1419094f948f38be2ff89a70ed1d510685b562510aae0b45390263ae3707839b",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q22-t17.ms",
-      "bytes": 2490,
-      "sha256": "ded19bde1da1bb277e5f7a40aa54c90ab78a58e6b0de92edeae5f5808d794f49",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q22-t19.ms",
-      "bytes": 2490,
-      "sha256": "2e6bb82ed300d90f71e60dac4e1064e22351cbe56485747f99df5e4e6b480114",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q22-t3.ms",
-      "bytes": 2487,
-      "sha256": "175d3607e9d49a4f8f5682aacad13e8d01c56b5a29885812b121fefe539781dc",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q22-t5.ms",
-      "bytes": 2493,
-      "sha256": "48d77c620dcef896695a4174b9ee653574dfe129ef5735fa976c285b0d9cf175",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q22-t7.ms",
-      "bytes": 2493,
-      "sha256": "59793cf1ba3d2666ef949065675a7ccbb0bcb6481561323b1b427c59b47c6045",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q23-t11.ms",
-      "bytes": 2493,
-      "sha256": "41094e92a70e7268a8dd91b2628336f2515bb4ce9b04778618581883124b9a2d",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q23-t13.ms",
-      "bytes": 2490,
-      "sha256": "5343cc173b9c53fe4998784db7bffb7c4e20408f6f38aac006b2f31761e28ad9",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q23-t17.ms",
-      "bytes": 2490,
-      "sha256": "14d4cc691c993e084aaf51d05930c1acee6e57eeef883813aee33186d4f39b6e",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q23-t19.ms",
-      "bytes": 2490,
-      "sha256": "a011bea20bb50c19a132dba4ffa0cbcc40dea3d68fdd8007805a404e17ac8dc5",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q23-t29.ms",
-      "bytes": 2490,
-      "sha256": "f98f464f00d4f1a094cfd2ff3a38046d3306881023123487ea50e0d19a7a0d56",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q23-t3.ms",
-      "bytes": 2487,
-      "sha256": "3fb99b12d54dfec8199011188fb812d4b7df9f7a9de18fd86580d126ff59e870",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q23-t5.ms",
-      "bytes": 2493,
-      "sha256": "26d69647a52821176aff7514385f816bf42b3fdbe4e210ba84bb1ae54df9f040",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q23-t7.ms",
-      "bytes": 2493,
-      "sha256": "4efc4c9ba78b12bc85008105fbcbfc276c0c68330154dd02c19bfd7ad7cd81a8",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q24-t11.ms",
-      "bytes": 2494,
-      "sha256": "18e43dad3c2aeac33d4b87973f39418801c04d7ea09a94fadc20aef58cf82893",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q24-t13.ms",
-      "bytes": 2494,
-      "sha256": "69ae5326edfc024e97804cb56f49633880b03300d7b23700c274b7d71ac0de68",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q24-t17.ms",
-      "bytes": 2491,
-      "sha256": "f1e06688d90b935e345a51d7553b4fda79e5146993c7192554b78226d89830d3",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q24-t19.ms",
-      "bytes": 2491,
-      "sha256": "7f80a9976e94a21abc7b8b8924a53bf9cd59d0b6f50c9adb3460fced2b3ae895",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q24-t3.ms",
-      "bytes": 2488,
-      "sha256": "cdb42f6946a0a3c59edbf9e6d8e5de7e8be198535e0f37a6f8e8913e0fc40a1d",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q24-t5.ms",
-      "bytes": 2494,
-      "sha256": "a8c799ef7110ce736c66a9b377c680b6a7a851a74ccadd8c741e88a2575c2a5b",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q24-t7.ms",
-      "bytes": 2494,
-      "sha256": "2240759db3f2f43cb11c2d6ee5d9b671f06f20675df784248f86dd9ca7efb015",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q25-t11.ms",
-      "bytes": 2494,
-      "sha256": "d29b4470f65c71790a9c0a1aafeb58a4ec2a77bd1644c74f5f0ba0a14482015e",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q25-t13.ms",
-      "bytes": 2494,
-      "sha256": "2276ff5b2cb4d2cf050dde7d4bb7748d86f43c98b3c113c7bf668c51f1cdc313",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q25-t17.ms",
-      "bytes": 2491,
-      "sha256": "b82bce72fa03c6f540974338f3fdce70e5c53715574a6137cd21615e77eb9d80",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q25-t19.ms",
-      "bytes": 2491,
-      "sha256": "5394229169eb97557e9e7cb1be32b23ed2381a85fccc33af5b188d6766d5eb86",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q25-t3.ms",
-      "bytes": 2488,
-      "sha256": "2f88b5c6fbdadc9cb7bf90a31801e8dd3fa765e5c307e95c5b38c781774f3d6e",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q25-t5.ms",
-      "bytes": 2494,
-      "sha256": "97b0cebf072a6cf0209b4499d115c8a71e9aa4035ea9f799238e38e0696d7e83",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q25-t7.ms",
-      "bytes": 2494,
-      "sha256": "d8a4a36c7098647fdd12018fda1326464ea19efc92d94cf3bd3449b35bc78181",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q26-t11.ms",
-      "bytes": 2504,
-      "sha256": "701542b0ac5941373a6f623a3c3adc22c096abaf503422c2ab14e8f9b99a5dfd",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q26-t13.ms",
-      "bytes": 2504,
-      "sha256": "f994d0462419563857c4098ddf1c210a4ea84b5b67d1940d8e639b91ba977787",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q26-t17.ms",
-      "bytes": 2501,
-      "sha256": "b7e4f6ac52f6bb7a3f48bcf33de07522e2fd04014450646d337299183e4dc2bb",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q26-t19.ms",
-      "bytes": 2501,
-      "sha256": "2607b4dff567f30408ead238cb15530fd69170e75cebf866545cfdc2488a1af2",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q26-t3.ms",
-      "bytes": 2498,
-      "sha256": "c60882be931b11f9f9ac694d2712e6b0fc0bfbe5911b6d79360ba86c2a1381fd",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q26-t5.ms",
-      "bytes": 2504,
-      "sha256": "ec39d6882fbd6ef6a6337086f37fdfedf63d03a3684637e7ee03a176465b8394",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q26-t7.ms",
-      "bytes": 2504,
-      "sha256": "1a57163962d86d90590a70617703f94b0fa1f5de94e343c803f5c7a680f8ee37",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q27-t11.ms",
-      "bytes": 2506,
-      "sha256": "12d2ed44135a4d8083dd39d6470a7f9125b0711a28d98d2363ce264504a6c6a1",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q27-t13.ms",
-      "bytes": 2506,
-      "sha256": "9f9f3e224e130749ddc0a90728f1fa2a041b7afa0cdcf728eda338e30297a7cf",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q27-t17.ms",
-      "bytes": 2503,
-      "sha256": "6512d9f50112edcee65b91bbf4520306198b84a21452da2e40e5f69666f76188",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q27-t19.ms",
-      "bytes": 2503,
-      "sha256": "ac6c188e2a4d08ad3fd6add446c39e00fd4ed002f1dc02ad09509be75bfb7ec0",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q27-t3.ms",
-      "bytes": 2500,
-      "sha256": "bdd2b8a560203f91ded57f45f6c6cb96f5ae6120d7918e8597193aec9e7478a2",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q27-t5.ms",
-      "bytes": 2506,
-      "sha256": "370ffc0370e4f1a8ac1bce59f99728a30ad40dc8549ecebbede9b8bb9799885a",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q27-t7.ms",
-      "bytes": 2506,
-      "sha256": "0f4dd05220d72d3c48d84e2539cdbef41d81d0f83cd23ad5ea17e9bd07719ae0",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q29-t11.ms",
-      "bytes": 2508,
-      "sha256": "8b4a9b546c34c2c8c848b5ff4c50327357fc2b0cf273baa1b329e8f19a1dcc1a",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q29-t13.ms",
-      "bytes": 2508,
-      "sha256": "a1235c7254f542194e36e054abe2007d1c4824ed66f257798f71c3e04720f39e",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q29-t17.ms",
-      "bytes": 2508,
-      "sha256": "a052bc7d4f0bb0c38c2eacd15d6f0ac2f75c6a3a8b49c36c9f2ea8cb123485db",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q29-t19.ms",
-      "bytes": 2505,
-      "sha256": "f409f0d397f1a865e0f914bf7e17f2d7417ca65f5ba8a32adb54b24eb3036526",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q29-t3.ms",
-      "bytes": 2502,
-      "sha256": "ba929367099549bf433b10091575adb46ce331cbdde29f24d02422e2d5e9dbc2",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q29-t5.ms",
-      "bytes": 2508,
-      "sha256": "fd89593ba6ceee621a126dafeae7b42ab971d315428e1787f7eaa402954cc23e",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q29-t7.ms",
-      "bytes": 2508,
-      "sha256": "f34832a7af246b3a720e51bec6bd37d2ad76313f58548697e2338ac03772afd8",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q3-t11.ms",
-      "bytes": 2218,
-      "sha256": "92d2bc0876e1f0c99d64a8afbcef5a2d3139e1314ecce72bcb07da148188e46a",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q3-t13.ms",
-      "bytes": 2221,
-      "sha256": "2bd1aa14b7e85f9e82964f8827b328065d29f5ecf19cde82697a5754ec4c52b3",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q3-t17.ms",
-      "bytes": 2221,
-      "sha256": "fb7af606bf0709d77378a2b2a82dcfeb5ba8f1e7d4136b9acdd7c9897c8509ef",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q3-t19.ms",
-      "bytes": 2221,
-      "sha256": "cfea87b6b13b66948f2d08a0e0202e9e318a93b2f604408352164aeccca97d2b",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q3-t23.ms",
-      "bytes": 2221,
-      "sha256": "2359efcdc8cbdccef211dff0eb9beb9959707750a33d2da2e0688d11137ef630",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q3-t29.ms",
-      "bytes": 2221,
-      "sha256": "fb8d56afd6505b2f89f1be92a69b511b6fca98b384a160b4162787e662500dd8",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q3-t31.ms",
-      "bytes": 2221,
-      "sha256": "d4d2152a8de70d721f843f4dbed935b1a94aa8a0d256a89771097ede381ebd02",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q3-t37.ms",
-      "bytes": 2224,
-      "sha256": "a4f3a968db44d41adebbf20011092c5b8843c5eadf1f4295706bc9ce8efbc4d2",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q3-t41.ms",
-      "bytes": 2224,
-      "sha256": "c3ad991066e4082d32da75f329b6531d7b4fc2b0258eb61b395e282614ae301d",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q3-t43.ms",
-      "bytes": 2224,
-      "sha256": "46e8cb6a0bb8673438489007b99d06e2262d1adecf9616c7b44d85ad62a84040",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q3-t47.ms",
-      "bytes": 2224,
-      "sha256": "bf5d4778758c318221c601997503c0c148c865f05dc13af7b685253156426938",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q3-t5.ms",
-      "bytes": 2218,
-      "sha256": "0879277c5fbaf9653c73c7ccc493be0460147a6e4cae0c31e222c1544e98ad42",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q3-t53.ms",
-      "bytes": 2227,
-      "sha256": "baca8f98150e222b53987546389e9eea2ad0fe2d3b6c9f783d0df7959f2cc796",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q3-t7.ms",
-      "bytes": 2218,
-      "sha256": "8726bf84debfa9d97016cbb5df71c437d0bff9adc476e0505dd1a552681f47fb",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q31-t11.ms",
-      "bytes": 2508,
-      "sha256": "dbf5ff98abf490587ae8e41048e9a38997fd1bea03344ffef01481bd4df93def",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q31-t13.ms",
-      "bytes": 2508,
-      "sha256": "b05ce90bcdc9215006f736f9db0c2b076ba28b1c06b6da2d8e228982e14d5316",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q31-t17.ms",
-      "bytes": 2508,
-      "sha256": "7e7babb4a6ffd1572a21e7782e9a40ecd427f1b41daad6cc20f26b5d8e1232be",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q31-t3.ms",
-      "bytes": 2502,
-      "sha256": "1c8835593dfa5a8a54ddb2f798d62420920aef5996fae0ee9da3b33239a24ee1",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q31-t37.ms",
-      "bytes": 2511,
-      "sha256": "b7144bdd1df5b668f52535f268182758932417275617674f2b3551ae21832667",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q31-t5.ms",
-      "bytes": 2508,
-      "sha256": "2d65e3870b01976b7ee0e7faddc1436efc902823798700b39e62e389a91ae6cb",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q31-t59.ms",
-      "bytes": 2514,
-      "sha256": "689e66a62e2ce8feba1399751b5125288d96c62907f166f3d913cbccba9ae4f4",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q31-t67.ms",
-      "bytes": 2514,
-      "sha256": "31a5cfcc57c6dccb950679fc8761a24a9039d236147a95a42dd9c8aa606bc8e5",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q31-t7.ms",
-      "bytes": 2508,
-      "sha256": "eb5bca8e08126889f24811021e129b798dec3b1f1531204ba7027a5ce575892c",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q37-t11.ms",
-      "bytes": 2545,
-      "sha256": "76a2feccd87378ef6df32f4f87da0413d3502955e908463f558d2178a9746dc2",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q37-t13.ms",
-      "bytes": 2545,
-      "sha256": "341f58d1b9557b4162175df11f512df028d1e970fde7bd71542dad5ffdc372f4",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q37-t17.ms",
-      "bytes": 2545,
-      "sha256": "9e5372ae6693119840a80ad30bf12ed70233a870c71a3857deae8d22c66a80bb",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q37-t3.ms",
-      "bytes": 2545,
-      "sha256": "6873b1933412cc1929fb7fbd0f3a9bb674cb9d85ad4662507c38079c2e3b26f5",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q37-t5.ms",
-      "bytes": 2545,
-      "sha256": "37225c39743907bf9f293bf69a68cca660d2d16f5d0f1e262ef5f93f803cfd20",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q37-t7.ms",
-      "bytes": 2545,
-      "sha256": "77dfd391f5bbc3baf057fc58552567131a2015ca90b413fd1e3f0381afcffed2",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q4-t3.ms",
-      "bytes": 2243,
-      "sha256": "a70c7bad28474dba2b00b7b7a1aaf7f70ecefc782e0b67cbc89dac060bca58c4",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q4-t7.ms",
-      "bytes": 2261,
-      "sha256": "2269742207760977a592f4bdb551610fe53c52edbe018890eaffb4a5da94c62d",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q41-t11.ms",
-      "bytes": 2557,
-      "sha256": "cb1f1dc0e3655a243b22c527aa304578c56ffb29f7844806961320f967f509f6",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q41-t13.ms",
-      "bytes": 2557,
-      "sha256": "a43e6cea127704047cc69a061dc908c3d0b5a8ad0e1f0dc6c40ad0a66cff5c7f",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q41-t17.ms",
-      "bytes": 2557,
-      "sha256": "a70afc5943c2b82098f064f919224941871816151db7a3944d9d845c87284f8c",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q41-t3.ms",
-      "bytes": 2557,
-      "sha256": "c357e24bcb8afe60fcd84d2faf69c697f74c1a91c4bef7f5fea780e1a1c2cd35",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q41-t5.ms",
-      "bytes": 2557,
-      "sha256": "923f651b39cdfcdb0d96b7e44b2fe197b509ae05befef99d1a3c090e8c1a963d",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q41-t7.ms",
-      "bytes": 2557,
-      "sha256": "0897def0da635b88f7c103cbc733bdb8338c95e2ebfc1e3516c902ef89fd3d43",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q43-t11.ms",
-      "bytes": 2558,
-      "sha256": "63c325ecfc6b01c07a8f546d95447c617c588daa8d3f9afe970db03df5154826",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q43-t13.ms",
-      "bytes": 2558,
-      "sha256": "1a8aca89ab330dac9a4d25790354c3c3c0346bb558c944a93852ad6475857997",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q43-t17.ms",
-      "bytes": 2558,
-      "sha256": "99686b3391eb938c2ce25ab0e9416094ca4dcde9241e5d4a86750df864371fe8",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q43-t3.ms",
-      "bytes": 2558,
-      "sha256": "d80b19beaed9e7e0e48f50ac7659cbc93ee1742786403f24e59933f3a67451c1",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q43-t5.ms",
-      "bytes": 2558,
-      "sha256": "58c921bb87b75cba5e54bb62cfa3cb520a7780802cb1f9381a7d65f04f0a8f67",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q43-t7.ms",
-      "bytes": 2558,
-      "sha256": "f2c028ff989a3e2a6ad140599f06b238728ca650c5109ff798cfa523cf01bd62",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q47-t11.ms",
-      "bytes": 2585,
-      "sha256": "33265da8c777b75308505dd1c8f7a1cc9006b936cc78adeab7b44006e2c6cd96",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q47-t13.ms",
-      "bytes": 2585,
-      "sha256": "0c6c9b1db1a29dc7ab2bb7139d5269e3f0ad5bcbc655ce8ca1423e20de11c867",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q47-t17.ms",
-      "bytes": 2585,
-      "sha256": "2f8e6236e54c635e041fccbaf65eb96c10a32cb7c16fec469915aa26517b100d",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q47-t3.ms",
-      "bytes": 2585,
-      "sha256": "5f7401c656a333df472609ed425f1a172d43b3369b74daae504581dccab19fc5",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q47-t5.ms",
-      "bytes": 2585,
-      "sha256": "71cd6d40119523dc9f4fc60656c064977da11577867dfcaeb53a4adf2373241a",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q47-t7.ms",
-      "bytes": 2585,
-      "sha256": "781444f508b35a7f7c4bbbe2ae0f11c77000c61843080a2f97391185d7d18a9d",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q5-t11.ms",
-      "bytes": 2295,
-      "sha256": "1de1922a950653d253bb578f07008daeaec542d0e5dfe89c239f107672df248f",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q5-t13.ms",
-      "bytes": 2295,
-      "sha256": "25b4fd212878671ba5d1e0712193267c48e0aa6c780406dfa665c034c6cec8a8",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q5-t17.ms",
-      "bytes": 2298,
-      "sha256": "8ccd767d805d0910f2583e84bad417c37431c0a5f2d7ec8b8c64e2d0b078fc98",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q5-t19.ms",
-      "bytes": 2298,
-      "sha256": "4efc90806d5aafaba5a2615f2c20643aabfce23cfc70a98f6009b09031d75f38",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q5-t23.ms",
-      "bytes": 2301,
-      "sha256": "3240f73396d4687d8ad0601e820f50f6a69867694bcc9f1109b4c7f9118cb7f7",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q5-t29.ms",
-      "bytes": 2304,
-      "sha256": "94da744c5259f2c79bc3ec550621c02dc7f6216c5539b85fa7f39546429691e7",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q5-t3.ms",
-      "bytes": 2289,
-      "sha256": "1b699258128aec13b2bf53cda55c5b15b35b9090542a68eee7e5bdde9b40c5a7",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q5-t31.ms",
-      "bytes": 2304,
-      "sha256": "af2c421d2b5a37356220e81562ded7249cdf680d41f63e8554cb4f7dd8528909",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q5-t37.ms",
-      "bytes": 2304,
-      "sha256": "bc6e03567eb4361e9f82872708132240dd5ffdb96e06faeb7d10872ec89e1cbb",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q5-t41.ms",
-      "bytes": 2304,
-      "sha256": "6031c56692151f8108ee0f885d67472dcd9a4adfc1d9baeee59122ceeaa51e27",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q5-t43.ms",
-      "bytes": 2304,
-      "sha256": "5fe4b0e642e25334310554c7426cb52ffa9882fd068d640988a51a8c69f5b383",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q5-t47.ms",
-      "bytes": 2304,
-      "sha256": "d5cac7f7dc41405ef1064e9ee8f321e5084a0e01e9d4b470d05675f2c8fa1e9b",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q5-t53.ms",
-      "bytes": 2304,
-      "sha256": "03a769286245f64a8b6a792059898f8ece341137d611cb4177aefe69e9423232",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q53-t13.ms",
-      "bytes": 2587,
-      "sha256": "c95239822ce914b586d629cf45dff94b08e324f82b25242a81f9668fc6cfe429",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q6-t11.ms",
-      "bytes": 2307,
-      "sha256": "f18cc58f5172df38b62039cec36c2b3e56bdd740312d4f7c93c704c0afee76c0",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q6-t13.ms",
-      "bytes": 2307,
-      "sha256": "e9e463e3f90104e3e89be39876511eac90222bcd09d02259bf1d443b45377120",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q6-t17.ms",
-      "bytes": 2313,
-      "sha256": "faa10918f3197cda0e65234787727702e55ff5ea1ed3596db0ec33cd3a3594b0",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q6-t19.ms",
-      "bytes": 2313,
-      "sha256": "4cb5509aed7aeb994b3afd38644119218d8f74ae64aff75ca0d7e6b2786fd31b",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q6-t3.ms",
-      "bytes": 2307,
-      "sha256": "3dfc6c75cf46c7e426c2be5a5c1788e801edc2c55b956d42615c625433e804c3",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q6-t5.ms",
-      "bytes": 2292,
-      "sha256": "6b2c94143c20c18bb135b387d002d5925cfe88addfd8d5dbfb43039b8fbba335",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q6-t7.ms",
-      "bytes": 2307,
-      "sha256": "e52bccdfafa6b31cf5dbe84ac354d19c102bdbba51244deb95c0f860e69b0408",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q67-t17.ms",
-      "bytes": 2614,
-      "sha256": "dfacf2bf6ece173e9b0f860602c60f831a1d0a955d347c14df14d4c455a2ddf3",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q7-t11.ms",
-      "bytes": 2323,
-      "sha256": "8925db4709122463cf1dd4af324bd74fa97221a81c578440e4ad38b094eec6eb",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q7-t13.ms",
-      "bytes": 2323,
-      "sha256": "c34c1819d2ea8d0eb13d83b6bd4a56edec2fe346f709822ff18098790cbe8f70",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q7-t17.ms",
-      "bytes": 2332,
-      "sha256": "3b1d655db07bff88cb134da83731525fe089cbdc93016d0d86b916ad2790aa69",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q7-t19.ms",
-      "bytes": 2332,
-      "sha256": "f2f22b40aac8a7ea0aeae86b2a5eaa38e4f1282316eb1c48f4dcf98575bf3d32",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q7-t23.ms",
-      "bytes": 2332,
-      "sha256": "85367a377b658a8018fc9943e4b8431fde66d44f4e86a7ce1acb93d857af82d0",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q7-t29.ms",
-      "bytes": 2332,
-      "sha256": "66640e1bf4e3468b9e7397e0a03c3a44997eddc9138b9c477d5d1c48bb72dcb1",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q7-t3.ms",
-      "bytes": 2323,
-      "sha256": "a06fa90aa88fc28e3cb40b982b0b1c94461437acaabf97cde7ee18d7b4ac0ada",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q7-t31.ms",
-      "bytes": 2332,
-      "sha256": "85c51703bbb040ca834af36e5def392ac8b2c21c3c7a1c3f893cd44f2ad6d239",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q7-t37.ms",
-      "bytes": 2332,
-      "sha256": "ab7e47b3db0169abb3abe9e32f52434327c5e96e25b6609627af688084f108e1",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q7-t41.ms",
-      "bytes": 2332,
-      "sha256": "fc0109b688b4482f4253ec558c59a264dfd93893f4e1576142d5e39cb4e679c0",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q7-t43.ms",
-      "bytes": 2332,
-      "sha256": "eb7089dbc6cabaa6acce430cd878f4d874490b4354f3fa0506fbe2d87a0cf630",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q7-t47.ms",
-      "bytes": 2332,
-      "sha256": "f2e20323cb19f721e7141b10d0e8c1fa7e8f79836275f0888a66a0b2cbb9d57c",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q7-t5.ms",
-      "bytes": 2317,
-      "sha256": "4c3ca588aa51a6db6c91e8b0dec9cd96a93919b2843567af6f70f38e2d079d14",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q7-t53.ms",
-      "bytes": 2332,
-      "sha256": "e6d6d34fa91c6e93728e8a8dd439e3d9260940ff21b3b4a658ab2adaafc2a954",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q71-t5.ms",
-      "bytes": 2613,
-      "sha256": "1971807a200b3103ef53af80e27d8a671719c5cd90d9a33b1cc973ab5d8faea6",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q79-t11.ms",
-      "bytes": 2618,
-      "sha256": "2b63665b142890d5ffd920a4c38035a9669bc663adc91dfda95888ea78b4c3f6",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q8-t11.ms",
-      "bytes": 2328,
-      "sha256": "f2a26ec0ba63482612fc9e7fea9dea8c0d2fbfbd8ed0b543ed7865dab4ee5c47",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q8-t13.ms",
-      "bytes": 2331,
-      "sha256": "b2c035f94d920fd71755f90e7b98ae03bb2c47e38b47dda79f2d3e4ef0d29986",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q8-t17.ms",
-      "bytes": 2337,
-      "sha256": "e901d0984b8f40667a1e6cd2a2c9ebdeab2eb7ab34bee6ded04577d7abc5e8f1",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q8-t19.ms",
-      "bytes": 2337,
-      "sha256": "6d3f1247d426a43c3da21992853fafcbf532f79ed36b1bbaf925be20a7f99b7c",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q8-t23.ms",
-      "bytes": 2337,
-      "sha256": "6738fd591c7898c2eeca60f3bda3bcbc25bb8fa4d33a0a41e009d2e1b40b9fc2",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q8-t29.ms",
-      "bytes": 2337,
-      "sha256": "26f3dfcbd9be65bc41a7a16ba564dbf8d2c87873d910e6337b311496d52dcff8",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q8-t3.ms",
-      "bytes": 2328,
-      "sha256": "890104633d9abfb13322c28d0a12122f8fc8fcc604c90d55145042e42972b462",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q8-t5.ms",
-      "bytes": 2328,
-      "sha256": "be7f14daeff22ade50455a184cdb645f2cdf07cdddb50419ffaa15eca733ac40",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q8-t7.ms",
-      "bytes": 2313,
-      "sha256": "9384b674006f46c75c7e399868583be16ede8d78d3014367ec61c028825a388a",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q83-t13.ms",
-      "bytes": 2624,
-      "sha256": "97b811d68a12e82d1ee57535a54f244afd2af672293d61139d2c09fbab94b820",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q9-t11.ms",
-      "bytes": 2328,
-      "sha256": "cdc68d2441c95ac3307bf5fa2ae5e699280f489e73fba2657b1f5ee78c0eeb08",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q9-t13.ms",
-      "bytes": 2334,
-      "sha256": "5adc27c8ed28c883a6e768853cc260115600fe9e946c2826ae15c91f23d0588a",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q9-t17.ms",
-      "bytes": 2334,
-      "sha256": "630105a9d5e812dc04f7ef4ee9a459f904187e18c977929857514ec71d6e7d41",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q9-t19.ms",
-      "bytes": 2337,
-      "sha256": "69933718c35257d9a108eccdeaeecb52c0b98601ac7eace6ea0c0f258617be8d",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q9-t3.ms",
-      "bytes": 2328,
-      "sha256": "9527bded9e528994c7e8f016854295514277036c22de3843d42c522100a0b564",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q9-t37.ms",
-      "bytes": 2337,
-      "sha256": "3e5b352e7c4c1ba6794dfa048185fae8bcca97898cef3d6f6ff248c2f66cdc43",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q9-t41.ms",
-      "bytes": 2337,
-      "sha256": "1d09e176225a11c758608647fa48effe8132ac3399e392054f1119c61a008f03",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q9-t43.ms",
-      "bytes": 2337,
-      "sha256": "8d75173bb92953e4e0ee3528f1e719e6bf5aaa8babbd153ca33bf38993f99ea3",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q9-t47.ms",
-      "bytes": 2337,
-      "sha256": "ff89e3c6ee83414cc0b575df93bb2bea3f026abefb80c3e778a1d4e5926aa8bb",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q9-t5.ms",
-      "bytes": 2328,
-      "sha256": "2a7c4244a24af5e78a39277a204205e4c4cfb64c1cb814a9f1ef8f5caa605c8a",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q9-t53.ms",
-      "bytes": 2337,
-      "sha256": "081627f27956a9da2189d4cfdf6d46c248a298369dd2d2794de9f3d4f7db63da",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q9-t7.ms",
-      "bytes": 2322,
-      "sha256": "33be8c28e2921b4a09994cad543f87631d1eec635478041f7406567dc9db467e",
-      "role": "Retained specialized solver input or reference presentation"
+      "bytes": 7445,
+      "sha256": "d5f7f50dcd2d34134dfc0809f4b65ed80f31ae0fe945c891f6321cd4ba489ce2",
+      "role": "Compact X3 transformations and checks"
     },
     {
       "path": "patches/f4ncgb/LICENSE",
@@ -3291,415 +261,475 @@
       "path": "pyproject.toml",
       "bytes": 987,
       "sha256": "64a1945b6530e0578ca105c6438b809b6db0ba322103ace604df1759b93a3d97",
-      "role": "Package dependencies and installed command entry point"
+      "role": "Package dependencies and installed commands"
     },
     {
       "path": "singular_run/x3-membership-Q.sing",
       "bytes": 3494,
       "sha256": "4aacd03122939f80480a024db9435b4b6dc0dd9c033922d5a220daaf9a6e72e1",
-      "role": "Preserved canonical 31-relation Singular reduction producer at q=5, t=7"
+      "role": "Independent specialized Singular producer for the canonical presentation"
     },
     {
       "path": "src/zipper_algebra/__init__.py",
       "bytes": 753,
       "sha256": "9bc912011f8c6d81a616efb1c2e95ccf139f0f1f5643a171da68a31f85d8bedd",
-      "role": "Maintained presentation, arithmetic, production or verification source"
+      "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/__main__.py",
       "bytes": 131,
       "sha256": "66dcae3db53d526adf05617002b18ab3e3e5fd493fda45f36eb81415d7330d1c",
-      "role": "Maintained presentation, arithmetic, production or verification source"
+      "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/cli.py",
       "bytes": 8243,
       "sha256": "7af98542ad01ee82b95959c2a672c9600588d37ee233ffa66452411a29da4310",
-      "role": "Maintained presentation, arithmetic, production or verification source"
+      "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/coefficients.py",
       "bytes": 7734,
       "sha256": "03ee4362e7089f828c5e90bfbf81f71984db29b8c3ec3cb9587d56b5ac7804db",
-      "role": "Maintained presentation, arithmetic, production or verification source"
+      "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/cofactor/__init__.py",
       "bytes": 85,
       "sha256": "5dd58dbaf04cde20a98ed3eba2cdac022dd5bb0a162acd1ed12b920fd4c496ef",
-      "role": "Maintained presentation, arithmetic, production or verification source"
+      "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/cofactor/artifacts.py",
       "bytes": 9575,
       "sha256": "c8d10e6971f9763882c1a43d4545ca7cab0202648882404e4cb57ff64388faaa",
-      "role": "Maintained presentation, arithmetic, production or verification source"
+      "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/cofactor/atoms.py",
-      "bytes": 12452,
-      "sha256": "cfc60031d6aba0c29fe49280e69f864a97f589301b1e6c11045bfc0b4f7160e3",
-      "role": "Maintained presentation, arithmetic, production or verification source"
+      "bytes": 13568,
+      "sha256": "4b1fe82851981210e24cdb9d66d2f366e25bfb8b2c69f0da4a508f5dbec6dcc1",
+      "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/cofactor/cofactor_io.py",
-      "bytes": 24703,
-      "sha256": "3b76c5eb0e9b12cae9ae462663e107cea9c3fcc7b346cca03072a1c90ac46ef7",
-      "role": "Maintained presentation, arithmetic, production or verification source"
+      "bytes": 24714,
+      "sha256": "6687760f1190a8583b1439d273a4eceb22d2edaed712f951c5f4d7b063df6dc9",
+      "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/cofactor/compose.py",
       "bytes": 22978,
       "sha256": "c0d3584f57da3dc0064fbf1720fc4d7a21803a8167aef9176ed3a6fc262d5a89",
-      "role": "Maintained presentation, arithmetic, production or verification source"
+      "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/cofactor/inference.py",
       "bytes": 13836,
       "sha256": "fe51e74992fbbc915415eeee8f85eed0c6a203cade5788aabc6fe061f035d4b6",
-      "role": "Maintained presentation, arithmetic, production or verification source"
+      "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/cofactor/lift.py",
-      "bytes": 26180,
-      "sha256": "0713595b081e96f82ba6a8ebb8cf62925aa2b060d138ac07e85e39111121acdc",
-      "role": "Maintained presentation, arithmetic, production or verification source"
+      "bytes": 27831,
+      "sha256": "66f89a0075353d38f97cdcbeb77a9b3ec5b0409d7436a079a6908899d9bda0cb",
+      "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/cofactor/ncpoly.py",
       "bytes": 5685,
       "sha256": "bcf6030869aac936b1b0e72cd513eb7e568169237f724624d0537d9e8ef5153d",
-      "role": "Maintained presentation, arithmetic, production or verification source"
+      "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/cofactor/proof.py",
       "bytes": 15450,
       "sha256": "38864770d52c84471a4b3b6c3a2ea8c60f3df58aad2c2998de6c2183ef975e34",
-      "role": "Maintained presentation, arithmetic, production or verification source"
+      "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/cofactor/skeleton.py",
-      "bytes": 9702,
-      "sha256": "be3073d0db4dc82292b94e15038be0a5f05a0ce5a0ac481d9c98f05dca280894",
-      "role": "Maintained presentation, arithmetic, production or verification source"
+      "bytes": 12661,
+      "sha256": "1f4305c405c19bc9387d644bb837dd0cd067092241265f10b190f255556de84f",
+      "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/cofactor/univariate.py",
       "bytes": 6312,
       "sha256": "7d5cb98bf3686e693f4d242ffd69a10b7405911be282aeaf41af0de18f0f9d04",
-      "role": "Maintained presentation, arithmetic, production or verification source"
+      "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/cofactor/verify.py",
-      "bytes": 12488,
-      "sha256": "e295bb5980731d4a695b66db92c62d75a7698791497d158e6076c78177fd2768",
-      "role": "Maintained presentation, arithmetic, production or verification source"
+      "bytes": 12733,
+      "sha256": "6462ab3e28e704573bce188639abe89c32959038ddba8c75cadea7ca568b2d32",
+      "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/core.py",
       "bytes": 14766,
       "sha256": "25c441e25635b84fd32dc260064030e5fabaae2cb1d86e5519bebc9355328159",
-      "role": "Maintained presentation, arithmetic, production or verification source"
+      "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/execution/__init__.py",
       "bytes": 286,
       "sha256": "e392b624ec8c94f30db96395f11a799b47ed78e268add58ef7c204b49ca18b21",
-      "role": "Maintained presentation, arithmetic, production or verification source"
+      "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/execution/artifacts.py",
-      "bytes": 7960,
-      "sha256": "ca26195db1a29be94ca390eb4d04df6937bc9d213aa899a8625e4f190ae6d99a",
-      "role": "Maintained presentation, arithmetic, production or verification source"
+      "bytes": 8431,
+      "sha256": "ceea373ee60dbafba3eee49c95a680e72dffe3be994a430c96a2fa056f459fda",
+      "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/execution/config.py",
       "bytes": 3656,
       "sha256": "e9442e7b49c15e5f870bc03eda7bafdb0d927d0b15c904aefb23c0dec4f41f97",
-      "role": "Maintained presentation, arithmetic, production or verification source"
+      "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/execution/pipeline.py",
-      "bytes": 9519,
-      "sha256": "fbae60b861eb468354679d877b53e1e627af5d81dc18d4d7cdbf590fe990e799",
-      "role": "Maintained presentation, arithmetic, production or verification source"
+      "bytes": 9543,
+      "sha256": "a66f4311524d631c6e52f454b660cd6375b2861a89d7ddd4f0a0653eed9fad62",
+      "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/execution/runner.py",
-      "bytes": 5335,
-      "sha256": "c26f1b94ce7909aa919ded6b270e24c02fd20826a5e9bdff31a0d56a666d75e6",
-      "role": "Maintained presentation, arithmetic, production or verification source"
+      "bytes": 5427,
+      "sha256": "8373d155c42f31dd9a2aa28e5d9a49908cf237ba1d9d8227fd9744c6f8c47373",
+      "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/execution/sampling.py",
-      "bytes": 5493,
-      "sha256": "26a5ce305c2b24d015ac18fd9f886bd59a7dcb1546345bb6fc2cd6bc757e11b3",
-      "role": "Maintained presentation, arithmetic, production or verification source"
+      "bytes": 5654,
+      "sha256": "d74be3e80690b5b356082551d606293f9dd70851605fac9ee94a672f9127e573",
+      "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/linear.py",
       "bytes": 2642,
       "sha256": "19344373c631853eb30d5eedc99143f72bcbdd86228ad1d52a4519b0412c36ca",
-      "role": "Maintained presentation, arithmetic, production or verification source"
+      "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/msolve.py",
       "bytes": 5141,
       "sha256": "e73669594f7dc3635ec325001677ae39758630e93cf6dec5326d3ec602256998",
-      "role": "Maintained presentation, arithmetic, production or verification source"
+      "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/polynomial.py",
       "bytes": 4748,
       "sha256": "dbfe6d85dbce8f3ed4a769de0b215d4d96b47c5ce29e99f64ff3b9598f4bbdaf",
-      "role": "Maintained presentation, arithmetic, production or verification source"
+      "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/presentation.py",
       "bytes": 9860,
       "sha256": "580ae7eb1c195c5ed6437ba92ee2256a82b19b1e85dcaddd895b0cbb34c16370",
-      "role": "Maintained presentation, arithmetic, production or verification source"
+      "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/relations.py",
       "bytes": 13168,
       "sha256": "bf40277dc037f77b7ccc86566b8337c0ed49aaa0e9f82fd9a5b226a54404d4a7",
-      "role": "Maintained presentation, arithmetic, production or verification source"
+      "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/zipper_in_ms.py",
       "bytes": 865,
       "sha256": "4c0ade92ab6e750dc058bcc40f1ee23179e905540f0a0771a3f55911df925ccf",
-      "role": "Maintained presentation, arithmetic, production or verification source"
+      "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "tests/__init__.py",
       "bytes": 50,
       "sha256": "b3c6811b8cd2d4150a2a427fb306ae4968ffc608c97a91c956b30715ae87df1d",
-      "role": "Regression, integration, reproduction or frozen implementation comparison"
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/fixtures/legacy_x3/basis-n4-Q-q3-t11.txt",
+      "bytes": 24031,
+      "sha256": "2cabea810a8cec96c6c241c5bdb04c1797b83a1e41592b854f054740acde9982",
+      "role": "Curated historical X3 regression fixture or its provenance manifest"
+    },
+    {
+      "path": "tests/fixtures/legacy_x3/basis-n4-Q-q7-t13.txt",
+      "bytes": 24798,
+      "sha256": "0a00f8bd3aed1c395b9069f8e2077643b97fae0918d73cd4aa35ebdd690a3592",
+      "role": "Curated historical X3 regression fixture or its provenance manifest"
+    },
+    {
+      "path": "tests/fixtures/legacy_x3/basis-n4-Q.txt",
+      "bytes": 24670,
+      "sha256": "3ea67767a9d2aff8dfa07bcd266dcee1038b75d8ecfd2df990b23d92422c64de",
+      "role": "Curated historical X3 regression fixture or its provenance manifest"
     },
     {
       "path": "tests/fixtures/legacy_x3/basis-symbolic-Qqt.json",
       "bytes": 75284,
       "sha256": "e8b6cf035584afd1940dcad34b87f06669321af022857d974d1fc2c7b5f966a5",
-      "role": "Immutable symbolic lift, reduction skeleton or canonical anchor proof"
+      "role": "Curated historical X3 regression fixture or its provenance manifest"
+    },
+    {
+      "path": "tests/fixtures/legacy_x3/cofactor-X3-n4-Qqt-symbolic.txt",
+      "bytes": 79023,
+      "sha256": "e2b07c73598a380f2b5ea529b00de85dc553591110e49273f3202b4e0b0d76d6",
+      "role": "Curated historical X3 regression fixture or its provenance manifest"
     },
     {
       "path": "tests/fixtures/legacy_x3/manifest.json",
-      "bytes": 990,
-      "sha256": "d7a2903fa57fb40b9843a544017091aaed5694b7c6abf2fa7ffa30736426f2e8",
-      "role": "Immutable symbolic lift, reduction skeleton or canonical anchor proof"
+      "bytes": 2200,
+      "sha256": "bd2cf75080c0799c0b2fea4c9b82b1304cea3afdd64de4d463d31707205bd180",
+      "role": "Curated historical X3 regression fixture or its provenance manifest"
     },
     {
       "path": "tests/fixtures/legacy_x3/proof-n4-Q-noex.txt",
       "bytes": 46620,
       "sha256": "def87c2ad8921be5e8a0c3e5efbf50fbd82741b8bd3f7e4593c2fb48aec7c03c",
-      "role": "Immutable symbolic lift, reduction skeleton or canonical anchor proof"
+      "role": "Curated historical X3 regression fixture or its provenance manifest"
     },
     {
       "path": "tests/fixtures/legacy_x3/skeleton-n4-Q.json",
       "bytes": 434,
       "sha256": "86fb48fcce303866288824132ef55ab5183d2cd93097b45d5c71341f625f0f3b",
-      "role": "Immutable symbolic lift, reduction skeleton or canonical anchor proof"
+      "role": "Curated historical X3 regression fixture or its provenance manifest"
     },
     {
       "path": "tests/integration/__init__.py",
       "bytes": 0,
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "role": "Regression, integration, reproduction or frozen implementation comparison"
+      "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
       "path": "tests/integration/test_api.py",
       "bytes": 1127,
       "sha256": "49e9abb67a996d3a0d86837faa56472f44393e3fd4a7e2b5b8db6e265551c8c5",
-      "role": "Regression, integration, reproduction or frozen implementation comparison"
+      "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
       "path": "tests/integration/test_cli.py",
       "bytes": 7767,
       "sha256": "037c848ae46a9ef60b3d86b4663c5dc9adb8d495ea835b0de9ac4a282a04256d",
-      "role": "Regression, integration, reproduction or frozen implementation comparison"
+      "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
       "path": "tests/integration/test_coverage_gate.py",
       "bytes": 3006,
       "sha256": "cd9d4103a2ae427b3bd599458998f755c338b65e72d5fa3c15067afc5bba15db",
-      "role": "Regression, integration, reproduction or frozen implementation comparison"
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/integration/test_example_output.py",
+      "bytes": 868,
+      "sha256": "dd2508af7ccac42edb816774afa7c60b3a6e39a048de3d594848199de93dea58",
+      "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
       "path": "tests/integration/test_packaging.py",
       "bytes": 4283,
       "sha256": "4c51f0266d2102c1a079752eed80c055c73343d45abb7ab223ed63ed862cdf48",
-      "role": "Regression, integration, reproduction or frozen implementation comparison"
+      "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
       "path": "tests/integration/test_pipeline_outcomes.py",
       "bytes": 5259,
       "sha256": "3d3fdcd8fc184577b99113bd03d2afced80338fdb7deadc68ecd73a3e5defe32",
-      "role": "Regression, integration, reproduction or frozen implementation comparison"
+      "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
       "path": "tests/reference/__init__.py",
       "bytes": 0,
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "role": "Regression, integration, reproduction or frozen implementation comparison"
+      "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
       "path": "tests/reference/legacy_x3.py",
       "bytes": 15185,
       "sha256": "bb48f86169a81341d2bf22fd1f3d2be2d84f5cb77d849512b4f14aed1a826c86",
-      "role": "Regression, integration, reproduction or frozen implementation comparison"
+      "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
       "path": "tests/reproduction/__init__.py",
       "bytes": 0,
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "role": "Regression, integration, reproduction or frozen implementation comparison"
+      "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
       "path": "tests/reproduction/test_legacy_proofs.py",
-      "bytes": 13260,
-      "sha256": "720b87fef6771571c6264664f2d49d32df24bbcf48f384bdfc5ad75ec919043d",
-      "role": "Regression, integration, reproduction or frozen implementation comparison"
+      "bytes": 13137,
+      "sha256": "f381fb613d4ee028498ff2ba1a95e62741d4e1da9e7060c56ac4143e0b663c9c",
+      "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
       "path": "tests/reproduction/test_x3.py",
-      "bytes": 8679,
-      "sha256": "a46dd4598d7a752ef8cbc6af3ac384f00bf8994299c71653f3d9b106d2fc6fe9",
-      "role": "Regression, integration, reproduction or frozen implementation comparison"
+      "bytes": 8568,
+      "sha256": "3bc985c8cdca94f4fe82fe247c8046eb0a7a236dd350e2f632db33f5a50e4ff3",
+      "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
       "path": "tests/support.py",
-      "bytes": 244,
-      "sha256": "33cf171817d1e49c743056fbd6649e5d7a10f6ce774f80eb0a881185573f0948",
-      "role": "Regression, integration, reproduction or frozen implementation comparison"
+      "bytes": 201,
+      "sha256": "0b0d8695f74a57c6a09be9de3b30786d468a4f1e52c1610a7dcd0071001359bf",
+      "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
       "path": "tests/test_artifact_formats.py",
       "bytes": 16835,
       "sha256": "bd8639b80896dc1b68d3faa66dd1ad4680b06f93acb895333cf39a31328a6fcb",
-      "role": "Regression, integration, reproduction or frozen implementation comparison"
+      "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
       "path": "tests/test_discovery_pipeline.py",
-      "bytes": 29046,
-      "sha256": "1cd2c8b2dd7d4eafb1b343f5e7e620f00d293f8752a458f16979c3071b10dffd",
-      "role": "Regression, integration, reproduction or frozen implementation comparison"
+      "bytes": 33775,
+      "sha256": "b266fb1dbbcaa7a73ab48158a88ab82cfe3c6b615845cf79654dc24e4592fcf8",
+      "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
       "path": "tests/test_entrypoints.py",
       "bytes": 15825,
       "sha256": "f95f8a408eae365144bc4b159027f7023812c74992693b940b39adaa8820b9f9",
-      "role": "Regression, integration, reproduction or frozen implementation comparison"
+      "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
       "path": "tests/test_execution_runner.py",
-      "bytes": 21949,
-      "sha256": "7640f69277b7e0123b0ff88541a159e9e82975f6ebe0e9619716301665eac5aa",
-      "role": "Regression, integration, reproduction or frozen implementation comparison"
+      "bytes": 25735,
+      "sha256": "240fe7970aaa8b14b11a314266868249ace3a7f3f9d0aed5e71db7e3acfb5ad1",
+      "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
       "path": "tests/test_experiment_recipes.py",
-      "bytes": 6501,
-      "sha256": "bb7cf0e6446785f9018f47ac5e85a85aec12d1cb6681bdee026eb99cff167a45",
-      "role": "Regression, integration, reproduction or frozen implementation comparison"
+      "bytes": 7704,
+      "sha256": "b13bceaf04c24f1eb2f0ae9b72a5563018bb115ea606a779780e4ed95d264131",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_lift_metadata.py",
+      "bytes": 6279,
+      "sha256": "d95473884b069f172ed671dbc8e39070fc9a8437f6b753455d262eb462480579",
+      "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
       "path": "tests/test_module_boundaries.py",
       "bytes": 3098,
       "sha256": "1d88551def8098dbe4fb7e398ef46b51cc290112ba768eb06b529db7efc26f90",
-      "role": "Regression, integration, reproduction or frozen implementation comparison"
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_output_root_safety.py",
+      "bytes": 3065,
+      "sha256": "97639fa403da84cdeb4e88fc7e867867360972cf3fa14ef34c56b857aebe6f14",
+      "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
       "path": "tests/test_reconstruction_modules.py",
       "bytes": 1795,
       "sha256": "40bf2b67c2706ccbf91ba72809e5f070e42d01cd8073b20b8c4ec90fc1ab872f",
-      "role": "Regression, integration, reproduction or frozen implementation comparison"
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_restore_data.py",
+      "bytes": 11595,
+      "sha256": "0c8f7b64db63f6001be1575a16f0a45f0cf2bf29fa8428e3ded7d825dab7afac",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_sampling_anchor.py",
+      "bytes": 1323,
+      "sha256": "99669dd495ca7dfdb2efd439f42d5c177b3f3106840433c57dd304fcbf4fefec",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_skeleton_metadata.py",
+      "bytes": 8958,
+      "sha256": "2cce9ab678e0f5dcb96ee8196522ff2d483c92b0988bea20032f828a749ed0ae",
+      "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
       "path": "tests/test_survey_domains.py",
       "bytes": 13830,
       "sha256": "0698430b4a9024e62be7b9f9a7c46b4149ed95cfaf4634089426a49e426d043c",
-      "role": "Regression, integration, reproduction or frozen implementation comparison"
+      "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
       "path": "tests/unit/__init__.py",
       "bytes": 0,
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "role": "Regression, integration, reproduction or frozen implementation comparison"
+      "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
       "path": "tests/unit/test_arithmetic.py",
-      "bytes": 9103,
-      "sha256": "e977b61cfd45f69631f39f079ef8ac40e8e5a0ff4db6bb7cf88d1c63656a98a6",
-      "role": "Regression, integration, reproduction or frozen implementation comparison"
+      "bytes": 9090,
+      "sha256": "c5dc230e84c0470f1f1eb25c7b31c4c790b412b44b0fb97c50aabd5bcf115b8e",
+      "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
       "path": "tests/unit/test_basis_and_presentations.py",
       "bytes": 12745,
       "sha256": "92f7e011d6bcfa30a7c64782375b698f8cb048d42ec88ec159a170447cdfea42",
-      "role": "Regression, integration, reproduction or frozen implementation comparison"
+      "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
       "path": "tests/unit/test_certificate_formats.py",
       "bytes": 14067,
       "sha256": "7b2b5f330013a9fc35fd1af76ee175994c3c5eb1b3b9b80e80cbfec42c958c82",
-      "role": "Regression, integration, reproduction or frozen implementation comparison"
+      "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
       "path": "tests/unit/test_composition_contexts.py",
       "bytes": 13650,
       "sha256": "4cc05951d036677b073499e1ff9ae6e87c6b15b1bfcf4f0b348ce5670be8a748",
-      "role": "Regression, integration, reproduction or frozen implementation comparison"
+      "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
       "path": "tests/unit/test_denominators.py",
-      "bytes": 16668,
-      "sha256": "f8255dc58d125ddd21585551762b33be513feb4dc2708b856678df6f4f7faa72",
-      "role": "Regression, integration, reproduction or frozen implementation comparison"
+      "bytes": 17763,
+      "sha256": "7230800064af79f56532fb92e0104c09c92005224d72c7ae5a5da568dce638cb",
+      "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
       "path": "tests/unit/test_exact_reconstruction.py",
       "bytes": 9789,
       "sha256": "0205b331c24277bbe3c0a2e493a79f585b510abe98e70d7fb15553c6b55197b1",
-      "role": "Regression, integration, reproduction or frozen implementation comparison"
+      "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
       "path": "tests/unit/test_lifting.py",
       "bytes": 17219,
       "sha256": "28e7c34cbd5eb34026a33acf2cc3135e358d3cc474fa5863352918b68fb965f8",
-      "role": "Regression, integration, reproduction or frozen implementation comparison"
+      "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
       "path": "tests/unit/test_polynomial_arithmetic.py",
       "bytes": 14705,
       "sha256": "8319b8ff3c5099d5363502925567cb1ef364a51decf815f14b118dfede241e1d",
-      "role": "Regression, integration, reproduction or frozen implementation comparison"
+      "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
       "path": "tests/unit/test_presentation_requirements.py",
       "bytes": 2253,
       "sha256": "6e15039c814d567508e2ed0a189cdd835ac75519d05ae9196668490bafcce1f1",
-      "role": "Regression, integration, reproduction or frozen implementation comparison"
+      "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
       "path": "tests/unit/test_proof_composition.py",
       "bytes": 17863,
       "sha256": "6d6c9fbda84d0594b0437cacd9e10b4425d8716a746629d26db80d5803133f93",
-      "role": "Regression, integration, reproduction or frozen implementation comparison"
+      "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
       "path": "tests/unit/test_verification.py",
       "bytes": 8308,
       "sha256": "b6040f17e95b8de3c1343765208006bf78c606f6651af9566d31ee2709eb6870",
-      "role": "Regression, integration, reproduction or frozen implementation comparison"
+      "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
       "path": "tests/unit/test_verifier_validation.py",
-      "bytes": 8792,
-      "sha256": "892bfeb8927827bf68a566d8823dd0b7b0dc819881633b873895cd3f77da5b99",
-      "role": "Regression, integration, reproduction or frozen implementation comparison"
+      "bytes": 10798,
+      "sha256": "492164b2c628e076ae1548956ec969a82d9a20e0b598d46e230499e1e6e56666",
+      "role": "Mathematical regression, installation or independent implementation comparison"
     }
   ]
 }

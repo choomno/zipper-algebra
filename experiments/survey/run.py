@@ -5,6 +5,7 @@ records, not completion certificates or a reason to silently skip a new run.
 """
 from __future__ import annotations
 import argparse
+from experiments.output import prepare_output_dir
 import json
 import os
 import pickle
@@ -17,7 +18,7 @@ SURVEY_SCHEMA = "zipper-experimental-survey-v2"
 
 def run_spec(spec: Spec, scratch: str, outdir: str, do_basis: bool = True,
              char: int = ss.DEFAULT_CHAR, grid=None, log=print):
-    os.makedirs(outdir, exist_ok=True)
+    prepare_output_dir(outdir)
     summary_path = os.path.join(outdir, f"{spec.name}.json")
     result = {"schema": SURVEY_SCHEMA, "status": "observed", "basis_complete": False,
               "spec": spec.name, "untwist": spec.untwist, "n": spec.n,
@@ -61,7 +62,7 @@ def main():
     parser.add_argument("--untwist", required=True, choices=list(UNTWIST))
     parser.add_argument("--n", type=int, required=True)
     parser.add_argument("--max-untwist-level", type=int, default=2)
-    parser.add_argument("--outdir", default="survey_results")
+    parser.add_argument("--outdir", default="runs/survey")
     parser.add_argument("--scratch", default="/tmp")
     parser.add_argument("--char", type=int, default=ss.DEFAULT_CHAR,
                         help="trace-matrix field characteristic: a prime, or 0 for Q")
