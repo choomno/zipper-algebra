@@ -46,8 +46,9 @@ For development, use `python -m pip install -e .`. The installed package is name
 
 The original Gröbner-basis and cofactor-discovery computations used
 [f4ncgb](https://gitlab.sai.jku.at/f4ncgb/f4ncgb), developed by Maximilian
-Heisinger and Clemens Hofstadler. The original project is the authoritative source
-for the solver and its documentation.
+Heisinger and Clemens Hofstadler. The implementation here uses a minimally
+modified fork of f4ncgb. Their project is the authoritative source for the
+solver and its documentation.
 
 The certificate audit below runs from saved data with the Python package.
 For fresh solver computations, the [setup guide](patches/f4ncgb/README.md)
