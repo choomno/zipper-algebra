@@ -66,50 +66,76 @@ using braid simplification must supply the corresponding braid/inverse terms
 or use a separately specified group-algebra checker.
 
 \section{Sliders, zipper algebras and untwisting}
-The following conventions translate \cite[Definitions~2.6, 2.9 and~3.1]{thesis}
-into the generator notation used by the package. Specifying word order is
-essential: a product of inverse generators in ascending order is generally not
-the inverse of the ascending positive product.
+We use the notation of \cite[Definitions~2.6, 2.9 and~3.1]{thesis}.
+For the braid formulas below, expand each displayed abbreviation into its
+specified signed word, then replace $\sigma_j$ by $x_j$ and $\sigma_j^{-1}$ by
+$y_j$ to obtain the corresponding free-algebra polynomial used by the package.
+This translation preserves word order and applies no braid or inverse
+relations. The images in $R[B_n]$ and the chosen free-algebra representatives
+must therefore be distinguished.
 
-\subsection{Sliders}
-For a block of $i$ strands starting at $j$, define
-\[
- U^+_{i,j}=x_jx_{j+1}\cdots x_{j+i-2},\qquad
- U^-_{i,j}=y_jy_{j+1}\cdots y_{j+i-2}.
-\]
-The slider recursion is
+\subsection{Braid words and sliders}
+Following the thesis's notation for fat crossings, put
 \begin{align*}
- S_{2,j}&=q y_j+(1-q)-x_j,\\
- S_{i,j}&=(q^{i-1}U^-_{i,j}-U^+_{i,j})S_{i-1,j}\quad(3\le i\le n),
+ \varsigma_{k,j}&=\sigma_j\sigma_{j+1}\cdots\sigma_{j+k-1},&
+ \bar{\varsigma}_{k,j}&=\sigma_j^{-1}\sigma_{j+1}^{-1}\cdots\sigma_{j+k-1}^{-1},\\
+ \varsigma_{k,j}^{-1}&=\sigma_{j+k-1}^{-1}\cdots\sigma_j^{-1},&
+ \bar{\varsigma}_{k,j}^{-1}&=\sigma_{j+k-1}\cdots\sigma_j.
 \end{align*}
-with $1\le j\le n-i+1$. The unshifted slider $X_i$ means $S_{i,1}$; the thesis writes the shifted
-slider as $X_{i,j}$. These are explicit elements of the braid group algebra,
-not additional generators. Bigelow's barred indexed word denotes the inverse
+Here $k$ counts crossings: the supported block has $k+1$ strands, with
+$1\le j\le n-k$. For $k\ge2$, $\bar{\varsigma}_{k,j}$ and
+$\varsigma_{k,j}^{-1}$ have different word orders.
+For an $i$-strand slider starting at $j$, the recursion is
+\begin{align*}
+ X_{2,j}&=q\sigma_j^{-1}+(1-q)-\sigma_j,\\
+ X_{i,j}&=(q^{i-1}\bar{\varsigma}_{i-1,j}-\varsigma_{i-1,j})X_{i-1,j}
+       \quad(3\le i\le n),
+\end{align*}
+with $1\le j\le n-i+1$, and $X_i=X_{i,1}$. These are explicit elements of
+the braid group algebra. Bigelow's barred indexed word denotes the inverse
 of the entire indexed product. Translating that abbreviation gives the same
 recursion \cite[p.~298]{bigelow}.
+
+The package's slider dictionary is named \texttt{S}. Its entry
+\texttt{S[(i,j)]} is the chosen free-algebra representative of $X_{i,j}$.
+The principal translations are:
+\begin{center}
+\begin{tabular}{ll}
+Mathematical notation & Code representation \\
+\hline
+$\sigma_j$ & \texttt{xj}, generator index $j$ \\
+$\sigma_j^{-1}$ & \texttt{yj}, generator index $n-1+j$ \\
+$X_{i,j}$ & \texttt{S[(i,j)]} \\
+$X_i=X_{i,1}$ & slider target \texttt{X\_i} \\
+$\varsigma_{i-1,j}$ & ascending product \texttt{xj} through \texttt{x(j+i-2)} \\
+$\bar{\varsigma}_{i-1,j}$ & ascending product \texttt{yj} through \texttt{y(j+i-2)}
+\end{tabular}
+\end{center}
 
 \subsection{The zipper algebra}
 The level-two zipper relator is
 \[
- Z_{2,j}=(q y_{j+1}+1-q-x_{j+1}-q y_jy_{j+1}+x_jx_{j+1})S_{2,j}.
+ Z_{2,j}=\bigl(q\sigma_{j+1}^{-1}+1-q-\sigma_{j+1}
+             -q\bar{\varsigma}_{2,j}+\varsigma_{2,j}\bigr)X_{2,j}.
 \]
-For $i\ge3$, the emitted higher zipper relator is
+For $i\ge3$, the higher zipper relator is
 \[
- Z_{i,j}=\bigl(q^{i-1}U^-_{i,j+1}-U^+_{i,j+1}
-      -q^{i-1}y_jU^-_{i,j+1}+x_jU^+_{i,j+1}\bigr)S_{i,j}.
+ Z_{i,j}=\bigl(q^{i-1}\bar{\varsigma}_{i-1,j+1}-\varsigma_{i-1,j+1}
+             -q^{i-1}\bar{\varsigma}_{i,j}+\varsigma_{i,j}\bigr)X_{i,j}.
 \]
 Here $3\le i\le n-1$ and $1\le j\le n-i$; for level two,
 $1\le j\le n-2$. In particular, the two-strand formula is separate and includes
-its scalar term $(1-q)S_{2,j}$.
+its scalar term $(1-q)X_{2,j}$. The package emits the chosen free-algebra
+representatives of these relators.
 
 The zipper algebra is
 \[
  \mathcal Z_n(R,q)=R[B_n]/\langle Z_{i,1}:2\le i\le n-1\rangle.
 \]
-The displayed polynomials are read in $R[B_n]$ for this definition. The builder
-also emits their shifted versions. These generate the same ideal: conjugation
-by $\sigma_1\cdots\sigma_{n-1}$ shifts each $\sigma_k$ to $\sigma_{k+1}$
-while $k\le n-2$, so successive conjugations translate each supported block.
+The builder also emits their shifted versions. These generate the same ideal:
+conjugation by $\sigma_1\cdots\sigma_{n-1}$ shifts each $\sigma_k$ to
+$\sigma_{k+1}$ while $k\le n-2$, so successive conjugations translate each
+supported block.
 
 Imposing $X_2=0$ gives the Hecke quotient: indeed
 $\sigma_1X_2=-(\sigma_1-1)(\sigma_1+q)$.
@@ -120,17 +146,20 @@ The parameter comparison with the conventional BMW generators is discussed
 below.
 
 \subsection{The family of polynomial untwisting quotients}
-For $i\ge3$ set
+The thesis defines the lasso full-twists by
 \[
- \Theta_{i,j}=U^+_{i,j}(x_{j+i-2}\cdots x_j),\qquad
- \Theta_i=\Theta_{i,1},\qquad \Theta_2=x_1.
+ \Theta_{k,j}=\varsigma_{k,j}\bar{\varsigma}_{k,j}^{-1},\qquad
+ \Theta_2=\sigma_1,\qquad \Theta_i=\Theta_{i-1,1}\quad(i\ge3).
 \]
-These are the lasso twists of the thesis; $\Theta_3=x_1x_2^2x_1$.
+Thus $\Theta_3=\sigma_1\sigma_2^2\sigma_1$. The first subscript of
+$\Theta_{k,j}$ counts crossings in its two factors, while the subscript of
+$\Theta_i$ denotes the strand count. Consequently, the shifted full-twist on
+the support of $X_{i,j}$ is $\Theta_{i-1,j}$ for $i\ge3$.
 For monic polynomials $p_2,\ldots,p_n\in R[\lambda]$ with unit constant terms,
 form the two-sided quotient
 \[
  \mathcal Z_n^{(p)}=
- \mathcal Z_n(R,q)/\langle p_2(x_1)X_2,
+ \mathcal Z_n(R,q)/\langle p_2(\sigma_1)X_2,
                   p_3(\Theta_3)X_3,\ldots,p_n(\Theta_n)X_n\rangle.
 \]
 This is the class of algebras in \cite[Definition~2.9]{thesis}, allowing an
@@ -160,23 +189,24 @@ relation content is hashed; readable labels alone do not identify an algebra.
 The builder implements selected members and variants of the preceding family,
 rather than arbitrary polynomial input.
 
-In the canonical untwisting presentation,
+In the canonical untwisting presentation, the relations are the chosen
+free-algebra representatives of
 \[
- T_{2,j}=(x_j-t)S_{2,j},\qquad
- T_{i,j}=\bigl(x_{j+i-2}\cdots x_j
-                 -q^{i-1}y_{j+i-2}\cdots y_j\bigr)S_{i,j}\quad(i\ge3).
+ T_{2,j}=(\sigma_j-t)X_{2,j},\qquad
+ T_{i,j}=\bigl(\bar{\varsigma}_{i-1,j}^{-1}
+            -q^{i-1}\varsigma_{i-1,j}^{-1}\bigr)X_{i,j}\quad(i\ge3).
 \]
-In the braid quotient, left multiplication by $U^+_{i,j}$ converts the second
-equation to $(\Theta_{i,j}-q^{i-1})S_{i,j}=0$, where
-$\Theta_{i,j}=U^+_{i,j}(x_{j+i-2}\cdots x_j)$. This equivalence uses invertibility;
-the two expressions are different polynomials in the free algebra.
+In the braid quotient, left multiplication by $\varsigma_{i-1,j}$ converts
+the higher relation to $(\Theta_{i-1,j}-q^{i-1})X_{i,j}=0$.
+This equivalence uses invertibility; the emitted relation and this full-twist
+form have different chosen representatives in the free algebra.
 
 \subsection{Experimental parameter choices}
-The builder also implements a level-two power relation $(x_j^a-t)S_{2,j}$,
-the squared relation $(x_j-t)^2S_{2,j}$, and a historical option
-$(x_j^2-t^2)S_{2,j}$. The twist-power parameter affects level three only:
-for exponent $m>1$, the emitted relation is
-$(\Theta_{3,j}^m-q^{2m})S_{3,j}$. At higher levels the canonical relation remains.
+The builder also implements a level-two power relation $(\sigma_j^a-t)X_{2,j}$,
+the squared relation $(\sigma_j-t)^2X_{2,j}$, and a historical option
+$(\sigma_j^2-t^2)X_{2,j}$. The twist-power parameter affects level three only:
+for exponent $m>1$, the emitted relation is the chosen representative of
+$(\Theta_{2,j}^m-q^{2m})X_{3,j}$. At higher levels the canonical relation remains.
 The software does not yet accept an arbitrary untwisting polynomial as input.
 No structural theorem about a variant follows simply from choosing a flag.
 
@@ -326,7 +356,7 @@ units; then
 \[
  m=q^{-1/2}(1-q),\qquad l=q^{1/2}t^{-1},\qquad
  G_i\longmapsto q^{-1/2}\sigma_i,\quad
- E_i\longmapsto(1-q)^{-1}S_{2,i}.
+ E_i\longmapsto(1-q)^{-1}X_{2,i}.
 \]
 This scalar extension is part of that parameter comparison.
 
