@@ -86,7 +86,7 @@ jobs:
           retention-days: 14
 
   solver-integration:
-    name: Fresh discovery with f4ncgb
+    name: Native solver integration
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -123,7 +123,7 @@ jobs:
           python -m pip install build
           python -m build --wheel
           python -c "import glob, subprocess, sys; subprocess.check_call([sys.executable, '-m', 'pip', 'install', glob.glob('dist/*.whl')[0] + '[inference]'])"
-      - name: Produce and independently recheck a small certificate
+      - name: Check native execution and certificate reconstruction
         shell: bash
         run: |
           python ci/check_solver.py --binary "$RUNNER_TEMP/f4ncgb-source/build/f4ncgb" \

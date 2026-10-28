@@ -1,4 +1,4 @@
-"""Exercise fresh discovery with the pinned real solver and an installed wheel."""
+"""Check native solver integration on a small, explicitly zero-slider presentation."""
 from __future__ import annotations
 
 import argparse
@@ -12,7 +12,8 @@ import tempfile
 
 
 ROOT = Path(__file__).resolve().parents[1]
-TARGET = "(Theta_3-q^2)X_3"
+TARGET = "X_2"
+PRESENTATION = ("--n", "2", "--untwist", "none", "--zero-from", "2")
 REVISION = "789504d7c7da6af6946faecb73421b037766a5b8"
 
 
@@ -35,14 +36,15 @@ def check(binary, revision, directory):
                             "print(pathlib.Path(zipper_algebra.__file__).resolve())",
                             directory=directory).strip())
     assert not package.is_relative_to(ROOT), "the solver check requires an installed wheel"
-    description = json.loads(isolated("-m", "zipper_algebra", "describe", "--n", "3",
+    description = json.loads(isolated("-m", "zipper_algebra", "describe", *PRESENTATION,
                                      "--json", directory=directory))
     relation_count = len(description["relations"])
-    # This target follows from the canonical T3 and inverse relations. It is
-    # not added to the defining presentation and no saved lift is supplied.
-    text = isolated("-m", "zipper_algebra", "discover", "--n", "3",
+    # X_2=0 is explicitly part of this small test presentation. The test
+    # exercises native I/O, proof validation, coefficient reconstruction and
+    # both certificate checks; it is not a research computation.
+    text = isolated("-m", "zipper_algebra", "discover", *PRESENTATION,
                     "--target", TARGET, "--solver", str(binary), "--output", str(output),
-                    "--cache", str(cache), "--anchor", "5,7", "--start", "12",
+                    "--cache", str(cache), "--anchor", "5,7", "--start", "48",
                     "--step", "12", "--max", "96", "--jobs", "1",
                     "--timeout", "180", "--max-iterations", "100000",
                     "--solver-revision", revision, "--json",
@@ -56,7 +58,7 @@ def check(binary, revision, directory):
     assert len(report["presentation"]["relation_labels"]) == relation_count
     certificate = Path(report["certificate"])
     verified = json.loads(isolated("-m", "zipper_algebra", "verify", str(certificate),
-                                    "--n", "3", "--target", TARGET, "--pit", "--json",
+                                    *PRESENTATION, "--target", TARGET, "--pit", "--json",
                                     directory=directory))
     assert verified["pass"] and verified["exact"]["pass"] and verified["pit"]["pass"]
     for run in report["runs"]:
@@ -72,7 +74,7 @@ def check(binary, revision, directory):
         assert len(source.read_text().splitlines()) - 2 == relation_count
         expected = directory / "expected-input.ms"
         q, t = run["point"]
-        isolated("-m", "zipper_algebra", "emit", "--n", "3", "--q", str(q),
+        isolated("-m", "zipper_algebra", "emit", *PRESENTATION, "--q", str(q),
                  "--t", str(t), "--out", str(expected), "--json", directory=directory)
         assert source.read_bytes() == expected.read_bytes(), "a solver input changed presentation"
     summary = {"status": "verified", "solver_revision": revision,

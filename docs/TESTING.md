@@ -100,11 +100,11 @@ job also rebuilds the source archive. The full suite, including historical
 comparisons, runs in the coverage job with the real optional Sympy dependency.
 
 The native solver job builds the pinned parser-fixed f4ncgb source on Ubuntu,
-installs the zipper-algebra wheel, and produces a new certificate for the small
-three-strand full-twist consequence from bare presentation input. It checks
-the generated input, proof identities, result bundle, exact certificate and
-degree-grid verification outside this workspace. This is distinct from
-replaying the retained four-strand witness. The workflow and `ci/check_solver.py`
+installs the zipper-algebra wheel, and exercises a small two-generator test
+presentation with `X_2=0` explicitly imposed. It checks native input/output,
+proof identities, coefficient reconstruction, the result bundle and both
+certificate checks outside this workspace. Full four-strand discovery and
+other research computations run locally. The workflow and `ci/check_solver.py`
 record the pinned source and commands.
 
 The documentation job validates local links, deterministic inventory

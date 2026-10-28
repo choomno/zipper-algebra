@@ -61,8 +61,8 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "bytes": 6744,
-      "sha256": "ddd948c5285571187b714181ed62e06127ab9df74a038c8f400f5697a76532ec",
+      "bytes": 6742,
+      "sha256": "6d306a321601286f30f84b028f30cb07b0634afe0f2bbe9630ef7018c9a72240",
       "role": "Hosted test, solver integration, coverage and documentation execution"
     },
     {
@@ -181,8 +181,8 @@
     },
     {
       "path": "ci/check_solver.py",
-      "bytes": 5174,
-      "sha256": "79d833ce55afc37285ac93eb93c3958bd90678b2e0def20b4c80faa6e7cb2c9d",
+      "bytes": 5308,
+      "sha256": "9c0a79ecbd4287c08ff7b8083600a48c13ee03471c0e4dff8c3b7120d29bf16d",
       "role": "Installation, test, coverage, documentation or inventory validation support"
     },
     {
