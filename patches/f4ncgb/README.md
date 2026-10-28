@@ -21,7 +21,7 @@ handling. The test harness has also been strengthened with isolated temporary
 files, exact LF/CRLF block comparisons and declared/undeclared exponent-zero
 controls. The bundled parser and tests match
 [the maintained fix commit](https://github.com/choomno/f4ncgb/commit/789504d7c7da6af6946faecb73421b037766a5b8).
-The [draft PR](https://github.com/choomno/f4ncgb/pull/1) is in the personal
+The [parser-fix PR](https://github.com/choomno/f4ncgb/pull/1) is merged in the personal
 GitHub copy; the official source remains on JKU’s GitLab.
 
 The patch fixes CRLF handling at the final input line and in single-variable
@@ -92,30 +92,31 @@ validated sample. The same presentation, arithmetic and certificate checks apply
 to both routes.
 
 The [SQLite extension](https://github.com/choomno/f4ncgb/pull/2) is pinned to
-`cb37d6570a42cf2f786cc96180b18456ae6d1bcf`. From the solver checkout
-used above, select that source before building:
+`cb37d6570a42cf2f786cc96180b18456ae6d1bcf`. Clone that source into a
+separate checkout; the original upstream remote does not contain this extension:
 
 ```sh
-git -C ../f4ncgb-source fetch origin cb37d6570a42cf2f786cc96180b18456ae6d1bcf
-git -C ../f4ncgb-source checkout --detach cb37d6570a42cf2f786cc96180b18456ae6d1bcf
+git clone https://github.com/choomno/f4ncgb.git ../f4ncgb-sqlite-source
+git -C ../f4ncgb-sqlite-source fetch origin cb37d6570a42cf2f786cc96180b18456ae6d1bcf
+git -C ../f4ncgb-sqlite-source checkout --detach cb37d6570a42cf2f786cc96180b18456ae6d1bcf
 ```
 
 Install the additional SQLite development dependency (`sqlite-devel` on Fedora or `libsqlite3-dev` on
 Debian/Ubuntu), then build with the feature enabled:
 
 ```sh
-cmake -S ../f4ncgb-source -B ../f4ncgb-source/build-sqlite \
+cmake -S ../f4ncgb-sqlite-source -B ../f4ncgb-sqlite-source/build-sqlite \
   -DCMAKE_BUILD_TYPE=Release -DENABLE_SQLITE=ON
-cmake --build ../f4ncgb-source/build-sqlite
-../f4ncgb-source/build-sqlite/f4ncgb_test
-../f4ncgb-source/build-sqlite/f4ncgb --features
+cmake --build ../f4ncgb-sqlite-source/build-sqlite
+../f4ncgb-sqlite-source/build-sqlite/f4ncgb_test
+../f4ncgb-sqlite-source/build-sqlite/f4ncgb --features
 ```
 
 The feature report must contain `"sqlite": true`. Builds with
 `-DENABLE_SQLITE=OFF` (the default) retain file I/O without linking SQLite.
 To use the enabled executable, add `--solver-io sqlite` to the discovery command,
 set `--solver` to this executable and set `--solver-revision` to its actual source
-commit (`git -C ../f4ncgb-source rev-parse HEAD`). Do not use the older parser-only
+commit (`git -C ../f4ncgb-sqlite-source rev-parse HEAD`). Do not use the older parser-only
 revision label for the extended binary.
 
 The adapter removes intermediate algebra files; SQLite may create temporary
