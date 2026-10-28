@@ -1,7 +1,7 @@
 """Portable discovery using exact, explicitly synthetic process outputs."""
 from __future__ import annotations
 
-from contextlib import redirect_stdout, redirect_stderr
+from contextlib import closing, redirect_stdout, redirect_stderr
 from dataclasses import replace
 from fractions import Fraction
 from itertools import islice
@@ -53,10 +53,10 @@ if a.mode=='reanchor-remainder':
         if coefficient:
             text=str(abs(coefficient))+('*'+word if word else '')
             pieces.append(('-' if coefficient<0 else '+' if pieces else '')+text)
-    Path(a.o).write_text(re.sub(r'(?<!^)([+-])',r' \1 ',''.join(pieces))+'\n')
+    Path(a.o).write_text(re.sub(r'(?<!^)([+-])',r' \1 ',''.join(pieces))+'\n', newline='\n')
     proof='[i%d]'%(len(relations)-1)
     if q!=5:proof+=' '+('+' if q>5 else '-')+str(abs(q-5))+'*[i0]'
-    Path(a.p).write_text(proof+'\n')
+    Path(a.p).write_text(proof+'\n', newline='\n')
     sys.exit(0)
 q=int(re.search(r'([+-]?\d+)\*y1',relations[-1]).group(1))
 index=0 if a.mode=='omit' or (a.mode=='vary' and q!=5) else len(relations)-1
@@ -74,14 +74,14 @@ if a.mode=='closure':
     h=re.sub(r'(?<!^)([+-])',r' \1 ',relations[0].rstrip(','))
     hproof='[i0] +[i1] -[i1]' if q==3 else '[i0]'
     gproof='[i3]' if q==5 else '[i3] +[0] -[i0]'
-    Path(a.o).write_text(h+'\n'+basis+'\n')
-    Path(a.p).write_text(hproof+'\n'+gproof+'\n')
+    Path(a.o).write_text(h+'\n'+basis+'\n', newline='\n')
+    Path(a.p).write_text(hproof+'\n'+gproof+'\n', newline='\n')
     sys.exit(0)
-Path(a.o).write_text(basis+'\n')
+Path(a.o).write_text(basis+'\n', newline='\n')
 proof=(str(scale)+'*' if scale!=1 else '')+'[i%d]'%index
 if a.mode=='bad-proof':proof='[i0]'
 if a.mode=='shape' and q!=5:proof+=' +[i0] -[i0]'
-Path(a.p).write_text(proof+'\n')
+Path(a.p).write_text(proof+'\n', newline='\n')
 '''
 
 
@@ -405,19 +405,19 @@ class TestInstalledDiscoveryCommands(DiscoveryFixture):
                 import sqlite3
                 databases = (output/'samples.sqlite3', cache/'samples.sqlite3')
                 def raw_samples(database):
-                    with sqlite3.connect(database) as connection:
+                    with closing(sqlite3.connect(database)) as connection, connection:
                         return connection.execute(
                             'SELECT key,generation,name,content FROM artifacts ORDER BY key,generation,name').fetchall()
                 before_samples = {database:raw_samples(database) for database in databases}
                 first = prior['runs'][0]
                 if failure == 'output-record':
-                    with sqlite3.connect(databases[0]) as connection:
+                    with closing(sqlite3.connect(databases[0])) as connection, connection:
                         connection.execute('UPDATE generations SET record=? WHERE key=? AND generation=?',
                                            (b'{}', first['key'], first['generation']))
                 elif failure == 'cache-record':
-                    with sqlite3.connect(databases[0]) as connection:
+                    with closing(sqlite3.connect(databases[0])) as connection, connection:
                         connection.execute('DELETE FROM selections WHERE key=?', (first['key'],))
-                    with sqlite3.connect(databases[1]) as connection:
+                    with closing(sqlite3.connect(databases[1])) as connection, connection:
                         connection.execute('UPDATE generations SET record=? WHERE key=? AND generation=?',
                                            (b'{}', first['key'], first['generation']))
                 else:

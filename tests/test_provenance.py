@@ -2,8 +2,10 @@
 from copy import deepcopy
 import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
+import stat
 import subprocess
 import tempfile
 import unittest
@@ -23,12 +25,12 @@ class ProvenanceFixture(unittest.TestCase):
     def project(root):
         package = root / 'src/zipper_algebra'
         package.mkdir(parents=True)
-        (root / 'pyproject.toml').write_text('[project]\nname="zipper-algebra"\n')
-        (root / '.gitignore').write_text('CONTRIBUTING.md\n.claude/\nruns/\n')
-        (root / 'README.md').write_text('Public documentation\n')
-        (package / '__init__.py').write_text('VERSION = "test"\n')
-        (package / 'alpha.py').write_text('VALUE = 7\n')
-        (package / 'provenance.py').write_text('# provenance module fixture\n')
+        (root / 'pyproject.toml').write_text('[project]\nname="zipper-algebra"\n', newline="\n")
+        (root / '.gitignore').write_text('CONTRIBUTING.md\n.claude/\nruns/\n', newline="\n")
+        (root / 'README.md').write_text('Public documentation\n', newline="\n")
+        (package / '__init__.py').write_text('VERSION = "test"\n', newline="\n")
+        (package / 'alpha.py').write_text('VALUE = 7\n', newline="\n")
+        (package / 'provenance.py').write_text('# provenance module fixture\n', newline="\n")
         return root, package
 
     @staticmethod
@@ -45,6 +47,15 @@ class ProvenanceFixture(unittest.TestCase):
             self.git(root, 'add', '.')
             self.git(root, 'commit', '-q', '-m', 'Initial public sources')
             return self.git(root, 'rev-parse', 'HEAD')
+
+    def remove_git(self):
+        def retry_readonly(function, path, error_info):
+            error = error_info[1]
+            if not isinstance(error, PermissionError):
+                raise error
+            os.chmod(path, os.stat(path).st_mode | stat.S_IWRITE)
+            function(path)
+        shutil.rmtree(self.root / '.git', onerror=retry_readonly)
 
     def capture(self, package=None, **kwargs):
         with patch.object(source, '__file__', str((package or self.package) / 'provenance.py')):
@@ -318,7 +329,7 @@ class TestBuildAndRecipeOrigins(ProvenanceFixture):
         baseline = self.capture()
         (self.package / '_build_provenance.json').write_text(json.dumps(
             {'schema': source.BUILD_SCHEMA, 'origin': baseline}))
-        shutil.rmtree(self.root / '.git')
+        self.remove_git()
         self.initialize(commit=False)
         self.assertEqual(self.capture()['origin'], 'unversioned')
         self.assertIsNone(self.capture()['git']['commit'])
@@ -337,7 +348,7 @@ class TestBuildAndRecipeOrigins(ProvenanceFixture):
         baseline = self.capture(extra_sources=[changed, deleted, unused])
         (self.package / '_build_provenance.json').write_text(json.dumps(
             {'schema': source.BUILD_SCHEMA, 'origin': baseline}))
-        shutil.rmtree(self.root / '.git')
+        self.remove_git()
         changed.write_text('VALUE = 2\n')
         deleted.unlink()
         setup.unlink()
@@ -364,7 +375,7 @@ class TestBuildAndRecipeOrigins(ProvenanceFixture):
         baseline = self.capture()
         (self.package / '_build_provenance.json').write_text(json.dumps(
             {'schema': source.BUILD_SCHEMA, 'origin': baseline}))
-        shutil.rmtree(self.root / '.git')
+        self.remove_git()
         recipe = self.root / 'experiments/late.py'
         recipe.parent.mkdir()
         recipe.write_text('VALUE = 5\n')

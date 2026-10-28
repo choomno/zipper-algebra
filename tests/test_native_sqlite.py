@@ -1,4 +1,5 @@
 """Actual process-boundary tests of the optional native database route."""
+from contextlib import closing
 from dataclasses import replace
 import json
 from pathlib import Path
@@ -17,6 +18,7 @@ from zipper_algebra.cofactor.atoms import AtomSet
 
 PRODUCER = r'''
 import argparse
+from contextlib import closing
 import json
 from pathlib import Path
 import re
@@ -37,10 +39,9 @@ p.add_argument('--counter')
 a, _ = p.parse_known_args()
 if a.sqlite:
     assert a.sqlite_job and not any((a.i, a.o, a.p))
-    db = sqlite3.connect(a.sqlite)
-    original = db.execute('SELECT input FROM f4ncgb_io WHERE job_id=?',
-                          (a.sqlite_job,)).fetchone()[0]
-    db.close()
+    with closing(sqlite3.connect(a.sqlite)) as db:
+        original = db.execute('SELECT input FROM f4ncgb_io WHERE job_id=?',
+                              (a.sqlite_job,)).fetchone()[0]
 else:
     assert all((a.i, a.o, a.p))
     original = Path(a.i).read_bytes()
@@ -60,23 +61,21 @@ if a.mode == 'all':
     basis = ('\n'.join(spaced) + '\n').encode()
     proof = ('\n'.join('[i%d]' % i for i in range(len(spaced))) + '\n').encode()
 if a.sqlite:
-    db = sqlite3.connect(a.sqlite)
-    if a.mode == 'delete-row':
-        db.execute('DELETE FROM f4ncgb_io WHERE job_id=?', (a.sqlite_job,))
-    elif a.mode not in ('missing', 'delete-db'):
-        if a.mode == 'text-basis': basis = basis.decode()
-        if a.mode == 'text-proof': proof = proof.decode()
-        if a.mode == 'partial': proof = None
-        if a.mode == 'bad-bytes': basis = b'\xff'
-        incoming = (b'changed input' if a.mode == 'mutate-input' else
-                    original.decode() if a.mode == 'text-input' else original)
-        db.execute("UPDATE f4ncgb_io SET input=?,basis=?,proof=?,state='complete' WHERE job_id=?",
-                   (incoming, basis, proof, a.sqlite_job))
-        if a.mode == 'transaction-timeout':
-            Path(str(a.counter) + '.transaction').write_text('uncommitted result')
-            time.sleep(10)
-    db.commit()
-    db.close()
+    with closing(sqlite3.connect(a.sqlite)) as db, db:
+        if a.mode == 'delete-row':
+            db.execute('DELETE FROM f4ncgb_io WHERE job_id=?', (a.sqlite_job,))
+        elif a.mode not in ('missing', 'delete-db'):
+            if a.mode == 'text-basis': basis = basis.decode()
+            if a.mode == 'text-proof': proof = proof.decode()
+            if a.mode == 'partial': proof = None
+            if a.mode == 'bad-bytes': basis = b'\xff'
+            incoming = (b'changed input' if a.mode == 'mutate-input' else
+                        original.decode() if a.mode == 'text-input' else original)
+            db.execute("UPDATE f4ncgb_io SET input=?,basis=?,proof=?,state='complete' WHERE job_id=?",
+                       (incoming, basis, proof, a.sqlite_job))
+            if a.mode == 'transaction-timeout':
+                Path(str(a.counter) + '.transaction').write_text('uncommitted result')
+                time.sleep(10)
     if a.mode == 'delete-db': Path(a.sqlite).unlink()
 else:
     Path(a.o).write_bytes(basis)
@@ -110,8 +109,22 @@ class TestNativeSQLite(unittest.TestCase):
 
     def assert_no_pending_jobs(self, path=None):
         path = path or self.root / 'output/samples.sqlite3'
-        with sqlite3.connect(path) as connection:
+        with closing(sqlite3.connect(path)) as connection, connection:
             self.assertEqual(connection.execute('SELECT count(*) FROM f4ncgb_io').fetchone()[0], 0)
+
+    def test_pending_job_inspection_closes_its_database_connection(self):
+        self.execute()
+        connect = sqlite3.connect
+        connections = []
+        def track_connection(*args, **kwargs):
+            connection = connect(*args, **kwargs)
+            connections.append(connection)
+            return connection
+        with patch('tests.test_native_sqlite.sqlite3.connect', side_effect=track_connection):
+            self.assert_no_pending_jobs()
+        self.assertEqual(len(connections), 1)
+        with self.assertRaises(sqlite3.ProgrammingError):
+            connections[0].execute('SELECT 1')
 
     def test_native_and_file_routes_retain_identical_bytes_with_distinct_request_modes(self):
         native = self.execute()
@@ -160,7 +173,7 @@ class TestNativeSQLite(unittest.TestCase):
             with self.subTest(mode=mode), self.assertRaisesRegex(ArtifactError, message):
                 self.execute(mode)
             self.assert_no_pending_jobs()
-            with sqlite3.connect(self.root / 'output/samples.sqlite3') as connection:
+            with closing(sqlite3.connect(self.root / 'output/samples.sqlite3')) as connection, connection:
                 self.assertEqual(connection.execute('SELECT count(*) FROM selections').fetchone()[0], 0)
 
     def test_timeout_rolls_back_a_native_transaction_and_the_store_remains_resumable(self):
@@ -204,7 +217,7 @@ class TestNativeSQLite(unittest.TestCase):
         with patch.object(native_io, '_discard', side_effect=ArtifactError('cleanup unavailable')):
             with self.assertRaisesRegex(ArtifactError, 'cleanup unavailable'):
                 self.execute()
-        with sqlite3.connect(self.root / 'output/samples.sqlite3') as connection:
+        with closing(sqlite3.connect(self.root / 'output/samples.sqlite3')) as connection, connection:
             self.assertEqual(connection.execute('SELECT count(*) FROM selections').fetchone()[0], 0)
 
     def test_full_discovery_and_export_use_the_same_native_byte_validation(self):

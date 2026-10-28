@@ -1,6 +1,7 @@
 """Process and artifact boundary tests using an explicitly synthetic producer."""
 from __future__ import annotations
 
+from contextlib import closing
 from dataclasses import FrozenInstanceError, replace
 import hashlib
 import json
@@ -11,6 +12,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from zipper_algebra import Presentation
 from zipper_algebra.execution import ArtifactError, ExecutionError, RunConfig, run_point
@@ -66,7 +68,7 @@ elif a.mode == "contexts":
     basis = "1/2*x1*x1*y1*y1 - 1/2*x1*y1\n"
     proof = "1/2*x1*[i0]*y1\n"
 elif a.mode == "missing":
-    Path(a.o).write_text(basis)
+    Path(a.o).write_text(basis, newline="\n")
     sys.exit(0)
 elif a.mode == "empty":
     basis = proof = ""
@@ -108,14 +110,14 @@ elif a.mode == "standalone":
 elif a.mode == "blank-basis":
     basis = "\n" + basis + "\n"
 elif a.mode == "mutate-input":
-    Path(a.i).write_text("not the canonical input\n")
+    Path(a.i).write_text("not the canonical input\n", newline="\n")
 elif a.mode == "extra":
     Path("unrequested-solver-output.tmp").write_text("not a declared artifact")
-Path(a.o).write_text(basis)
+Path(a.o).write_text(basis, newline="\n")
 if a.mode == "bad-bytes":
     Path(a.p).write_bytes(b"\xff")
 else:
-    Path(a.p).write_text(proof)
+    Path(a.p).write_text(proof, newline="\n")
 print(json.dumps({"iterations": a.m, "degree": a.d}))
 '''
 
@@ -145,12 +147,12 @@ class RunnerFixture(unittest.TestCase):
         return run_point(self.pres, "X_2", self.point, self.config(mode, **kwargs))
 
     def replace_record(self, run, record, database=None):
-        with sqlite3.connect(database or run.store) as connection:
+        with closing(sqlite3.connect(database or run.store)) as connection, connection:
             connection.execute("UPDATE generations SET record=? WHERE key=? AND generation=?",
                                (canonical_json(record), run.key, run.record["generation"]))
 
     def alter_file(self, run, name, content):
-        with sqlite3.connect(run.store) as connection:
+        with closing(sqlite3.connect(run.store)) as connection, connection:
             connection.execute("UPDATE artifacts SET content=? WHERE key=? AND generation=? AND name=?",
                                (content, run.key, run.record["generation"], name))
 
@@ -368,6 +370,28 @@ class TestSolverExecution(RunnerFixture):
 
 
 class TestCompletedRunRecords(RunnerFixture):
+    def test_corruption_helpers_commit_and_close_their_connections(self):
+        run = self.run_solver()
+        connect = sqlite3.connect
+        connections = []
+        def track_connection(*args, **kwargs):
+            connection = connect(*args, **kwargs)
+            connections.append(connection)
+            return connection
+        changed = {**run.record, 'basis_entries': 99}
+        with patch('tests.test_execution_runner.sqlite3.connect', side_effect=track_connection):
+            self.replace_record(run, changed)
+            self.alter_file(run, 'proof.txt', b'changed\n')
+        self.assertEqual(len(connections), 2)
+        for connection in connections:
+            with self.assertRaises(sqlite3.ProgrammingError):
+                connection.execute('SELECT 1')
+        with closing(connect(run.store)) as connection:
+            record = connection.execute('SELECT record FROM generations').fetchone()[0]
+            proof = connection.execute("SELECT content FROM artifacts WHERE name='proof.txt'").fetchone()[0]
+        self.assertEqual(json.loads(record)['basis_entries'], 99)
+        self.assertEqual(proof, b'changed\n')
+
     def test_absent_database_is_not_a_completed_run(self):
         run = self.run_solver()
         absent = self.root / "absent.sqlite3"
@@ -398,7 +422,7 @@ class TestCompletedRunRecords(RunnerFixture):
             self.replace_record(run, record)
             with self.subTest(record=record), self.assertRaises(ArtifactError):
                 self.run_solver()
-        with sqlite3.connect(run.store) as connection:
+        with closing(sqlite3.connect(run.store)) as connection, connection:
             connection.execute("UPDATE generations SET record=?", (b"{not json",))
         with self.assertRaises(ArtifactError):
             self.run_solver()
@@ -412,7 +436,7 @@ class TestCompletedRunRecords(RunnerFixture):
             self.run_solver()
         fixed = run_point(self.pres, "X_2", self.point, self.config(), refresh=True)
         self.assertEqual(fixed.files["proof.txt"], b"[i0]\n")
-        with sqlite3.connect(run.store) as connection:
+        with closing(sqlite3.connect(run.store)) as connection, connection:
             connection.execute("DELETE FROM artifacts WHERE name='proof.txt'")
         with self.assertRaises(ArtifactError):
             self.run_solver()
@@ -428,7 +452,7 @@ class TestCompletedRunRecords(RunnerFixture):
                            for name, data in files.items()}
         generation = digest_bytes(canonical_json(record["files"]))
         record["generation"] = generation
-        with sqlite3.connect(run.store) as connection:
+        with closing(sqlite3.connect(run.store)) as connection, connection:
             connection.execute("INSERT INTO generations VALUES(?,?,?)",
                                (run.key, generation, canonical_json(record)))
             connection.executemany("INSERT INTO artifacts VALUES(?,?,?,?)",
@@ -459,7 +483,7 @@ class TestCompletedRunRecords(RunnerFixture):
 
     def test_unselected_generation_is_not_resumed(self):
         run = self.run_solver()
-        with sqlite3.connect(run.store) as connection:
+        with closing(sqlite3.connect(run.store)) as connection, connection:
             connection.execute("DELETE FROM selections WHERE key=?", (run.key,))
         rerun = self.run_solver()
         self.assertFalse(rerun.hit)
@@ -472,7 +496,7 @@ class TestCompletedRunRecords(RunnerFixture):
         self.assertEqual(len({run.store for run in runs}), 1)
         self.assertEqual(set(path.name for path in config.output_root.iterdir()),
                          {".gitignore", "samples.sqlite3"})
-        with sqlite3.connect(runs[0].store) as connection:
+        with closing(sqlite3.connect(runs[0].store)) as connection, connection:
             self.assertEqual(connection.execute("SELECT COUNT(*) FROM selections").fetchone()[0], 4)
         self.assertFalse(list(config.output_root.glob(".solver-*")))
 
