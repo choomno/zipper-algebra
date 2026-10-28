@@ -136,20 +136,24 @@ def parse_num(s: str) -> dict:
     """Inverse of num_str.  Also accepts the looser forms other writers produced: bare 'q^2',
     '-t', '3', fractions '1/2*q^1*t^0', and ' - ' between terms."""
     s = _strip_outer(s)
+    if not s:
+        return {}
     out: dict = {}
     for term in s.replace(" - ", " + -").split(" + "):
         term = term.strip()
         if not term:
-            continue
+            raise ValueError("empty numerator term")
         sign = 1
         if term[0] in "+-":
             sign = -1 if term[0] == "-" else 1
             term = term[1:].strip()
+        if not term:
+            raise ValueError("a numerator sign needs a term")
         coef, i, j = Fraction(1), 0, 0
         for piece in term.split("*"):
             piece = piece.strip()
             if not piece:
-                continue
+                raise ValueError("empty numerator factor")
             if piece[0].isdigit():
                 coef *= Fraction(piece)
             elif piece[0] in "qt":

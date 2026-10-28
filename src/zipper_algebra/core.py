@@ -230,6 +230,8 @@ def enumerate_standard_monomials(
     """
     if is_match[0]:
         return []  # The empty leading word divides every word, including the unit.
+    if max_total is not None and max_total < 1:
+        return None
     result: list[tuple[int, Mon]] = [(0, ())]
     frontier: deque[tuple[int, Mon]] = deque([(0, ())])
     while frontier:
@@ -253,7 +255,7 @@ def find_leading_match(
     is_match: list[bool],
     match_pat: list[Mon | None],
 ) -> tuple[int, int, Mon] | None:
-    """The leftmost substring of ``word`` that equals some leading monomial,
+    """The earliest-ending occurrence of a leading monomial in ``word``,
     returned as ``(start, end, lm)``. ``None`` if ``word`` is standard.
     """
     if is_match[0]:

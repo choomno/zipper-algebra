@@ -38,7 +38,9 @@ Step = tuple[Word, int, Word, Coef]                 # (left, basis_idx, right, m
 def find_substring(mu: Word, lam: Word) -> tuple[Word, Word] | None:
     """(u, v) with mu = u + lam + v at the leftmost occurrence, or None."""
     n, m = len(mu), len(lam)
-    if m == 0 or m > n:
+    if m == 0:
+        return (), mu
+    if m > n:
         return None
     for i in range(n - m + 1):
         if mu[i:i + m] == lam:

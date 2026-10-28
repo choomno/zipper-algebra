@@ -222,6 +222,8 @@ def _parse_noex_term(tok: str, var_index: dict[str, int]) -> Term:
             (left if idx is None else right).append(var_index[p])
     if idx is None or kind is None:
         raise ValueError(f"no [..] index in {tok!r}")
+    if idx < 0:
+        raise ValueError("proof indices must be nonnegative")
     return coef, tuple(left), kind, idx, tuple(right)
 
 
@@ -321,8 +323,7 @@ class Proof:
         """basis[k] over the inputs as {(left, input_idx, right): coef}; memoised."""
         if k not in self._expanded:
             for j in self._topological(k):
-                if j not in self._expanded:
-                    self._expand_one(j)
+                self._expand_one(j)
         return self._expanded[k]
 
     def expand(self, k: int) -> list[Expanded]:
@@ -367,6 +368,8 @@ class Proof:
         char = basis.char
         acc = Poly(char)
         for coef, u, idx, v in self.expand(k):
+            if type(idx) is not int or not 0 <= idx < len(inputs):
+                raise ValueError("proof input index must name an existing input polynomial")
             lp = Poly(char); lp.add_term(u, Coef.one(char))
             rp = Poly(char); rp.add_term(v, Coef.one(char))
             acc = acc + (lp * inputs[idx] * rp).scalar_mul(Coef(coef, char))

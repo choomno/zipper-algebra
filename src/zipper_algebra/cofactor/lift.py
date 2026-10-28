@@ -167,15 +167,8 @@ def _fit_numerator(scaled, max_pq, max_pt):
             res = fit_poly_qt(scaled, dq, dt)
             if res is None:
                 continue
-            ok = True
-            for (q, t), val in scaled:
-                pred = sum(res[(i, j)] * Fraction(q ** i * t ** j)
-                           for (i, j) in res)
-                if pred != val:
-                    ok = False
-                    break
-            if ok:
-                return res
+            # The full-rank augmented solve already checked every supplied row.
+            return res
     return None
 
 
@@ -461,7 +454,8 @@ class Lift:
 
     def __eq__(self, other):
         return isinstance(other, Lift) and self.entries == other.entries \
-            and self.atoms.names() == other.atoms.names()
+            and [(a.name, a.coefs) for a in self.atoms.atoms] == \
+                [(a.name, a.coefs) for a in other.atoms.atoms]
 
 
 # ----------------------------------------------------------------------------

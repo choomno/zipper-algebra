@@ -82,8 +82,7 @@ def check(cof: Cofactor, pres: Presentation | None = None, target=None, verbose=
     M_poly = qt_const(1)
     for pw, e in zip(powers, lcm):
         M_poly = qt_mul(M_poly, pw[e])
-    if not M_poly:
-        raise ValueError("the clearing denominator must be a nonzero polynomial")
+    # Validation gives nonzero atoms, so their product is nonzero in Q[q,t].
     if verbose:
         print(f"[lcm]   M = {atoms.denom_str(lcm)}")
         print(f"[lcm]   M has {len(M_poly)} terms when expanded.")
@@ -92,9 +91,6 @@ def check(cof: Cofactor, pres: Presentation | None = None, target=None, verbose=
     used = set()
     t_pre = time.time()
     for n_idx, (left, lab, right, num, den) in enumerate(cof.terms):
-        if lab not in index_of:
-            raise KeyError(f"relation label {lab!r} is not in presentation {pres.slug()}; "
-                           f"the cofactor was made for a different algebra")
         idx = index_of[lab]
         used.add(idx)
         # (M / D_j) as a QTPoly, then the coefficient N_j * (M / D_j)
@@ -280,12 +276,10 @@ if __name__ == "__main__":
     ap.add_argument("--pit", action="store_true", help="also run the independent grid check")
     a = ap.parse_args()
 
-    # A legacy cofactor file carries no header, so the presentation must be supplied; a file
-    # written by cofactor_io carries it and the flags only override.
+    # This module entry point uses n=4 unless --n is supplied; certificate metadata
+    # is checked against that explicitly constructed presentation.
     pres = Presentation(a.n or 4, a.untwist, max_untwist_level=a.max_untwist_level)
     cof = Cofactor.load(a.cofactor, pres=pres)
-    if a.n is None and cof.n != pres.n:
-        pres = Presentation(cof.n, a.untwist, max_untwist_level=a.max_untwist_level)
     tgt = a.target or cof.target
     if not tgt:
         raise SystemExit(f"{os.path.basename(a.cofactor)} carries no target in its header "

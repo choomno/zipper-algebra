@@ -200,8 +200,6 @@ def expand_over_inputs(lift, keys=None, pres=None) -> dict:
                 key = (tuple(left), ref, tuple(right))
                 bucket[key] = rat.add(bucket.get(key, rat.zero()), coef)
             else:
-                if ref not in expanded:
-                    raise KeyError(f"{k!r} references {ref!r}, which is not in the lift")
                 for (s_l, s_i, s_r), s_rat in expanded[ref].items():
                     nk = (tuple(left) + s_l, s_i, s_r + tuple(right))
                     bucket[nk] = rat.add(bucket.get(nk, rat.zero()), rat.mul(coef, s_rat))

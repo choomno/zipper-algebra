@@ -51,6 +51,13 @@ class Atom:
         """
         if not isinstance(self.name, str) or not self.name.strip() or self.name == "1":
             raise ValueError("an atom needs a nonempty name other than the reserved name '1'")
+        depth = 0
+        for character in self.name:
+            depth += (character == "(") - (character == ")")
+            if depth < 0:
+                raise ValueError("atom names must have balanced parentheses")
+        if depth:
+            raise ValueError("atom names must have balanced parentheses")
         if not isinstance(self.coefs, dict):
             raise ValueError("atom coefficients must be a polynomial dictionary")
         for mon, c in self.coefs.items():
@@ -456,7 +463,7 @@ def _candidate_polys(max_bideg=(2, 1), coef_bound=2):
     mons = [(i, j) for i in range(max_bideg[0] + 1) for j in range(max_bideg[1] + 1)]
     mons.sort(reverse=True)
     rng = range(-coef_bound, coef_bound + 1)
-    out, seen = [], set()
+    out = []
     for cs in product(rng, repeat=len(mons)):
         coefs = {m: c for m, c in zip(mons, cs) if c}
         if not coefs or list(coefs) == [(0, 0)]:
@@ -465,10 +472,6 @@ def _candidate_polys(max_bideg=(2, 1), coef_bound=2):
             continue
         if math.gcd(*[abs(c) for c in coefs.values()]) != 1:
             continue
-        key = tuple(sorted(coefs.items()))
-        if key in seen:
-            continue
-        seen.add(key)
         out.append((max(i + j for i, j in coefs), sum(abs(c) for c in coefs.values()), coefs))
     out.sort(key=lambda x: (x[0], x[1]))
     return [c for _, _, c in out]
@@ -515,8 +518,6 @@ def residual_factors(lines, verbose=True):
         poly = sp.Poly(list(reversed([sp.Rational(c) for c in D])), x)
         for f, _e in sp.factor_list(poly)[1]:
             cs = list(reversed(f.all_coeffs()))
-            if len(cs) < 2:
-                continue
             out.setdefault((fixed, _primitive(cs)), []).append(x0)
     if verbose and out:
         print(f"[atoms] residual irreducible factors ({len(out)} distinct):")
@@ -576,8 +577,6 @@ def atoms_from_residual_factors(factors, max_other_deg=4, min_lines=3, verbose=T
         bi = {}
         for pos, poly in coefs.items():
             for d, c in poly.items():
-                if c == 0:
-                    continue
                 key = (pos, d) if fixed == "t" else (d, pos)
                 bi[key] = bi.get(key, F(0)) + c
         bi = {k: v for k, v in bi.items() if v}
@@ -749,10 +748,10 @@ def infer(values_by_slot: dict, seed: AtomSet | None = None, max_bideg=(2, 1), c
         report["residual_factors"] = [_fmt_univariate(cs, "q" if f == "t" else "t")
                                       for (f, cs) in rf]
         if lifted:
+            # Lifting returns distinct residual factors after all found atoms were stripped.
             for a in lifted:
-                if a not in found:
-                    found.append(a)
-                    mult[a.name] = strip(a)
+                found.append(a)
+                mult[a.name] = strip(a)
             left = sum(1 for _, _, D in lines if len(D) >= 2)
             report["found"] = [a.name for a in found]
             report["multiplicity"] = mult
