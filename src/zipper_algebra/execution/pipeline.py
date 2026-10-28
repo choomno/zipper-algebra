@@ -159,7 +159,7 @@ def run(pres, target, anchor, config, *, start=100, step=40, maxpts=260,
                     desired = min(desired + step, maxpts)
                     continue
             try:
-                fitted = lift(skeleton, samples, atoms=atoms, verbose=verbose)
+                fitted = lift(skeleton, samples, atoms=atoms, known="lines", verbose=verbose)
                 values = multiplier_samples(skeleton, samples, pres)
                 multipliers = composition.lift_multipliers(skeleton, values, fitted.atoms)
                 candidate = composition.compose(fitted, skeleton, pres,

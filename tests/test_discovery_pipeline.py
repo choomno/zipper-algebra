@@ -61,7 +61,7 @@ if a.mode=='reanchor-remainder':
 q=int(re.search(r'([+-]?\d+)\*y1',relations[-1]).group(1))
 index=0 if a.mode=='omit' or (a.mode=='vary' and q!=5) else len(relations)-1
 source=relations[index].rstrip(',')
-scale=q if a.mode=='scaled' else 1
+scale=q if a.mode=='scaled' else Fraction(1,q**5) if a.mode=='pole' else 1
 parts=[]
 for piece in re.findall(r'[+-]?[^+-]+',source):
     match=re.match(r'([+-]?)(?:(\d+(?:/\d+)?)\*?)?(.*)',piece)
@@ -199,6 +199,25 @@ class TestFreshDiscovery(DiscoveryFixture):
         # X2 = (1/q)*(q X2). Its coefficient is not the anchor constant 1/5.
         self.assertEqual(multipliers['steps'][0]['num'], [[[0,0], '1']])
         self.assertEqual(multipliers['steps'][0]['denom'], [1])
+
+    def test_high_order_coefficient_pole_uses_lines_and_composes_exactly(self):
+        atoms = AtomSet([Atom('q', {(1,0): 1})], [6])
+        report = self.discover(config=self.configuration('pole'), atoms=atoms,
+                               start=100, maxpts=100)
+        self.assertTrue(report['verified'], report)
+        order = {'solver': 'degree-lex', 'reduction': pipeline.REDUCTION_ORDER}
+        fitted = load_artifact(report['artifacts']['lift.json'], self.pres, self.target,
+                               kind='lift', order=order)
+        coefficient, = next(iter(fitted.entries.values()))
+        self.assertEqual(coefficient[0], (5,))
+        self.assertEqual(coefficient[1], {(0,0): Fraction(1)})
+        self.assertEqual(fitted.timing['routes'], {'known': 1, 'enum': 0})
+        # The multiplier q^5 cancels the reconstructed basis coefficient 1/q^5.
+        multipliers = json.loads(Path(report['artifacts']['multipliers.json']).read_text())
+        numerator = {tuple(m): Fraction(c) for m, c in multipliers['steps'][0]['num']
+                     if Fraction(c)}
+        self.assertEqual(numerator, {(5,0): Fraction(1)})
+        self.assertEqual(multipliers['steps'][0]['denom'], [0])
 
     def test_truncated_output_cannot_establish_nonmembership(self):
         report = self.discover(config=self.configuration('omit'))

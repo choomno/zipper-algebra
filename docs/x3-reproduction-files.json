@@ -3421,8 +3421,8 @@
     },
     {
       "path": "src/zipper_algebra/execution/pipeline.py",
-      "bytes": 9504,
-      "sha256": "566f548886697449fae3b7d5b4ecae5266f0b2d211624c4ec4bc35b12c51e888",
+      "bytes": 9519,
+      "sha256": "fbae60b861eb468354679d877b53e1e627af5d81dc18d4d7cdbf590fe990e799",
       "role": "Maintained presentation, arithmetic, production or verification source"
     },
     {
@@ -3583,8 +3583,8 @@
     },
     {
       "path": "tests/test_discovery_pipeline.py",
-      "bytes": 27799,
-      "sha256": "ee854a2254cdad089004e40837c8fbf5be8806e6828f2623a504bc7393fd5126",
+      "bytes": 29046,
+      "sha256": "1cd2c8b2dd7d4eafb1b343f5e7e620f00d293f8752a458f16979c3071b10dffd",
       "role": "Regression, integration, reproduction or frozen implementation comparison"
     },
     {
