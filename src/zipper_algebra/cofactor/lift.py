@@ -41,8 +41,10 @@ import json
 import time
 from fractions import Fraction
 
-from .atoms import (AtomSet, infer as infer_atoms, reconstruct_univariate,
-                    exact_fraction, normalise_points)
+from .atoms import AtomSet
+from .inference import infer as infer_atoms
+from .univariate import (_poly_divmod, _specialise, exact_fraction,
+                         normalise_points, reconstruct_univariate)
 
 
 Anchor = tuple  # (q, t, char); char 0 = Q
@@ -254,47 +256,8 @@ def fit_rational_known(points, atoms: AtomSet, denom_exps, max_pq=5, max_pt=5):
 
 
 # ----------------------------------------------------------------------------
-# per-slot denominator from line reconstruction (the SPEC optimisation's input)
+# Per-slot denominator proposals from line reconstruction
 # ----------------------------------------------------------------------------
-
-def _specialise(coefs: dict, fixed: str, x0) -> list:
-    """{(i,j): c} restricted to t = x0 ('t') or q = x0 ('q'), as a univariate coefficient
-    list low->high in the other variable.  (atoms._specialise, kept private there.)"""
-    out = {}
-    for (i, j), c in coefs.items():
-        if fixed == "t":
-            out[i] = out.get(i, 0) + c * Fraction(x0) ** j
-        else:
-            out[j] = out.get(j, 0) + c * Fraction(x0) ** i
-    deg = max(out) if out else 0
-    poly = [out.get(k, Fraction(0)) for k in range(deg + 1)]
-    while len(poly) > 1 and poly[-1] == 0:
-        poly.pop()
-    return poly
-
-
-def _poly_divmod(num, den):
-    """Exact univariate division over Fraction, coefficient lists low->high.  (atoms._poly_divmod.)"""
-    num = [Fraction(c) for c in num]
-    den = [Fraction(c) for c in den]
-    while den and den[-1] == 0:
-        den.pop()
-    if not den:
-        raise ZeroDivisionError
-    q = [Fraction(0)] * max(0, len(num) - len(den) + 1)
-    r = num[:]
-    while len(r) >= len(den) and any(r):
-        if r[-1] == 0:
-            r.pop(); continue
-        k = len(r) - len(den)
-        c = r[-1] / den[-1]
-        q[k] = c
-        for i, d in enumerate(den):
-            r[k + i] -= c * d
-        r.pop()
-    while r and r[-1] == 0:
-        r.pop()
-    return q, r
 
 
 def line_denominator(points, atoms: AtomSet, min_line=6, max_lines=None):

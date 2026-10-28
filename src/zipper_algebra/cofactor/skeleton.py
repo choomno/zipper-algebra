@@ -23,7 +23,8 @@ import json
 from dataclasses import dataclass, field
 from fractions import Fraction
 
-from ..zipper_in_ms import Coef, Poly
+from ..coefficients import Coef
+from ..polynomial import Poly
 from .proof import Basis, Proof, Word, Expanded, leading_term, mon_sort_key
 
 

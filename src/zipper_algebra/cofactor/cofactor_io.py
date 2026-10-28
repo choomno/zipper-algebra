@@ -7,7 +7,7 @@ A cofactor of a target f in the two-sided ideal of a presentation is the finite 
 
 with L_j, R'_j words in the generators, R_i the input relations of the presentation, and
 c_j in Q(q,t) written as num / den, where den is a product of powers of the presentation's
-denominator atoms (tools/cofactor/atoms.py) and num is a polynomial in q, t.  One term per
+denominator atoms (cofactor/atoms.py) and num is a polynomial in q, t.  One term per
 text line, exactly the line compose_x3_cofactor_qt.py has always written:
 
     x1*x2 * T_2 * y1  ::  (1*q^2*t^0 + -1*q^3*t^1) / (q^2*t*(q-1))
@@ -49,7 +49,8 @@ import re
 from fractions import Fraction
 
 from .atoms import AtomSet
-from ..zipper_in_ms import Coef, Poly, NumericRing, SymbolicRing
+from ..coefficients import Coef, NumericRing, SymbolicRing
+from ..polynomial import Poly
 from ..presentation import Presentation, EXTRA_CATALOGUE, _theta_word
 
 

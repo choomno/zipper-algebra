@@ -5,17 +5,11 @@ include docs/mathematical-specification/mathematical-specification.pdf
 recursive-include ci *.py
 recursive-include patches *.md *.patch LICENSE
 recursive-include tests *.py *.json *.txt
-include tools/__init__.py tools/presentation.py tools/zipper_in_ms.py tools/core.py
-include tools/cofactor/__init__.py
-include tools/cofactor/atoms.py tools/cofactor/cofactor_io.py tools/cofactor/compose.py
-include tools/cofactor/lift.py tools/cofactor/ncpoly.py tools/cofactor/proof.py
-include tools/cofactor/skeleton.py tools/cofactor/verify.py
-include tools/cofactor/paths.py tools/cofactor/pipeline.py tools/cofactor/relations_naming.py
-include tools/cofactor/tests_*.py
-include archive/cofactor-pre-consolidation/extract_cofactor.py
+recursive-include examples *.py *.md
+recursive-include experiments *.py *.md
+include data/aliases.json
 include logs_and_traces/f4ncgb/cofactor-X3-n4-Qqt-symbolic.txt
 include logs_and_traces/f4ncgb/basis-n4-Q.txt
-include logs_and_traces/f4ncgb/basis-n4-Q-q5-t7.txt
 include logs_and_traces/f4ncgb/basis-n4-Q-q3-t11.txt
 include logs_and_traces/f4ncgb/basis-n4-Q-q7-t13.txt
 global-exclude *.py[cod]

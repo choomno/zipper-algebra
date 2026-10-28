@@ -1,4 +1,4 @@
-"""Command line presentation descriptions and exact certificate verification."""
+"""Installed commands for presentations, exact checking and solver-backed discovery."""
 from __future__ import annotations
 
 import argparse
@@ -47,6 +47,14 @@ def _presentation(args):
                         tuple(args.extra))
 
 
+def _parameter_pair(value):
+    try:
+        q, t = value.split(",")
+        return int(q), int(t)
+    except ValueError:
+        raise argparse.ArgumentTypeError("expected an integer pair q,t") from None
+
+
 def parser():
     command = argparse.ArgumentParser(
         prog="zipper-algebra", description="Exact tools for zipper algebra presentations")
@@ -59,11 +67,40 @@ def parser():
     _presentation_arguments(verify, require_n=True)
     verify.add_argument("--target", help="target slider or additional relation name")
     verify.add_argument("--pit", action="store_true", help="also check the exact finite product grid")
+    emit = subcommands.add_parser("emit", help="emit only the specified defining relations")
+    _presentation_arguments(emit, require_n=True)
+    emit.add_argument("--q", type=int, default=5)
+    emit.add_argument("--t", type=int, default=7)
+    emit.add_argument("--char", type=_integer_at_least(0), default=0)
+    emit.add_argument("--out", type=Path, required=True)
+    compose = subcommands.add_parser("compose", help="compose and exactly verify symbolic proof data")
+    from .cofactor.compose import add_arguments
+    add_arguments(compose)
+    discover = subcommands.add_parser("discover", help="produce a certificate from solver proofs")
+    _presentation_arguments(discover, require_n=True)
+    discover.add_argument("--target", required=True)
+    discover.add_argument("--solver", type=Path, required=True)
+    discover.add_argument("--output", type=Path, required=True)
+    discover.add_argument("--cache", type=Path)
+    discover.add_argument("--anchor", type=_parameter_pair, default=(5, 7), metavar="Q,T")
+    discover.add_argument("--start", type=_integer_at_least(1), default=100)
+    discover.add_argument("--step", type=_integer_at_least(1), default=40)
+    discover.add_argument("--max", dest="maxpts", type=_integer_at_least(1), default=260)
+    discover.add_argument("--jobs", type=_integer_at_least(1), default=1)
+    discover.add_argument("--atoms", type=Path)
+    discover.add_argument("--timeout", type=float, default=1800)
+    discover.add_argument("--max-iterations", type=_integer_at_least(1), default=100000)
+    discover.add_argument("--max-degree", type=_integer_at_least(1))
+    discover.add_argument("--solver-revision", default="unrecorded")
+    discover.add_argument("--refresh", action="store_true")
     return command
 
 
 def main(argv=None):
     args = parser().parse_args(argv)
+    if args.command == "compose":
+        from .cofactor.compose import run
+        return run(args)
     try:
         presentation = _presentation(args)
         if args.command == "describe":
@@ -79,6 +116,28 @@ def main(argv=None):
                 for index, label in enumerate(report["relations"]):
                     print(f"  R_{index:<3} {label}")
             return 0
+
+        if args.command == "emit":
+            args.out.parent.mkdir(parents=True, exist_ok=True)
+            count = presentation.emit_ms(str(args.out), args.q, args.t, args.char)
+            report = {"input": str(args.out), "relations": count,
+                      "presentation_hash": presentation.content_hash()}
+            print(json.dumps(report, sort_keys=True) if args.json
+                  else f"Wrote {count} defining relations to {args.out}")
+            return 0
+        if args.command == "discover":
+            from .cofactor.atoms import AtomSet
+            from .execution.config import RunConfig
+            from .execution.pipeline import run
+            config = RunConfig(args.solver, args.output, args.cache, args.timeout,
+                               args.max_iterations, args.max_degree,
+                               solver_revision=args.solver_revision)
+            atoms = None if args.atoms is None else AtomSet.load(args.atoms)
+            report = run(presentation, args.target, (*args.anchor, 0), config,
+                         start=args.start, step=args.step, maxpts=args.maxpts,
+                         jobs=args.jobs, atoms=atoms, refresh=args.refresh, verbose=not args.json)
+            print(json.dumps(report, sort_keys=True) if args.json else report["status"])
+            return 0 if report["verified"] else 3
 
         certificate = Cofactor.load(str(args.certificate), pres=presentation, target=args.target)
         target = args.target if args.target is not None else certificate.target

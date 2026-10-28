@@ -32,7 +32,8 @@ from __future__ import annotations
 import re
 from fractions import Fraction
 
-from ..zipper_in_ms import Coef, Poly
+from ..coefficients import Coef
+from ..polynomial import Poly
 
 
 Word = tuple[int, ...]

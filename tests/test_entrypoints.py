@@ -189,6 +189,49 @@ class TestSymbolicCompositionEntryPoint(unittest.TestCase):
                 self.assertEqual(json.loads(output)["status"], "invalid-input")
                 self.assertFalse(self.output.exists())
 
+    def test_numeric_atom_metadata_cannot_be_replaced_by_equal_boolean_or_float(self):
+        good = json.loads(self.multiplier_path.read_text())
+        # Every original numeric entry is an integer, including the atom's powers,
+        # coefficient and search bound. Python equality alone conflates these types.
+        for replacement in (True, 1.0):
+            for location in ("power", "coefficient", "bound"):
+                data = deepcopy(good)
+                if location == "bound":
+                    data["atoms"]["max_exp"][0] = replacement
+                else:
+                    index = 0 if location == "power" else 2
+                    data["atoms"]["atoms"][0]["coefs"][0][index] = replacement
+                self.multiplier_path.write_text(json.dumps(data))
+                with self.subTest(replacement=replacement, location=location):
+                    with self.assertRaisesRegex(ValueError, "denominator atoms"):
+                        composition.load_multipliers(self.multiplier_path, self.skeleton,
+                                                     self.atoms, self.pres)
+
+    def test_context_metadata_cannot_use_boolean_or_float_generator_indices(self):
+        for side in ("left", "right"):
+            self.skeleton.steps[0][side] = (1,)
+            good = composition.multipliers_to_json(self.correct, self.skeleton,
+                                                   self.atoms, self.pres)
+            for replacement in (True, 1.0):
+                data = deepcopy(good)
+                data["steps"][0][side] = [replacement]
+                self.multiplier_path.write_text(json.dumps(data))
+                with self.subTest(side=side, replacement=replacement):
+                    with self.assertRaisesRegex(ValueError, "occurrence"):
+                        composition.load_multipliers(self.multiplier_path, self.skeleton,
+                                                     self.atoms, self.pres)
+            self.skeleton.steps[0][side] = ()
+
+    def test_export_rejects_noninteger_context_indices(self):
+        for side in ("left", "right"):
+            for replacement in (True, 1.0):
+                self.skeleton.steps[0][side] = (replacement,)
+                with self.subTest(side=side, replacement=replacement):
+                    with self.assertRaisesRegex(ValueError, "word"):
+                        composition.multipliers_to_json(self.correct, self.skeleton,
+                                                         self.atoms, self.pres)
+            self.skeleton.steps[0][side] = ()
+
     def test_malformed_exact_coefficients_and_denominators_are_rejected(self):
         good = json.loads(self.multiplier_path.read_text())
         cases = [[[[1, 0], 1]], [[[1, 0], "1"], [[1, 0], "2"]],

@@ -33,10 +33,15 @@ def check(directory, no_isolation=False):
                         "--no-deps", str(wheel)], check=True)
         env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1", PYTHONNOUSERSITE="1")
         env.pop("PYTHONPATH", None)
-        for args in (["discover", "-s", "tests", "-v"],
-                     ["tools.cofactor.tests_proof_skeleton", "-v"]):
-            subprocess.run([sys.executable, "-m", "unittest", *args], cwd=tree, env=env,
-                           check=True)
+        subprocess.run([sys.executable, "ci/run_tests.py", "--suite", "fast"],
+                       cwd=tree, env=env, check=True)
+        # The full historical comparison suite runs once in the coverage job.
+        # Here one complete certificate recomposition proves that its immutable
+        # data and reference adapters survive extraction and wheel rebuilding.
+        subprocess.run([sys.executable, "-m", "unittest",
+                        "tests.reproduction.test_x3.TestCompose."
+                        "test_composed_body_is_byte_identical_to_the_shipped_certificate",
+                        "-v"], cwd=tree, env=env, check=True)
     print("Source-distribution build and regressions passed")
 
 

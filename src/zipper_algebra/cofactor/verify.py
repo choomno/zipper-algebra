@@ -1,27 +1,15 @@
 #!/usr/bin/env python3
-"""Phase 5: prove the cofactor identity over Q(q,t), with q and t transcendental.
+"""Exact checking of two-sided ideal-membership identities over Q(q,t).
 
-This is the certificate.  Everything upstream -- the sampled Groebner bases, the fitted
-coefficients, the inferred atom set -- is search, and search can be wrong in ways more sampling
-never reveals.  What makes a result a result is this check:
+The certificate expresses a target as contextual multiples of the specified defining
+relations. Nonzero polynomial denominator factors are cleared, then the resulting
+free-algebra identity is checked over Q[q,t]. Specialization of the rational identity
+requires its displayed denominators to remain nonzero.
 
-    sum_j  c_j(q,t) * L_j * rel_{i_j} * R_j  ==  target       in Q(q,t)<x_1..y_{n-1}>,
-
-an identity between two free-algebra polynomials, verified exactly.  Denominators are cleared by
-the common denominator M of the c_j, so the identity becomes one in Q[q,t]<X>, and both sides
-are compared term by term. M must be a nonzero polynomial. The conclusion is over Q(q,t);
-specializations of the displayed rational identity require its denominators to remain nonzero.
-
-Ported from symbolic_identity_check.py, which was the trusted verifier but only for X_3 at n=4:
-it carried a 130-line hand copy of the presentation (now `Presentation.symbolic_ncpolys`, the
-single builder) and parsed denominators as a 4-tuple over four hard-coded atoms `q, t, q-1, t+q^2`
-(now the cofactor's own AtomSet, whatever it contains).  The free-algebra arithmetic is the same
-code, moved to `ncpoly.py` unchanged.
-
-`pit_check` is a second, independent verifier along the lines of `tools/survey/certify.py`: read
-the bidegree off the cleared identity a posteriori, evaluate both sides on an integer product grid
-one larger in each variable, and conclude by interpolation.  It shares no arithmetic with `check`,
-so agreement between them is real evidence rather than a repeated computation.
+``check`` uses symbolic sparse-polynomial accumulation. ``pit_check`` evaluates the
+cleared polynomial on a product grid with sufficient degree bounds. Their accumulation
+arithmetic is separate; presentation construction, validation and target resolution
+are shared. Sample fits and solver exits alone establish neither check's conclusion.
 """
 from __future__ import annotations
 
@@ -33,7 +21,8 @@ from .cofactor_io import Cofactor, symbolic_target
 from .ncpoly import (NCPoly, qt_add, qt_const, qt_mul, qt_pow, nc_add, nc_is_zero,
                      nc_mul, nc_scalar, nc_size, nc_sub, nc_zero)
 from ..presentation import Presentation
-from ..zipper_in_ms import NumericRing, SymbolicRing, Poly
+from ..coefficients import NumericRing, SymbolicRing
+from ..polynomial import Poly
 
 
 def _atom_qt(atom) -> dict:

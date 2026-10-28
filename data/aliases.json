@@ -1,0 +1,63 @@
+{
+  "schema": "zipper-data-aliases-v1",
+  "scope": "Historical paths consolidated into byte-identical canonical copies. Read canonical_path; these records do not redirect filesystem access.",
+  "source_commit": "0db1dd9e2a33fb0e5d07e216c8a5354911446e97",
+  "aliases": [
+    {
+      "path": "logs_and_traces/f4ncgb/lift_samples_canonical/coefficients.json",
+      "canonical_path": "logs_and_traces/f4ncgb/lift_samples/coefficients.json",
+      "bytes": 9992730,
+      "sha256": "db32d13a246281ce3cae0e9241e64b152977cdbba3293721bd743bc14d54a645",
+      "role": "Numeric cofactor coefficient samples: the same 212 points and 695 slots as the canonical collection."
+    },
+    {
+      "path": "archive/variants-data/square-zero-n3-regrep-qt.pkl",
+      "canonical_path": "logs_and_traces/variants/square-zero-n3-regrep-qt.pkl",
+      "bytes": 8466,
+      "sha256": "fc727a8cf28d85bc8e88761657876de73cfa271a362ad56a1824d8380ed4ca5e",
+      "role": "Exact regular-representation matrix data for the square-zero three-strand experiment."
+    },
+    {
+      "path": "archive/variants-data/square-zero-n3-traceform-T-qt.pkl",
+      "canonical_path": "logs_and_traces/variants/square-zero-n3-traceform-T-qt.pkl",
+      "bytes": 32533,
+      "sha256": "3d8b958963d149d5b6d3b3f7d269297843f9ba525f095e963aed590db2fcabb2",
+      "role": "Exact trace-form matrix data for the square-zero three-strand experiment."
+    },
+    {
+      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q5-t7.txt",
+      "canonical_path": "logs_and_traces/f4ncgb/basis-n4-Q.txt",
+      "bytes": 24670,
+      "sha256": "3ea67767a9d2aff8dfa07bcd266dcee1038b75d8ecfd2df990b23d92422c64de",
+      "role": "Canonical 137-entry basis at q=5,t=7, characteristic zero, from the original 31-relation presentation."
+    },
+    {
+      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Qqt-ZT.txt",
+      "canonical_path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Qqt-three-rels.txt",
+      "bytes": 19905,
+      "sha256": "a6c20c7165bcefaa9eafe023b09d6e80f5592aefec2135b5905619aa97c35086",
+      "role": "Compact 161-term braid-group-algebra certificate already using the canonical relation labels."
+    },
+    {
+      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q5-t7.ms",
+      "canonical_path": "logs_and_traces/f4ncgb/zipper-n4-Q-q5-t7.ms",
+      "bytes": 2295,
+      "sha256": "db9083a5bd0462bcc5e60179427ca4050c436ad8a79e7dea3ae91c2ee2c2ac01",
+      "role": "Original 31-relation four-strand presentation specialized at q=5,t=7 in characteristic zero."
+    },
+    {
+      "path": "ms_inputs/qt_sweep/zipper-n4-Q.ms",
+      "canonical_path": "logs_and_traces/f4ncgb/zipper-n4-Q-q5-t7.ms",
+      "bytes": 2295,
+      "sha256": "db9083a5bd0462bcc5e60179427ca4050c436ad8a79e7dea3ae91c2ee2c2ac01",
+      "role": "Original 31-relation four-strand presentation specialized at q=5,t=7; the historical name is not an unspecialized input."
+    },
+    {
+      "path": "ms_inputs/qt_sweep/zipper-n4-X3-Q.ms",
+      "canonical_path": "logs_and_traces/f4ncgb/reproduce-zipper-n4-Q-q5-t7.ms",
+      "bytes": 2359,
+      "sha256": "0f70f593f93feeffd1be74f1e7887cf095bf9e2c8b98dc366e6802bf63f12d48",
+      "role": "Older 32-relation augmented input including X_3 itself; this input does not prove membership in the original 31-relation ideal."
+    }
+  ]
+}
