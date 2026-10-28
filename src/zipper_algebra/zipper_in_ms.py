@@ -436,8 +436,8 @@ def build_relations_ring(n: int, ring, untw: str,
     relation in ``bigelow`` mode: with framing_power = k >= 1, the level-2
     relation becomes (x_j^k - t) * S[2][j], i.e. the eigenvalue equation
     sigma_j^k * X_{2,j} = t * X_{2,j} (with t fixed, not t^k). k=1 is the
-    canonical Bigelow framing. For k > 1 the slider need not be a sigma_j
-    eigenvector and the resulting algebra is strictly larger than BMW.
+    canonical Bigelow framing. For k > 1 this specifies polynomial annihilation
+    by sigma_j^k - t; strict quotient comparisons require separate evidence.
     """
     var_names = [f"x{i}" for i in range(1, n)] + [f"y{i}" for i in range(1, n)]
     char = ring.char
@@ -539,9 +539,8 @@ def build_relations_ring(n: int, ring, untw: str,
                 rel = (x(j) * x(j) - t * t) * S[(2, j)]
             elif untw == "square-zero":
                 # (sigma_j - t)^2 X_{2,j} = (sigma_j^2 - 2t sigma_j + t^2) X_{2,j} = 0.
-                # This makes sigma_j have eigenvalue t with multiplicity 2 on the
-                # slider line; a square-zero block forms (eigenvector + generalized
-                # eigenvector), forcing the algebra to be NON-semisimple.
+                # This is a squared annihilating relation. It does not by itself
+                # establish a nonzero Jordan block or nonsemisimplicity.
                 two_t = t + t
                 rel = (x(j) * x(j) - two_t * x(j) + t * t) * S[(2, j)]
             else:
@@ -660,22 +659,16 @@ def main() -> int:
                     default="bigelow",
                     help="'bigelow': (sigma^a - t)X_2 = 0 (the higher-framing variant). "
                          "'silly_question': (sigma^2 - t^2)X_2 = 0. "
-                         "'square-zero': (sigma - t)^2 X_2 = 0, i.e. sigma has eigenvalue t with multiplicity 2 "
-                         "on the slider; INDUCES NON-SEMISIMPLICITY (a deliberate non-rigid framing). "
+                         "'square-zero': (sigma - t)^2 X_2 = 0. "
                          "'none': no level-2 framing relation at all.")
     ap.add_argument("--framing-power", type=int, default=1, metavar="K",
                     help="In 'bigelow' mode only: use the level-2 relation "
                          "(sigma_j^K - t) * S[2][j] = 0 instead of the "
-                         "canonical K=1 case. K=1 is canonical; K>=2 gives "
-                         "an algebra strictly larger than BMW.")
+                         "canonical K=1 case. This specifies an annihilating relation; "
+                         "quotient comparisons require separate verification.")
     ap.add_argument("--theta-power", type=int, default=1, metavar="M",
-                    help="For i >= 3 untwisting (any 'untwist' mode): use "
-                         "(Theta_i^M - q^{(i-1)M}) * S[i][j] = 0 in place of "
-                         "the canonical M=1 relation. M=1 is canonical. NOTE: "
-                         "k_3 = 1 is forced by rigidity per sliders_and_full_twists.tex "
-                         "(rigidity of the slider module); M >= 2 at i = 3 gives a "
-                         "weaker relation that is not consistent with the natural "
-                         "presentation. Recommend leaving at 1.")
+                    help="At level three, M > 1 uses (Theta_3^M - q^(2M)) X_3 = 0. "
+                         "Higher levels retain the canonical relation; M=1 is canonical.")
     ap.add_argument("--max-zipper-level", type=int, default=None, metavar="L",
                     help="If set, include only zipper relations at level i <= L "
                          "(i.e., omit zipper relations at levels > L). Default: all.")
@@ -688,13 +681,14 @@ def main() -> int:
                          "whether forcing a level-K vanishing makes the algebra "
                          "finite-dimensional (e.g., --zero-from 4 forces X_4 = 0).")
     ap.add_argument("--out", required=True, help="output .ms path")
-    ap.add_argument("--target", type=int, default=None, metavar="K",
-                    help="append the K-strand slider S[K][1] as the last input. "
-                         "Its proof line gives the cofactor of X_K = S[K][1] in "
-                         "terms of the other inputs. K must satisfy "
-                         "2 <= K <= n. Common choices: K=3 (slider on first "
-                         "three strands of an n-strand algebra).")
+    ap.add_argument("--append-target", type=int, default=None, metavar="K",
+                    help="add the K-strand slider as a defining relation of an augmented "
+                         "presentation. This cannot prove its membership in the original ideal.")
+    ap.add_argument("--target", help=argparse.SUPPRESS)
     args = ap.parse_args()
+    if args.target is not None:
+        ap.error("--target was removed: appending a target does not prove membership in "
+                 "the original ideal. Use --append-target K only to define an augmented presentation.")
 
     var_names, relations, S = build_relations(args.n, args.q, args.t, args.char,
                                               args.untwist,
@@ -705,10 +699,10 @@ def main() -> int:
     if args.zero_from is not None:
         added = append_zero_sliders(relations, S, args.zero_from, args.n)
         print(f"Appended {added} zero-slider relations for i >= {args.zero_from}")
-    if args.target is not None:
-        target_idx = append_target(relations, S, args.target)
-        print(f"Appended S[{args.target}][1] as input #{target_idx} "
-              f"(0-based); look at line {target_idx + 1} of the proof.")
+    if args.append_target is not None:
+        target_idx = append_target(relations, S, args.append_target)
+        print(f"Augmented presentation: added S[{args.append_target}][1] "
+              f"as defining relation #{target_idx} (0-based).")
 
     with open(args.out, "w") as f:
         f.write(",".join(var_names) + "\n")

@@ -256,7 +256,7 @@ class TestPresentationBuildersAndEmitter(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             out = Path(directory)/'input.ms'
             argv = ['zipper_in_ms', '--n', '2', '--out', str(out),
-                    '--zero-from', '2', '--target', '2']
+                    '--zero-from', '2', '--append-target', '2']
             stdout = io.StringIO()
             with patch.object(sys, 'argv', argv), redirect_stdout(stdout):
                 with self.assertRaises(SystemExit) as exit_:
@@ -265,4 +265,4 @@ class TestPresentationBuildersAndEmitter(unittest.TestCase):
             lines = out.read_text().splitlines()
             self.assertEqual(lines[-2:], ['-x1+5*y1-4,', '-x1+5*y1-4'])
             self.assertIn('Appended 1 zero-slider relations', stdout.getvalue())
-            self.assertIn('Appended S[2][1]', stdout.getvalue())
+            self.assertIn('Augmented presentation: added S[2][1] as defining relation', stdout.getvalue())

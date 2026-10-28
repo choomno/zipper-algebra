@@ -4,6 +4,7 @@ from __future__ import annotations
 from contextlib import redirect_stdout
 from fractions import Fraction as F
 import io
+import json
 from pathlib import Path
 import subprocess
 import sys
@@ -305,18 +306,20 @@ class TestCompositionCommandLine(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             path = Path(d)
             lift.save(str(path/"lift.json")); skel.save(str(path/"skeleton.json"))
+            (path/"multipliers.json").write_text(json.dumps(
+                composition.multipliers_to_json([({(0, 0): F(1)}, ())], skel, atoms, pres)))
             args = [sys.executable, "-m", "zipper_algebra.cofactor.compose",
                     "--lift", str(path/"lift.json"), "--skeleton", str(path/"skeleton.json"),
-                    "--out", str(path/"certificate.txt"), "--n", "3"]
+                    "--out", str(path/"certificate.txt"), "--n", "3",
+                    "--multipliers", str(path/"multipliers.json")]
             result = subprocess.run(args, cwd=Path(__file__).resolve().parents[1],
                                     text=True, capture_output=True, timeout=30)
-            self.assertTrue((path/"certificate.txt").exists(), result.stderr)
-            return result.returncode, result.stdout
+            return result.returncode, result.stdout + result.stderr, (path/"certificate.txt").exists()
 
-    def test_cli_records_and_rejects_a_false_empty_expression(self):
-        code, output = self.run_command("X_2", {"g": []})
-        self.assertEqual(code, 1)
-        self.assertIn("MISMATCH", output)
+    def test_cli_rejects_a_false_empty_expression_without_writing(self):
+        code, output, written = self.run_command("X_2", {"g": []})
+        self.assertEqual(code, 1, output)
+        self.assertFalse(written)
 
     def test_cli_verifies_a_contextual_untwisting_identity(self):
         # U*T3 + q²*(x1*(x2*y2-1)*y1 + (x1*y1-1))*S3
@@ -333,8 +336,9 @@ class TestCompositionCommandLine(unittest.TestCase):
             shifted = {(q+2, t): c for (q, t), c in numerator.items()}
             terms.append(((), shifted, (1,), "input", pres.labels().index("INV_2_p"), (3,)+word))
             terms.append(((), shifted, (), "input", pres.labels().index("INV_1_p"), word))
-        code, output = self.run_command("(Theta_3-q^2)X_3", {"g": terms})
+        code, output, written = self.run_command("(Theta_3-q^2)X_3", {"g": terms})
         self.assertEqual(code, 0, output)
+        self.assertTrue(written, output)
         self.assertNotIn("MISMATCH", output)
 
 
