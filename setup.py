@@ -65,6 +65,21 @@ def write_metadata(directory, metadata):
     path.write_text(json.dumps(metadata, sort_keys=True, indent=2) + "\n", encoding="utf-8")
 
 
+def project_relative(path):
+    """Normalize project-directory aliases while retaining payload symlink names."""
+    path = Path(path).absolute()
+    for parent in reversed((path, *path.parents)):
+        if parent.resolve() == ROOT:
+            relative = path.relative_to(parent)
+            partial = parent
+            for part in relative.parts:
+                partial /= part
+                if partial.is_symlink():
+                    return relative.as_posix()
+            return path.resolve().relative_to(ROOT).as_posix()
+    raise ValueError("release payload path leaves the project")
+
+
 def ignored_release_payloads(names):
     """Classify release paths without letting one symlink disable Git filtering."""
     boundaries = {}
@@ -112,7 +127,7 @@ class ProvenanceBuildPy(build_py):
         allowed = self.source_metadata()["origin"]["source_files"]
         modules = super().find_package_modules(package, package_dir)
         return [entry for entry in modules
-                if Path(entry[2]).absolute().relative_to(ROOT).as_posix() in allowed]
+                if project_relative(entry[2]) in allowed]
 
     def run(self):
         metadata = self._zipper_metadata = source_metadata()
@@ -137,13 +152,14 @@ class ProvenanceSdist(sdist):
     def make_release_tree(self, base_dir, files):
         metadata = source_metadata()
         allowed = metadata["origin"]["source_files"]
-        ignored = ignored_release_payloads([Path(name).as_posix() for name in files])
-        generated_root = Path(self.get_finalized_command("egg_info").egg_info).as_posix()
+        files = [project_relative(name) for name in files]
+        ignored = ignored_release_payloads(files)
+        generated_root = project_relative(self.get_finalized_command("egg_info").egg_info)
         if (ROOT / generated_root).is_symlink():
             raise ValueError("release metadata directory must not be a symbolic link")
         selected = []
         for name in files:
-            relative = Path(name).as_posix()
+            relative = name
             generated = (Path(relative).parent.as_posix() == generated_root
                          and Path(relative).name in GENERATED_METADATA
                          and not (ROOT / relative).is_symlink())
@@ -168,9 +184,12 @@ class ProvenanceWheel(bdist_wheel):
         source = Path(self.get_finalized_command("egg_info").egg_info).absolute()
         if source.is_symlink():
             raise ValueError("release metadata directory must not be a symbolic link")
-        payloads = {path.relative_to(ROOT).as_posix(): path for path in source.rglob("*")
-                    if path.is_file() or path.is_symlink()}
-        ignored = ignored_release_payloads(list(payloads))
+        internal = source.resolve().is_relative_to(ROOT)
+        payloads = {(project_relative(path) if internal else path.relative_to(source).as_posix()): path
+                    for path in source.rglob("*") if path.is_file() or path.is_symlink()}
+        # PEP 660 creates fresh metadata outside the source tree. Only the known
+        # generated files are eligible there; local extras have no Git policy.
+        ignored = ignored_release_payloads(list(payloads)) if internal else set(payloads)
         with tempfile.TemporaryDirectory(prefix="zipper-wheel-metadata-") as directory:
             filtered = Path(directory) / "egg-info"
             filtered.mkdir()

@@ -67,8 +67,8 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "bytes": 7100,
-      "sha256": "563d32109f1d154df579f5f4e055d87c5d90da22e3f9a8b0f324c7803b6d670e",
+      "bytes": 7121,
+      "sha256": "2a4bd2ad5d3a5c10ed411db3a02069f90178fdf21bc2e889fdc359afd3087575",
       "role": "Hosted software tests, small solver integration and documentation checks"
     },
     {
@@ -265,8 +265,8 @@
     },
     {
       "path": "setup.py",
-      "bytes": 9333,
-      "sha256": "3d334fb8d851b8785e2a165bec990867161c88ea1454e5637161793542ee99b5",
+      "bytes": 10204,
+      "sha256": "c3af906151eeb519c349d1fb712bf7a3f3b03b52f24b0f586156b9582ed56910",
       "role": "Build-time source provenance embedded in wheels and source archives"
     },
     {
@@ -535,8 +535,8 @@
     },
     {
       "path": "tests/integration/test_build_provenance.py",
-      "bytes": 16894,
-      "sha256": "739eef16f90543d15d40292d1085dc80470a32ca65e6ac9508d49b0e1d5465fa",
+      "bytes": 20026,
+      "sha256": "4380319ec69c8d43379f6ace20c9418cf63d2c18ec3e985d6f6248bb81612774",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {

@@ -74,6 +74,7 @@ class TestSourceArchiveProvenance(unittest.TestCase):
             namespace = runpy.run_path(str(root / "setup.py"))
             cls.metadata_hook = staticmethod(namespace["source_metadata"])
             cls.ignore_hook = staticmethod(namespace["ignored_release_payloads"])
+            cls.build_class = namespace["ProvenanceBuildPy"]
 
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory(prefix="zipper-build-source-")
@@ -115,6 +116,25 @@ class TestSourceArchiveProvenance(unittest.TestCase):
         with patch.dict(self.ignore_hook.__globals__, ROOT=self.root, PACKAGE=self.package):
             with self.assertRaisesRegex(ValueError, "classification failed"):
                 self.ignore_hook(["tests/private_scratch.py"])
+
+    def test_package_directory_alias_keeps_source_membership_and_symlink_names(self):
+        from setuptools import Distribution
+        with tempfile.TemporaryDirectory(prefix="zipper-build-alias-") as directory:
+            alias = Path(directory) / "project"
+            try:
+                alias.symlink_to(self.root, target_is_directory=True)
+                (self.package / "private_notes.py").symlink_to(self.package / "__init__.py")
+            except OSError as error:
+                self.skipTest(f"source alias symlinks unavailable: {error}")
+            distribution = Distribution({"packages": ["zipper_algebra"]})
+            distribution.script_name = str(self.root / "setup.py")
+            command = self.build_class(distribution)
+            command.ensure_finalized()
+            command._zipper_metadata = self.metadata
+            with patch.dict(self.metadata_hook.__globals__, ROOT=self.root, PACKAGE=self.package):
+                modules = command.find_package_modules(
+                    "zipper_algebra", str(alias / "src/zipper_algebra"))
+            self.assertEqual({name for _, name, _ in modules}, {"__init__", "provenance"})
 
     def test_unversioned_source_export_reports_unknown_revision(self):
         (self.package / "_build_provenance.json").unlink()
@@ -203,6 +223,43 @@ def release_build_available():
     return (importlib.util.find_spec("build") is not None
             and current_setuptools_available()
             and shutil.which("git") is not None)
+
+
+@unittest.skipUnless(current_setuptools_available(), "editable metadata checks need setuptools>=77")
+class TestEditableMetadata(unittest.TestCase):
+    def test_pep660_external_metadata_omits_local_extras(self):
+        project = Path(__file__).resolve().parents[2]
+        script = '''
+from pathlib import Path
+import json, sys
+from setuptools.command.egg_info import egg_info
+original = egg_info.run
+def run(self):
+    original(self)
+    folder = Path(self.egg_info)
+    assert not folder.resolve().is_relative_to(Path.cwd().resolve())
+    (folder / 'private_scratch.py').write_text('UNPUBLISHED_EXTERNAL_METADATA')
+egg_info.run = run
+from setuptools.build_meta import prepare_metadata_for_build_editable
+name = prepare_metadata_for_build_editable(sys.argv[1])
+print('ZIPPER_METADATA_RESULT=' + json.dumps(name))
+'''
+        with tempfile.TemporaryDirectory(prefix="zipper-editable-metadata-") as directory:
+            output = Path(directory)
+            result = subprocess.run([sys.executable, "-I", "-c", script, str(output)],
+                                    cwd=project, text=True, capture_output=True, timeout=60)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            line = next(line for line in result.stdout.splitlines()
+                        if line.startswith("ZIPPER_METADATA_RESULT="))
+            name = json.loads(line.split("=", 1)[1])
+            metadata = output / name
+            self.assertTrue((metadata / "METADATA").is_file())
+            self.assertFalse((metadata / "private_scratch.py").exists())
+            for path in metadata.rglob("*"):
+                if path.is_file():
+                    self.assertNotIn(b"UNPUBLISHED_EXTERNAL_METADATA", path.read_bytes())
+            original = next(output.glob("*.egg-info")) / "private_scratch.py"
+            self.assertEqual(original.read_text(), "UNPUBLISHED_EXTERNAL_METADATA")
 
 
 @unittest.skipUnless(release_build_available(), "release fixture needs current build tools and Git")
