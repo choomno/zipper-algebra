@@ -12,10 +12,10 @@ family of such quotients, defined by polynomial untwisting relations on the
 sliders. Its main finiteness theorem follows from the zipper algorithm and
 provides the mathematical setting for this project (Moos, Theorem 3.41).
 
-The software supports the study of that family: which defining relations are
-independent, when sliders vanish, and how the algebra changes with the
+This repository supports the study of that family. It's components compute: which defining relations are
+independent, when sliders vanish, and how the algebra changes with a choice of
 untwisting polynomials. It constructs presentations, expands recorded proofs,
-composes explicit two-sided ideal-membership certificates, reconstructs
+composes explicit two-sided ideal-membership certificates via cofactor representations, reconstructs
 candidate rational coefficients from exact samples, and verifies the resulting
 identities.
 
@@ -23,23 +23,6 @@ Read the [compiled mathematical reference](docs/mathematical-specification/mathe
 ([LaTeX source](docs/mathematical-specification/main.tex)) for the definitions,
 finite-generation theorem, connection with BMW algebras, and precise input requirements and verification guarantees. It distinguishes the general polynomial family from the selected
 presentations currently implemented.
-
-## Mathematical setting
-
-At each slider level one chooses a monic polynomial with invertible constant
-term and imposes the corresponding untwisting relation. The theorem states
-that the resulting algebra is finitely generated over the coefficient ring;
-over a field, it is finite-dimensional. The layered-zipper spanning result and
-reduction of twist exponents explain this conclusion (Moos, §3.5). It leaves
-the dimensions, bases and structure of the individual quotients to further study.
-
-The linear untwisting case leads back to the BMW algebra through an explicit
-slider-vanishing identity under the stated parameter hypotheses (Moos,
-Theorem 4.1 and Corollary 4.2). The package's
-certificate tools make statements of this kind reproducible, with the
-presentation and coefficient domain specified. General untwisting polynomials,
-the geometric zipper algorithm, dimensions and trace calculations extend beyond
-the maintained package's present scope.
 
 ## Install
 
