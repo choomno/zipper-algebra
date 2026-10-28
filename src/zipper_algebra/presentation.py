@@ -168,7 +168,7 @@ class Presentation:
         """Write the msolve input exactly as zipper_in_ms.py's CLI does (same bytes, so the
         driver's content-addressed cache keys are unchanged). Returns the relation count."""
         names, rels, _, _ = self.build(NumericRing(q, t, char))
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8", newline="\n") as f:
             f.write(",".join(names) + "\n")
             f.write(str(char) + "\n")
             for i, rel in enumerate(rels):
