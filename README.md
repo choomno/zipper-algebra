@@ -7,7 +7,7 @@ representations.
 Bigelow introduced the zipper algebra as a quotient of the braid group algebra,
 with the Hecke and BMW algebras as familiar quotients. He asked whether the
 three-strand slider vanishes and which additional relations produce
-finite-dimensional algebras ([Bigelow][1], §8, Questions 6–7). Moos's thesis develops a
+finite-dimensional algebras ([Bigelow][1], §8, Questions 6–7). Moos' thesis develops a
 family of such quotients, defined by polynomial untwisting relations on the
 sliders. Its main finiteness theorem follows from the zipper algorithm and
 provides the mathematical setting for this project (Moos, Theorem 3.41).
@@ -19,10 +19,8 @@ composes explicit two-sided ideal-membership certificates via cofactor represent
 candidate rational coefficients from exact samples, and verifies the resulting
 identities.
 
-Read the [compiled mathematical reference](docs/mathematical-specification/mathematical-specification.pdf)
-([LaTeX source](docs/mathematical-specification/main.tex)) for the definitions,
-finite-generation theorem, connection with BMW algebras, and precise input requirements and verification guarantees. It distinguishes the general polynomial family from the selected
-presentations currently implemented.
+Read the [mathematical reference](docs/mathematical-specification/mathematical-specification.pdf) for the definitions,
+finite-generation theorem, connection with BMW algebras, and precise input requirements and verification guarantees. It distinguishes the general polynomial family from the selected presentations currently implemented.
 
 ## Install
 
@@ -48,9 +46,7 @@ For development, use `python -m pip install -e .`. The installed package is name
 
 The original Gröbner-basis and cofactor-discovery computations used
 [f4ncgb](https://gitlab.sai.jku.at/f4ncgb/f4ncgb), developed by Maximilian
-Heisinger and Clemens Hofstadler. Please cite their
-[2025 CASC paper](https://doi.org/10.1007/978-3-032-09645-6_5), listed below,
-when using f4ncgb in research. The original project is the authoritative source
+Heisinger and Clemens Hofstadler. The original project is the authoritative source
 for the solver and its documentation.
 
 The certificate audit below runs from saved data with the Python package.
@@ -59,20 +55,20 @@ records the upstream revision, parser fix, dependencies and maintained GitHub co
 
 ## X_3 cofactor computation
 
-Producing a certificate starts with the presentation: emit its defining
-relations, compute a basis with nonexpanded proofs using f4ncgb, reduce the
-slider to record its contextual reduction, repeat at parameter samples,
-reconstruct the relevant proof coefficients, compose the cofactor expression,
-and verify the resulting identity exactly. A new valid witness need not have
-the same term count or coefficients as the historical one.
+Instructions to reproduce the $X_3$ certificate claimed in Moos' thesis is
+provided. The full process is as follows: input the defining relations,
+compute a basis with nonexpanded proofs using f4ncgb, reduce, repeat at
+parameter samples, reconstruct the relevant proof coefficients, compose the
+cofactor expression, and verify the resulting identity exactly. Note that 
+cofactor representations are not unique in their term count or coefficients.
 
-The [chronological production guide](docs/X3_REPRODUCTION.md) identifies the
+The [reproduction guide](docs/X3_REPRODUCTION.md) identifies the
 input, program and output at every stage, including the original presentation
 input and the files needed for reconstruction. It distinguishes those stages
 from replaying a saved symbolic lift and states the current driver's workspace
 dependencies and missing historical proof logs.
 
-### Audit the retained result
+### Audit the result
 
 Run from the repository root after installation. This checks the saved 695-term
 cofactor identity exactly, using both symbolic accumulation and a degree-bounded
@@ -117,8 +113,8 @@ python ci/check_x3_manifest.py
 Fresh discovery uses the experimental solver driver and needs additional
 configuration. The [f4ncgb parser patch and build instructions](patches/f4ncgb/README.md)
 are included for that route. The guide states the remaining portability and
-archival gaps. The retained large certificate is an auditable computational
-witness, rather than the latest mathematical proof.
+archival gaps. The retained large certificate is auditable computational
+evidence, rather than the latest mathematical proof.
 
 The same operation is available in Python:
 
