@@ -918,12 +918,6 @@
       "role": "Retained specialized solver basis"
     },
     {
-      "path": "logs_and_traces/f4ncgb/basis-n4-Q-q5-t7.txt",
-      "bytes": 24670,
-      "sha256": "3ea67767a9d2aff8dfa07bcd266dcee1038b75d8ecfd2df990b23d92422c64de",
-      "role": "Retained specialized solver basis"
-    },
-    {
       "path": "logs_and_traces/f4ncgb/basis-n4-Q-q7-t11.txt",
       "bytes": 24926,
       "sha256": "d9b9973810a1d0de21011ba0559a225d63d6cc891c6efc3a094f6a7e0ea0814b",
@@ -1641,12 +1635,6 @@
       "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Q.txt",
       "bytes": 22778,
       "sha256": "4453e1742c2c49326e46443a65faecefef8bf31bd6c624c7c1292538c8f16d77",
-      "role": "Retained numeric cofactor or symbolic certificate stage"
-    },
-    {
-      "path": "logs_and_traces/f4ncgb/cofactor-X3-n4-Qqt-ZT.txt",
-      "bytes": 19905,
-      "sha256": "a6c20c7165bcefaa9eafe023b09d6e80f5592aefec2135b5905619aa97c35086",
       "role": "Retained numeric cofactor or symbolic certificate stage"
     },
     {
@@ -3006,12 +2994,6 @@
       "role": "Retained specialized solver input or reference presentation"
     },
     {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q-q5-t7.ms",
-      "bytes": 2295,
-      "sha256": "db9083a5bd0462bcc5e60179427ca4050c436ad8a79e7dea3ae91c2ee2c2ac01",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
       "path": "ms_inputs/qt_sweep/zipper-n4-Q-q53-t13.ms",
       "bytes": 2587,
       "sha256": "c95239822ce914b586d629cf45dff94b08e324f82b25242a81f9668fc6cfe429",
@@ -3294,18 +3276,6 @@
       "role": "Retained specialized solver input or reference presentation"
     },
     {
-      "path": "ms_inputs/qt_sweep/zipper-n4-Q.ms",
-      "bytes": 2295,
-      "sha256": "db9083a5bd0462bcc5e60179427ca4050c436ad8a79e7dea3ae91c2ee2c2ac01",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
-      "path": "ms_inputs/qt_sweep/zipper-n4-X3-Q.ms",
-      "bytes": 2359,
-      "sha256": "0f70f593f93feeffd1be74f1e7887cf095bf9e2c8b98dc366e6802bf63f12d48",
-      "role": "Retained specialized solver input or reference presentation"
-    },
-    {
       "path": "patches/f4ncgb/LICENSE",
       "bytes": 1116,
       "sha256": "1574ba8948a91e4f4053cae737d7be560fa44acb80e769434154a4bb68d54f91",
@@ -3322,6 +3292,12 @@
       "bytes": 987,
       "sha256": "64a1945b6530e0578ca105c6438b809b6db0ba322103ace604df1759b93a3d97",
       "role": "Package dependencies and installed command entry point"
+    },
+    {
+      "path": "singular_run/x3-membership-Q.sing",
+      "bytes": 3494,
+      "sha256": "4aacd03122939f80480a024db9435b4b6dc0dd9c033922d5a220daaf9a6e72e1",
+      "role": "Preserved canonical 31-relation Singular reduction producer at q=5, t=7"
     },
     {
       "path": "src/zipper_algebra/__init__.py",

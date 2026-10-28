@@ -1,3 +1,11 @@
+// Specialized independent X_3 membership reduction over Q at q=5, t=7.
+// Uses the original 31 relations and Letterplace degree bound 12.
+// Extracted without changing the presentation, target, twostd, or reduce calls
+// from archive/singular-failed/zipper-n4-X3-Q-db12.sing at commit
+// 0db1dd9e2a33fb0e5d07e216c8a5354911446e97.
+// The historical run reduced X_3 to zero before a later cofactor-lift attempt
+// failed. This replay stops after the reduction; see README.md for provenance.
+
 LIB "freegb.lib";
 ring r = 0,(x1,x2,x3,y1,y2,y3),(c,Dp);
 ring R = freeAlgebra(r, 12, 31);
@@ -51,42 +59,5 @@ print("--- reducing target X3 against J ---");
 poly nfX3 = reduce(X3, J);
 print("NF(X3, J) =");
 print(nfX3);
-
-print("--- lift(I, ideal(X3)) to get cofactor in original generators ---");
-int tL0 = timer; int rtL0 = rtimer;
-ideal IX3 = X3;
-matrix T = lift(I, IX3);
-int tL1 = timer; int rtL1 = rtimer;
-print("lift CPU seconds:");
-print((tL1-tL0) div s0);
-print("lift real seconds:");
-print(rtL1-rtL0);
-print("dim T: nrows="); print(nrows(T));
-print("dim T: ncols="); print(ncols(T));
-
-print("--- verifying lift via testLift ---");
-ideal V = testLift(I, T);
-print("V[1] (should equal X3):");
-print(V[1]);
-print("V[1] - X3 (should be 0):");
-print(V[1] - X3);
-
-// write cofactor to file
-link out = "ASCII:w /home/choom/gap_scripts/zipper-algebra/logs_and_traces/f4ncgb/cofactor-X3-n4-Q-singular.txt";
-write(out, "# Cofactor representation of X3 = sum_i l_i * I[i] * r_i");
-write(out, "# Produced by Singular freegb.lib lift(I, ideal(X3))");
-write(out, "# ncgen(i) markers indicate slot for I[i]");
-write(out, "# Each row T[i,1] is a polynomial in ncgen(i):");
-write(out, "#   T[i,1] = sum_j a_ij * ncgen(i) * b_ij");
-write(out, "# meaning the i-th generator contributes sum_j a_ij * I[i] * b_ij to X3.");
-write(out, "");
-write(out, "ngens = " + string(nrows(T)));
-write(out, "NF(X3,J) = " + string(nfX3));
-write(out, "");
-int ii;
-for (ii = 1; ii <= nrows(T); ii++) {
-  write(out, "T[" + string(ii) + ",1] = " + string(T[ii,1]));
-}
-print("--- wrote cofactor to /home/choom/gap_scripts/zipper-algebra/logs_and_traces/f4ncgb/cofactor-X3-n4-Q-singular.txt ---");
 
 quit;
