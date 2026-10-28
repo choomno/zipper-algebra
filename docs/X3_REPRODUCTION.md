@@ -92,7 +92,10 @@ relations. The file is generated from the presentation; the symbolic-lift JSON
 and cofactor certificate are not inputs.
 
 Historical output: `logs_and_traces/f4ncgb/zipper-n4-Q-q5-t7.ms`.
-A saved rerun copy also exists as `reproduce-zipper-n4-Q-q5-t7.ms`.
+It contains exactly the 31 defining relations and is reproduced byte for byte
+by the current emitter. The similarly named
+`reproduce-zipper-n4-Q-q5-t7.ms` instead appends `X_3` as a 32nd relation;
+it belongs to an older augmented-presentation experiment.
 Current driver: `pipeline.run`, phase 1, calls `pres.emit_ms`.
 
 ## 2. Compute the anchor basis and nonexpanded proof
@@ -121,8 +124,16 @@ force regeneration of every sampled proof already on disk.
 Recorded anchor artifacts: `basis-n4-Q.txt` and the originally named
 `proof-n4-Q-noex.txt`, each with 137 entries in the historical transcript.
 The original proof filename is now absent; its retained contents are available
-in `tests/fixtures/legacy_x3/proof-n4-Q-noex.txt`, with a separate reproduction
-copy at `logs_and_traces/f4ncgb/reproduce-proof-n4-Q-noex.txt`.
+in `tests/fixtures/legacy_x3/proof-n4-Q-noex.txt`.
+
+The `reproduce-` input, basis and proof files describe the augmented experiment:
+they have 32 input relations and 131 basis/proof entries. Its proof references
+the appended target, so those outputs cannot establish membership in the
+original 31-relation ideal. They are distinct from the 137-entry canonical
+basis and immutable proof used by the maintained comparisons. The archived
+driver records the earlier target-appending mistake; the retained transcript
+describes the corrected 31-relation computation. Preserve these distinctions
+when matching historical filenames to computations.
 
 The wrapper's default flags are exactly `-e 0 -v 2 -r 0`; the settings loader's
 `f4ncgb_maxiter` and `f4ncgb_maxdeg` values are not added to that command.
@@ -230,8 +241,8 @@ current JSON unchanged.
 
 `run_lift_grid.py` and `run_lift_grid_canonical.py` instead collect whole
 numeric cofactors into `lift_samples/coefficients.json` and
-`lift_samples_canonical/coefficients.json`; each saved collection has 212
-samples and 695 coefficient slots. These are related historical experiments,
+`lift_samples_canonical/coefficients.json`; these two files are byte-identical
+and contain the same 212 samples and 695 coefficient slots. These are historical experiments,
 **not the files read by the final basis-proof coefficient lifter**.
 
 ## 6. Compose the rational cofactor expression
@@ -406,12 +417,12 @@ records the separate provenance of its three immutable files.
 | The transformation and compact-checker scripts named in the compact-certificate section | Intermediate certificate construction and braid-algebra verification. |
 | `tests/fixtures/legacy_x3/{basis-symbolic-Qqt.json,skeleton-n4-Q.json,proof-n4-Q-noex.txt,manifest.json}` | Immutable symbolic proof, reduction skeleton and anchor proof, with provenance hashes. |
 | `logs_and_traces/f4ncgb/basis-n4-Q.txt`, `cofactor-X3-n4-Q.txt`, `skeleton-n4-Q.json` | Original specialized anchor basis, numeric cofactor and reduction record. |
-| `logs_and_traces/f4ncgb/reproduce-{zipper-n4-Q-q5-t7.ms,basis-n4-Q.txt,proof-n4-Q-noex.txt}` | Saved inputs and outputs of the recorded reproduction run. |
+| `logs_and_traces/f4ncgb/reproduce-{zipper-n4-Q-q5-t7.ms,basis-n4-Q.txt,proof-n4-Q-noex.txt}` | Older augmented-presentation experiment: 32 relations including `X_3`, with 131 basis/proof entries. These are not the canonical 31-relation computation's artifacts. |
 | `logs_and_traces/f4ncgb/basis-n4-Q-q*-t*.txt` and `cofactor-X3-n4-Q-q*-t*.txt` | Retained specialized bases and numeric cofactor expressions at parameter samples. |
 | `logs_and_traces/f4ncgb/atoms-n4-Q.json` | Historical denominator-family prior for reconstruction. |
-| `logs_and_traces/f4ncgb/zipper-n4-Q-q5-t7.ms` | Original emitted anchor presentation, distinct from the separately retained reproduction copy. |
+| `logs_and_traces/f4ncgb/zipper-n4-Q-q5-t7.ms` | Original emitted 31-relation anchor presentation, distinct from the augmented-presentation input. |
 | `logs_and_traces/f4ncgb/basis-symbolic-Qqt.{json,txt}` | Other retained symbolic lifting records. The JSON and text rendering come from different revisions and are not interchangeable with the immutable fixture. |
-| `logs_and_traces/f4ncgb/lift_samples/coefficients.json` and `lift_samples_canonical/coefficients.json` | Two saved collections, each containing 212 numeric samples with 695 coefficient slots. |
+| `logs_and_traces/f4ncgb/lift_samples/coefficients.json` and `lift_samples_canonical/coefficients.json` | Byte-identical copies of one collection containing 212 numeric samples with 695 coefficient slots. |
 | `ms_inputs/qt_sweep/*.ms` | Specialized solver inputs and reference inputs, including `zipper-n4-Q.ms` and `zipper-n4-X3-Q.ms`. |
 | The five `cofactor-X3-n4-Qqt-*.txt` files in the compact-certificate section | Saved symbolic identity and each stage leading to the compact result. |
 | `logs_and_traces/reproduce-X3-zero-transcript.txt` | Recorded execution, term counts and checks. |

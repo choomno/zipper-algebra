@@ -1417,19 +1417,19 @@
       "path": "logs_and_traces/f4ncgb/reproduce-basis-n4-Q.txt",
       "bytes": 25696,
       "sha256": "09824cd2e380a2493260ed4862b6a55a5666142cdd315b4fd8e63f794377f650",
-      "role": "Saved reproduction-run anchor basis"
+      "role": "131-entry basis from the older augmented presentation containing target X_3"
     },
     {
       "path": "logs_and_traces/f4ncgb/reproduce-proof-n4-Q-noex.txt",
       "bytes": 75244,
       "sha256": "382cbcd5812b996b4013d52c277339cf80a364b66208236e3cab76c926e7275e",
-      "role": "Saved reproduction-run nonexpanded anchor proof"
+      "role": "131-entry proof from the augmented presentation; uses appended target input and does not establish original-ideal membership"
     },
     {
       "path": "logs_and_traces/f4ncgb/reproduce-zipper-n4-Q-q5-t7.ms",
       "bytes": 2359,
       "sha256": "0f70f593f93feeffd1be74f1e7887cf095bf9e2c8b98dc366e6802bf63f12d48",
-      "role": "Saved reproduction-run specialized solver input"
+      "role": "Older augmented-presentation input: canonical 31 relations plus target X_3; not a bare-presentation membership reproduction"
     },
     {
       "path": "logs_and_traces/f4ncgb/singular_X3_GFp_d10.log",
