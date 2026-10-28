@@ -1,2 +1,14 @@
-# Preserve the context whitespace required by stored unified patches.
+# Stored unified patches retain meaningful context whitespace.
 *.patch -whitespace
+
+# msolve/poly files are solver input data, not MAXScript programs.
+*.ms -text -linguist-detectable linguist-language=Text
+*.poly -text -linguist-detectable linguist-language=Text
+
+# Preserve exact bytes of saved computations and immutable proof fixtures.
+logs_and_traces/** -text -linguist-detectable
+tests/fixtures/** -text -linguist-detectable
+archive/gap/traces/*.gap -text -linguist-detectable
+
+# LaTeX manuscripts are mathematical documentation.
+*.tex linguist-documentation
