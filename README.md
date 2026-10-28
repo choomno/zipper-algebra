@@ -135,21 +135,6 @@ report = check(certificate, presentation, target="X_3", verbose=False)
 assert report["pass"]
 ```
 
-## Mathematical interpretation
-
-An accepted certificate gives an explicit identity over the specified rational
-function field. Its presentation and denominator conditions are part of the
-statement. Verification compares polynomials in the free associative algebra;
-words representing the same braid are not automatically identified. A
-certificate simplified in a braid group algebra therefore needs the appropriate
-checker or explicit braid and inverse relation terms.
-
-Reconstruction supplies candidates. A fit at sampled parameter values becomes
-a membership result only after exact identity verification. A nonzero remainder
-from an uncertified basis establishes no nonmembership conclusion, even at the
-sampled parameter value.
-See the specification for these distinctions and for the relation formulas.
-
 ## Tests and development
 
 After an editable install:
