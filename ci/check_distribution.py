@@ -36,7 +36,9 @@ def inspect(directory):
         assert len(roots) == 1, "source distribution must have one enclosing directory"
         relative = {str(PurePosixPath(*PurePosixPath(name).parts[1:])) for name in names}
         for needed in ("pyproject.toml", "README.md", "docs/TESTING.md",
-                       "docs/mathematical-specification/main.tex", "tests/test_certificates.py"):
+                       "docs/mathematical-specification/main.tex",
+                       "docs/mathematical-specification/mathematical-specification.pdf",
+                       "tests/test_certificates.py"):
             assert needed in relative, needed
     forbidden = {".git", ".cache", "__pycache__", "private-baselines", "research-records",
                  "recovery", "manuscripts", "historical-reconstruction"}

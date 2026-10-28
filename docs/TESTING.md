@@ -54,6 +54,20 @@ regressions and rebuilds the source archive. A separate job checks the optional
 Sympy factorization extra. Documentation checks validate local links and compile
 the mathematical specification.
 
+The compiled [mathematical reference](mathematical-specification/mathematical-specification.pdf)
+is committed beside its source and included in the source distribution. With
+`pdflatex` installed, rebuild it from the repository root using:
+
+```sh
+python ci/build_docs.py
+```
+
+The helper runs two passes, keeps auxiliary files in a temporary directory and
+rejects unresolved references or overfull boxes before replacing the PDF. It
+uses the source revision's timestamp when Git history is available; PDF bytes
+can still differ across TeX and font versions. CI rebuilds the reference and
+retains it as a downloadable artifact on the workflow run.
+
 Jobs have time limits, read-only repository permissions and no publication step.
 The workflow does not require project secrets or an algebra solver. A local test
 pass and a GitHub-hosted run are separate evidence; the validation record states

@@ -2,8 +2,10 @@
 \usepackage[margin=1in]{geometry}
 \usepackage{amsmath,amssymb,amsthm,hyperref}
 \hypersetup{colorlinks=true,urlcolor=blue,linkcolor=blue}
+\hypersetup{pdftitle={Mathematical Specification of the Certificate Software},
+            pdfsubject={Algebra presentations, exact certificates, and reconstruction}}
 \setlength{\parindent}{0pt}
-\setlength{\parskip}{0.5em}
+\setlength{\parskip}{0.4em}
 \newcommand{\Q}{\mathbb Q}
 \newcommand{\Z}{\mathbb Z}
 \newcommand{\A}{\mathcal A}
@@ -258,15 +260,18 @@ noncommuting contexts, repeated basis occurrences, schedule alignment, poles,
 target degrees and historical certificate compatibility. See
 \path{docs/TESTING.md} for the maintained commands and optional integrations.
 
+The maintained implementation is under \path{src/zipper_algebra/}:
 \begin{itemize}
-\item Presentation: \path{src/zipper_algebra/presentation.py}.
-\item Coefficients and relation formulas: \path{src/zipper_algebra/zipper_in_ms.py}.
-\item Certificate schema: \path{src/zipper_algebra/cofactor/cofactor_io.py}.
-\item Denominator factors: \path{src/zipper_algebra/cofactor/atoms.py}.
-\item Symbolic and grid checks: \path{src/zipper_algebra/cofactor/verify.py}.
-\item Proof graph: \path{src/zipper_algebra/cofactor/proof.py}.
-\item Reduction skeleton: \path{src/zipper_algebra/cofactor/skeleton.py}.
-\item Symbolic composition: \path{src/zipper_algebra/cofactor/compose.py}.
-\item Sample alignment: \path{tools/cofactor/pipeline.py}.
+\small
+\setlength{\itemsep}{0pt}
+\setlength{\parskip}{0pt}
+\setlength{\parsep}{0pt}
+\item Presentation and relation formulas: \path{presentation.py}, \path{zipper_in_ms.py}.
+\item Certificate data: \path{cofactor/cofactor_io.py}, \path{cofactor/atoms.py}.
+\item Symbolic and grid checks: \path{cofactor/verify.py}.
+\item Proof graph and reduction: \path{cofactor/proof.py}, \path{cofactor/skeleton.py}.
+\item Symbolic composition: \path{cofactor/compose.py}.
+\item Coefficient reconstruction: \path{cofactor/lift.py}.
 \end{itemize}
+The experimental sampling driver is \path{tools/cofactor/pipeline.py}.
 \end{document}

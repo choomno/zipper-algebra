@@ -8,7 +8,8 @@ untwisting relations affect quotients related to BMW algebras.
 The Python package constructs presentations, expands recorded proofs, composes
 explicit two-sided ideal-membership certificates, reconstructs candidate
 coefficients from exact samples, and verifies the resulting identities. The
-[mathematical specification](docs/mathematical-specification/main.tex) defines
+[compiled mathematical specification](docs/mathematical-specification/mathematical-specification.pdf)
+([LaTeX source](docs/mathematical-specification/main.tex)) defines
 the coefficient domains, conventions, hypotheses and exact conclusions.
 
 ## Install

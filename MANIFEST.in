@@ -1,6 +1,7 @@
 include README.md CONTRIBUTING.md LICENSE pyproject.toml
 recursive-include src/zipper_algebra *.py
 recursive-include docs *.md *.tex *.json
+include docs/mathematical-specification/mathematical-specification.pdf
 recursive-include ci *.py
 recursive-include tests *.py *.json *.txt
 include tools/__init__.py tools/presentation.py tools/zipper_in_ms.py tools/core.py
