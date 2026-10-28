@@ -2,7 +2,7 @@
 \usepackage[margin=1in]{geometry}
 \usepackage{amsmath,amssymb,amsthm,hyperref}
 \hypersetup{colorlinks=true,urlcolor=blue,linkcolor=blue}
-\hypersetup{pdftitle={Mathematical Specification of the Certificate Software},
+\hypersetup{pdftitle={Zipper Algebras: Mathematical Context and Software Specification},
             pdfsubject={Algebra presentations, exact certificates, and reconstruction}}
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{0.4em}
@@ -11,26 +11,35 @@
 \newcommand{\A}{\mathcal A}
 \newcommand{\ww}{\mathsf w}
 \newtheorem{proposition}{Proposition}
-\title{Mathematical Specification of the Certificate Software}
+\newtheorem*{thesistheorem}{Finite-generation theorem (Moos)}
+\title{Zipper Algebras: Mathematical Context and Software Specification}
 \author{}
 \date{27 October 2026}
 \begin{document}
 \maketitle
 
-\section{Purpose and boundary}
-The installed package \texttt{zipper\_algebra} studies presentations motivated by zipper relations in quantum
-topology and their untwisting quotients. Its initial maintained operations
-construct explicit presentations, expand recorded proofs, compose two-sided
-ideal-membership certificates, and check the resulting identities exactly.
-These operations support research on the relations among sliders and on
-quotients related to BMW algebras. They do not, by themselves, prove finite
-generation, a dimension formula, termination of the geometric zipper algorithm,
-or the topological origin of its relations.
+\section{Mathematical purpose}
+Zipper algebras arise in the study of quotients of braid group algebras and
+representations motivated by quantum topology. Bigelow introduced them in
+\cite[\S8, pp.~297--298]{bigelow}, asking whether the three-strand slider
+vanishes and which additional relations yield finite-dimensional quotients
+(Questions~6 and~7). The Hecke and BMW quotients provide familiar points of
+comparison. The research programme developed in \cite{thesis} constructs a
+family of untwisting quotients and asks how their algebraic structure depends
+on the untwisting polynomials.
 
-This specification describes implemented algebraic operations. The full zipper
-algorithm, thesis exposition and diagrams are separate
-work. Historical experiment scripts remain available with their original
-evidence, but their mathematical claims require individual verification.
+The zipper algorithm and its finite-generation consequence give the broader
+mathematical setting for this software. The computational questions include
+whether one slider or untwisting relation follows from others, how presentations
+change with the untwisting choice, and how to obtain explicit identities that
+prove those dependencies. The package supports these questions through exact
+noncommutative algebra, proof expansion, two-sided ideal certificates and
+rational-function reconstruction.
+
+This reference first defines the algebras and states the relevant thesis result,
+then specifies the implemented presentations and verification contracts.
+The geometric algorithm and its diagrams have their own exposition in
+\cite[\S3.4]{thesis}.
 
 \section{Ambient algebras and conventions}
 Put $P=\Q[q,t]$ and $K=\Q(q,t)$, where $q,t$ are algebraically independent central
@@ -41,7 +50,9 @@ indeterminates. For $n\ge2$, use the free associative algebra
 A word is an ordered tuple of indices in that displayed generator order,
 starting at one. The empty tuple represents the unit. Concatenation denotes
 multiplication, in the order written. In the braid group algebra, $x_j$ maps to
-$\sigma_j$ and $y_j$ to $\sigma_j^{-1}$.
+$\sigma_j$ and $y_j$ to $\sigma_j^{-1}$. Over a commutative coefficient ring
+$R$, the corresponding braid group algebra is $R[B_n]$, with $q$ a unit when
+using the untwisting hypotheses below.
 
 The presentation explicitly includes the inverse relations $x_jy_j-1$ and
 $y_jx_j-1$, adjacent braid relations and far commutations, together with
@@ -53,13 +64,11 @@ free-algebra identity. The maintained verifier checks the latter. A certificate
 using braid simplification must supply the corresponding braid/inverse terms
 or use a separately specified group-algebra checker.
 
-\section{The presentation builder}
-The function \texttt{build\_relations\_ring} lives in \path{src/zipper_algebra/zipper_in_ms.py}.
-Its front end is the class \texttt{Presentation} in \path{src/zipper_algebra/presentation.py}.
-A presentation carries the strand
-count, untwisting choice, framing and twist powers, level limits, zero-slider
-relations and named additional relations. Its symbolic relation content is
-hashed; readable relation labels alone do not identify an algebra.
+\section{Sliders, zipper algebras and untwisting}
+The following conventions translate \cite[Definitions~2.6, 2.9 and~3.1]{thesis}
+into the generator notation used by the package. Specifying word order is
+essential: a product of inverse generators in ascending order is generally not
+the inverse of the ascending positive product.
 
 \subsection{Sliders}
 For a block of $i$ strands starting at $j$, define
@@ -67,14 +76,18 @@ For a block of $i$ strands starting at $j$, define
  U^+_{i,j}=x_jx_{j+1}\cdots x_{j+i-2},\qquad
  U^-_{i,j}=y_jy_{j+1}\cdots y_{j+i-2}.
 \]
-The implemented recursion is
+The slider recursion is
 \begin{align*}
  S_{2,j}&=q y_j+(1-q)-x_j,\\
  S_{i,j}&=(q^{i-1}U^-_{i,j}-U^+_{i,j})S_{i-1,j}\quad(3\le i\le n),
 \end{align*}
-with $1\le j\le n-i+1$. The unshifted slider $X_i$ means $S_{i,1}$.
+with $1\le j\le n-i+1$. The unshifted slider $X_i$ means $S_{i,1}$; the thesis writes the shifted
+slider as $X_{i,j}$. These are explicit elements of the braid group algebra,
+not additional generators. Bigelow's barred indexed word denotes the inverse
+of the entire indexed product. Translating that abbreviation gives the same
+recursion \cite[p.~298]{bigelow}.
 
-\subsection{Zipper and canonical untwisting relations}
+\subsection{The zipper algebra}
 The level-two zipper relator is
 \[
  Z_{2,j}=(q y_{j+1}+1-q-x_{j+1}-q y_jy_{j+1}+x_jx_{j+1})S_{2,j}.
@@ -84,9 +97,67 @@ For $i\ge3$, the emitted higher zipper relator is
  Z_{i,j}=\bigl(q^{i-1}U^-_{i,j+1}-U^+_{i,j+1}
       -q^{i-1}y_jU^-_{i,j+1}+x_jU^+_{i,j+1}\bigr)S_{i,j}.
 \]
-Here $i\le n-1$ and $1\le j\le n-i$. These formulas specify the current
-builder; their equivalence to any alternate geometric formulation is a
-separate mathematical obligation.
+Here $3\le i\le n-1$ and $1\le j\le n-i$; for level two,
+$1\le j\le n-2$. In particular, the two-strand formula is separate and includes
+its scalar term $(1-q)S_{2,j}$.
+
+The zipper algebra is
+\[
+ \mathcal Z_n(R,q)=R[B_n]/\langle Z_{i,1}:2\le i\le n-1\rangle.
+\]
+The displayed polynomials are read in $R[B_n]$ for this definition. The builder
+also emits their shifted versions. These generate the same ideal: conjugation
+by $\sigma_1\cdots\sigma_{n-1}$ shifts each $\sigma_k$ to $\sigma_{k+1}$
+while $k\le n-2$, so successive conjugations translate each supported block.
+
+Imposing $X_2=0$ gives the Hecke quotient: indeed
+$\sigma_1X_2=-(\sigma_1-1)(\sigma_1+q)$.
+For $n\ge3$, the quotient of the zipper algebra by $X_3=0$ and
+$(\sigma_1-t)X_2=0$ is the BMW braid-generator presentation described in
+\cite[\S8]{bigelow} and \cite[\S3.2]{thesis}; see also \cite{birmanwenzl,murakami}.
+The parameter comparison with the conventional BMW generators is discussed
+below.
+
+\subsection{The family of polynomial untwisting quotients}
+For $i\ge3$ set
+\[
+ \Theta_{i,j}=U^+_{i,j}(x_{j+i-2}\cdots x_j),\qquad
+ \Theta_i=\Theta_{i,1},\qquad \Theta_2=x_1.
+\]
+These are the lasso twists of the thesis; $\Theta_3=x_1x_2^2x_1$.
+For monic polynomials $p_2,\ldots,p_n\in R[\lambda]$ with unit constant terms,
+form the two-sided quotient
+\[
+ \mathcal Z_n^{(p)}=
+ \mathcal Z_n(R,q)/\langle p_2(x_1)X_2,
+                  p_3(\Theta_3)X_3,\ldots,p_n(\Theta_n)X_n\rangle.
+\]
+This is the class of algebras in \cite[Definition~2.9]{thesis}, allowing an
+independent untwisting polynomial at every level.
+
+\begin{thesistheorem}
+With $q\in R^\times$ and the above monicity and unit-constant-term hypotheses,
+$\mathcal Z_n^{(p)}$ is finitely generated as an $R$-module. In particular,
+over a field it is finite-dimensional.
+\end{thesistheorem}
+This is the finite-generation formulation of \cite[Theorem~3.41, p.~62]{thesis}.
+The theorem follows from the zipper algorithm's layered-zipper spanning result
+(Theorem~3.39): there are finitely many combinatorial layer types up to twisting,
+and the polynomial relations bound the remaining twist exponents. Monicity
+reduces positive powers; a unit constant term also permits reduction of
+negative powers. Thus the theorem supplies a family to study as the polynomials
+vary. It does not assert that the resulting spanning set is a basis, determine
+the dimension, or establish semisimplicity.
+
+\subsection{Presentations implemented by the software}
+The function \texttt{build\_relations\_ring} is in
+\path{src/zipper_algebra/zipper_in_ms.py}; its front end is
+\texttt{Presentation} in \path{src/zipper_algebra/presentation.py}.
+A presentation records the strand count, untwisting choice, powers, level
+limits, imposed zero sliders and named additional relations. Its symbolic
+relation content is hashed; readable labels alone do not identify an algebra.
+The builder implements selected members and variants of the preceding family,
+rather than arbitrary polynomial input.
 
 In the canonical untwisting presentation,
 \[
@@ -241,18 +312,44 @@ even at that specialization. The historical exception name
 \texttt{WrongClass} is retained as a subtype of \texttt{NeedMoreSamples}; it is
 an inconclusive diagnostic. Candidate reconstruction is characteristic zero.
 
-\section{Evidence and unsupported conclusions}
-The historical large free-algebra certificate is retained for compatibility
-checks. Smaller braid-algebra certificates use a different ambient equality and
-must be described accordingly.
+\section{Research results and computational evidence}
+The linear untwisting case connects the family above to the BMW quotient.
+The thesis exhibits an explicit two-sided identity for $X_3$ using the zipper,
+two-strand linear untwisting, and three-strand canonical untwisting relations
+\cite[Theorem~4.1 and Appendix~A]{thesis}. Its denominator is
+$D=t^4(t+q^2)$; the stated conclusion applies where $D$ is invertible.
+Corollary~4.2 identifies the resulting quotient with the BMW presentation under
+the parameter hypotheses of Proposition~3.15. For comparison with the
+conventional parameters, adjoin a chosen $q^{1/2}$ and assume $q,t,1-q$ are
+units; then
+\[
+ m=q^{-1/2}(1-q),\qquad l=q^{1/2}t^{-1},\qquad
+ G_i\longmapsto q^{-1/2}\sigma_i,\quad
+ E_i\longmapsto(1-q)^{-1}S_{2,i}.
+\]
+This scalar extension is part of that parameter comparison.
 
-A finite computation, a small residual, agreement across specializations, or a
-successful process exit does not certify a completed generic Gr\"obner basis.
-A nonzero specialized remainder cannot alone establish generic nonmembership.
-Dimension and trace claims require their own basis-completion and exact-arithmetic
-evidence. Exact coefficient reconstruction is a maintained candidate-producing operation.
-Solver execution, generic basis certification and the experiment drivers retain
-separate completion requirements and remain experimental.
+The maintained historical free-algebra fixture and the thesis's compact
+braid-group-algebra representation use different ambient equalities. Checking
+the latter requires braid normal forms or explicit braid/inverse relation
+terms; it cannot be passed unchanged to the free-algebra checker. The large
+fixture is retained for reproducible regression checks.
+
+The thesis also discusses dimension, module structure and possible
+semisimplicity patterns. These questions motivate experiments, but are separate
+from an individual certificate's conclusion. Neither an interpolation fit nor
+agreement at selected specializations supplies a generic identity. For the
+historical reconstruction, it is the final exact identity that supplies the
+membership proof; stability observed in finitely many sampled reduction shapes
+is evidence used in finding it.
+
+A finite computation, a small residual or a successful process exit does not
+certify a completed generic Gr\"obner basis. Dimension and trace computations
+require basis-completion and exact-arithmetic evidence for their stated
+coefficient domain. Solver execution, generic basis certification and the
+experiment drivers retain separate completion requirements. The general
+finite-generation theorem gives mathematical context; the installed verifier
+checks the explicit algebraic identity submitted to it.
 
 \section{Verification commands and source map}
 The solver-free regressions and distribution checks cover strict certificate validation,
@@ -274,4 +371,31 @@ The maintained implementation is under \path{src/zipper_algebra/}:
 \item Coefficient reconstruction: \path{cofactor/lift.py}.
 \end{itemize}
 The experimental sampling driver is \path{tools/cofactor/pipeline.py}.
+\begin{thebibliography}{9}
+\bibitem{bigelow}
+Stephen Bigelow, \emph{Braid groups and Iwahori--Hecke algebras},
+in \emph{Problems on Mapping Class Groups and Related Topics},
+Proceedings of Symposia in Pure Mathematics \textbf{74}, AMS, 2006,
+pp.~285--299. In particular, \S8, Questions~6--8.
+\href{https://web.math.ucsb.edu/~bigelow/publications/10.pdf}{Author's copy};
+\href{https://arxiv.org/abs/math/0505064}{arXiv:math/0505064}.
+
+\bibitem{thesis}
+Choomno Moos, \emph{The Zipper Algebra}, M.A. thesis,
+University of California, Santa Barbara, September 2026.
+References here use the recovered manuscript with source SHA-256 beginning
+\texttt{c6ff7e634baf86ee}, and its accompanying PDF.
+Section and theorem numbers identify that version; the thesis is cited for
+its definitions and research results.
+
+\bibitem{birmanwenzl}
+Joan S. Birman and Hans Wenzl, \emph{Braids, link polynomials and a new algebra},
+Transactions of the American Mathematical Society \textbf{313} (1989),
+no.~1, pp.~249--273.
+\href{https://doi.org/10.1090/S0002-9947-1989-0992598-X}{doi:10.1090/S0002-9947-1989-0992598-X}.
+
+\bibitem{murakami}
+Jun Murakami, \emph{The Kauffman polynomial of links and representation theory},
+Osaka Journal of Mathematics \textbf{24} (1987), no.~4, pp.~745--758.
+\end{thebibliography}
 \end{document}

@@ -47,7 +47,7 @@ def compile_reference(output=OUTPUT, engine="pdflatex", engine_args=()):
             if result.returncode:
                 raise RuntimeError(f"LaTeX pass {number} failed:\n{result.stdout}")
         log = (Path(directory) / "main.log").read_text(encoding="utf-8", errors="replace")
-        problems = (r"undefined references", r"Reference .* undefined",
+        problems = (r"undefined references", r"Reference .* undefined", r"Citation .* undefined",
                     r"Label\(s\) may have changed", r"Rerun to get", r"Overfull \\[hv]box")
         if any(re.search(pattern, log, flags=re.I) for pattern in problems):
             raise RuntimeError(f"The compiled reference has unresolved layout/reference warnings:\n{log}")

@@ -1,16 +1,46 @@
 # zipper-algebra
 
-Exact algebraic computations for quantum topology research on zipper relations,
-sliders, and untwisting quotients of braid group algebras. The questions include
-which slider relations follow from a chosen presentation and how changes to the
-untwisting relations affect quotients related to BMW algebras.
+Research software for zipper algebras and their untwisting quotients: exact
+noncommutative computations motivated by quantum topology and braid group
+representations.
 
-The Python package constructs presentations, expands recorded proofs, composes
-explicit two-sided ideal-membership certificates, reconstructs candidate
-coefficients from exact samples, and verifies the resulting identities. The
-[compiled mathematical specification](docs/mathematical-specification/mathematical-specification.pdf)
-([LaTeX source](docs/mathematical-specification/main.tex)) defines
-the coefficient domains, conventions, hypotheses and exact conclusions.
+Bigelow introduced the zipper algebra as a quotient of the braid group algebra,
+with the Hecke and BMW algebras as familiar quotients. He asked whether the
+three-strand slider vanishes and which additional relations produce
+finite-dimensional algebras ([Bigelow][1], §8, Questions 6–7). Moos's thesis develops a
+family of such quotients, defined by polynomial untwisting relations on the
+sliders. Its main finiteness theorem follows from the zipper algorithm and
+provides the mathematical setting for this project (Moos, Theorem 3.41).
+
+The software supports the study of that family: which defining relations are
+independent, when sliders vanish, and how the algebra changes with the
+untwisting polynomials. It constructs presentations, expands recorded proofs,
+composes explicit two-sided ideal-membership certificates, reconstructs
+candidate rational coefficients from exact samples, and verifies the resulting
+identities.
+
+Read the [compiled mathematical reference](docs/mathematical-specification/mathematical-specification.pdf)
+([LaTeX source](docs/mathematical-specification/main.tex)) for the definitions,
+finite-generation theorem, connection with BMW algebras, and precise software
+contracts. It distinguishes the general polynomial family from the selected
+presentations currently implemented.
+
+## Mathematical setting
+
+At each slider level one chooses a monic polynomial with invertible constant
+term and imposes the corresponding untwisting relation. The theorem states
+that the resulting algebra is finitely generated over the coefficient ring;
+over a field, it is finite-dimensional. The layered-zipper spanning result and
+reduction of twist exponents explain this conclusion (Moos, §3.5). It leaves
+the dimensions, bases and structure of the individual quotients to further study.
+
+The linear untwisting case leads back to the BMW algebra through an explicit
+slider-vanishing identity under the stated parameter hypotheses (Moos,
+Theorem 4.1 and Corollary 4.2). The package's
+certificate tools make statements of this kind reproducible, with the
+presentation and coefficient domain specified. General untwisting polynomials,
+the geometric zipper algorithm, dimensions and trace calculations extend beyond
+the maintained package's present scope.
 
 ## Install
 
@@ -112,6 +142,25 @@ requirements are audited. [INDEX](INDEX.md) maps those sources;
 The current release work and remaining decisions are tracked in
 [PUBLIC_SCOPE](docs/PUBLIC_SCOPE.md). History reconstruction and attribution
 history cleanup are recorded separately from the software changes.
+
+## References
+
+[1]: https://web.math.ucsb.edu/~bigelow/publications/10.pdf
+[2]: docs/mathematical-specification/mathematical-specification.pdf
+
+1. Stephen Bigelow, *Braid groups and Iwahori–Hecke algebras*, in *Problems on
+   Mapping Class Groups and Related Topics*, Proceedings of Symposia in Pure
+   Mathematics **74** (2006), 285–299.
+   [Author's copy][1]; [arXiv:math/0505064](https://arxiv.org/abs/math/0505064).
+2. Choomno Moos, *The Zipper Algebra*, M.A. thesis, University of California,
+   Santa Barbara, September 2026. Cited by section and theorem numbers in the
+   recovered manuscript. The [mathematical reference][2] supplies the relevant
+   definitions, theorem statement and version information.
+3. Joan S. Birman and Hans Wenzl, *Braids, link polynomials and a new algebra*,
+   Transactions of the American Mathematical Society **313** (1989), 249–273.
+   [DOI](https://doi.org/10.1090/S0002-9947-1989-0992598-X).
+4. Jun Murakami, *The Kauffman polynomial of links and representation theory*,
+   Osaka Journal of Mathematics **24** (1987), 745–758.
 
 ## License
 
