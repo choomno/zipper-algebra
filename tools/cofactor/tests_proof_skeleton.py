@@ -213,7 +213,7 @@ class TestSkeleton(unittest.TestCase):
         self.assertEqual(self.skel.basis_keys, [b.key[k] for k in needed])
         self.assertEqual(self.skel.closure_indices(b), needed)
 
-    def test_4d_json_round_trip_carries_the_contract_fields(self):
+    def test_4d_json_round_trip_carries_the_required_fields(self):
         path = os.path.join(OUT, "skeleton-S3_1-n4-bigelow.json")
         self.skel.save(path)
         d = _json(path)

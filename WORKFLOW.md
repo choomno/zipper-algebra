@@ -57,7 +57,7 @@ as the latest mathematical proof.
 
 ## Producing candidates
 
-The reusable stages have separate contracts:
+The reusable stages have the following requirements and conclusions:
 
 1. Construct the chosen presentation and record its content hash.
 2. Parse a basis and its proof references, with explicit coefficient domain and
@@ -79,6 +79,9 @@ experimental driver reports an inconclusive result with exit code `3` when it
 has no verified certificate within its sampling cap.
 
 ## Historical transformations and reproduction
+
+The [X3 reproduction guide](docs/X3_REPRODUCTION.md) gives the tested audit
+commands, the complete file inventory and the status of external dependencies.
 
 The original computational path used sampled solver proofs, lifted coefficients,
 a large free-algebra certificate, and subsequent specialized compression and

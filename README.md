@@ -21,8 +21,7 @@ identities.
 
 Read the [compiled mathematical reference](docs/mathematical-specification/mathematical-specification.pdf)
 ([LaTeX source](docs/mathematical-specification/main.tex)) for the definitions,
-finite-generation theorem, connection with BMW algebras, and precise software
-contracts. It distinguishes the general polynomial family from the selected
+finite-generation theorem, connection with BMW algebras, and precise input requirements and verification guarantees. It distinguishes the general polynomial family from the selected
 presentations currently implemented.
 
 ## Mathematical setting
@@ -62,22 +61,53 @@ For development, use `python -m pip install -e .`. The installed package is name
 `zipper_algebra`; `python -m zipper_algebra` provides the same commands as
 `zipper-algebra`.
 
-## Verify a certificate
+## Reproduce the X_3 cofactor result
 
-From the repository root, check the retained historical free-algebra fixture:
+Run from the repository root after installation. This checks the saved 695-term
+cofactor identity exactly, using both symbolic accumulation and a degree-bounded
+product grid:
 
 ```sh
-zipper-algebra verify \
+python -m zipper_algebra describe --n 4 --json
+python -m zipper_algebra verify \
   logs_and_traces/f4ncgb/cofactor-X3-n4-Qqt-symbolic.txt \
-  --n 4 --target X_3
+  --n 4 --target X_3 --pit --json > x3-verification.json
 ```
 
-Add `--pit` for the second exact check using a degree-bounded product grid, or
-`--json` for a machine-readable report. The explicit presentation options are
-checked against the certificate's presentation hash. Exit codes distinguish a
-valid identity, a false identity, and invalid input; see [WORKFLOW](WORKFLOW.md).
-This retained large certificate is a regression fixture, rather than a claim
-that it is the latest mathematical proof.
+Success means exit code `0` and `"pass": true` in the overall, `exact`, and `pit`
+reports in `x3-verification.json`; the exact report records 695 terms. The
+presentation options select the four-strand canonical untwisting presentation.
+The command checks a generic rational-function identity, with specialization
+conditions explained in the mathematical reference. It needs no algebra solver.
+
+To reproduce the certificate body from the saved symbolic coefficients and
+reduction skeleton, then replay the retained numeric proof expansion:
+
+```sh
+python -m unittest \
+  tools.cofactor.tests_compose_io_verify.TestCompose.test_composed_body_is_byte_identical_to_the_shipped_certificate \
+  -v
+python -m unittest tools.cofactor.tests_proof_skeleton -v
+```
+
+The first command must report one passing test and byte-for-byte agreement;
+the second must report 16 passing tests. These replay saved proof data; they do
+not rerun the original sampling and interpolation.
+
+The [reproduction guide](docs/X3_REPRODUCTION.md) maps every substantial source,
+input and output to its role, including the later compact certificate and the
+independent specialized calculations. Its [file inventory](docs/x3-reproduction-files.json)
+records exact paths, sizes and SHA-256 hashes. Check those against the checkout:
+
+```sh
+python ci/check_x3_manifest.py
+```
+
+Fresh discovery uses the experimental solver driver and needs additional
+configuration. The [f4ncgb parser patch and build instructions](patches/f4ncgb/README.md)
+are included for that route. The guide states the remaining portability and
+archival gaps. The retained large certificate is an auditable computational
+witness, rather than the latest mathematical proof.
 
 The same operation is available in Python:
 
@@ -128,7 +158,7 @@ independent adversarial review for complex changes.
 | --- | --- |
 | `src/zipper_algebra/` | Maintained Python implementation and command line interface. |
 | `tests/` | Regression tests, installation checks and immutable fixtures. |
-| `docs/` | Mathematical specification, public scope and validation records. |
+| `docs/` | Mathematical reference, reproduction guide and testing instructions. |
 | `tools/` | Compatibility entry points and experimental solver/research scripts. |
 | `logs_and_traces/`, `ms_inputs/` | Historical scientific artifacts and inputs, retained with their provenance. |
 | `gap_scripts/`, `singular_run/`, `archive/` | Independent or older computational paths and saved experiments. |
@@ -136,12 +166,7 @@ independent adversarial review for complex changes.
 The installed wheel contains the maintained package, not the private recovery
 workspace or the research archive. Solver execution, variant surveys, dimension
 and trace calculations remain experimental while their completion and exactness
-requirements are audited. [INDEX](INDEX.md) maps those sources;
-[RESEARCH_AGENDA](RESEARCH_AGENDA.md) records the broader publication programme.
-
-The current release work and remaining decisions are tracked in
-[PUBLIC_SCOPE](docs/PUBLIC_SCOPE.md). History reconstruction and attribution
-history cleanup are recorded separately from the software changes.
+requirements are audited. [INDEX](INDEX.md) maps those sources.
 
 ## References
 

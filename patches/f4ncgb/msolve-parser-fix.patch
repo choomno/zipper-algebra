@@ -1,0 +1,153 @@
+diff --git a/NEWS.md b/NEWS.md
+index ae970e0..94e96f0 100644
+--- a/NEWS.md
++++ b/NEWS.md
+@@ -5,6 +5,12 @@ new
+ 
+   - Weighted monomial orders
+ 
++## Fixes
++
++  - Accept `msolve` input whose last line ends in CRLF
++  - Report a missing or undeclared variable name in `msolve` input with its
++    location, instead of inventing a variable
++
+ v1.1.2
+ ==========
+ 
+diff --git a/README.md b/README.md
+index 9f820ad..136f276 100644
+--- a/README.md
++++ b/README.md
+@@ -177,7 +177,7 @@ Both formats accept an optional `w` line carrying one positive integer weight pe
+ 
+ This should produce the following output:
+ 
+-    Running 30 test cases...
++    Running 31 test cases...
+      
+     *** No errors detected
+ 
+diff --git a/src/parser.cpp b/src/parser.cpp
+index 977b933..132a800 100644
+--- a/src/parser.cpp
++++ b/src/parser.cpp
+@@ -172,9 +172,18 @@ parser_context::impl_msolve(parse_add_cb add_cb,
+         c = getc();
+         c = swallow_whitespace_no_newline();
+ 
++        // read_ident takes its first character unconditionally, so make sure a
++        // variable name starts here (not EOF after a trailing ',', and not the
++        // '-' of "x + -2*y").
++        if(c == EOF || !parser_context::msolve_ident_filter(c)) {
++          RETURN_ERROR("Expected a variable name");
++        }
+         const std::string& ident
+           = read_ident(parser_context::msolve_ident_filter);
+         auto id = str_to_id(ident);
++        if(id > opts_->num_vars) {
++          RETURN_ERROR(std::format("Undeclared variable '{}'", ident));
++        }
+ 
+         c = swallow_whitespace_no_newline();
+ 
+@@ -230,7 +239,6 @@ parse_res
+ parser_context::parse_msolve_end() {
+   while(c == '\r' || c == '\n') {
+     if(c == '\r') {
+-      c = getc();
+       READ('\n');
+     } else if(c == '\n') {
+       c = getc();
+@@ -319,6 +327,9 @@ parser_context::impl_msolve_header(char first_char, char second_char) {
+     } else if(c == ',') {
+       getc();
+       swallow_whitespace_no_newline();
++      if(c == '\r') {
++        c = getc();
++      }
+       if(c == '\n') {
+         getc();
+         opts_->blocks.emplace_back();
+@@ -326,6 +337,11 @@ parser_context::impl_msolve_header(char first_char, char second_char) {
+         // Swallow as much as needed until there is something again.
+         swallow_whitespace_and_newline();
+       }
++      // As in impl_msolve: read_ident takes its first character
++      // unconditionally, so a stray byte would become a variable name.
++      if(c == EOF || !parser_context::msolve_ident_filter(c)) {
++        RETURN_ERROR("Expected a variable name");
++      }
+       auto id = str_to_id(read_ident(parser_context::msolve_ident_filter));
+       current_block->emplace_back(id);
+       ++opts_->num_vars;
+diff --git a/src/test_parse.cpp b/src/test_parse.cpp
+index 7a52828..bf243b4 100644
+--- a/src/test_parse.cpp
++++ b/src/test_parse.cpp
+@@ -1,7 +1,9 @@
+ #include <array>
+ #include <boost/test/unit_test_log.hpp>
+ #include <filesystem>
++#include <fstream>
+ #include <string>
++#include <utility>
+ 
+ #include <boost/test/unit_test.hpp>
+ 
+@@ -125,3 +127,55 @@ BOOST_AUTO_TEST_CASE(parse_weights) {
+   BOOST_TEST(!plain.weighted());
+   BOOST_TEST(plain.weights.empty());
+ }
++
++// Inputs whose exact bytes matter (CRLF line endings) are written to a
++// temporary file here instead of living in parse_tests, where editors and git
++// may normalize line endings.
++static std::optional<std::string>
++parse_msolve_text(const std::string& name, const std::string& text) {
++  const auto path = std::filesystem::temp_directory_path() / name;
++  {
++    std::ofstream out(path, std::ios::binary);
++    out << text;
++  }
++  std::optional<std::string> err;
++  {
++    parser_context ctx;
++    internal::monomial_store<> ms;
++    internal::polynomial_store<> ps(ms);
++    err = invoke_parser(ctx, ps, path);
++  }
++  std::filesystem::remove(path);
++  return err;
++}
++
++BOOST_AUTO_TEST_CASE(parse_msolve_line_endings_and_variable_names) {
++  // A last line ending in "\r\n" must parse like the "\n" version.
++  const auto crlf = parse_msolve_text("f4ncgb_test_crlf.ms",
++                                      "x,y\r\n0\r\nx*y - y*x,\r\nx*x - 1\r\n");
++  BOOST_CHECK_MESSAGE(!crlf.has_value(), crlf.value_or(""));
++
++  // A multi-block header -- a comma ending the variable line opens a new block
++  // -- must behave the same way with CRLF.
++  const auto blocks = parse_msolve_text("f4ncgb_test_crlf_blocks.ms",
++                                        "x,y,\r\nz,w\r\n0\r\nx*z - z*x\r\n");
++  BOOST_CHECK_MESSAGE(!blocks.has_value(), blocks.value_or(""));
++
++  // A missing or undeclared variable name is reported as such.
++  const std::array<std::pair<std::string, std::string>, 6> bad = { {
++    { "x,\r\n0\r\nx*x\r\n", "Expected a digit" },
++    { "x,y\n0\nx*y - y*x,\nx*x - 1,\n", "Expected a variable name" },
++    { "x,y\n0\nx*y + -1*y*x\n", "Expected a variable name" },
++    { "x,y\n0\nx*-y\n", "Expected a variable name" },
++    { "x,y\n0\nx*y - y*x,\n\nx*x - 1\n", "Expected a variable name" },
++    { "x,y\n0\nx*z - 1\n", "Undeclared variable 'z'" },
++  } };
++  size_t i = 0;
++  for(const auto& [text, expected] : bad) {
++    const auto err = parse_msolve_text(
++      "f4ncgb_test_bad_" + std::to_string(i++) + ".ms", text);
++    BOOST_REQUIRE_MESSAGE(err.has_value(), "no error for input:\n" << text);
++    BOOST_CHECK_MESSAGE(err->find(expected) != std::string::npos,
++                        "expected '" << expected << "', got: " << *err);
++  }
++}

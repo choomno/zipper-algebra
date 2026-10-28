@@ -22,11 +22,5 @@ values does not establish the corresponding generic statement. In particular,
 rank agreement modulo primes and generic non-semisimplicity require separate
 justification.
 
-The historical [claim ledger](../../LEDGER_claims.md) and
-[specialization audit](../../AUDIT_spec_vs_generic.md) record earlier claims,
-evidence and gaps. They have not all been reestablished by the current package
-tests. Their manuscript references name research sources outside the software
-distribution.
-
 The older solver integration suite is `tools/tests.py`. See
 [TESTING](../../docs/TESTING.md) for its status and for the maintained CI suite.

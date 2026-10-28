@@ -36,6 +36,8 @@ def inspect(directory):
         assert len(roots) == 1, "source distribution must have one enclosing directory"
         relative = {str(PurePosixPath(*PurePosixPath(name).parts[1:])) for name in names}
         for needed in ("pyproject.toml", "README.md", "docs/TESTING.md",
+                       "docs/X3_REPRODUCTION.md", "docs/x3-reproduction-files.json",
+                       "patches/f4ncgb/msolve-parser-fix.patch", "patches/f4ncgb/LICENSE",
                        "docs/mathematical-specification/main.tex",
                        "docs/mathematical-specification/mathematical-specification.pdf",
                        "tests/test_certificates.py"):

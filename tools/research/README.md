@@ -17,10 +17,5 @@ minimality and dimension need additional certified-basis or representation
 evidence. A successful run at finitely many parameters does not supply either
 conclusion by itself.
 
-Candidate patterns and subsequent corrections remain in
-[NIGHT_LOG](../../NIGHT_LOG.md) and [RESEARCH_AGENDA](../../RESEARCH_AGENDA.md).
-The competing level-five predictions remain a research question pending the
-required independent evidence.
-
 The [mathematical specification](../../docs/mathematical-specification/main.tex)
 defines what the maintained certificate checks establish.

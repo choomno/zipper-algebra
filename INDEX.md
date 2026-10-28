@@ -1,7 +1,7 @@
 # Repository map
 
-Updated 27 October 2026 for the public package. Historical audits and experiments
-remain available, with the status recorded at the time they were written.
+Updated 27 October 2026 for the public package. Scientific experiment inputs and saved results
+remain available alongside the maintained implementation.
 Current installation and test instructions are in [README](README.md) and
 [TESTING](docs/TESTING.md).
 
@@ -50,16 +50,10 @@ those records.
 | Document | Purpose |
 | --- | --- |
 | [Mathematical specification](docs/mathematical-specification/main.tex) | Objects, conventions, relation formulas, certificate domains and verification conclusions. |
+| [X3 reproduction](docs/X3_REPRODUCTION.md) | Commands, expected results, file inventory and solver dependencies. |
 | [WORKFLOW](WORKFLOW.md) | Current package and certificate workflow. |
 | [TESTING](docs/TESTING.md) | Default tests, package checks and optional integrations. |
-| [PUBLIC_SCOPE](docs/PUBLIC_SCOPE.md) | Public contents, completed cleanup and remaining work. |
-| [RESEARCH_AGENDA](RESEARCH_AGENDA.md) | Broader mathematical questions and publication objectives. |
-| [AUDIT_spec_vs_generic](AUDIT_spec_vs_generic.md), [LEDGER_claims](LEDGER_claims.md) | Historical claim-by-claim evidence and gaps. |
-| [GENERALITY_CENSUS](GENERALITY_CENSUS.md) | Historical implementation audit, with dated paths and line numbers. |
-| [REPTHEORY_STRATEGY](REPTHEORY_STRATEGY.md) | Historical representation-theoretic programme and dependency assessment. |
-| [SURVEY_WORKFLOW](SURVEY_WORKFLOW.md), [NIGHT_LOG](NIGHT_LOG.md) | Historical plans, experiments and candidate patterns. |
-| [SOURCE_IMPORT](SOURCE_IMPORT.md) | Provenance and extent of the private source recovery. |
 
-Older document versions and original paths remain in Git history and the
-preserved private baseline. They are evidence of earlier development, not current
-instructions to run long computations or modify the public repository.
+The reproduction guide maps the saved cofactor result to its inputs, source
+code and exact checks. Historical execution scripts retain the dependency and
+path assumptions described there.

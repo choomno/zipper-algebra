@@ -86,6 +86,7 @@ jobs:
         with:
           python-version: '3.13'
       - run: python ci/check_docs.py
+      - run: python ci/check_x3_manifest.py
       - name: Install the mathematical documentation compiler
         run: |
           sudo apt-get update -qq

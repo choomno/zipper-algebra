@@ -5,7 +5,7 @@ from zipper_algebra import Presentation
 from zipper_algebra.zipper_in_ms import SymbolicRing
 
 
-class TestPresentationContract(unittest.TestCase):
+class TestPresentationRequirements(unittest.TestCase):
     def test_unknown_untwisting_cannot_fall_back_to_canonical(self):
         for value in ("typo", "Bigelow", "indeterminate", None, []):
             with self.subTest(value=value), self.assertRaises(ValueError):

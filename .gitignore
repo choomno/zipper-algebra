@@ -9,3 +9,31 @@ __pycache__/
 build/
 dist/
 *.egg-info/
+
+# Local instructions, session notes and research planning
+AGENTS.md
+CLAUDE.md
+.claude/
+.codex/
+.agents/
+.agent-notes/
+agent-notes/
+/AUDIT_spec_vs_generic.md
+/GENERALITY_CENSUS.md
+/LEDGER_claims.md
+/NIGHT_LOG.md
+/REPTHEORY_STRATEGY.md
+/RESEARCH_AGENDA.md
+/SOURCE_IMPORT.md
+/SURVEY_WORKFLOW.md
+/PLAN_FOR_REVIEW.md
+/REPORT.md
+/docs/HISTORY.md
+/docs/PRIVATE_BASELINE.md
+/docs/PUBLIC_SCOPE.md
+/docs/VALIDATION.md
+/docs/baseline.json
+/docs/public-scope.json
+
+# Locally generated certificate verification report
+/x3-verification.json

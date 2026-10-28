@@ -10,7 +10,7 @@ python -m unittest tools.cofactor.tests_proof_skeleton -v
 
 The maintained tests need no solver, personal configuration, sibling research
 folders, populated cache or network access after installation. They cover exact
-and modular arithmetic, basis parsing, presentation contracts, proof expansion,
+and modular arithmetic, basis parsing, presentation validation, proof expansion,
 certificate validation, contextual composition, repeated reduction steps, exact
 interpolation, held-out validation, inconclusive outcomes, package imports and
 CLI exit codes. Tests use temporary directories for output.
