@@ -4,15 +4,21 @@
   "excluded": "This inventory, concurrently edited reader documentation, planning records, private workspace configuration, caches, failed runs and unrelated variant experiments.",
   "files": [
     {
+      "path": ".coveragerc",
+      "bytes": 138,
+      "sha256": "822b9aa6bb74c1d71142c8906e145e6a364217a080e0c9ebd2a23df139b9661a",
+      "role": "Complete maintained-package line and branch measurement, including subprocesses"
+    },
+    {
       "path": ".github/workflows/ci.yml",
-      "bytes": 3641,
-      "sha256": "73819fa8cc9d1782962caee2cd107dd6d65200d9946e58f117cea453c2a9c648",
+      "bytes": 4041,
+      "sha256": "6bf48e01b01204abfcd7926e324ccdaeb302aef0f3a16a0fa7a883d4436d187b",
       "role": "CI execution of regression and distribution checks"
     },
     {
       "path": "MANIFEST.in",
-      "bytes": 1219,
-      "sha256": "08e6e55ae5f74dad6f3418b1f0e29a2d39acbe76d709c490e13d78315489bb98",
+      "bytes": 1256,
+      "sha256": "cead44eced51f3725f1be79801e4b98930582d428e96a4f02f54e5af0f5b4535",
       "role": "Source distribution inclusion of reproduction inputs"
     },
     {
@@ -124,9 +130,15 @@
       "role": "Independent historical GBNP presentation, witness, reduction or replay route"
     },
     {
+      "path": "ci/check_coverage.py",
+      "bytes": 2066,
+      "sha256": "18a55f65cc34c563de329fdbe839db6c61f5a1c5f1d3c373369bd1605aa2886c",
+      "role": "Separate unrounded line and branch coverage gates for every maintained module"
+    },
+    {
       "path": "ci/check_distribution.py",
-      "bytes": 2785,
-      "sha256": "cce4c78510ad4d53bab1ec7681e6cbedf5abe43824af442cd5f6dec62299e5ad",
+      "bytes": 2866,
+      "sha256": "d53220804a811da1769e9e9d2998414360dfe559940f66a38c2d6e39391be27f",
       "role": "Release archive contents check"
     },
     {
@@ -152,6 +164,12 @@
       "bytes": 1471,
       "sha256": "51aa317232ab75d127e6e0fd839dd614206bc22a5d3be7faed45031e243247d4",
       "role": "Independent Singular specialized-membership summary"
+    },
+    {
+      "path": "logs_and_traces/f4ncgb/atoms-n4-Q.json",
+      "bytes": 783,
+      "sha256": "27a614b0a93cdb035122d0028f401bba58eec8c4dbbe3c27f75ad260b7aea9fc",
+      "role": "Historical denominator-family prior used in coefficient reconstruction"
     },
     {
       "path": "logs_and_traces/f4ncgb/basis-n4-Q-q11-t13.txt",
@@ -1442,6 +1460,12 @@
       "bytes": 820,
       "sha256": "359d8d9d2f3675cfaa11a57710ac8b323865d7a97f7620086d884eb88be18141",
       "role": "Saved anchor contextual reduction skeleton"
+    },
+    {
+      "path": "logs_and_traces/f4ncgb/zipper-n4-Q-q5-t7.ms",
+      "bytes": 2295,
+      "sha256": "db9083a5bd0462bcc5e60179427ca4050c436ad8a79e7dea3ae91c2ee2c2ac01",
+      "role": "Original emitted specialized anchor presentation"
     },
     {
       "path": "logs_and_traces/reproduce-X3-zero-transcript.txt",
@@ -3011,8 +3035,8 @@
     },
     {
       "path": "patches/f4ncgb/msolve-parser-fix.patch",
-      "bytes": 5464,
-      "sha256": "cb48df61db8062ae409f0724c4df118ff99fa54a5d19824f9bf4ea74769fa708",
+      "bytes": 10850,
+      "sha256": "33a3333a04813fb463eef36ef0754d233657649d6a1264d7fd81f5f60c3376da",
       "role": "Retained f4ncgb parser correction for external solver reproduction"
     },
     {
@@ -3053,26 +3077,26 @@
     },
     {
       "path": "src/zipper_algebra/cofactor/atoms.py",
-      "bytes": 33140,
-      "sha256": "59daac43dbce95920f53ecec2b59390ee35bc043675d44bbae7c5d7a5300bc01",
+      "bytes": 33269,
+      "sha256": "1e242c0832e8ba038a30e113113a4462e6fac32438b5156e784b151a966fcc9d",
       "role": "Maintained presentation, arithmetic, proof, reconstruction, composition or verification implementation"
     },
     {
       "path": "src/zipper_algebra/cofactor/cofactor_io.py",
-      "bytes": 24504,
-      "sha256": "dffdf0e1d65cda2c61e38e0baa8bccdee62be63105c9efd8c5085dafdadc3a8a",
+      "bytes": 24685,
+      "sha256": "7e2c49031e9865544a811804b6c70307f8edc88c1084002cc52cc4d54139e74e",
       "role": "Maintained presentation, arithmetic, proof, reconstruction, composition or verification implementation"
     },
     {
       "path": "src/zipper_algebra/cofactor/compose.py",
-      "bytes": 16678,
-      "sha256": "db94994bf608a5f9c0404d9cd2ee998782736aba2d73ed2fa5c9ef216efe2f55",
+      "bytes": 16548,
+      "sha256": "7b260b58f12c73fcb8ffe91699b1ad968e60b0ce160cbfa3e960014ea1102813",
       "role": "Maintained presentation, arithmetic, proof, reconstruction, composition or verification implementation"
     },
     {
       "path": "src/zipper_algebra/cofactor/lift.py",
-      "bytes": 27556,
-      "sha256": "9dc4dfe073ea6dae719046327c5c6a79ae4d1caa7046e9389b23ae597e5a7b63",
+      "bytes": 27422,
+      "sha256": "e706a2fdcb98072f6971635f53ea9ad7a8bea3aa01576df5156f7e2cfbc9f5b5",
       "role": "Maintained presentation, arithmetic, proof, reconstruction, composition or verification implementation"
     },
     {
@@ -3083,26 +3107,26 @@
     },
     {
       "path": "src/zipper_algebra/cofactor/proof.py",
-      "bytes": 15236,
-      "sha256": "9e212b5bfe1d75d9f2bdf6890b2ddf4e8b6cffee83beb9c92bf90c5599fd89ba",
+      "bytes": 15426,
+      "sha256": "ce402913fe4798ec91b98b9ef924f94c5a844e151c73bee3f045075b0e68871a",
       "role": "Maintained presentation, arithmetic, proof, reconstruction, composition or verification implementation"
     },
     {
       "path": "src/zipper_algebra/cofactor/skeleton.py",
-      "bytes": 9651,
-      "sha256": "effb2807207d6d5891feb6415b44ace7f433e7702e01e316a71d4b85aeff590a",
+      "bytes": 9678,
+      "sha256": "43a2bf01454220c06e058e664d9a7b2027e36c36e9b3e973cc8caebe749b9765",
       "role": "Maintained presentation, arithmetic, proof, reconstruction, composition or verification implementation"
     },
     {
       "path": "src/zipper_algebra/cofactor/verify.py",
-      "bytes": 13695,
-      "sha256": "f4a3402280c5ad8bb331cfa702d1cb4eaea96f26040bc1fa6baa41e875db26e6",
+      "bytes": 13334,
+      "sha256": "55f098489e16f5539373f28fdfdae23f4f4b7087220f38e270ac8d65d093c8d9",
       "role": "Maintained presentation, arithmetic, proof, reconstruction, composition or verification implementation"
     },
     {
       "path": "src/zipper_algebra/core.py",
-      "bytes": 14702,
-      "sha256": "016a024736b2d72804e79509ed2ab1d2381e3ceabd4884de24f77d15a6579fb3",
+      "bytes": 14766,
+      "sha256": "25c441e25635b84fd32dc260064030e5fabaae2cb1d86e5519bebc9355328159",
       "role": "Maintained presentation, arithmetic, proof, reconstruction, composition or verification implementation"
     },
     {
@@ -3154,9 +3178,51 @@
       "role": "Reproduction regression, installation check or immutable historical proof fixture"
     },
     {
+      "path": "tests/test_arithmetic_coverage.py",
+      "bytes": 14641,
+      "sha256": "0f1eb8dec202334f292d769589f0a555671546f5075a0031e7ad7a42ab9c0257",
+      "role": "Reproduction regression, installation check or immutable historical proof fixture"
+    },
+    {
+      "path": "tests/test_atoms_coverage.py",
+      "bytes": 16470,
+      "sha256": "a4516a44818688fd31a73484b83c0604149f21a981763a82a869357b254fa1d2",
+      "role": "Reproduction regression, installation check or immutable historical proof fixture"
+    },
+    {
       "path": "tests/test_certificates.py",
       "bytes": 366,
       "sha256": "d212027d6bbdc6aad7c5df267ffb29155537a36416d8618c9724b9f2217b7ed3",
+      "role": "Reproduction regression, installation check or immutable historical proof fixture"
+    },
+    {
+      "path": "tests/test_cli_coverage.py",
+      "bytes": 7767,
+      "sha256": "037c848ae46a9ef60b3d86b4663c5dc9adb8d495ea835b0de9ac4a282a04256d",
+      "role": "Reproduction regression, installation check or immutable historical proof fixture"
+    },
+    {
+      "path": "tests/test_cofactor_io_coverage.py",
+      "bytes": 14067,
+      "sha256": "7b2b5f330013a9fc35fd1af76ee175994c3c5eb1b3b9b80e80cbfec42c958c82",
+      "role": "Reproduction regression, installation check or immutable historical proof fixture"
+    },
+    {
+      "path": "tests/test_core_presentation_coverage.py",
+      "bytes": 12745,
+      "sha256": "92f7e011d6bcfa30a7c64782375b698f8cb048d42ec88ec159a170447cdfea42",
+      "role": "Reproduction regression, installation check or immutable historical proof fixture"
+    },
+    {
+      "path": "tests/test_coverage_requirements.py",
+      "bytes": 3006,
+      "sha256": "cd9d4103a2ae427b3bd599458998f755c338b65e72d5fa3c15067afc5bba15db",
+      "role": "Reproduction regression, installation check or immutable historical proof fixture"
+    },
+    {
+      "path": "tests/test_lift_coverage.py",
+      "bytes": 14898,
+      "sha256": "2e715ac70f8cd518b039de06d6a420757333345208c730d3e1cc95828dfeba17",
       "role": "Reproduction regression, installation check or immutable historical proof fixture"
     },
     {
@@ -3172,6 +3238,12 @@
       "role": "Reproduction regression, installation check or immutable historical proof fixture"
     },
     {
+      "path": "tests/test_proof_composition_coverage.py",
+      "bytes": 17594,
+      "sha256": "922fd3a4b0a586d8f7fc6b0a22c31afe70f4ac486169308b5f484e7977b79ec1",
+      "role": "Reproduction regression, installation check or immutable historical proof fixture"
+    },
+    {
       "path": "tests/test_public_imports.py",
       "bytes": 1082,
       "sha256": "9ff043487fe47971a555a42e14f05016036b9440c2aad62bab4b0102336a0345",
@@ -3181,6 +3253,12 @@
       "path": "tests/test_reconstruction.py",
       "bytes": 203,
       "sha256": "f9c46ca79dd5d56c8ea0d465b65728310718f641e90f6bc6172c1fc49284ec48",
+      "role": "Reproduction regression, installation check or immutable historical proof fixture"
+    },
+    {
+      "path": "tests/test_verify_coverage.py",
+      "bytes": 8308,
+      "sha256": "b6040f17e95b8de3c1343765208006bf78c606f6651af9566d31ee2709eb6870",
       "role": "Reproduction regression, installation check or immutable historical proof fixture"
     },
     {

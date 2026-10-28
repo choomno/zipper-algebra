@@ -27,8 +27,9 @@ separately before rounding. The measured source is every Python file in
 `src/zipper_algebra/`. Experimental scripts and archived implementations have
 separate test requirements and are outside this package measurement.
 
-The focused local run measured **99.90% lines (3088/3091)** and
-**99.65% branches (1423/1428)**. No source lines or branches are excluded. The tests cover
+The complete local suite measured **99.90% lines (3088/3091)** and
+**99.72% branches (1424/1428)** across 231 maintained tests and 16 historical
+proof comparisons. No source lines or branches are excluded. The tests cover
 exact identities, coefficient domains, parsing and validation, reduction,
 reconstruction, noncommuting contexts, CLI behaviour and optional inference.
 These percentages describe exercised code; the mathematical assertions and
@@ -104,8 +105,8 @@ retains it as a downloadable artifact on the workflow run.
 
 Jobs have time limits, read-only repository permissions and no publication step.
 The workflow does not require project secrets or an algebra solver. A local test
-pass and a GitHub-hosted run are separate evidence; the validation record states
-which was actually observed.
+pass and a GitHub-hosted run are separate evidence; workflow run pages record the
+hosted results.
 
 ## Experimental integrations
 

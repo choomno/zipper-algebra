@@ -1,6 +1,11 @@
 # f4ncgb parser patch
 
 Fresh solver computations use the external [f4ncgb project](https://gitlab.sai.jku.at/f4ncgb/f4ncgb).
+The solver is developed by Maximilian Heisinger and Clemens Hofstadler; cite
+their [CASC 2025 paper](https://doi.org/10.1007/978-3-032-09645-6_5),
+*f4ncgb: High Performance Gröbner Basis Computations in Free Algebras*,
+Lecture Notes in Computer Science **16235**, pp. 79–97.
+
 Checking the saved certificate, recomposing it from the saved symbolic lift,
 and replaying its retained proof require neither f4ncgb nor this patch; see the
 [reproduction guide](../../docs/X3_REPRODUCTION.md).
@@ -8,11 +13,17 @@ and replaying its retained proof require neither f4ncgb nor this patch; see the
 The recovered research environment used the [parser patch](msolve-parser-fix.patch)
 against upstream commit `f152bb0d040d7947d4296f9d68ca849ee135629c` (v1.1.3).
 That revision was still upstream `main` when checked on 27 October 2026.
-The patch payload matches recovered local commit
-`0301fb910fdfed3270cf95fe2742d34d0683cca7`.
+The production parser changes extend recovered local commit
+`0301fb910fdfed3270cf95fe2742d34d0683cca7` with single-variable CRLF header
+handling. The test harness has also been strengthened with isolated temporary
+files, exact LF/CRLF block comparisons and declared/undeclared exponent-zero
+controls. The bundled parser and tests match
+[the maintained fix commit](https://github.com/choomno/f4ncgb/commit/789504d7c7da6af6946faecb73421b037766a5b8).
+The [draft PR](https://github.com/choomno/f4ncgb/pull/1) is in the personal
+GitHub copy; the official source remains on JKU’s GitLab.
 
-The patch fixes CRLF handling at the final input line and in block headers,
-and rejects missing or undeclared variable names when they are read, including
+The patch fixes CRLF handling at the final input line and in single-variable
+and multi-block headers, and rejects missing or undeclared variable names when they are read, including
 undeclared names raised to exponent zero. Older f4ncgb versions could silently
 introduce unintended variables from malformed input. Correct LF input with
 declared variables does not inherently require this patch. It is a parser fix;
@@ -52,12 +63,14 @@ executable target is `f4ncgb_bin`.
 
 The recovered record reports 31 sanitizer tests and 23 accepted-input output
 comparisons. During the current cleanup the patch was checked against the exact
-base source; the compiler and CMake are absent from this environment, so those
-historical build results have not been repeated here. The 23 output comparisons
+base source. The strengthened patch and all 31 tests then passed in a fresh
+[Ubuntu 24.04 GitHub build](https://github.com/choomno/f4ncgb/actions/runs/40625473978)
+at `789504d7c7da6af6946faecb73421b037766a5b8`. A local compiler and CMake
+remain absent from the preparation environment. The 23 historical output comparisons
 used iteration caps and do not assert completed Gröbner bases.
 
 The historical solver driver also needs workspace configuration and path repairs;
 applying this patch alone does not make that driver portable. Its supported
 alternative for auditing the result is the solver-free route in the reproduction
-guide. The upstream issue and merge request have not been filed as part of this
-cleanup.
+guide. The patch is reviewed in the personal GitHub copy; no upstream issue or merge
+request is being submitted.

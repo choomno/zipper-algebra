@@ -57,7 +57,22 @@ The certificate audit below runs from saved data with the Python package.
 For fresh solver computations, the [setup guide](patches/f4ncgb/README.md)
 records the upstream revision, parser fix, dependencies and maintained GitHub copy.
 
-## Reproduce the X_3 cofactor result
+## X_3 cofactor computation
+
+Producing a certificate starts with the presentation: emit its defining
+relations, compute a basis with nonexpanded proofs using f4ncgb, reduce the
+slider to record its contextual reduction, repeat at parameter samples,
+reconstruct the relevant proof coefficients, compose the cofactor expression,
+and verify the resulting identity exactly. A new valid witness need not have
+the same term count or coefficients as the historical one.
+
+The [chronological production guide](docs/X3_REPRODUCTION.md) identifies the
+input, program and output at every stage, including the original presentation
+input and the files needed for reconstruction. It distinguishes those stages
+from replaying a saved symbolic lift and states the current driver's workspace
+dependencies and missing historical proof logs.
+
+### Audit the retained result
 
 Run from the repository root after installation. This checks the saved 695-term
 cofactor identity exactly, using both symbolic accumulation and a degree-bounded
