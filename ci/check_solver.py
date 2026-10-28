@@ -9,10 +9,10 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import time
 
 
 ROOT = Path(__file__).resolve().parents[1]
-TARGET = "(Theta_3-q^2)X_3"
 REVISION = "789504d7c7da6af6946faecb73421b037766a5b8"
 
 
@@ -27,7 +27,10 @@ def isolated(*arguments, directory, timeout=120):
     return result.stdout
 
 
-def check(binary, revision, directory):
+def check(binary, revision, directory, *, n=3):
+    target = "X_3" if n == 4 else "(Theta_3-q^2)X_3"
+    start, step, maximum = (100, 40, 260) if n == 4 else (12, 12, 96)
+    strands = str(n)
     binary = Path(binary).resolve()
     directory = Path(directory).resolve()
     output, cache = directory / "production", directory / "cache"
@@ -35,29 +38,34 @@ def check(binary, revision, directory):
                             "print(pathlib.Path(zipper_algebra.__file__).resolve())",
                             directory=directory).strip())
     assert not package.is_relative_to(ROOT), "the solver check requires an installed wheel"
-    description = json.loads(isolated("-m", "zipper_algebra", "describe", "--n", "3",
+    description = json.loads(isolated("-m", "zipper_algebra", "describe", "--n", strands,
                                      "--json", directory=directory))
     relation_count = len(description["relations"])
-    # This target follows from the canonical T3 and inverse relations. It is
-    # not added to the defining presentation and no saved lift is supplied.
-    text = isolated("-m", "zipper_algebra", "discover", "--n", "3",
-                    "--target", TARGET, "--solver", str(binary), "--output", str(output),
-                    "--cache", str(cache), "--anchor", "5,7", "--start", "12",
-                    "--step", "12", "--max", "96", "--jobs", "1",
+    # Neither target is added to the defining presentation; no saved lift or
+    # certificate is supplied. The n=4 case uses the original 31 relations.
+    if n == 4:
+        assert relation_count == 31
+        assert description["presentation_hash"] == "091bbb92271ab870"
+    started = time.monotonic()
+    text = isolated("-m", "zipper_algebra", "discover", "--n", strands,
+                    "--target", target, "--solver", str(binary), "--output", str(output),
+                    "--cache", str(cache), "--anchor", "5,7", "--start", str(start),
+                    "--step", str(step), "--max", str(maximum), "--jobs", "1",
                     "--timeout", "180", "--max-iterations", "100000",
                     "--solver-revision", revision, "--json",
-                    directory=directory, timeout=900)
+                    directory=directory, timeout=1800 if n == 4 else 900)
+    discovery_seconds = time.monotonic() - started
     report = json.loads(text)
     assert report == json.loads((output / "result.json").read_text())
     assert report["status"] == "verified" and report["verified"] is True, report
     assert report["basis_complete"] is False
     assert report["exact"]["pass"] is True
-    assert report["target_name"] == TARGET and report["runs"]
+    assert report["target_name"] == target and report["runs"]
     assert len(report["presentation"]["relation_labels"]) == relation_count
     certificate = Path(report["certificate"])
     verified = json.loads(isolated("-m", "zipper_algebra", "verify", str(certificate),
-                                    "--n", "3", "--target", TARGET, "--pit", "--json",
-                                    directory=directory))
+                                    "--n", strands, "--target", target, "--pit", "--json",
+                                    directory=directory, timeout=600))
     assert verified["pass"] and verified["exact"]["pass"] and verified["pit"]["pass"]
     for run in report["runs"]:
         record_path = Path(run["record"])
@@ -72,11 +80,13 @@ def check(binary, revision, directory):
         assert len(source.read_text().splitlines()) - 2 == relation_count
         expected = directory / "expected-input.ms"
         q, t = run["point"]
-        isolated("-m", "zipper_algebra", "emit", "--n", "3", "--q", str(q),
+        isolated("-m", "zipper_algebra", "emit", "--n", strands, "--q", str(q),
                  "--t", str(t), "--out", str(expected), "--json", directory=directory)
         assert source.read_bytes() == expected.read_bytes(), "a solver input changed presentation"
     summary = {"status": "verified", "solver_revision": revision,
-               "installed_package": str(package), "target": TARGET,
+               "installed_package": str(package), "n": n, "target": target,
+               "discovery_seconds": discovery_seconds,
+               "pipeline_seconds": report["seconds"],
                "relation_count": relation_count, "sample_points": report["points"],
                "cofactor_terms": report["tuples"], "basis_complete": False,
                "exact": verified["exact"], "pit": verified["pit"]}
@@ -89,14 +99,16 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--binary", type=Path, required=True)
     parser.add_argument("--revision", default=REVISION)
+    parser.add_argument("--n", type=int, choices=(3, 4), default=3,
+                        help="3: small integration case; 4: fresh X_3 discovery")
     parser.add_argument("--output", type=Path, help="new directory retaining the complete run")
     args = parser.parse_args(argv)
     if args.output is None:
         with tempfile.TemporaryDirectory(prefix="zipper-real-solver-") as directory:
-            check(args.binary, args.revision, directory)
+            check(args.binary, args.revision, directory, n=args.n)
     else:
         args.output.mkdir(parents=True, exist_ok=False)
-        check(args.binary, args.revision, args.output)
+        check(args.binary, args.revision, args.output, n=args.n)
 
 
 if __name__ == "__main__":

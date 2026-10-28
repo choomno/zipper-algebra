@@ -107,6 +107,14 @@ degree-grid verification outside this workspace. This is distinct from
 replaying the retained four-strand witness. The workflow and `ci/check_solver.py`
 record the pinned source and commands.
 
+For fresh four-strand `X_3` discovery, manually dispatch the same workflow on
+the desired branch with `full_x3` enabled. This selects the original 31-relation
+presentation, generates fresh samples, reconstructs a cofactor representation,
+and runs both certificate checks. `ci/check_solver.py --n 4` performs the same
+check with an installed wheel and an explicit `--binary`. The computation,
+timings and verification records are retained in the `fresh-solver-computation`
+artifact, including intermediate records if discovery fails.
+
 The documentation job validates local links, deterministic inventory
 regeneration and recorded hashes, then compiles the mathematical reference.
 Workflow run pages record actual hosted results; configured jobs and local
