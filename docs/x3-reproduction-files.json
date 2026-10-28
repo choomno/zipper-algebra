@@ -3100,6 +3100,12 @@
       "role": "Maintained presentation, arithmetic, proof, reconstruction, production or verification implementation"
     },
     {
+      "path": "src/zipper_algebra/cofactor/artifacts.py",
+      "bytes": 9575,
+      "sha256": "c8d10e6971f9763882c1a43d4545ca7cab0202648882404e4cb57ff64388faaa",
+      "role": "Maintained presentation, arithmetic, proof, reconstruction, production or verification implementation"
+    },
+    {
       "path": "src/zipper_algebra/cofactor/atoms.py",
       "bytes": 33269,
       "sha256": "1e242c0832e8ba038a30e113113a4462e6fac32438b5156e784b151a966fcc9d",
@@ -3151,6 +3157,30 @@
       "path": "src/zipper_algebra/core.py",
       "bytes": 14766,
       "sha256": "25c441e25635b84fd32dc260064030e5fabaae2cb1d86e5519bebc9355328159",
+      "role": "Maintained presentation, arithmetic, proof, reconstruction, production or verification implementation"
+    },
+    {
+      "path": "src/zipper_algebra/execution/__init__.py",
+      "bytes": 286,
+      "sha256": "e392b624ec8c94f30db96395f11a799b47ed78e268add58ef7c204b49ca18b21",
+      "role": "Maintained presentation, arithmetic, proof, reconstruction, production or verification implementation"
+    },
+    {
+      "path": "src/zipper_algebra/execution/artifacts.py",
+      "bytes": 7960,
+      "sha256": "ca26195db1a29be94ca390eb4d04df6937bc9d213aa899a8625e4f190ae6d99a",
+      "role": "Maintained presentation, arithmetic, proof, reconstruction, production or verification implementation"
+    },
+    {
+      "path": "src/zipper_algebra/execution/config.py",
+      "bytes": 3656,
+      "sha256": "e9442e7b49c15e5f870bc03eda7bafdb0d927d0b15c904aefb23c0dec4f41f97",
+      "role": "Maintained presentation, arithmetic, proof, reconstruction, production or verification implementation"
+    },
+    {
+      "path": "src/zipper_algebra/execution/runner.py",
+      "bytes": 5335,
+      "sha256": "c26f1b94ce7909aa919ded6b270e24c02fd20826a5e9bdff31a0d56a666d75e6",
       "role": "Maintained presentation, arithmetic, proof, reconstruction, production or verification implementation"
     },
     {
@@ -3226,6 +3256,12 @@
       "role": "Reproduction regression, installation check or immutable historical proof fixture"
     },
     {
+      "path": "tests/test_artifact_formats.py",
+      "bytes": 16835,
+      "sha256": "bd8639b80896dc1b68d3faa66dd1ad4680b06f93acb895333cf39a31328a6fcb",
+      "role": "Reproduction regression, installation check or immutable historical proof fixture"
+    },
+    {
       "path": "tests/test_atoms_coverage.py",
       "bytes": 16470,
       "sha256": "a4516a44818688fd31a73484b83c0604149f21a981763a82a869357b254fa1d2",
@@ -3265,6 +3301,12 @@
       "path": "tests/test_entrypoints.py",
       "bytes": 13267,
       "sha256": "71ea0e8d73d3b28462ebd7efb457f410e6bf1bfe048985d04ce251227d0f8d7b",
+      "role": "Reproduction regression, installation check or immutable historical proof fixture"
+    },
+    {
+      "path": "tests/test_execution_runner.py",
+      "bytes": 21949,
+      "sha256": "7640f69277b7e0123b0ff88541a159e9e82975f6ebe0e9619716301665eac5aa",
       "role": "Reproduction regression, installation check or immutable historical proof fixture"
     },
     {
