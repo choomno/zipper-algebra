@@ -1,6 +1,6 @@
 # zipper-algebra
 
-Research software for zipper algebras and their untwisting quotients: exact
+Research software for zipper algebras and their untwisted quotients. This software conducts exact
 noncommutative computations motivated by quantum topology and braid group
 representations.
 
