@@ -242,8 +242,9 @@ class TestOutputRootProtection(RunnerFixture):
             prepare_output_root(occupied)
         root = self.root / "blocked-marker"
         (root / ".gitignore").mkdir(parents=True)
-        with self.assertRaises(FileExistsError):
+        with self.assertRaises(OSError):
             prepare_output_root(root)
+        self.assertTrue((root / ".gitignore").is_dir())
 
     def test_pipeline_prepares_root_and_sample_markers_before_execution(self):
         config = self.config("exit", output_root=self.root / "custom-pipeline")
