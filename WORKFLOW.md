@@ -1,31 +1,56 @@
 # Certificate workflow
 
-The public package supports presentation construction, proof expansion,
-contextual composition, exact reconstruction of candidate coefficients, and
-verification of free-algebra membership identities. The
-[mathematical specification](docs/mathematical-specification/main.tex) states the
-objects, hypotheses and conclusions; this page describes how to use the software.
+The [mathematical reference](docs/mathematical-specification/mathematical-specification.pdf)
+states the objects, coefficient domains, hypotheses and conclusions. The installed
+commands handle presentation descriptions, relation emission, discovery, composition
+and exact checking.
 
-## Installation and presentation
-
-Install with Python 3.11 or newer:
+## Describe or emit a presentation
 
 ```sh
-python -m pip install .
-zipper-algebra describe --n 4
 zipper-algebra describe --n 4 --json
+zipper-algebra emit --n 4 --q 5 --t 7 --char 0 --out input.ms --json
 ```
 
-A presentation includes the strand count, untwisting choice and its parameters,
-level limits, optional zero-slider relations and named additional relations.
-The symbolic relation content determines its hash. Identical readable labels
-can belong to different presentations, so labels alone do not identify an algebra.
-Use `zipper-algebra describe --help` for the available options.
+Both use one relation builder. The presentation hash identifies the ordered
+symbolic defining data, independently of specialization. Labels alone do not
+identify an algebra. The discovery route always keeps its target separate from
+the defining relations.
 
-## Checking an existing certificate
+## Produce a certificate
 
-The retained historical free-algebra fixture can be checked without running a
-Gröbner-basis solver:
+Install the inference extra and build the external solver using the
+[solver setup](patches/f4ncgb/README.md). Then:
+
+```sh
+zipper-algebra discover --n 4 --target X_3 \
+  --solver /absolute/path/to/f4ncgb \
+  --solver-revision f152bb0-with-bundled-parser-patch \
+  --output runs/x3 --cache runs/solver-cache \
+  --start 100 --step 40 --max 260 --jobs 1 --json
+```
+
+The [reproduction guide](docs/X3_REPRODUCTION.md) explains the stages and
+provides a smaller example. Initial inputs are the presentation, target and
+explicit execution configuration. Samples and proofs are generated and managed
+automatically.
+
+Each solver run has a versioned identity containing the actual input, coefficient
+domain, target, ordered generators, order, executable digest, flags and limits.
+Its outputs are parsed and every numeric proof identity is checked before the
+run is published. Atomic records distinguish usable proof data from a claim
+of basis completeness.
+
+Reconstruction uses exact samples, full-rank fits, nonzero denominators and
+held-out checks. It produces candidates. Composition preserves both word contexts
+and repeated occurrences. Exact verification of the complete identity is the
+success condition.
+
+A successful result atomically selects an immutable product bundle with its hashes.
+`result.json` reports the presentation/target, anchor, sampled runs and certificate
+path. An interrupted publication preserves the preceding valid result.
+
+## Verify or recompose
 
 ```sh
 zipper-algebra verify \
@@ -33,78 +58,39 @@ zipper-algebra verify \
   --n 4 --target X_3 --pit --json
 ```
 
-The checker validates the coefficient domain, denominator factors and exponents,
-words, relation labels, presentation identity and target before arithmetic.
-It compares the cleared polynomial identity exactly. `--pit` additionally checks
-it on a product grid with degrees computed from the certificate and target.
-The grid checker evaluates complementary denominator powers directly, so zeros
-of denominator factors do not cause undefined division in the cleared identity.
+The checker validates the presentation, target, words, labels, coefficient domain
+and denominator data before arithmetic. It compares the cleared identity exactly.
+The optional product-grid check derives sufficient degree bounds. A rational
+identity specializes wherever its displayed denominators remain nonzero.
 
-Exit codes are:
+For a newly produced bundle, replace the three input paths below with those in
+the result's artifact map:
 
-| Code | Meaning |
+```sh
+zipper-algebra compose --n 4 --target X_3 \
+  --lift /bundle/lift.json --skeleton /bundle/skeleton.json \
+  --multipliers /bundle/multipliers.json --out recomposed.txt --json
+```
+
+Symbolic multipliers must match the presentation, denominator factors and ordered
+contextual occurrences. The command performs exact verification before replacing
+the output. Anchor values alone are not symbolic multipliers.
+
+| Exit code | Meaning |
 | --- | --- |
-| `0` | The requested identity checks passed. |
-| `1` | The certificate is well formed but its identity is false. |
-| `2` | The input, presentation, target or file is invalid. |
+| `0` | Requested exact checks passed, or discovery produced a verified identity. |
+| `1` | A well-formed certificate or composed candidate is false. |
+| `2` | Input, presentation, target, configuration or file is invalid. |
+| `3` | Discovery is inconclusive within its sampling or execution limits. |
 
-A generic membership identity specializes wherever its displayed denominators
-remain nonzero. Agreement at a few parameter values is a different kind of
-evidence. Certificates simplified using braid equivalence cannot be passed to a
-literal free-word checker without accounting for the corresponding relations.
-The large fixture above is retained for regression testing; it is not presented
-as the latest mathematical proof.
+A nonzero remainder from an uncertified basis establishes no nonmembership
+conclusion. Process success does not prove a completed basis. Sample agreement
+does not prove a rational-function identity.
 
-## Producing candidates
+## Historical comparisons and development
 
-The reusable stages have the following requirements and conclusions:
-
-1. Construct the chosen presentation and record its content hash.
-2. Parse a basis and its proof references, with explicit coefficient domain and
-   variable order. Proof expansion permits forward references and rejects cycles.
-3. Record a reduction skeleton with complete left and right word contexts.
-4. Reconstruct candidate coefficients from exact samples. Fit rank, denominator
-   validity and sample agreement are checked. Failure to fit is inconclusive.
-5. Compose each contextual occurrence, retaining repeated uses of the same basis
-   element and rejecting mismatched multiplier counts.
-6. Verify the complete resulting identity exactly.
-
-The installed package provides these algebraic stages. The historical solver
-orchestration remains under `tools/cofactor/`; it also needs external binaries
-and workspace configuration. It is not part of the installed command line
-interface. A successful process exit or an output file alone does not certify a
-completed basis. A nonzero remainder from an uncertified basis establishes no
-nonmembership conclusion, even at the specialization being tested. The
-experimental driver reports an inconclusive result with exit code `3` when it
-has no verified certificate within its sampling cap.
-
-## Historical transformations and reproduction
-
-The [X3 reproduction guide](docs/X3_REPRODUCTION.md) gives the tested audit
-commands, the complete file inventory and the status of external dependencies.
-
-The original computational path used sampled solver proofs, lifted coefficients,
-a large free-algebra certificate, and subsequent specialized compression and
-braid-algebra transformations. Its scripts and scientific outputs are retained
-in `tools/`, `logs_and_traces/` and `archive/`. Their dependencies and equality
-conventions differ from those of the maintained checker.
-
-Earlier versions of the ten-phase narrative are available in Git:
-
-```sh
-git log --oneline -- WORKFLOW.md
-```
-
-Those records include obsolete paths, unsupported generic conclusions and checks
-that were not rerun during the present cleanup. Use it to trace provenance;
-use the current test instructions to validate the maintained package.
-
-## Development checks
-
-```sh
-python -m pip install -e .
-python -m unittest discover -s tests -v
-```
-
-[TESTING](docs/TESTING.md) describes the CI suite and separate historical
-compatibility checks.
+[TESTING](docs/TESTING.md) describes the unit, integration and reproduction suites,
+coverage gate, isolated distributions and native solver integration.
+[INDEX](INDEX.md) maps the source and experimental recipes.
+The compact braid-algebra transformations retain their own explicit equality
+conventions under [experiments/x3](experiments/x3/README.md).

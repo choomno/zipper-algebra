@@ -181,7 +181,7 @@ the dimension, or establish semisimplicity.
 
 \subsection{Presentations implemented by the software}
 The function \texttt{build\_relations\_ring} is in
-\path{src/zipper_algebra/zipper_in_ms.py}; its front end is
+\path{src/zipper_algebra/relations.py}; its front end is
 \texttt{Presentation} in \path{src/zipper_algebra/presentation.py}.
 A presentation records the strand count, untwisting choice, powers, level
 limits, imposed zero sliders and named additional relations. Its symbolic
@@ -394,14 +394,14 @@ The maintained implementation is under \path{src/zipper_algebra/}:
 \setlength{\itemsep}{0pt}
 \setlength{\parskip}{0pt}
 \setlength{\parsep}{0pt}
-\item Presentation and relation formulas: \path{presentation.py}, \path{zipper_in_ms.py}.
+\item Presentation and relation formulas: \path{presentation.py}, \path{relations.py}.
 \item Certificate data: \path{cofactor/cofactor_io.py}, \path{cofactor/atoms.py}.
 \item Symbolic and grid checks: \path{cofactor/verify.py}.
 \item Proof graph and reduction: \path{cofactor/proof.py}, \path{cofactor/skeleton.py}.
 \item Symbolic composition: \path{cofactor/compose.py}.
 \item Coefficient reconstruction: \path{cofactor/lift.py}.
 \end{itemize}
-The experimental sampling driver is \path{tools/cofactor/pipeline.py}.
+The installed discovery command uses \path{execution/pipeline.py}. Its explicit configuration, proof validation, versioned artifacts and atomic output records are documented in \path{WORKFLOW.md}.
 \begin{thebibliography}{9}
 \bibitem{bigelow}
 Stephen Bigelow, \emph{Braid groups and Iwahori--Hecke algebras},

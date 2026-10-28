@@ -47,8 +47,8 @@ For **fresh Gröbner-basis and cofactor discovery**, also build the external
 and Clemens Hofstadler. Follow the [solver installation instructions](patches/f4ncgb/README.md)
 for the pinned upstream revision, parser patch, C++ dependencies and build commands.
 Python package installation does not install this executable. The current
-experimental discovery driver additionally needs the workspace configuration
-described in the [reproduction guide](docs/X3_REPRODUCTION.md).
+discovery command takes the solver, output directory, cache and limits explicitly;
+the [reproduction guide](docs/X3_REPRODUCTION.md) explains its stages and outputs.
 
 Presentation construction, checking saved certificates, recomposition from saved
 proof data and the maintained tests run without the solver. Optional factor
@@ -79,9 +79,30 @@ cofactor representations are not unique in their term count or coefficients.
 
 The [reproduction guide](docs/X3_REPRODUCTION.md) identifies the
 input, program and output at every stage, including the original presentation
-input and the files needed for reconstruction. It distinguishes those stages
-from replaying a saved symbolic lift and states the current driver's workspace
-dependencies and missing historical proof logs.
+input and the files needed for reconstruction. Fresh production generates its own
+samples and proofs; replay of the retained symbolic lift is a separate route.
+
+### Produce a new certificate
+
+Install the inference extra and build the solver using the instructions above.
+Then run from any working directory:
+
+```sh
+zipper-algebra discover --n 4 --target X_3 \
+  --solver /absolute/path/to/f4ncgb \
+  --solver-revision f152bb0-with-bundled-parser-patch \
+  --output runs/x3 --cache runs/solver-cache \
+  --anchor 5,7 --start 100 --step 40 --max 260 --jobs 1 --json
+```
+
+The command emits the defining presentation, obtains and validates solver proofs,
+samples parameters, reconstructs coefficients, composes the certificate, and
+checks the identity exactly. It reads no saved certificate or symbolic lift.
+The result is recorded in `runs/x3/result.json`. Success has `"status": "verified"`;
+the report names an immutable certificate bundle and its hashes. Exit code `3`
+means discovery was inconclusive within the chosen limits. The full four-strand
+search can be expensive; a small three-strand example and the exact source map
+are in the guide.
 
 ### Audit the result
 
@@ -107,9 +128,9 @@ reduction skeleton, then replay the retained numeric proof expansion:
 
 ```sh
 python -m unittest \
-  tools.cofactor.tests_compose_io_verify.TestCompose.test_composed_body_is_byte_identical_to_the_shipped_certificate \
+  tests.reproduction.test_x3.TestCompose.test_composed_body_is_byte_identical_to_the_shipped_certificate \
   -v
-python -m unittest tools.cofactor.tests_proof_skeleton -v
+python -m unittest tests.reproduction.test_legacy_proofs -v
 ```
 
 The first command must report one passing test and byte-for-byte agreement;
@@ -125,10 +146,9 @@ records exact paths, sizes and SHA-256 hashes. Check those against the checkout:
 python ci/check_x3_manifest.py
 ```
 
-Fresh discovery uses the experimental solver driver and needs additional
-configuration. The [f4ncgb parser patch and build instructions](patches/f4ncgb/README.md)
-are included for that route. The guide states the remaining portability and
-archival gaps. The retained large certificate is auditable computational
+The [f4ncgb parser patch and build instructions](patches/f4ncgb/README.md)
+provide the external dependency for fresh discovery. Old per-point proof logs
+remain missing; the new command generates its own. The retained large certificate is auditable computational
 evidence, rather than the latest mathematical proof.
 
 The same operation is available in Python:
@@ -164,14 +184,16 @@ checks, package checks and optional integrations.
 | `src/zipper_algebra/` | Maintained Python implementation and command line interface. |
 | `tests/` | Regression tests, installation checks and immutable fixtures. |
 | `docs/` | Mathematical reference, reproduction guide and testing instructions. |
-| `tools/` | Compatibility entry points and experimental solver/research scripts. |
+| `experiments/` | Research recipes, specialized transformations and independent comparisons. |
+| `examples/` | Small executable examples. |
+| `data/` | Exact result data and historical aliases for deduplicated files. |
 | `logs_and_traces/`, `ms_inputs/` | Historical scientific artifacts and inputs, retained with their provenance. |
 | `gap_scripts/`, `singular_run/`, `archive/` | Independent or older computational paths and saved experiments. |
 
 The installed wheel contains the maintained package, not the private recovery
-workspace or the research archive. Solver execution, variant surveys, dimension
-and trace calculations remain experimental while their completion and exactness
-requirements are audited. [INDEX](INDEX.md) maps those sources.
+workspace or the research archive. The execution layer validates solver proofs
+and exact certificate identities. Variant surveys, dimension and trace recipes
+retain separate completion and exactness requirements. [INDEX](INDEX.md) maps those sources.
 
 ## References
 
