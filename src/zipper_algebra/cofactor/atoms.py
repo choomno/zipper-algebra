@@ -268,9 +268,14 @@ class AtomSet:
     def from_json(cls, d):
         return cls([Atom.from_json(a) for a in d["atoms"]], d.get("max_exp"), d.get("provenance", ""))
 
-    def save(self, path):
+    def save(self, path, *, provenance=True):
+        if provenance:
+            from ..provenance import capture_provenance, write_output_provenance
+            producer = capture_provenance()
         with open(path, "w") as f:
             json.dump(self.to_json(), f, indent=1)
+        if provenance:
+            write_output_provenance(path, producer=producer)
 
     @classmethod
     def load(cls, path):

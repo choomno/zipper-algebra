@@ -39,11 +39,12 @@ class SampleSet:
     records; arbitrary proof filenames are never interpreted as completed runs.
     """
 
-    def __init__(self, pres, target, anchor, config, atoms=None):
+    def __init__(self, pres, target, anchor, config, atoms=None, *, producer=None):
         self.pres, self.target, self.anchor, self.config = pres, target, tuple(anchor), config
         self.atoms = AtomSet.from_json(AtomSet.DEFAULT.to_json()) if atoms is None else atoms
         self.atoms.validate()
         self._runs, self._bases, self._proofs = {}, {}, {}
+        self.producer = producer
 
     @property
     def points(self):
@@ -55,12 +56,13 @@ class SampleSet:
 
     def _remember(self, point, result):
         self._runs[point] = result
-        self._bases[point] = Basis.load(str(result.basis_path), self.char, self.pres.var_names())
-        self._proofs[point] = Proof.load(str(result.proof_path), self.pres.var_names())
+        self._bases[point] = Basis.from_text(result.files["basis.txt"].decode(), self.char,
+                                            self.pres.var_names())
+        self._proofs[point] = Proof.from_text(result.files["proof.txt"].decode(), self.pres.var_names())
 
     def run_point(self, q, t, *, refresh=False):
         result = run_point(self.pres, self.target, (q, t, self.char), self.config,
-                           refresh=refresh)
+                           refresh=refresh, producer=self.producer)
         self._remember((q, t), result)
         return result
 
@@ -103,7 +105,7 @@ class SampleSet:
         if points:
             def one(point):
                 return run_point(self.pres, self.target, (*point, self.char), self.config,
-                                 refresh=refresh)
+                                 refresh=refresh, producer=self.producer)
             with ThreadPoolExecutor(max_workers=jobs) as executor:
                 results = list(executor.map(one, points))
             for point, result in zip(points, results):

@@ -164,9 +164,12 @@ class Presentation:
         return hashlib.sha256(self.canonical_text().encode()).hexdigest()[:16]
 
     # --- views for the consumers ---------------------------------------------
-    def emit_ms(self, path: str, q: int, t: int, char: int) -> int:
+    def emit_ms(self, path: str, q: int, t: int, char: int, *, provenance=True) -> int:
         """Write the msolve input exactly as zipper_in_ms.py's CLI does (same bytes, so the
         driver's content-addressed cache keys are unchanged). Returns the relation count."""
+        if provenance:
+            from .provenance import capture_provenance, write_output_provenance
+            producer = capture_provenance()
         names, rels, _, _ = self.build(NumericRing(q, t, char))
         with open(path, "w", encoding="utf-8", newline="\n") as f:
             f.write(",".join(names) + "\n")
@@ -174,6 +177,8 @@ class Presentation:
             for i, rel in enumerate(rels):
                 sep = "," if i < len(rels) - 1 else ""
                 f.write(rel.to_msolve_string(names) + sep + "\n")
+        if provenance:
+            write_output_provenance(path, producer=producer)
         return len(rels)
 
     def symbolic_fitted(self) -> list[dict]:

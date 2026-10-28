@@ -17,12 +17,15 @@ hypotheses. Run as python -m experiments.variants.square_zero_traceform_qt.
 from __future__ import annotations
 
 import os
+import json
 import pickle
 import sys
+from pathlib import Path
 
 import sympy as sp
 
-from experiments.output import prepare_output_dir
+from experiments.output import (prepare_output_dir, capture_experiment_provenance,
+                                read_input, save_pickle_output)
 
 # The producer and this recipe share a directory separate from restored data.
 # ZIPPER_EXPERIMENT_OUTPUT overrides both the input and output directory.
@@ -48,9 +51,10 @@ def simp(e):
 # ===========================================================================
 # Load the verified regular representation
 # ===========================================================================
-def load_regrep():
-    with open(REGREP_PKL, "rb") as f:
-        p = pickle.load(f)
+def load_regrep(content=None):
+    if content is None:
+        content = Path(REGREP_PKL).read_bytes()
+    p = pickle.loads(content)
     if not p.get("all_pass", False):
         raise RuntimeError("regular rep pickle reports all_pass=False; refuse")
     L = {g: sp.Matrix(p["matrices"][g]) for g in GENERATORS}
@@ -62,6 +66,21 @@ def load_regrep():
         if L[g].shape != (N, N):
             raise RuntimeError(f"L_{g} has shape {L[g].shape}, expected ({N},{N})")
     return L, standard, N, p.get("denominator_atoms", {})
+
+
+def load_trace_cache(path, standard, regrep_identity):
+    """Reuse only cache bytes bound to the actual representation input."""
+    path = Path(path)
+    content, identity = read_input(path)
+    record = json.loads(path.with_name(path.name + ".provenance.json").read_text())
+    if (record.get("schema") != "zipper-output-provenance-v1"
+            or record.get("outputs") != {path.name: {key: identity[key] for key in ("bytes", "sha256")}}
+            or record.get("inputs") != [regrep_identity]):
+        return None, None
+    cached = pickle.loads(content)
+    if cached.get("standard") != standard:
+        return None, None
+    return sp.Matrix(cached["T"]), identity
 
 
 # ===========================================================================
@@ -397,12 +416,15 @@ def two_sided_ideal(seed_vec, L, R, N):
 # ===========================================================================
 def main():
     prepare_output_dir(LOGDIR)
+    producer = capture_experiment_provenance(__file__)
+    regrep_bytes, regrep_identity = read_input(REGREP_PKL)
+    inputs = [regrep_identity]
     print("=" * 74)
     print("TRACE FORM of Z_3^square-zero over Q(q,t)  +  generic non-semisimplicity")
     print("=" * 74)
 
     log("loading verified regular representation")
-    L, standard, N, denom_atoms = load_regrep()
+    L, standard, N, denom_atoms = load_regrep(regrep_bytes)
     print(f"\n[INPUT] verified left regular rep over Q(q,t): dim = {N}")
     print(f"  denominator atoms recorded in regrep: {denom_atoms}")
 
@@ -440,10 +462,9 @@ def main():
     T = None
     if os.path.exists(T_CACHE):
         try:
-            with open(T_CACHE, "rb") as f:
-                cached = pickle.load(f)
-            if cached.get("standard") == standard:
-                T = sp.Matrix(cached["T"])
+            T, cached_input = load_trace_cache(T_CACHE, standard, regrep_identity)
+            if T is not None:
+                inputs.append(cached_input)
                 log("loaded cached trace form T from pickle")
                 print("  (loaded cached symbolic T)")
         except Exception:
@@ -465,8 +486,8 @@ def main():
                 T[i, j] = tij
                 T[j, i] = tij
             log(f"  T row {i} done")
-        with open(T_CACHE, "wb") as f:
-            pickle.dump({"standard": standard, "T": T}, f)
+        save_pickle_output(T_CACHE, {"standard": standard, "T": T},
+                           producer=producer, inputs=inputs)
         log("cached trace form T to pickle")
     # symmetry check
     sym_ok = all(simp(T[i, j] - T[j, i]) == 0 for i in range(N)
@@ -696,8 +717,7 @@ def main():
         "bad_locus_D": D,
         "denominator_atoms": atom_list,
     }
-    with open(OUT_PKL, "wb") as f:
-        pickle.dump(payload, f)
+    save_pickle_output(OUT_PKL, payload, producer=producer, inputs=inputs)
     print(f"\n[SAVED] {OUT_PKL}")
 
     ok = (rank == 15 and deficit == 9 and ideal_dim == 9 and ker_ok

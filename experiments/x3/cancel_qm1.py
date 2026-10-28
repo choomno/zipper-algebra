@@ -18,7 +18,8 @@ same Garside-normalization route as simplify_cofactor.py.
 """
 from __future__ import annotations
 import argparse
-from experiments.output import prepare_output_dir
+from experiments.output import prepare_output_dir, capture_experiment_provenance
+from zipper_algebra.provenance import write_output_provenance
 import os
 from pathlib import Path
 import sys
@@ -26,7 +27,7 @@ import sys
 from fractions import Fraction
 from collections import defaultdict, Counter
 from .legacy_format import (
-    parse_cofactor_line, build_inputs_and_X3,
+    parse_cofactor_line, read_cofactor_input, build_inputs_and_X3,
     nc_zero, nc_add, nc_sub, nc_mul, nc_scalar, nc_is_zero, nc_size,
     qt_const, qt_q, qt_t, qt_add, qt_sub, qt_mul, qt_pow, qt_is_zero,
     VAR_NAMES,
@@ -94,12 +95,9 @@ def main(argv=None):
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
     prepare_output_dir(args.output.parent)
-    # 1) Parse the 161-tuple file
-    tuples = []
-    for ln in open(args.input):
-        s = ln.strip()
-        if not s or s.startswith('#'): continue
-        tuples.append(parse_cofactor_line(ln))
+    producer = capture_experiment_provenance(__file__)
+    tuples, input_record = read_cofactor_input(args.input)
+    inputs = [input_record]
     print(f"[parse] {len(tuples)} tuples from {os.path.basename(args.input)}.")
 
     # 2) Divide every numerator by (q-1)
@@ -208,6 +206,7 @@ def main(argv=None):
             f.write(f"{mon_to_str(left)} * {label(idx)} * {mon_to_str(right)}  ::  "
                     f"{num_to_str(num)} / ({den_str})\n")
 
+    write_output_provenance(args.output, producer=producer, inputs=inputs)
     print(f"[write] Wrote {args.output}")
     print(f"[stats] Total tuples: {len(items)}")
     print(f"[stats] Histogram: {labeled_hist}")

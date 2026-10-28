@@ -32,6 +32,7 @@ EXACT = {
     ".github/workflows/ci.yml": "Hosted software tests, small solver integration and documentation checks",
     "MANIFEST.in": "Source-distribution inclusion rules",
     "pyproject.toml": "Package dependencies and installed commands",
+    "setup.py": "Build-time source provenance embedded in wheels and source archives",
     "data/research-archive.json": "Checksums and pinned source for optional historical research data",
     "experiments/output.py": "Ignore markers for generated research output directories",
     "experiments/__init__.py": "Research recipe package marker",

@@ -14,7 +14,8 @@ Strategy:
 """
 from __future__ import annotations
 import argparse
-from experiments.output import prepare_output_dir
+from experiments.output import prepare_output_dir, capture_experiment_provenance
+from zipper_algebra.provenance import write_output_provenance
 import os
 from pathlib import Path
 import sys
@@ -31,7 +32,7 @@ from .legacy_format import (
     nc_zero, nc_const, nc_var, nc_var_named, nc_add, nc_sub, nc_neg,
     nc_mul, nc_scalar, nc_is_zero, nc_size,
     build_inputs_and_X3,
-    parse_cofactor_line, parse_numerator, parse_denominator,
+    parse_cofactor_line, read_cofactor_input, parse_numerator, parse_denominator,
     COF_FILE, ROOT,
 )
 
@@ -68,78 +69,17 @@ def qm1() -> "QTPoly":
 
 
 def derivations(relations):
-    """
-    Build derivations for the dependent relations.
+    """Explicit free-algebra identities for the inverse braid and mixed relations.
 
-    For each dependent index d, produce a list of (coef, L_mon, src_idx, R_mon).
-    Indices src_idx must lie in the chosen set {0,1,2,3,6,22,25,28}.
+    Each tuple is (coefficient, left word, defining-relation index, right word).
+    The caller checks every identity against the ordered defining presentation
+    before substitution. R_26 remains a defining relation at this stage.
     """
-
-    # The chosen set
     KEEP = {0, 1, 2, 3, 6, 22, 25, 28}
 
     derivs: Dict[int, List[Tuple["QTPoly", Tuple[int, ...], int, Tuple[int, ...]]]] = {}
 
-    # R_7 = y_1 y_2 y_1 - y_2 y_1 y_2
-    # Derivation (verified by hand-expansion -- re-verified at runtime):
-    #   y_2 y_1 y_2 * R_6 * y_1 y_2 y_1
-    #   = (y_2 y_1 y_2)(x_1 x_2 x_1)(y_1 y_2 y_1) - (y_2 y_1 y_2)(x_2 x_1 x_2)(y_1 y_2 y_1)
-    # Reduce by successive applications of x_i y_i = 1 + R_{2i-2} and
-    # y_i x_i = 1 + R_{2i-1}:
-    #  Term1 (xxx variant) -> y_2 y_1 y_2 (after cancellations) + R-tails
-    #  Term2 (xxx-swap variant) -> y_1 y_2 y_1 + R-tails
-    # Net: y_2 y_1 y_2 - y_1 y_2 y_1 + (R-tails) = (y_2 y_1 y_2)(R_6)(y_1 y_2 y_1)
-    # Hence R_7 = y_1 y_2 y_1 - y_2 y_1 y_2 = -(y_2 y_1 y_2)(R_6)(y_1 y_2 y_1) + R-tails
-    #
-    # Let's derive R-tails carefully.
-    # Term1 = y_2 y_1 y_2 (x_1 x_2 x_1) y_1 y_2 y_1
-    # Reduce x_1 y_1 = 1 + R_0  (R_0 = x_1 y_1 - 1)
-    # Use: y_2 y_1 y_2 x_1 x_2 x_1 y_1 y_2 y_1
-    #   = y_2 y_1 y_2 x_1 x_2 (1 + R_0) y_2 y_1
-    #   = y_2 y_1 y_2 x_1 x_2 y_2 y_1 + (y_2 y_1 y_2 x_1 x_2) * R_0 * (y_2 y_1)
-    # Reduce x_2 y_2 = 1 + R_2:
-    #   y_2 y_1 y_2 x_1 x_2 y_2 y_1 = y_2 y_1 y_2 x_1 (1 + R_2) y_1
-    #     = y_2 y_1 y_2 x_1 y_1 + y_2 y_1 y_2 x_1 * R_2 * y_1
-    # Reduce x_1 y_1 = 1 + R_0:
-    #   y_2 y_1 y_2 x_1 y_1 = y_2 y_1 y_2 (1 + R_0) = y_2 y_1 y_2 + y_2 y_1 y_2 * R_0
-    # So Term1 = y_2 y_1 y_2
-    #          + (y_2 y_1 y_2) * R_0 * ()
-    #          + (y_2 y_1 y_2 x_1) * R_2 * (y_1)
-    #          + (y_2 y_1 y_2 x_1 x_2) * R_0 * (y_2 y_1)
-    #
-    # Term2 = y_2 y_1 y_2 (x_2 x_1 x_2) y_1 y_2 y_1
-    # Reduce y_2 x_2 = 1 + R_3 (left):
-    #   = y_2 y_1 (1 + R_3) x_1 x_2 y_1 y_2 y_1
-    #   = y_2 y_1 x_1 x_2 y_1 y_2 y_1 + (y_2 y_1) * R_3 * (x_1 x_2 y_1 y_2 y_1)
-    # Reduce y_1 x_1 = 1 + R_1:
-    #   y_2 y_1 x_1 x_2 y_1 y_2 y_1 = y_2 (1 + R_1) x_2 y_1 y_2 y_1
-    #     = y_2 x_2 y_1 y_2 y_1 + (y_2) * R_1 * (x_2 y_1 y_2 y_1)
-    # Reduce y_2 x_2 = 1 + R_3:
-    #   y_2 x_2 y_1 y_2 y_1 = (1 + R_3) y_1 y_2 y_1
-    #     = y_1 y_2 y_1 + () * R_3 * (y_1 y_2 y_1)
-    # So Term2 = y_1 y_2 y_1
-    #          + () * R_3 * (y_1 y_2 y_1)
-    #          + (y_2) * R_1 * (x_2 y_1 y_2 y_1)
-    #          + (y_2 y_1) * R_3 * (x_1 x_2 y_1 y_2 y_1)
-    #
-    # Then (y_2 y_1 y_2) R_6 (y_1 y_2 y_1) = Term1 - Term2
-    #   = (y_2 y_1 y_2 - y_1 y_2 y_1)
-    #     + (y_2 y_1 y_2) R_0 ()
-    #     + (y_2 y_1 y_2 x_1) R_2 (y_1)
-    #     + (y_2 y_1 y_2 x_1 x_2) R_0 (y_2 y_1)
-    #     - () R_3 (y_1 y_2 y_1)
-    #     - (y_2) R_1 (x_2 y_1 y_2 y_1)
-    #     - (y_2 y_1) R_3 (x_1 x_2 y_1 y_2 y_1)
-    #
-    # So R_7 = y_1 y_2 y_1 - y_2 y_1 y_2
-    #        = - (y_2 y_1 y_2) R_6 (y_1 y_2 y_1)
-    #          + (y_2 y_1 y_2) R_0 ()
-    #          + (y_2 y_1 y_2 x_1) R_2 (y_1)
-    #          + (y_2 y_1 y_2 x_1 x_2) R_0 (y_2 y_1)
-    #          - () R_3 (y_1 y_2 y_1)
-    #          - (y_2) R_1 (x_2 y_1 y_2 y_1)
-    #          - (y_2 y_1) R_3 (x_1 x_2 y_1 y_2 y_1)
-
+    # Inverse braid relation.
     derivs[7] = [
         (Q(-1), mon_from_str("y2*y1*y2"), 6, mon_from_str("y1*y2*y1")),
         (Q(1),  mon_from_str("y2*y1*y2"), 0, ()),
@@ -150,124 +90,14 @@ def derivations(relations):
         (Q(-1), mon_from_str("y2*y1"), 3, mon_from_str("x1*x2*y1*y2*y1")),
     ]
 
-    # R_14 = x_1 x_2 y_1 - y_2 x_1 x_2
-    # Direct derivation: from R_6 = x_1 x_2 x_1 - x_2 x_1 x_2,
-    #   R_6 * y_1 = x_1 x_2 x_1 y_1 - x_2 x_1 x_2 y_1
-    #            = x_1 x_2 (1 + R_0) - x_2 x_1 x_2 y_1
-    #            = x_1 x_2 + x_1 x_2 R_0 - x_2 x_1 x_2 y_1
-    # Hmm, that has x_2 x_1 x_2 y_1 which isn't the goal.
-    #
-    # Better: R_14 = x_1 x_2 y_1 - y_2 x_1 x_2. Let's check:
-    #   x_1 x_2 y_1 = ?  (no direct reduction since x_2 y_1 doesn't simplify)
-    #
-    # Use R_6 in a different sandwich. Note R_6 = x_1 x_2 x_1 - x_2 x_1 x_2.
-    # Consider y_2 * R_6 = y_2 x_1 x_2 x_1 - y_2 x_2 x_1 x_2 = y_2 x_1 x_2 x_1 - (1+R_3) x_1 x_2
-    # So y_2 * R_6 = y_2 x_1 x_2 x_1 - x_1 x_2 - R_3 x_1 x_2.
-    # Multiply by y_1 on right:
-    #   y_2 * R_6 * y_1 = y_2 x_1 x_2 x_1 y_1 - x_1 x_2 y_1 - R_3 x_1 x_2 y_1
-    # And y_2 x_1 x_2 (x_1 y_1) = y_2 x_1 x_2 (1 + R_0) = y_2 x_1 x_2 + y_2 x_1 x_2 R_0
-    # So y_2 R_6 y_1 = y_2 x_1 x_2 + y_2 x_1 x_2 R_0 - x_1 x_2 y_1 - R_3 x_1 x_2 y_1
-    #                = -(x_1 x_2 y_1 - y_2 x_1 x_2) + y_2 x_1 x_2 R_0 - R_3 x_1 x_2 y_1
-    #                = -R_14 + y_2 x_1 x_2 R_0 - R_3 x_1 x_2 y_1
-    # Hence:
-    #   R_14 = -y_2 R_6 y_1 + y_2 x_1 x_2 R_0 - R_3 x_1 x_2 y_1
+    # Mixed relation MIX_1_a.
     derivs[14] = [
         (Q(-1), mon_from_str("y2"), 6, mon_from_str("y1")),
         (Q(1),  mon_from_str("y2*x1*x2"), 0, ()),
         (Q(-1), (), 3, mon_from_str("x1*x2*y1")),
     ]
 
-    # R_15 = -x_2 y_1 y_2 + y_1 y_2 x_1  (note the signs)
-    # Strategy: build R_15 from R_7 (already dependent on R_6) plus invertibility.
-    # Easier: directly from R_6 via "double inversion".
-    # Try:  y_1 y_2 * R_6 * y_2 y_1 * y_2 = ?  Too long.
-    #
-    # Alternative direct: R_15 = y_1 y_2 x_1 - x_2 y_1 y_2.
-    # Sandwich: y_1 y_2 R_6 ?
-    # y_1 y_2 * R_6 = y_1 y_2 x_1 x_2 x_1 - y_1 y_2 x_2 x_1 x_2
-    # Multiply by y_2 y_1 on right:
-    #   y_1 y_2 R_6 y_2 y_1 = y_1 y_2 x_1 x_2 x_1 y_2 y_1 - y_1 y_2 x_2 x_1 x_2 y_2 y_1
-    # Note x_2 y_2 = 1 + R_2: so x_2 x_1 x_2 y_2 = x_2 x_1 (1 + R_2) = x_2 x_1 + x_2 x_1 R_2
-    # So second term: y_1 y_2 (x_2 x_1 + x_2 x_1 R_2) y_1 = y_1 y_2 x_2 x_1 y_1 + y_1 y_2 x_2 x_1 R_2 y_1
-    # First term: y_1 y_2 x_1 x_2 x_1 y_2 y_1
-    # This is getting messy. Let me try another sandwich approach.
-    #
-    # Easier: R_15 = -x_2 y_1 y_2 + y_1 y_2 x_1
-    # We want sandwich of R_6 by y's. Consider y_1 * R_6 * y_2 y_1:
-    #   = y_1 x_1 x_2 x_1 y_2 y_1 - y_1 x_2 x_1 x_2 y_2 y_1
-    #   y_1 x_1 = 1 + R_1: = (1+R_1) x_2 x_1 y_2 y_1 - y_1 x_2 x_1 (x_2 y_2) y_1
-    #   = x_2 x_1 y_2 y_1 + R_1 x_2 x_1 y_2 y_1 - y_1 x_2 x_1 (1 + R_2) y_1
-    #   = x_2 x_1 y_2 y_1 - y_1 x_2 x_1 y_1 + R_1 x_2 x_1 y_2 y_1 - y_1 x_2 x_1 R_2 y_1
-    # Hmm, x_2 x_1 y_2 y_1 - y_1 x_2 x_1 y_1. Not R_15 directly.
-    #
-    # Try y_2 y_1 * R_6 * y_2:
-    #   = y_2 y_1 x_1 x_2 x_1 y_2 - y_2 y_1 x_2 x_1 x_2 y_2
-    #   y_1 x_1 = 1 + R_1:
-    #   = y_2 (1+R_1) x_2 x_1 y_2 - y_2 y_1 x_2 x_1 (1 + R_2)
-    #   = y_2 x_2 x_1 y_2 + y_2 R_1 x_2 x_1 y_2 - y_2 y_1 x_2 x_1 - y_2 y_1 x_2 x_1 R_2
-    #   y_2 x_2 = 1 + R_3:
-    #   = (1+R_3) x_1 y_2 - y_2 y_1 x_2 x_1 + y_2 R_1 x_2 x_1 y_2 - y_2 y_1 x_2 x_1 R_2
-    #   = x_1 y_2 - y_2 y_1 x_2 x_1 + R_3 x_1 y_2 + y_2 R_1 x_2 x_1 y_2 - y_2 y_1 x_2 x_1 R_2
-    # Not the target.
-    #
-    # Approach: derive R_15 from R_14 by sandwiching with y's.
-    # R_14 = x_1 x_2 y_1 - y_2 x_1 x_2
-    # y_2 y_1 * R_14 = y_2 y_1 x_1 x_2 y_1 - y_2 y_1 y_2 x_1 x_2
-    #   y_1 x_1 = 1 + R_1: = y_2 (1+R_1) x_2 y_1 - y_2 y_1 y_2 x_1 x_2
-    #   = y_2 x_2 y_1 - y_2 y_1 y_2 x_1 x_2 + y_2 R_1 x_2 y_1
-    #   y_2 x_2 = 1 + R_3: = (1+R_3) y_1 - y_2 y_1 y_2 x_1 x_2 + y_2 R_1 x_2 y_1
-    #   = y_1 - y_2 y_1 y_2 x_1 x_2 + R_3 y_1 + y_2 R_1 x_2 y_1
-    # Hmm, not quite. Need to leverage that y_2 y_1 y_2 = y_1 y_2 y_1 (mod R_7).
-    # But R_7 is derivable from R_6.
-    #
-    # Cleanest: R_15 by direct sandwich of R_6.
-    #
-    # Observation: x_1 x_2 = (x_1 y_1)(x_1 x_2 x_1) y_1 = (1+R_0) x_1 x_2 x_1 y_1 ... no, x_1 y_1 != y_1 x_1.
-    #
-    # Let me think differently. Take y_1 y_2 * R_14 from the right side too:
-    # R_14 * y_2 y_1 = x_1 x_2 y_1 y_2 y_1 - y_2 x_1 x_2 y_2 y_1
-    #   x_2 y_2 = 1+R_2: = x_1 x_2 y_1 y_2 y_1 - y_2 x_1 (1+R_2) y_1
-    #   = x_1 x_2 y_1 y_2 y_1 - y_2 (x_1 y_1) - y_2 x_1 R_2 y_1
-    #   x_1 y_1 = 1+R_0: = x_1 x_2 y_1 y_2 y_1 - y_2 - y_2 R_0 - y_2 x_1 R_2 y_1
-    # Now y_1 y_2 y_1 = y_2 y_1 y_2 + R_7. So:
-    #   x_1 x_2 y_1 y_2 y_1 = x_1 x_2 y_2 y_1 y_2 + x_1 x_2 R_7
-    #   x_2 y_2 = 1+R_2: = x_1 (1+R_2) y_1 y_2 + x_1 x_2 R_7
-    #   = x_1 y_1 y_2 + x_1 R_2 y_1 y_2 + x_1 x_2 R_7
-    #   x_1 y_1 = 1+R_0: = y_2 + R_0 y_2 + x_1 R_2 y_1 y_2 + x_1 x_2 R_7
-    #
-    # So R_14 * y_2 y_1 = y_2 + R_0 y_2 + x_1 R_2 y_1 y_2 + x_1 x_2 R_7 - y_2 - y_2 R_0 - y_2 x_1 R_2 y_1
-    #                  = R_0 y_2 - y_2 R_0 + x_1 R_2 y_1 y_2 - y_2 x_1 R_2 y_1 + x_1 x_2 R_7
-    # That's an identity but doesn't give R_15.
-    #
-    # I'll try yet another approach: use that R_14 implies a cyclic version.
-    # Since R_15 = -x_2 y_1 y_2 + y_1 y_2 x_1 and R_14 = x_1 x_2 y_1 - y_2 x_1 x_2,
-    # they're related by "left multiplication by y_1 y_2 and right multiplication by something".
-    #
-    # y_1 y_2 * R_14 = y_1 y_2 x_1 x_2 y_1 - y_1 y_2 y_2 x_1 x_2
-    # ... doesn't directly simplify.
-    #
-    # ALTERNATIVE: derive R_15 from R_6 directly using DIFFERENT sandwich.
-    # Conjecture: y_1 y_2 R_6 y_1 y_2 simplifies to involve R_15.
-    # y_1 y_2 R_6 y_1 y_2 = y_1 y_2 x_1 x_2 x_1 y_1 y_2 - y_1 y_2 x_2 x_1 x_2 y_1 y_2
-    # First: y_1 y_2 x_1 x_2 (x_1 y_1) y_2 = y_1 y_2 x_1 x_2 (1+R_0) y_2 = y_1 y_2 x_1 x_2 y_2 + ...
-    #   x_2 y_2 = 1+R_2: y_1 y_2 x_1 (1+R_2) = y_1 y_2 x_1 + y_1 y_2 x_1 R_2
-    # So first = y_1 y_2 x_1 + y_1 y_2 x_1 R_2 + y_1 y_2 x_1 x_2 R_0 y_2
-    # Second: y_1 y_2 x_2 x_1 x_2 y_1 y_2
-    #   y_2 x_2 = 1+R_3: = y_1 (1+R_3) x_1 x_2 y_1 y_2 = y_1 x_1 x_2 y_1 y_2 + y_1 R_3 x_1 x_2 y_1 y_2
-    #   y_1 x_1 = 1+R_1: = (1+R_1) x_2 y_1 y_2 + y_1 R_3 x_1 x_2 y_1 y_2
-    #   = x_2 y_1 y_2 + R_1 x_2 y_1 y_2 + y_1 R_3 x_1 x_2 y_1 y_2
-    # So y_1 y_2 R_6 y_1 y_2 = (y_1 y_2 x_1 - x_2 y_1 y_2) + R-tails
-    # And y_1 y_2 x_1 - x_2 y_1 y_2 = R_15!
-    #
-    # Excellent. So:
-    #   y_1 y_2 R_6 y_1 y_2 = R_15 + y_1 y_2 x_1 R_2 + y_1 y_2 x_1 x_2 R_0 y_2
-    #                        - R_1 x_2 y_1 y_2 - y_1 R_3 x_1 x_2 y_1 y_2
-    # So:
-    #   R_15 = y_1 y_2 R_6 y_1 y_2
-    #          - y_1 y_2 x_1 R_2 ()
-    #          - y_1 y_2 x_1 x_2 R_0 y_2
-    #          + R_1 x_2 y_1 y_2
-    #          + y_1 R_3 x_1 x_2 y_1 y_2
+    # Mixed relation MIX_1_b.
     derivs[15] = [
         (Q(1),  mon_from_str("y1*y2"), 6, mon_from_str("y1*y2")),
         (Q(-1), mon_from_str("y1*y2*x1"), 2, ()),
@@ -276,48 +106,7 @@ def derivations(relations):
         (Q(1),  mon_from_str("y1"), 3, mon_from_str("x1*x2*y1*y2")),
     ]
 
-    # R_16 = x_1 y_2 y_1 - y_2 y_1 x_2
-    # Sandwich: y_2 R_6 y_2 y_1 maybe.
-    # y_2 R_6 y_2 y_1 = y_2 x_1 x_2 x_1 y_2 y_1 - y_2 x_2 x_1 x_2 y_2 y_1
-    # First: y_2 x_1 x_2 x_1 y_2 y_1. We want x_1 y_2 y_1 somewhere.
-    # Actually consider y_2 R_6 = y_2 x_1 x_2 x_1 - y_2 x_2 x_1 x_2
-    #   y_2 x_2 = 1+R_3: = y_2 x_1 x_2 x_1 - (1+R_3) x_1 x_2 = y_2 x_1 x_2 x_1 - x_1 x_2 - R_3 x_1 x_2
-    #
-    # Try y_2 y_1 * R_6 * y_2 (parallel to R_14 derivation but with y's on opposite side):
-    # y_2 y_1 R_6 y_2 = y_2 y_1 x_1 x_2 x_1 y_2 - y_2 y_1 x_2 x_1 x_2 y_2
-    # Second: x_2 y_2 = 1+R_2 at end: y_2 y_1 x_2 x_1 (1+R_2) = y_2 y_1 x_2 x_1 + y_2 y_1 x_2 x_1 R_2
-    # First: y_2 y_1 x_1 x_2 x_1 y_2. y_1 x_1 = 1+R_1: = y_2 (1+R_1) x_2 x_1 y_2 = y_2 x_2 x_1 y_2 + y_2 R_1 x_2 x_1 y_2
-    #   y_2 x_2 = 1+R_3: = (1+R_3) x_1 y_2 + y_2 R_1 x_2 x_1 y_2 = x_1 y_2 + R_3 x_1 y_2 + y_2 R_1 x_2 x_1 y_2
-    # So y_2 y_1 R_6 y_2 = x_1 y_2 - y_2 y_1 x_2 x_1 + R_3 x_1 y_2 + y_2 R_1 x_2 x_1 y_2 - y_2 y_1 x_2 x_1 R_2
-    # Hmm, x_1 y_2 - y_2 y_1 x_2 x_1 is not R_16.
-    #
-    # Try: y_2 R_6 y_1 y_2:
-    # = y_2 x_1 x_2 x_1 y_1 y_2 - y_2 x_2 x_1 x_2 y_1 y_2
-    # x_1 y_1 = 1+R_0: First = y_2 x_1 x_2 (1+R_0) y_2 = y_2 x_1 x_2 y_2 + y_2 x_1 x_2 R_0 y_2
-    #   x_2 y_2 = 1+R_2: y_2 x_1 (1+R_2) = y_2 x_1 + y_2 x_1 R_2
-    # So First = y_2 x_1 + y_2 x_1 R_2 + y_2 x_1 x_2 R_0 y_2
-    # Second: y_2 x_2 = 1+R_3: y_2 x_2 x_1 x_2 y_1 y_2 = (1+R_3) x_1 x_2 y_1 y_2 = x_1 x_2 y_1 y_2 + R_3 x_1 x_2 y_1 y_2
-    # So y_2 R_6 y_1 y_2 = y_2 x_1 - x_1 x_2 y_1 y_2 + R-tails
-    # That's not R_16 either.
-    #
-    # Try: y_1 y_2 R_6 with x on right.
-    # Consider y_2 y_1 R_6 y_2 y_1:
-    # = y_2 y_1 x_1 x_2 x_1 y_2 y_1 - y_2 y_1 x_2 x_1 x_2 y_2 y_1
-    # First: y_1 x_1 = 1+R_1: y_2 (1+R_1) x_2 x_1 y_2 y_1 = y_2 x_2 x_1 y_2 y_1 + y_2 R_1 x_2 x_1 y_2 y_1
-    #   y_2 x_2 = 1+R_3: (1+R_3) x_1 y_2 y_1 = x_1 y_2 y_1 + R_3 x_1 y_2 y_1
-    # So First = x_1 y_2 y_1 + R_3 x_1 y_2 y_1 + y_2 R_1 x_2 x_1 y_2 y_1
-    # Second: x_2 y_2 = 1+R_2 at end: y_2 y_1 x_2 x_1 (1+R_2) y_1 = y_2 y_1 x_2 x_1 y_1 + y_2 y_1 x_2 x_1 R_2 y_1
-    # Hmm, still has y_2 y_1 x_2 x_1 y_1 which doesn't reduce. Let's also do x_1 y_1 = 1+R_0:
-    #   y_2 y_1 x_2 (x_1 y_1) = y_2 y_1 x_2 (1+R_0) = y_2 y_1 x_2 + y_2 y_1 x_2 R_0
-    # So Second = y_2 y_1 x_2 + y_2 y_1 x_2 R_0 + y_2 y_1 x_2 x_1 R_2 y_1
-    # So y_2 y_1 R_6 y_2 y_1 = x_1 y_2 y_1 - y_2 y_1 x_2 + R-tails
-    # And x_1 y_2 y_1 - y_2 y_1 x_2 = R_16!
-    # So:
-    #   y_2 y_1 R_6 y_2 y_1 = R_16 + R_3 x_1 y_2 y_1 + y_2 R_1 x_2 x_1 y_2 y_1
-    #                         - y_2 y_1 x_2 R_0 - y_2 y_1 x_2 x_1 R_2 y_1
-    # Therefore:
-    #   R_16 = y_2 y_1 R_6 y_2 y_1 - R_3 x_1 y_2 y_1 - y_2 R_1 x_2 x_1 y_2 y_1
-    #          + y_2 y_1 x_2 R_0 + y_2 y_1 x_2 x_1 R_2 y_1
+    # Mixed relation MIX_1_c.
     derivs[16] = [
         (Q(1),  mon_from_str("y2*y1"), 6, mon_from_str("y2*y1")),
         (Q(-1), (), 3, mon_from_str("x1*y2*y1")),
@@ -326,75 +115,15 @@ def derivations(relations):
         (Q(1),  mon_from_str("y2*y1*x2*x1"), 2, mon_from_str("y1")),
     ]
 
-    # R_17 = -x_2 x_1 y_2 + y_1 x_2 x_1
-    # By analogy with R_14 (with x<->y swap... but for x's we need R_6, for y's we'd
-    # need R_7. We want R_17 in terms of R_6).
-    # Try y_1 R_6 (something) or similar.
-    # y_1 * R_6 * y_2 = y_1 x_1 x_2 x_1 y_2 - y_1 x_2 x_1 x_2 y_2
-    # First: y_1 x_1 = 1+R_1: (1+R_1) x_2 x_1 y_2 = x_2 x_1 y_2 + R_1 x_2 x_1 y_2
-    # Second: x_2 y_2 = 1+R_2 at end: y_1 x_2 x_1 (1+R_2) = y_1 x_2 x_1 + y_1 x_2 x_1 R_2
-    # So y_1 R_6 y_2 = x_2 x_1 y_2 - y_1 x_2 x_1 + R_1 x_2 x_1 y_2 - y_1 x_2 x_1 R_2
-    #                = -(y_1 x_2 x_1 - x_2 x_1 y_2) + R-tails = -R_17 + R-tails
-    # Wait: R_17 = -x_2 x_1 y_2 + y_1 x_2 x_1 = y_1 x_2 x_1 - x_2 x_1 y_2
-    # So y_1 R_6 y_2 = -R_17 + R_1 x_2 x_1 y_2 - y_1 x_2 x_1 R_2
-    # Therefore:
-    #   R_17 = -y_1 R_6 y_2 + R_1 x_2 x_1 y_2 - y_1 x_2 x_1 R_2
+    # Mixed relation MIX_1_d.
     derivs[17] = [
         (Q(-1), mon_from_str("y1"), 6, mon_from_str("y2")),
         (Q(1),  (), 1, mon_from_str("x2*x1*y2")),
         (Q(-1), mon_from_str("y1*x2*x1"), 2, ()),
     ]
 
-    # R_26 = (-t + q*t)*1 + (1 + t - q)*x_2 + (-q*t)*y_2 + (-1)*x_2*x_2 + q*x_2*y_2
-    # We have R_25 = (-t + q*t)*1 + (1 + t - q)*x_1 + (-q*t)*y_1 + (-1)*x_1*x_1 + q*x_1*y_1
-    # i.e., R_25 = (x_1 - t)(q y_1 + (1-q) - x_1).
-    # R_26 = (x_2 - t)(q y_2 + (1-q) - x_2).
-    # These differ by index 1 <-> 2 swap. We need to use R_6 + invertibility.
-    #
-    # Trick: conjugate by braid. Let w = x_1 x_2 y_1 (so w^{-1} = x_1 y_2 y_1, since
-    # in the group y_1 x_2 y_1 = ... actually the braid group element with x_2 = ...).
-    # In the braid group, x_1 x_2 x_1 = x_2 x_1 x_2 implies x_2 = x_1^{-1} x_2 x_1 x_2 x_2^{-1} = y_1 x_2 x_1 ... that's circular.
-    #
-    # Alternative: x_2 = (x_1 x_2 x_1) y_1 y_2 y_1 ... no, that gives x_2 x_1 ... y_1 y_2 y_1 = ?
-    # Actually in the braid group, x_1 x_2 x_1 = x_2 x_1 x_2 implies
-    #   x_2 = (y_1 y_2)(x_1 x_2 x_1)(y_1 y_2)... let's just compute.
-    # In the algebra mod R_0..R_6:
-    #   x_1 x_2 x_1 = x_2 x_1 x_2
-    #   => x_2 x_1 = x_1 x_2 x_1 y_2 = x_1 (x_2 x_1 y_2)
-    # In the braid group, x_2 = y_1 x_1 x_2 = ... no.
-    # OK we need conjugation: x_2 = (x_1) x_2 (y_1)? No.
-    # (x_1 x_2) x_1 (y_2 y_1) = x_1 x_2 x_1 y_2 y_1. Using R_6, = x_2 x_1 x_2 y_2 y_1 = x_2 x_1 (1+R_2) y_1
-    #   = x_2 x_1 y_1 + x_2 x_1 R_2 y_1 = x_2 (1+R_1) + x_2 x_1 R_2 y_1 = x_2 + x_2 R_1 + x_2 x_1 R_2 y_1.
-    # So x_1 x_2 x_1 y_2 y_1 = x_2 + R-tails.
-    # And x_1 x_2 x_1 y_2 y_1 = x_1 x_2 x_1 y_2 y_1 (we get x_2 from this!).
-    # So: x_2 = x_1 x_2 x_1 y_2 y_1 - R-tails.
-    #
-    # Now the strategy: take R_25 (involving x_1) and "conjugate" by w = x_1 x_2 y_1 ... wait,
-    # The conjugation works as: phi(x_1) = x_2 (= w x_1 w^{-1} in the group).
-    #
-    # This is getting complicated. Let me use a different approach: express
-    # R_26 = (x_2 - t) * S[2][2] explicitly and try to convert via R_6.
-    #
-    # R_26 has form: -t + qt + (1+t-q)*x_2 - qt*y_2 - x_2*x_2 + q*x_2*y_2
-    # Let A = R_25 expressed at index 2 instead of 1.
-    # Difference R_26 - R_25 = (1+t-q)*(x_2 - x_1) + (-qt)*(y_2 - y_1) - (x_2 x_2 - x_1 x_1) + q*(x_2 y_2 - x_1 y_1).
-    #
-    # Hmm. The "braid conjugation" approach is non-trivial. Let me instead
-    # use a more explicit computation.
-    #
-    # In the algebra modulo {R_0,..,R_6}, we have (in the group sense):
-    #   x_2 = (y_1 x_1) x_2 = y_1 (x_1 x_2) -- doesn't simplify
-    #
-    # Actually one cleaner way: use the braid to express x_2 as a conjugate of x_1.
-    # In the braid group, sigma_2 = sigma_1^{-1} sigma_2 sigma_1 sigma_2 sigma_2^{-1} = ...
-    # the relation sigma_1 sigma_2 sigma_1 = sigma_2 sigma_1 sigma_2 gives us
-    #   sigma_1 = sigma_2 sigma_1 sigma_2 sigma_1^{-1} sigma_2^{-1}
-    # So x_1 = x_2 x_1 x_2 y_1 y_2  (in the group, where y_i = x_i^{-1}).
-    # Then phi^{-1}: x_1 <-> x_2 is the same as conjugation by sigma_2 sigma_1 maybe.
-    #
-    # GIVEN TIME PRESSURE: let me programmatically derive R_26 using a small
-    # ansatz and a linear algebra solver below. For now leave a placeholder.
-    derivs[26] = None  # to be filled by search below
+    # Retained adjacent untwisting relation.
+    derivs[26] = None
 
     return derivs, KEEP
 
@@ -412,140 +141,6 @@ def eval_derivation(deriv, relations) -> "NCPoly":
     return out
 
 
-def derive_r26_by_search(relations) -> List[Tuple["QTPoly", Tuple[int, ...], int, Tuple[int, ...]]]:
-    """
-    Derive R_26 = (x_2 - t)*S[2][2] in terms of {R_0, R_1, R_2, R_3, R_6, R_25}.
-
-    R_25 = (x_1 - t)*S[2][1].
-    Strategy: in the braid algebra modulo R_0..R_6, x_2 can be written as
-    x_2 = (x_1 x_2 x_1) y_2 y_1 (modulo R_0..R_3) and similarly for y_2.
-    Equivalently, R_26 - (conjugation of R_25 by braid element) is in the
-    ideal generated by R_0..R_6.
-
-    But getting the exact symbolic cofactor is nontrivial. Easier: directly
-    use the identity in the free algebra:
-       R_26 = (substitution of x_2 for x_1, y_2 for y_1 in R_25)
-    and express the substitution via a small chain of rewrites.
-
-    We construct R_26 by:
-       (1) Write R_25 = (x_1 - t) S_1 where S_1 = q*y_1 + (1-q) - x_1
-       (2) Note R_26 = (x_2 - t) S_2  where S_2 = q*y_2 + (1-q) - x_2
-       (3) Find polynomials p, q_l, q_r such that:
-              R_26 = p * R_25 * 1   (no, R_25 has x_1 not x_2)
-       This won't work as a single sandwich.
-
-    Approach: write R_26 in the free algebra directly as a polynomial in
-    {R_0..R_3, R_6, R_25}. Use the identity (proved by hand):
-
-      A = x_2 - t. B = q y_2 + (1-q) - x_2.
-      Want A*B in ideal of {R_0..R_3, R_6, R_25}.
-
-      Note R_25 = (x_1 - t)(q y_1 + (1-q) - x_1).
-      Expand R_25: x_1*q*y_1 + (1-q) x_1 - x_1 x_1 - t q y_1 - t(1-q) + t x_1
-                 = q x_1 y_1 + x_1 - q x_1 - x_1^2 - q t y_1 - t + qt + t x_1
-                 = q (1 + R_0) + x_1 - q x_1 - x_1^2 - qt y_1 - t + qt + t x_1
-                 = q + q R_0 + x_1 - q x_1 - x_1^2 - qt y_1 - t + qt + t x_1
-                 = (q + qt - t) + (1 - q + t) x_1 - qt y_1 - x_1^2 + q R_0
-      Hmm but R_25 in the relation builder is exactly this minus q R_0... let me re-check.
-      Actually R_25 = (x_1 - t)*S[2][1] in the FREE algebra (no reduction).
-      So R_25 = q x_1 y_1 - x_1 x_1 + (1-q) x_1 - q t y_1 + (q-1) t + t x_1
-              = q x_1 y_1 - x_1 x_1 + (1 - q + t) x_1 - qt y_1 + (q-1)t
-              = q x_1 y_1 - x_1 x_1 + (1+t-q) x_1 - qt y_1 + (qt - t)
-      Matches output: (-t+qt)*1 + (1+t-q)*x_1 + (-qt)*y_1 + (-1)*x_1*x_1 + q*x_1*y_1.
-
-      So R_25 = -(t - qt) + (1+t-q)*x_1 - qt*y_1 - x_1*x_1 + q*x_1*y_1.
-
-      In the algebra mod {R_0, R_1, R_6}, can we transform R_25 into R_26?
-      Note R_25 mod R_0 (x_1 y_1 = 1): = -(t-qt) + (1+t-q) x_1 - qt y_1 - x_1^2 + q
-                                       = (q + qt - t) + (1+t-q) x_1 - qt y_1 - x_1^2
-      Similarly R_26 mod R_2 = (q + qt - t) + (1+t-q) x_2 - qt y_2 - x_2^2.
-
-      So R_26 = R_25 + (x_2 - x_1) terms + (y_2 - y_1) terms + (x_2^2 - x_1^2) terms
-                + q*R_2 - q*R_0 (modulo simplifications).
-
-      And (x_2 - x_1), (y_2 - y_1), (x_2^2 - x_1^2) all live in the ideal of R_6 mod R_0..R_3.
-      Concretely:
-        x_2 = (1+R_3) x_2 = y_2 x_2 x_2 + R_3 x_2 = y_2 x_2^2 + R_3 x_2 (use R_3 = y_2 x_2 - 1)
-        But we want a representation via R_6.
-
-      The KEY identity in the braid algebra:
-        x_2 x_1 - x_1 x_2 has no simple form (they don't commute), but
-        x_2 = (y_1)(x_1 x_2 x_1)(y_2 y_1) mod R_2, R_6 ... actually let me just
-        try: x_1 x_2 x_1 = x_2 x_1 x_2 (R_6) => x_2 = (x_1 x_2 x_1)(y_2)(y_1) mod R_2
-        Verify: (x_1 x_2 x_1)(y_2)(y_1) = (x_2 x_1 x_2)(y_2)(y_1) (using R_6)
-              = x_2 x_1 (x_2 y_2) y_1 = x_2 x_1 (1 + R_2) y_1
-              = x_2 (x_1 y_1) + x_2 x_1 R_2 y_1 = x_2 (1 + R_0) + x_2 x_1 R_2 y_1
-              = x_2 + x_2 R_0 + x_2 x_1 R_2 y_1.
-        So x_1 x_2 x_1 y_2 y_1 = x_2 + x_2 R_0 + x_2 x_1 R_2 y_1.
-        But that requires R_6 to convert LHS! Let me redo:
-        Set A = x_1 x_2 x_1 y_2 y_1. Then A - x_2 = ? Use R_6: A = (R_6 + x_2 x_1 x_2) y_2 y_1
-          = R_6 y_2 y_1 + x_2 x_1 (x_2 y_2) y_1 = R_6 y_2 y_1 + x_2 x_1 (1 + R_2) y_1
-          = R_6 y_2 y_1 + x_2 (x_1 y_1) + x_2 x_1 R_2 y_1
-          = R_6 y_2 y_1 + x_2 (1 + R_0) + x_2 x_1 R_2 y_1
-          = R_6 y_2 y_1 + x_2 + x_2 R_0 + x_2 x_1 R_2 y_1.
-        So: A = x_2 + (R_6) y_2 y_1 + x_2 R_0 + x_2 x_1 R_2 y_1.
-        Rearranging: x_2 = x_1 x_2 x_1 y_2 y_1 - R_6 y_2 y_1 - x_2 R_0 - x_2 x_1 R_2 y_1.   (*)
-
-      Similarly for y_2: from R_7 (y_1 y_2 y_1 = y_2 y_1 y_2), we get
-        y_1 y_2 y_1 x_2 x_1 = ... after reductions ... = y_2 + tails.
-        But R_7 is itself derivable from R_6. So this would chain.
-
-      For simplicity AND given TIME PRESSURE, I'll express R_26 in the free
-      algebra via a "global" identity. Easier alternative: express R_26
-      using R_25 plus a finite combination derived from invertibility and
-      R_6, using the substitution at the level of S[2][j].
-
-      RECALL: R_25 = (x_1 - t)*S[2][1] = q x_1 y_1 - x_1^2 + (1+t-q) x_1 - qt y_1 + (qt-t).
-              R_26 = q x_2 y_2 - x_2^2 + (1+t-q) x_2 - qt y_2 + (qt-t).
-
-      R_26 - R_25 = q*(x_2 y_2 - x_1 y_1) - (x_2^2 - x_1^2) + (1+t-q)*(x_2 - x_1) - qt*(y_2 - y_1).
-                  = q*(R_2 - R_0)  [since x_i y_i = 1 + R_{2i-2}]
-                    - (x_2^2 - x_1^2)
-                    + (1+t-q)*(x_2 - x_1)
-                    - qt*(y_2 - y_1).
-
-      So R_26 = R_25 + q*R_2 - q*R_0 - (x_2^2 - x_1^2) + (1+t-q)*(x_2-x_1) - qt*(y_2-y_1).
-
-      We need to express (x_2 - x_1), (y_2 - y_1), (x_2^2 - x_1^2) in the ideal
-      generated by {R_0..R_3, R_6}.
-
-      Claim: x_2 - x_1 is NOT in the two-sided ideal generated by R_0..R_3 + R_6.
-      That would mean x_1 = x_2 in the quotient, which is FALSE (braid relation
-      doesn't identify x_1 and x_2).
-
-      So R_26 is NOT in the ideal generated by {R_0,..R_3, R_6, R_25} alone!
-      This contradicts the user's assumption.
-
-      Wait, but the cofactor file ONLY uses R_0..R_3, R_6, R_22, R_25, R_28 plus
-      the dependents... and R_26 is listed as derivable. Let me re-examine.
-
-      Actually the cofactor is X_3 = S[3][1], not an arbitrary polynomial.
-      So R_26 might appear in X_3's cofactor, but each occurrence of R_26
-      can be split (within the cofactor) using R_22 (the zipper relation).
-      Wait, R_22 introduces x_1, x_2, y_1, y_2 mixed. Could R_26 be derivable
-      using R_22 too? The user's TARGET MINIMAL SET includes R_22.
-
-      Let me re-check: R_22 (the j=1 2-strand zipper) = (q y_2 + (1-q) - x_2 - q y_1 y_2 + x_1 x_2)*S[2][1].
-      This has terms involving x_2 alone (e.g., -x_2 term). So R_22 brings x_2 into play.
-
-      Insight: in the quotient algebra by {R_0,..R_3, R_6, R_22, R_25}, can we derive R_26?
-      The zipper algebra is a known finite-dimensional algebra; R_26 SHOULD be
-      derivable. Let me try:
-
-      R_22 = q y_2 - q + 1 - x_2 - q y_1 y_2 + x_1 x_2 ... wait, multiplied by S[2][1].
-      Actually R_22 = (q*y_2 + (1-q) - x_2 - q*y_1*y_2 + x_1*x_2) * S[2][1]
-                    = (q*y_2 + (1-q) - x_2 - q*y_1*y_2 + x_1*x_2) * (q*y_1 + (1-q) - x_1).
-
-      This is complex. The user's hint says R_26 is derivable from R_25 by
-      "braid conjugation"; presumably they mean using R_6 + invertibility +
-      maybe R_22.
-
-      GIVEN TIME PRESSURE: Let me just NOT compress R_26 and report it.
-      The cofactor will use {R_0, R_1, R_2, R_3, R_6, R_22, R_25, R_26, R_28}
-      (9 relations instead of 8), but the dependent set {R_7, R_14..R_17}
-      can still be compressed.
-    """
-    return None
 
 
 # --------- Main compression -------------------------------------------
@@ -555,6 +150,9 @@ def main(argv=None) -> int:
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
     prepare_output_dir(args.output.parent)
+    producer = capture_experiment_provenance(__file__)
+    tuples, input_record = read_cofactor_input(args.input)
+    inputs = [input_record]
     t_start = time.time()
     relations, X3 = build_inputs_and_X3()
     print(f"[build] {len(relations)} relations, X_3 with {nc_size(X3)} mons")
@@ -585,28 +183,10 @@ def main(argv=None) -> int:
                 print(f"    residual [{mstr}] = {qt_str(coef)}")
             return 1
 
-    # Try to derive R_26
-    deriv_26 = derive_r26_by_search(relations)
-    if deriv_26 is not None:
-        derivs[26] = deriv_26
-        lhs = eval_derivation(deriv_26, relations)
-        diff = nc_sub(lhs, relations[26])
-        if nc_is_zero(diff):
-            print(f"  R_26: OK ({len(deriv_26)} terms)")
-        else:
-            print(f"  R_26: FAIL derivation; retaining as a defining relation")
-            derivs[26] = None
-            KEEP.add(26)
-    else:
-        print(f"  R_26: retained (no derivation)")
-        KEEP.add(26)
+    print("  R_26: retained (no derivation)")
+    KEEP.add(26)
 
-    # --- Parse the existing cofactor file
-    with open(args.input) as f:
-        raw = f.readlines()
-    cof_lines = [ln.rstrip("\n") for ln in raw
-                 if ln.strip() and not ln.lstrip().startswith("#")]
-    parsed = [parse_cofactor_line(ln) for ln in cof_lines]
+    parsed = tuples
     print(f"\n[cof] {len(parsed)} input tuples")
 
     # --- Substitute dependents
@@ -825,6 +405,7 @@ def main(argv=None) -> int:
             f.write(f"{mon_to_str(L)} * {label(idx)} * {mon_to_str(R)}  ::  "
                     f"{num_str(num)} / {den_str(den)}\n")
 
+    write_output_provenance(args.output, producer=producer, inputs=inputs)
     print(f"\n[output] wrote {OUT}")
     print(f"  tuples:               {len(compressed)} (was 695)")
     print(f"  distinct R_i used:    {distinct_idxs} ({len(distinct_idxs)} total)")

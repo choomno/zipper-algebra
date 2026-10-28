@@ -37,3 +37,6 @@ include-package-data = false
 where = ["src"]
 include = ["zipper_algebra", "zipper_algebra.*"]
 namespaces = false
+
+[tool.setuptools.package-data]
+zipper_algebra = ["_build_provenance.json"]

@@ -38,7 +38,8 @@ plumbing for that.
 
 from __future__ import annotations
 import argparse
-from experiments.output import prepare_output_dir
+from experiments.output import prepare_output_dir, capture_experiment_provenance
+from zipper_algebra.provenance import write_output_provenance
 import os
 from pathlib import Path
 import sys
@@ -55,7 +56,7 @@ from .legacy_format import (
     nc_zero, nc_const, nc_var, nc_var_named, nc_add, nc_sub, nc_neg,
     nc_mul, nc_scalar, nc_is_zero, nc_size,
     build_inputs_and_X3,
-    parse_cofactor_line, parse_numerator, parse_denominator,
+    parse_cofactor_line, read_cofactor_input, parse_numerator, parse_denominator,
 )
 
 
@@ -362,6 +363,9 @@ def main(argv=None):
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
     prepare_output_dir(args.output.parent)
+    producer = capture_experiment_provenance(__file__)
+    tuples, input_record = read_cofactor_input(args.input)
+    inputs = [input_record]
     t_start = time.time()
     print("=" * 72)
     print("Simplification: B_3 Garside normal form for X_3 cofactor multipliers.")
@@ -373,7 +377,6 @@ def main(argv=None):
     print(f"[build] inputs={len(relations)}, X_3 has {nc_size(X3)} NC monomials.")
 
     # --- 2. Parse compressed cofactor ------------------------------------
-    tuples = list(parse_compressed(args.input))
     print(f"[parse] {len(tuples)} input tuples from {os.path.basename(args.input)}.")
     # histogram
     from collections import Counter
@@ -599,6 +602,7 @@ def main(argv=None):
 
     # --- 7. Final verification: re-parse output and recheck identity in
     # free algebra by re-running the same accumulation.
+    write_output_provenance(args.output, producer=producer, inputs=inputs)
     print(f"[write] Wrote {args.output}")
     print(f"[stats] Total tuples:       {len(items)}")
     print(f"[stats] vs 695 (original):  {len(items)/695:.2f}x")

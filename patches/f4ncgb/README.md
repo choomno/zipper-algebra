@@ -1,4 +1,4 @@
-# f4ncgb parser patch
+# f4ncgb setup and parser patch
 
 Fresh solver computations use the external [f4ncgb project](https://gitlab.sai.jku.at/f4ncgb/f4ncgb).
 The solver is developed by Maximilian Heisinger and Clemens Hofstadler; cite
@@ -72,6 +72,52 @@ assert completed Gröbner bases.
 Pass the resulting executable explicitly to `zipper-algebra discover --solver`.
 The installed command takes output/cache locations and limits directly; it does
 not use the old research workspace configuration. The reproduction guide gives
-the complete command and its smaller three-strand integration example, as well
-as solver-free certificate checking. The patch is reviewed in the personal
+the complete command and its smaller three-strand example, as well as
+solver-free certificate checking. The patch is reviewed in the personal
 GitHub copy; no upstream issue or merge request is being submitted.
+
+
+## Optional direct SQLite I/O
+
+Discovery stores sample data in SQLite with either solver interface. The default
+`--solver-io files` works with the parser-patched revision above: each active
+solver call uses temporary input, basis and proof files, then their bytes are
+stored in the database and the temporary files are removed.
+
+The optional `--solver-io sqlite` route requires the SQLite extension in the
+maintained f4ncgb copy. This extension is separate from the bundled parser patch.
+The solver reads the input and writes the basis and nonexpanded proof directly
+in the database. Python still checks every proof identity before recording a
+validated sample. The same presentation, arithmetic and certificate checks apply
+to both routes.
+
+The [SQLite extension](https://github.com/choomno/f4ncgb/pull/2) is pinned to
+`cb37d6570a42cf2f786cc96180b18456ae6d1bcf`. From the solver checkout
+used above, select that source before building:
+
+```sh
+git -C ../f4ncgb-source fetch origin cb37d6570a42cf2f786cc96180b18456ae6d1bcf
+git -C ../f4ncgb-source checkout --detach cb37d6570a42cf2f786cc96180b18456ae6d1bcf
+```
+
+Install the additional SQLite development dependency (`sqlite-devel` on Fedora or `libsqlite3-dev` on
+Debian/Ubuntu), then build with the feature enabled:
+
+```sh
+cmake -S ../f4ncgb-source -B ../f4ncgb-source/build-sqlite \
+  -DCMAKE_BUILD_TYPE=Release -DENABLE_SQLITE=ON
+cmake --build ../f4ncgb-source/build-sqlite
+../f4ncgb-source/build-sqlite/f4ncgb_test
+../f4ncgb-source/build-sqlite/f4ncgb --features
+```
+
+The feature report must contain `"sqlite": true`. Builds with
+`-DENABLE_SQLITE=OFF` (the default) retain file I/O without linking SQLite.
+To use the enabled executable, add `--solver-io sqlite` to the discovery command,
+set `--solver` to this executable and set `--solver-revision` to its actual source
+commit (`git -C ../f4ncgb-source rev-parse HEAD`). Do not use the older parser-only
+revision label for the extended binary.
+
+The adapter removes intermediate algebra files; SQLite may create temporary
+journal files during transactions. Completed samples use the same database
+schema and `export-sample` inspection command with either solver interface.

@@ -40,6 +40,14 @@ identity, interrupted publication and resumption. They do not pretend to be
 Gröbner-basis computations. Native f4ncgb integration is a separate CI job,
 described below.
 
+Source-provenance tests use temporary Git repositories and installed-package
+copies to check clean, staged, unstaged and unversioned states, build origins
+and later source changes. SQLite tests check concurrent readers and writers,
+rollback, crash recovery, corruption rejection, historical generations and
+byte-exact exports. Native-adapter tests check database job isolation, process
+failure and cleanup, and rejection of changed or incomplete solver output.
+Cached samples are independently rechecked as polynomial proof identities.
+
 Historical comparisons use immutable fixtures under `tests/fixtures/legacy_x3/`
 and a frozen implementation under `tests/reference/`. That implementation shares
 the coefficient kernel with the package. Its purpose is historical equivalence;
@@ -95,6 +103,10 @@ archive includes reader documentation, tests, examples, selected fixtures and
 experimental recipes needed by those tests. It omits the full research archive,
 private working records, caches, binary matrix pickles and machine configuration.
 
+Both distributions embed the source build origin. The source-archive check
+rebuilds below an unrelated Git checkout and requires that origin to survive;
+package-source changes are rejected when they would inherit stale metadata.
+
 ## GitHub Actions
 
 The platform matrix checks Linux on Python 3.11, 3.12, 3.13 and 3.14, and Windows
@@ -102,9 +114,10 @@ on Python 3.13. It runs the fast suite and isolated wheel checks; the Linux 3.13
 job also rebuilds the source archive. The full suite, including historical
 comparisons, runs in the coverage job with the real optional Sympy dependency.
 
-The native solver job builds the pinned parser-fixed f4ncgb source on Ubuntu,
+The native solver job builds the pinned f4ncgb source with SQLite enabled on Ubuntu,
 installs the zipper-algebra wheel, and exercises a small two-generator test
-presentation with `X_2=0` explicitly imposed. It checks native input/output,
+presentation with `X_2=0` explicitly imposed through both file and native SQLite
+interfaces. It checks native input/output,
 proof identities, coefficient reconstruction, the result bundle and both
 certificate checks outside this workspace. Full four-strand discovery and
 other research computations run locally. A local full four-strand run produced

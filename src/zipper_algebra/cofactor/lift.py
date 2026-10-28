@@ -439,9 +439,14 @@ class Lift:
                    _json_integer(d["holdout"], "holdout count", 0), anchor,
                    anchor_index, d.get("atom_report"), d.get("timing"))
 
-    def save(self, path):
+    def save(self, path, *, provenance=True):
+        if provenance:
+            from ..provenance import capture_provenance, write_output_provenance
+            producer = capture_provenance()
         with open(path, "w") as f:
             json.dump(self.to_json(), f, indent=1)
+        if provenance:
+            write_output_provenance(path, producer=producer)
 
     @classmethod
     def load(cls, path):

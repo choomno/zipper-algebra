@@ -46,8 +46,11 @@ For **fresh Gröbner-basis and cofactor discovery**, also build the external
 [f4ncgb solver](https://gitlab.sai.jku.at/f4ncgb/f4ncgb), by Maximilian Heisinger
 and Clemens Hofstadler. Follow the [solver installation instructions](patches/f4ncgb/README.md)
 for the pinned upstream revision, parser patch, C++ dependencies and build commands.
-Python package installation does not install this executable. The current
-discovery command takes the solver, output directory, cache and limits explicitly;
+Python package installation does not install this executable. Sample data are
+stored in SQLite. The default solver interface uses temporary files; an
+[optional SQLite-enabled solver build](patches/f4ncgb/README.md#optional-direct-sqlite-io)
+accepts `--solver-io sqlite` for direct database input and output. The discovery
+command takes the solver, output directory, cache and limits explicitly;
 the [reproduction guide](docs/X3_REPRODUCTION.md) explains its stages and outputs.
 
 Presentation construction, checking saved certificates, recomposition from saved
@@ -103,6 +106,14 @@ the report names an immutable certificate bundle and its hashes. Exit code `3`
 means discovery was inconclusive within the chosen limits. The full four-strand
 search can be expensive; a small three-strand example and the exact source map
 are in the guide.
+
+A successful run with one product generation keeps ten files, including one
+sample database, regardless of the number of samples. The guide explains the
+[stored products and sample export](docs/X3_REPRODUCTION.md#read-the-result).
+
+Generated computation files also identify their source commit, local changes
+and source-file hashes. See [output provenance](docs/PROVENANCE.md) for bundle
+records, standalone sidecars and installed-package build origins.
 
 ### Audit the result
 

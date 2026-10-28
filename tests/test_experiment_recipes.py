@@ -72,18 +72,24 @@ class TestExperimentalRecipeBoundaries(unittest.TestCase):
 
     def test_theta_recipe_emits_its_declared_presentation_before_the_solver_boundary(self):
         # A controlled unit-ideal basis exercises emission/reduction, not a real solver run.
+        real_run, solver_calls = subprocess.run, []
+        def execute(args, **kwargs):
+            if args[0] != 'test-producer':
+                return real_run(args, **kwargs)
+            solver_calls.append(args)
+            return subprocess.CompletedProcess(args, 0)
         with tempfile.TemporaryDirectory() as directory:
-            with patch.object(theta3_min_poly.subprocess, 'run') as execute, \
+            with patch.object(theta3_min_poly.subprocess, 'run', side_effect=execute), \
                  patch.object(theta3_min_poly.core, 'parse_basis_Fp',
                               return_value=[((), [(1, ())])]):
                 self.assertEqual(theta3_min_poly.compute('square-zero', 5, 7, 11,
                                                          'test-producer', directory), (0, None))
-            execute.assert_called_once()
+            self.assertEqual(len(solver_calls), 1)
             emitted = Path(directory) / 'theta3-square-zero-5-7.ms'
             expected = Path(directory) / 'expected.ms'
             Presentation(3, untwist='square-zero', max_untwist_level=2).emit_ms(expected, 5, 7, 11)
             self.assertEqual(emitted.read_bytes(), expected.read_bytes())
-            self.assertEqual(execute.call_args.args[0][0], 'test-producer')
+            self.assertEqual(solver_calls[0][0], 'test-producer')
 
     @unittest.skipUnless(importlib.util.find_spec('sympy'), 'symbolic recipe needs the inference extra')
     def test_symbolic_representation_recipe_uses_the_maintained_presentation(self):

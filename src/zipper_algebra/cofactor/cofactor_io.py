@@ -43,6 +43,7 @@ and a trivial denominator; it is an interior node of the reconstruction, never a
 from __future__ import annotations
 
 import os
+from io import StringIO
 
 import json
 import re
@@ -409,13 +410,18 @@ class Cofactor:
                        f"({num_str(num)}) / ({self.atoms.denom_str(den)})")
         return out
 
-    def save(self, path: str) -> None:
+    def save(self, path: str, *, provenance=True) -> None:
+        if provenance:
+            from ..provenance import capture_provenance, write_output_provenance
+            producer = capture_provenance()
         self.validate()
         with open(path, "w") as f:
             for ln in self.header_lines():
                 f.write(ln + "\n")
             for ln in self.body_lines():
                 f.write(ln + "\n")
+        if provenance:
+            write_output_provenance(path, producer=producer)
 
     @staticmethod
     def strip_header(text: str) -> str:
@@ -425,15 +431,25 @@ class Cofactor:
     @classmethod
     def load(cls, path: str, pres: Presentation | None = None, atoms: AtomSet | None = None,
              target: str | None = None) -> "Cofactor":
-        """Read a cofactor file in the current format or any of the three legacy formats.
+        """Read one file snapshot using the current and explicit legacy formats."""
+        with open(path) as source:
+            text = source.read()
+        return cls.from_text(text, pres=pres, atoms=atoms, target=target, name=os.fspath(path))
 
-        A legacy file names neither its presentation nor its atoms: `pres` is then required
-        (variable order, relation labels for the extract format) and `atoms` defaults to the
-        historical six, AtomSet.DEFAULT, over which every legacy denominator was written."""
+    @classmethod
+    def from_text(cls, text: str, pres: Presentation | None = None,
+                  atoms: AtomSet | None = None, target: str | None = None,
+                  *, name: str = "<memory>") -> "Cofactor":
+        """Decode a text snapshot without reopening its original file.
+
+        Legacy data require an explicit presentation and otherwise retain the
+        historical default atoms. ``name`` identifies their source in metadata
+        and error messages; it is never read as a filesystem path.
+        """
         header: dict = {}
         notes: list[str] = []
         body: list[str] = []
-        with open(path) as f:
+        with StringIO(text, newline=None) as f:
             for raw in f:
                 ln = raw.rstrip("\n")
                 s = ln.strip()
@@ -454,7 +470,7 @@ class Cofactor:
 
         legacy = "presentation" not in header
         if legacy and pres is None:
-            raise ValueError(f"{os.path.basename(path)} has no presentation header; pass pres=")
+            raise ValueError(f"{os.path.basename(name)} has no presentation header; pass pres=")
         if "atoms" in header:
             atoms = AtomSet.from_json(json.loads(header["atoms"]))
         elif atoms is None:
@@ -490,7 +506,7 @@ class Cofactor:
                 raise ValueError(f"cannot parse cofactor line: {ln!r}")
 
         if legacy:
-            producer = f"cofactor_io.load from legacy {os.path.basename(path)}"
+            producer = f"cofactor_io.load from legacy {os.path.basename(name)}"
             return cls(terms, n, atoms, pres.slug(), pres.content_hash(),
                        target if target is not None else "", producer, anchor, notes)
         return cls(terms, n, atoms, header["presentation"], header.get("presentation_hash", ""),

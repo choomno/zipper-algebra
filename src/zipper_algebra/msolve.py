@@ -20,7 +20,10 @@ from .relations import build_relations, append_zero_sliders, append_target
 __all__ = ["main"]
 
 
-def main() -> int:
+def main(*, provenance=True) -> int:
+    if provenance:
+        from .provenance import capture_provenance, write_output_provenance
+        producer = capture_provenance()
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--n", type=int, required=True, help="number of strands")
     ap.add_argument("--q", type=int, default=5, help="q specialization (integer)")
@@ -82,6 +85,9 @@ def main() -> int:
         for i, rel in enumerate(relations):
             sep = "," if i < len(relations) - 1 else ""
             f.write(rel.to_msolve_string(var_names) + sep + "\n")
+
+    if provenance:
+        write_output_provenance(args.out, producer=producer)
 
     print(f"Wrote {len(relations)} relations in {len(var_names)} variables to {args.out}")
     return 0

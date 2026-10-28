@@ -16,6 +16,8 @@ import argparse, os, subprocess, sys
 from zipper_algebra import core, Presentation
 from zipper_algebra.linear import validate_field_characteristic
 from experiments.variants import sigma_min_poly as smp  # min_poly_on_vector, poly utils
+from experiments.output import (capture_experiment_provenance, tag_solver_input,
+                                tag_solver_basis)
 
 F4_DEFAULT = os.environ.get("F4NCGB", "f4ncgb")
 THETA3_WORD = ("x1", "x2", "x2", "x1")          # Theta_3 = sigma_1 sigma_2^2 sigma_1
@@ -54,12 +56,15 @@ def compute(case, q, t, p, f4, scratch, maxiter=5000):
     validate_field_characteristic(p)
     if not p:
         raise ValueError("this Krylov recipe requires a positive prime characteristic")
+    producer = capture_experiment_provenance(__file__, smp.__file__)
     untw, fp = CASES[case]
     ms = os.path.join(scratch, f"theta3-{case}-{q}-{t}.ms")
     bs = os.path.join(scratch, f"theta3-{case}-{q}-{t}.basis")
     pres = Presentation(3, untwist=untw, framing_power=fp, max_untwist_level=2)
-    pres.emit_ms(ms, q, t, p)
+    pres.emit_ms(ms, q, t, p, provenance=False)
+    inputs = tag_solver_input(ms, producer=producer)
     subprocess.run([f4, "-m", str(maxiter), "-i", ms, "-o", bs], check=True, capture_output=True)
+    tag_solver_basis(bs, producer=producer, inputs=inputs)
     polys = core.parse_basis_Fp(bs)
     lms = [lm for lm, _ in polys]
     variables = pres.var_names()
