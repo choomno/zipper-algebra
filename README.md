@@ -44,6 +44,19 @@ For development, use `python -m pip install -e .`. The installed package is name
 `zipper_algebra`; `python -m zipper_algebra` provides the same commands as
 `zipper-algebra`.
 
+## Algebra solver and citation
+
+The original Gröbner-basis and cofactor-discovery computations used
+[f4ncgb](https://gitlab.sai.jku.at/f4ncgb/f4ncgb), developed by Maximilian
+Heisinger and Clemens Hofstadler. Please cite their
+[2025 CASC paper](https://doi.org/10.1007/978-3-032-09645-6_5), listed below,
+when using f4ncgb in research. The original project is the authoritative source
+for the solver and its documentation.
+
+The certificate audit below runs from saved data with the Python package.
+For fresh solver computations, the [setup guide](patches/f4ncgb/README.md)
+records the upstream revision, parser fix, dependencies and maintained GitHub copy.
+
 ## Reproduce the X_3 cofactor result
 
 Run from the repository root after installation. This checks the saved 695-term
@@ -132,8 +145,6 @@ python -m unittest discover -s tests -v
 
 [TESTING](docs/TESTING.md) describes the CI suite, historical compatibility
 checks, package checks and optional integrations.
-[CONTRIBUTING](CONTRIBUTING.md) records review and commit practice, including
-independent adversarial review for complex changes.
 
 ## Repository map
 
@@ -169,6 +180,12 @@ requirements are audited. [INDEX](INDEX.md) maps those sources.
    [DOI](https://doi.org/10.1090/S0002-9947-1989-0992598-X).
 4. Jun Murakami, *The Kauffman polynomial of links and representation theory*,
    Osaka Journal of Mathematics **24** (1987), 745–758.
+
+5. Maximilian Heisinger and Clemens Hofstadler, *f4ncgb: High Performance
+   Gröbner Basis Computations in Free Algebras*, in *Computer Algebra in
+   Scientific Computing (CASC 2025)*, Lecture Notes in Computer Science
+   **16235**, Springer Nature Switzerland (2025), 79–97.
+   [DOI](https://doi.org/10.1007/978-3-032-09645-6_5).
 
 ## License
 

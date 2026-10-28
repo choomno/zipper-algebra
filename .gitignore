@@ -37,3 +37,13 @@ agent-notes/
 
 # Locally generated certificate verification report
 /x3-verification.json
+
+# Local contributor instructions
+CONTRIBUTING.md
+CONTRIBUTING.MD
+
+# Local coverage output
+.coverage
+.coverage.*
+coverage.json
+htmlcov/

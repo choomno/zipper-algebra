@@ -43,7 +43,8 @@ def inspect(directory):
                        "tests/test_certificates.py"):
             assert needed in relative, needed
     forbidden = {".git", ".cache", "__pycache__", "private-baselines", "research-records",
-                 "recovery", "manuscripts", "historical-reconstruction"}
+                 "recovery", "manuscripts", "historical-reconstruction",
+                 "CONTRIBUTING.md", "CONTRIBUTING.MD", "AGENTS.md", "CLAUDE.md"}
     for name in wheel_names + names:
         path = PurePosixPath(name)
         assert not path.is_absolute() and ".." not in path.parts and "\\" not in name, name

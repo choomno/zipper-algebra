@@ -20,6 +20,40 @@ fixtures under `tests/fixtures/legacy_x3/`. Their hashes and original records ar
 listed in the adjacent manifest. The retained large free-algebra certificate is
 a compatibility fixture; tests do not identify it as the latest mathematical proof.
 
+## Maintained package coverage
+
+The target is **at least 99.5% line coverage and 99.5% branch coverage**, checked
+separately before rounding. The measured source is every Python file in
+`src/zipper_algebra/`. Experimental scripts and archived implementations have
+separate test requirements and are outside this package measurement.
+
+The focused local run measured **99.90% lines (3088/3091)** and
+**99.65% branches (1423/1428)**. No source lines or branches are excluded. The tests cover
+exact identities, coefficient domains, parsing and validation, reduction,
+reconstruction, noncommuting contexts, CLI behaviour and optional inference.
+These percentages describe exercised code; the mathematical assertions and
+independent expected results in the tests remain essential.
+
+To measure the complete default suite and historical proof comparisons:
+
+```sh
+python -m pip install -e '.[inference]' coverage==7.17.0
+python -m coverage erase
+python -m coverage run -m unittest discover -s tests -v
+python -m coverage run -m unittest tools.cofactor.tests_proof_skeleton -v
+python -m coverage combine
+python -m coverage json -o coverage.json
+python ci/check_coverage.py coverage.json
+```
+
+The checked-in configuration enables branch measurement and Python subprocess
+coverage, including isolated CLI invocations. The checker requires the complete
+maintained file list, rejects excluded source lines, and enforces both thresholds.
+The configuration clears both line-exclusion and partial-branch-exclusion patterns.
+The CI coverage job installs the real optional inference dependency and runs
+these checks. For a local annotated report, run `python -m coverage html` after
+combining the data, then open `htmlcov/index.html`.
+
 ## Distribution checks
 
 Build both formats, then inspect their contents:
@@ -50,7 +84,7 @@ caches and experimental result collections are excluded.
 The workflow runs on pushes, pull requests and manual dispatch. Its matrix
 checks Linux on Python 3.11, 3.12, 3.13 and 3.14, plus Windows on Python 3.13.
 It builds the wheel and source archive, tests the installed wheel, runs the
-regressions and rebuilds the source archive. A separate job checks the optional
+regressions and rebuilds the source archive. A separate job measures maintained-package coverage and checks the optional
 Sympy factorization extra. Documentation checks validate local links and compile
 the mathematical specification.
 

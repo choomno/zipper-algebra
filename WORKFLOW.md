@@ -107,5 +107,4 @@ python -m unittest discover -s tests -v
 ```
 
 [TESTING](docs/TESTING.md) describes the CI suite and separate historical
-compatibility checks. [CONTRIBUTING](CONTRIBUTING.md) records the requirements for
-mathematical changes and independent adversarial review.
+compatibility checks.

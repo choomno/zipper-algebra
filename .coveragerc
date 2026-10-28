@@ -1,0 +1,10 @@
+[run]
+branch = True
+parallel = True
+patch = subprocess
+source = zipper_algebra
+
+[report]
+precision = 2
+exclude_lines =
+partial_branches =

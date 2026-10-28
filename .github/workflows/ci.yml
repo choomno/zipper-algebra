@@ -60,9 +60,9 @@ jobs:
         run: python ci/check_sdist.py dist
 
   optional-inference:
-    name: Optional polynomial factorization
+    name: Coverage and optional factorization
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -70,8 +70,15 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.13'
-      - run: python -m pip install '.[inference]'
+      - run: python -m pip install -e '.[inference]' coverage==7.17.0
       - run: python ci/check_optional_inference.py
+      - name: Measure maintained package coverage including subprocesses
+        run: |
+          python -m coverage run -m unittest discover -s tests -v
+          python -m coverage run -m unittest tools.cofactor.tests_proof_skeleton -v
+          python -m coverage combine
+          python -m coverage json -o coverage.json
+          python ci/check_coverage.py coverage.json
 
   documentation:
     name: Documentation

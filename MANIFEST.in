@@ -1,4 +1,4 @@
-include README.md CONTRIBUTING.md LICENSE pyproject.toml
+include README.md LICENSE pyproject.toml .coveragerc
 recursive-include src/zipper_algebra *.py
 recursive-include docs *.md *.tex *.json
 include docs/mathematical-specification/mathematical-specification.pdf
@@ -23,3 +23,5 @@ global-exclude __pycache__
 prune .cache
 prune build
 prune dist
+
+exclude CONTRIBUTING.md CONTRIBUTING.MD
