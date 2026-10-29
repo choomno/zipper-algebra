@@ -2,12 +2,15 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from graphlib import CycleError, TopologicalSorter
 import hashlib
 import json
 from pathlib import Path
 import re
 
 from ..cofactor.proof import Basis, Proof
+from ..coefficients import Coef
+from ..polynomial import Poly
 from ..provenance import current_source_files, PREFIX
 
 
@@ -110,7 +113,8 @@ def _check_syntax(text: str, names, *, proof: bool):
 def validate_proofs(source, inputs, names) -> int:
     """Check every output identity against the actual ordered input relations.
 
-    This establishes that the output polynomials belong to the input ideal.
+    Local equalities on the acyclic derivation graph establish that the output
+    polynomials belong to the input ideal, without expanding shared proofs.
     It does not establish that they form a complete Gröbner basis.
     """
     try:
@@ -133,8 +137,18 @@ def validate_proofs(source, inputs, names) -> int:
                 bound = len(inputs) if kind == "input" else len(basis)
                 if not 0 <= index < bound:
                     raise ValueError("a raw proof reference does not name an existing relation")
+        try:
+            TopologicalSorter({index: proof.refs(index) for index in range(len(basis))}).prepare()
+        except CycleError as error:
+            raise ValueError("cyclic proof references") from error
         for index in range(len(basis)):
-            if not proof.reconstructs(index, basis, inputs):
+            reconstructed = Poly(0)
+            for coefficient, left, kind, reference, right in proof.terms[index]:
+                polynomial = inputs[reference] if kind == "input" else basis.polys[reference]
+                scalar = Coef(coefficient, 0)
+                for word, value in polynomial.terms.items():
+                    reconstructed.add_term(left + word + right, scalar * value)
+            if (reconstructed - basis.polys[index]).terms:
                 raise ValueError(f"basis entry {index} fails its input-ideal identity")
     except (OSError, ValueError, KeyError, IndexError, ZeroDivisionError) as error:
         raise ArtifactError(f"invalid solver proof: {error}") from error

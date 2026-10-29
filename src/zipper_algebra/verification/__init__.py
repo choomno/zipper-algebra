@@ -1,1 +1,1 @@
-"""Independent algebra-system checks of current certificate outputs."""
+"""Exact completion checks and independent algebra-system certificate checks."""
