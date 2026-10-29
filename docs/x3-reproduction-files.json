@@ -67,8 +67,8 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "bytes": 6742,
-      "sha256": "6d306a321601286f30f84b028f30cb07b0634afe0f2bbe9630ef7018c9a72240",
+      "bytes": 6763,
+      "sha256": "cf11c6ebd1bcdd7672f32dbb0faa53cb1760ab8cf02c35510816328fce34e47e",
       "role": "Hosted software tests, small solver integration and documentation checks"
     },
     {
