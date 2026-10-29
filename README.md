@@ -38,9 +38,9 @@ Optional denominator-factor inference uses Sympy:
 python -m pip install '.[inference]'
 ```
 
-For development, use `python -m pip install -e .`. The installed package is named
-`zipper_algebra`; `python -m zipper_algebra` provides the same commands as
-`zipper-algebra`.
+For development, install the tools under [Tests and development](#tests-and-development).
+The installed package is named `zipper_algebra`; `python -m zipper_algebra`
+provides the same commands as `zipper-algebra`.
 
 For **fresh Gröbner-basis and cofactor discovery**, also build the external
 [f4ncgb solver](https://gitlab.sai.jku.at/f4ncgb/f4ncgb), by Maximilian Heisinger
@@ -83,7 +83,7 @@ cofactor representations are not unique in their term count or coefficients.
 The [reproduction guide](docs/X3_REPRODUCTION.md) identifies the
 input, program and output at every stage, including the original presentation
 input and the files needed for reconstruction. Fresh production generates its own
-samples and proofs; replay of the retained symbolic lift is a separate route.
+samples and proofs; checking the curated certificate is a separate route.
 
 ### Produce a new certificate
 
@@ -101,6 +101,10 @@ zipper-algebra discover --n 4 --target X_3 \
 The command emits the defining presentation, obtains and validates solver proofs,
 samples parameters, reconstructs coefficients, composes the certificate, and
 checks the identity exactly. It reads no saved certificate or symbolic lift.
+Denominator factors are inferred from fitting samples, starting without a preset
+factor family. The bounded reconstruction is checked against held-out samples,
+and the complete free-algebra identity is verified before publication.
+
 The result is recorded in `runs/x3/result.json`. Success has `"status": "verified"`;
 the report names an immutable certificate bundle and its hashes. Exit code `3`
 means discovery was inconclusive within the chosen limits. The full four-strand
@@ -171,14 +175,28 @@ assert report["pass"]
 
 ## Tests and development
 
-After an editable install:
+Install the development tools and optional inference dependency, then run the
+same static checks and test suite used in CI:
 
 ```sh
-python -m pytest tests -q
+python -m pip install -e '.[dev,inference]'
+python -m ruff check src tests experiments examples ci setup.py
+python -m mypy
+python -m pytest tests -q --durations=15
 ```
 
-[TESTING](docs/TESTING.md) describes the CI suite, regression
-checks, package checks and optional integrations.
+Ruff checks the public Python code; Mypy checks all maintained package modules,
+including unannotated function bodies. CI requires at least **99.5% line coverage
+and 99.5% branch coverage**, measured separately with no exclusions. Each test
+has a 60-second hang guard.
+
+CI also checks wheel and source-package installation, compiles the mathematical
+reference, and exercises both solver I/O modes on a small native integration
+case. Full X₃ discovery and larger research computations run locally.
+
+[TESTING](docs/TESTING.md) explains the exact algebraic and failure-path
+regressions, coverage commands, gradual type-checking limits and optional
+GAP/Singular checks.
 
 ## Repository map
 
