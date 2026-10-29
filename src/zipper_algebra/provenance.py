@@ -195,7 +195,8 @@ def _git_state(root, sources):
 
 
 def _extra_sources(paths, project, baseline):
-    roots, omitted = {}, set()
+    roots: dict[Path, dict[str, dict[str, int | str] | None]] = {}
+    omitted: set[tuple[Path, str]] = set()
     for item in paths:
         path = Path(item).resolve()
         if path.suffix != ".py":

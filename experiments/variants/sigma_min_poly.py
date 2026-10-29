@@ -1,65 +1,28 @@
 #!/usr/bin/env python3
-r"""Minimal polynomial of left-multiplication by sigma_1 = x_1 on a variant
-zipper algebra Z_n^(a) (higher-framing variant).
+r"""Minimal polynomial of left multiplication by x_1 on a finite-field quotient.
 
-Conjecture (universal at generic (q, t)):
+The input is a specialised Groebner basis. The characteristic is read from
+its sibling .ms file when available, otherwise it defaults to 2^31 - 1.
+The declared strand count determines the generator alphabet.
 
-    min_poly(sigma_1) = (sigma - q) * (sigma + q^{-1}) * (sigma^a - t)
+The recipe enumerates standard monomials, constructs the matrix of left
+multiplication by x_1, and computes its minimal polynomial from Krylov
+sequences, extending until the polynomial annihilates every basis vector.
+It reports the squarefree distinct-degree factorisation and the number of
+distinct eigenvalues over the algebraic closure of the coefficient field.
 
-so the number of distinct sigma_1-eigenvalues should be a + 2.
-
-The .basis files we are given are already F_p-specialised at the numerical
-point (q, t) = (5, 7) modulo p = 2^31 - 1 (a Mersenne prime). At this
-specialisation, the predicted annihilator is
-
-    (sigma - 5)(sigma + 1/5)(sigma^a - 7),
-
-which has (a + 2) distinct roots over F_p as long as none of {5, -1/5, t^{1/a}}
-coincide -- generically true.
-
-Pipeline (mirrors compute_dim_aho.py / semisimple_v3.py):
-
-1. parse_basis_Fp on the .basis file.
-2. Build the AC automaton from leading monomials and enumerate the standard
-   monomial basis of the quotient.
-3. Build a sparse matrix M_{ij} for left-multiplication by x_1:
-       x_1 * m_j  =  sum_i M_{ij} * m_i  (reduced via Groebner).
-4. Find min poly of M over F_p by tracking the Krylov sequence
-       v_k = M^k * 1   (1 = empty word = first standard monomial)
-   and looking for the smallest linear dependence. For a generic cyclic
-   vector this is the full min poly; we then verify on all other standard
-   basis vectors that p(M) annihilates them. If not, we extend.
-5. Factor the min poly over F_p (sympy.Poly factor_list).
-6. Report dimension, min-poly degree, factorisation, # distinct eigenvalues,
-   and the expected value a + 2 (a inferred from the file's "k" suffix).
-
-The script also verifies the conjectured annihilating polynomial
-   A(sigma) = (sigma - 5)(sigma + 1/5)(sigma^a - 7)
-by evaluating A(M) on every standard basis vector and reporting whether the
-result is identically zero.
-
-
-Experimental interpretation: dimension, minimality and quotient-structure
-conclusions require a certified complete basis or a separate exact witness.
-A successful solver exit and agreement at several specializations do not supply
-that evidence. State the corresponding evidence when interpreting these observations.
+Dimension, minimality and quotient-structure conclusions require a certified
+complete Groebner basis or a separate exact witness. A successful solver exit
+and agreement at several specialisations do not supply that evidence.
 """
 from __future__ import annotations
 
 import argparse
 import os
-import re
-import sys
-from typing import Optional
 
 
 from zipper_algebra import core, Presentation
 from zipper_algebra.linear import validate_field_characteristic
-
-try:
-    import sympy
-except ImportError:  # pragma: no cover
-    sympy = None  # graceful fallback; we factor via our own routines below
 
 
 # ---------------------------------------------------------------------------
@@ -336,16 +299,8 @@ def global_min_poly(M: SparseMat, N: int, p: int) -> list[int]:
 
 
 # ---------------------------------------------------------------------------
-# Factorisation via sympy over F_p
+# Squarefree and distinct-degree factorisation over F_p
 # ---------------------------------------------------------------------------
-
-
-def poly_eval(f: list[int], x: int, p: int) -> int:
-    """Horner evaluation of polynomial f at x mod p."""
-    r = 0
-    for c in reversed(f):
-        r = (r * x + c) % p
-    return r
 
 
 def poly_deriv(f: list[int], p: int) -> list[int]:
@@ -434,26 +389,14 @@ def vec_sub(a: list[int], b: list[int], p: int) -> list[int]:
     return out
 
 
-def find_root_in_Fp(coeffs: list[int], p: int, q: int = 5, t: int = 7) -> Optional[int]:
-    """Try a handful of obvious candidates ({q, -1/q, t^{1/a} for small a, ...})
-    to identify an F_p-root of a linear or low-degree factor."""
-    if len(coeffs) == 2:
-        # x - r  ->  coeffs = [-r, 1]
-        return (-coeffs[0]) % p
-    # For higher-degree factors we don't bother finding individual roots;
-    # we only need the count, which equals the degree (since the factor is
-    # irreducible after squarefree-distinct-degree splitting).
-    return None
-
-
 def factor_over_Fp(coeffs: list[int], p: int) -> tuple[list[tuple[list[int], int]], list[int]]:
     """Factor a monic polynomial (low-to-high) over F_p.
 
     Returns (factors, roots_in_Fp) where each ``factor`` entry is
     ``(prod_of_irred_factors_of_some_degree_within_one_multiplicity, mult)``.
 
-    For our purposes (counting distinct eigenvalues, verifying the conjecture),
-    the squarefree factorisation + distinct-degree factorisation is enough:
+    To count distinct eigenvalues, squarefree factorisation followed by
+    distinct-degree factorisation is enough:
 
       # distinct eigenvalues over alg. closure  =  deg(squarefree part of f).
 
@@ -529,68 +472,8 @@ def fmt_poly(coeffs: list[int], p: int, var: str = "x") -> str:
 # ---------------------------------------------------------------------------
 
 
-def infer_a_from_basename(path: str) -> Optional[int]:
-    """Infer the framing parameter a from a filename like framing-n3-k2.basis."""
-    base = os.path.basename(path)
-    m = re.search(r"-k(\d+)\.basis", base)
-    if m:
-        return int(m.group(1))
-    return None
-
-
-
-
-def evaluate_poly_on_M(
-    M: SparseMat, N: int, p: int, poly: list[int]
-) -> bool:
-    """Return True iff ``poly(M) == 0`` on every standard basis vector."""
-    d = len(poly) - 1
-    for i in range(N):
-        v: SparseVec = {i: 1}
-        r = vec_scale(v, poly[d], p)
-        for k in range(d - 1, -1, -1):
-            r = matvec(M, r, p)
-            if poly[k]:
-                r = vec_add(r, v, poly[k], p)
-        if r:
-            return False
-    return True
-
-
-def annihilator_check(
-    M: SparseMat, N: int, p: int, a: int, q: int = 5, t: int = 7
-) -> dict:
-    """Test several candidate annihilators of sigma_1 = x_1 on the algebra.
-
-    Reports for each candidate whether it acts as zero on every standard
-    basis vector.
-    """
-    q_mod = q % p
-    q_inv = pow(q_mod, p - 2, p)
-    out = {}
-    # Original conjecture: (x - q)(x + 1/q)(x^a - t)
-    hecke_orig = [(-1) % p, (q_inv - q_mod) % p, 1]
-    framing = [0] * (a + 1)
-    framing[0] = (-t) % p
-    framing[a] = 1
-    prod_orig = poly_mul(hecke_orig, framing, p)
-    out["(x-q)(x+1/q)(x^a-t)"] = (evaluate_poly_on_M(M, N, p, prod_orig),
-                                  len(prod_orig) - 1)
-    # Refined empirical: (x - 1)(x + q)(x^a - t)
-    hecke_refined = [(-q_mod) % p, (q_mod - 1) % p, 1]
-    prod_refined = poly_mul(hecke_refined, framing, p)
-    out["(x-1)(x+q)(x^a-t)"] = (evaluate_poly_on_M(M, N, p, prod_refined),
-                                len(prod_refined) - 1)
-    # Same with extra (x) factor
-    prod_with_x = poly_mul(prod_refined, [0, 1], p)
-    out["x * (x-1)(x+q)(x^a-t)"] = (evaluate_poly_on_M(M, N, p, prod_with_x),
-                                    len(prod_with_x) - 1)
-    return out
-
-
 def process(basis_path: str, *, n: int) -> dict:
     print(f"\n=== {basis_path} ===")
-    a = infer_a_from_basename(basis_path)
     polys = core.parse_basis_Fp(basis_path)
     # Look up p from the .ms file if available; default to 2^31 - 1.
     p = 2**31 - 1
@@ -603,7 +486,7 @@ def process(basis_path: str, *, n: int) -> dict:
     validate_field_characteristic(p)
     if not p:
         raise ValueError("this minimal-polynomial recipe requires a positive prime characteristic")
-    print(f"  prime p = {p}, framing parameter a = {a}, n = {n}")
+    print(f"  prime p = {p}, n = {n}")
     lms = [lm for lm, _ in polys]
     variables = Presentation(n).var_names()
     print(f"  variables = {variables}, |basis| = {len(polys)}")
@@ -614,7 +497,7 @@ def process(basis_path: str, *, n: int) -> dict:
     )
     if standard is None:
         print("  dim > 20000 (truncated)")
-        return {"path": basis_path, "a": a, "n": n, "dim": ">20000"}
+        return {"path": basis_path, "n": n, "dim": ">20000"}
     N = len(standard)
     print(f"  dim = {N}")
     mon_idx = {m: i for i, m in enumerate(standard)}
@@ -631,13 +514,12 @@ def process(basis_path: str, *, n: int) -> dict:
     print(f"  min poly degree = {deg}")
     print(f"  min poly        = {fmt_poly(mp, p)}")
 
-    factors, roots = factor_over_Fp(mp, p)
-    distinct_roots = sorted(set(roots))
+    factors, _ = factor_over_Fp(mp, p)
     sf = squarefree_part(mp, p)
     n_distinct_total = len(sf) - 1  # # distinct roots over alg. closure
     print(f"  squarefree-part degree (# distinct eigenvalues over alg. closure) = "
           f"{n_distinct_total}")
-    print(f"  squarefree-distinct-degree split:")
+    print('  squarefree-distinct-degree split:')
     for fac, mult in factors:
         # Each (fac, mult) is the PRODUCT of all irreducibles of some shared
         # degree d, raised to multiplicity ``mult``. Recover d via the
@@ -650,51 +532,9 @@ def process(basis_path: str, *, n: int) -> dict:
             kind = "linear" if d_irr == 1 else f"degree-{d_irr}-irreducible"
             print(f"    {count} x ({kind}) at multiplicity {mult}: "
                   f"prod = ({fmt_poly(fac_d, p)})")
-    # Check specific candidates for being F_p roots of the min poly
-    q_val = 5 % p
-    q_inv = pow(q_val, p - 2, p)
-    neg_q_inv = (-q_inv) % p
-    t_val = 7 % p
-    candidates = {q_val: "q=5", neg_q_inv: "-q^{-1}=-1/5", t_val: "t=7"}
-    if a is not None:
-        # t^{1/a} candidates: any r with r^a = t. Try small integers.
-        for r in range(-20, 21):
-            rr = r % p
-            if pow(rr, a, p) == t_val and rr not in candidates:
-                candidates[rr] = f"t^{{1/{a}}}={r}"
-    found = []
-    for c, label in candidates.items():
-        val = poly_eval(mp, c, p)
-        if val == 0:
-            found.append((c if c <= p // 2 else c - p, label))
-    print(f"  F_p roots of the min poly among predicted candidates:")
-    for c, label in found:
-        print(f"    {label}: {c}  (root)")
-    print(f"  # distinct F_p roots found among predicted candidates = {len(found)}")
-    if a is not None:
-        print(f"  total distinct eigenvalues (over alg. closure) = {n_distinct_total}")
-        print(f"  expected per conjecture (a + 2)               = {a + 2}")
-        # Annihilator check on multiple candidate polynomials
-        ann_results = annihilator_check(M, N, p, a)
-        print(f"  candidate annihilators (does poly(M) = 0 on the algebra?):")
-        for name, (ok, deg_ann) in ann_results.items():
-            marker = "ZERO " if ok else "NONZERO"
-            print(f"    {marker} (deg {deg_ann}): {name}")
-        orig_ok = ann_results["(x-q)(x+1/q)(x^a-t)"][0]
-        refined_ok = ann_results["(x-1)(x+q)(x^a-t)"][0]
-        with_x_ok = ann_results["x * (x-1)(x+q)(x^a-t)"][0]
-        return {
-            "path": basis_path, "a": a, "n": n, "dim": N,
+    return {"path": basis_path, "n": n, "dim": N,
             "min_poly_deg": deg,
             "n_distinct_eigenvalues": n_distinct_total,
-            "expected": a + 2,
-            "factors": [(fmt_poly(fac, p), mult) for fac, mult in factors],
-            "annihilator_orig_zero": orig_ok,
-            "annihilator_refined_zero": refined_ok,
-            "annihilator_x_refined_zero": with_x_ok,
-        }
-    return {"path": basis_path, "a": a, "n": n, "dim": N,
-            "min_poly_deg": deg,
             "factors": [(fmt_poly(fac, p), mult) for fac, mult in factors]}
 
 
@@ -717,10 +557,8 @@ def main():
 
     if args.table or len(args.basis) > 1:
         print("\n\n=== SUMMARY TABLE ===")
-        hdr = (f"{'file':32s} {'n':>2s} {'a':>2s} {'dim':>5s} "
-               f"{'minpoly_deg':>11s} {'n_eig':>5s} {'a+2':>4s} "
-               f"{'(x-q)(x+1/q)(x^a-t)':>20s} {'(x-1)(x+q)(x^a-t)':>18s} "
-               f"{'x*(x-1)(x+q)(x^a-t)':>20s}   factors")
+        hdr = (f"{'file':32s} {'n':>2s} {'dim':>5s} "
+               f"{'minpoly_deg':>11s} {'n_eig':>5s}   factors")
         print(hdr)
         print("-" * len(hdr))
         for r in results:
@@ -728,22 +566,13 @@ def main():
                 print(f"{os.path.basename(r['path']):32s} ERROR: {r['error']}")
                 continue
             facs = "; ".join(f"({f})^{m}" for f, m in r.get("factors", []))
-            flag = ""
-            if r.get("a") is not None and r.get("n_distinct_eigenvalues") is not None:
-                if r["n_distinct_eigenvalues"] >= 5 and r["a"] >= 3:
-                    flag = "  <-- 5+ eigenvalues (a >= 3)"
             print(
                 f"{os.path.basename(r['path']):32s} "
                 f"{r.get('n','?'):>2} "
-                f"{r.get('a','?'):>2} "
                 f"{r.get('dim','?'):>5} "
                 f"{r.get('min_poly_deg','?'):>11} "
-                f"{r.get('n_distinct_eigenvalues','?'):>5} "
-                f"{r.get('expected','?'):>4} "
-                f"{str(r.get('annihilator_orig_zero','?')):>20} "
-                f"{str(r.get('annihilator_refined_zero','?')):>18} "
-                f"{str(r.get('annihilator_x_refined_zero','?')):>20}   "
-                f"{facs}{flag}"
+                f"{r.get('n_distinct_eigenvalues','?'):>5}   "
+                f"{facs}"
             )
 
 

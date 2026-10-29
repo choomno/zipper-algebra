@@ -47,9 +47,9 @@ jobs:
       - name: Inspect and install the wheel
         run: |
           python ci/check_distribution.py dist
-          python -c "import glob, subprocess, sys; subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--no-deps', glob.glob('dist/*.whl')[0]])"
+          python -c "import glob, subprocess, sys; subprocess.check_call([sys.executable, '-m', 'pip', 'install', glob.glob('dist/*.whl')[0] + '[dev]'])"
       - name: Test maintained operations and regressions
-        run: python ci/run_tests.py
+        run: python -m pytest tests --durations=15
       - name: Test the installed package outside the checkout
         run: python ci/check_installed.py
       - name: Check source distribution reproduction
@@ -57,7 +57,7 @@ jobs:
         run: python ci/check_sdist.py dist
 
   optional-inference:
-    name: Coverage and optional factorization
+    name: Static analysis, coverage and optional factorization
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -67,11 +67,15 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.13'
-      - run: python -m pip install -e '.[inference]' coverage==7.17.0
+      - run: python -m pip install -e '.[inference,dev]' coverage==7.17.0
+      - name: Lint package, tests and research recipes
+        run: python -m ruff check src tests experiments examples ci setup.py
+      - name: Type-check the maintained package
+        run: python -m mypy
       - run: python ci/check_optional_inference.py
       - name: Measure maintained package coverage including subprocesses
         run: |
-          python -m coverage run ci/run_tests.py
+          python -m coverage run -m pytest tests --durations=15
           python -m coverage combine
           python -m coverage json -o coverage.json
           python ci/check_coverage.py coverage.json

@@ -2,21 +2,21 @@
 from copy import deepcopy
 import hashlib
 import json
-import os
 from pathlib import Path
 import shutil
 import subprocess
 import tempfile
-import unittest
+import pytest
 from unittest.mock import patch
 
 from zipper_algebra import provenance as source
 
 
-class ProvenanceFixture(unittest.TestCase):
-    def setUp(self):
+class ProvenanceFixture:
+    @pytest.fixture(autouse=True)
+    def resources(self, request):
         self.temporary = tempfile.TemporaryDirectory(prefix='zipper-provenance-')
-        self.addCleanup(self.temporary.cleanup)
+        request.addfinalizer(self.temporary.cleanup)
         self.base = Path(self.temporary.name).resolve()
         self.root, self.package = self.project(self.base / 'project')
 
@@ -67,15 +67,12 @@ class TestSourceSnapshots(ProvenanceFixture):
     def test_clean_checkout_records_exact_revision_and_sources(self):
         revision = self.initialize()
         result = self.capture()
-        self.assertEqual(result['origin'], 'checkout')
-        self.assertEqual(result['git'], {'commit': revision, 'dirty': False, 'changes': []})
-        self.assertEqual(set(result['source_files']),
-                         {'src/zipper_algebra/' + name for name in ('alpha.py', '__init__.py', 'provenance.py')}
-                         | {'pyproject.toml'})
-        self.assertEqual(result['source_files']['src/zipper_algebra/alpha.py'],
-                         {'bytes': 10, 'sha256': hashlib.sha256(b'VALUE = 7\n').hexdigest()})
-        self.assertNotIn(str(self.root), json.dumps(result))
-        self.assertEqual(result, self.capture())
+        assert result['origin'] == 'checkout'
+        assert result['git'] == {'commit': revision, 'dirty': False, 'changes': []}
+        assert set(result['source_files']) == {'src/zipper_algebra/' + name for name in ('alpha.py', '__init__.py', 'provenance.py')} | {'pyproject.toml'}
+        assert result['source_files']['src/zipper_algebra/alpha.py'] == {'bytes': 10, 'sha256': hashlib.sha256(b'VALUE = 7\n').hexdigest()}
+        assert str(self.root) not in json.dumps(result)
+        assert result == self.capture()
 
     def test_source_only_rehash_detects_additions_modifications_and_deletions_without_git(self):
         self.initialize()
@@ -86,13 +83,11 @@ class TestSourceSnapshots(ProvenanceFixture):
             (self.package / '__init__.py').write_text('VERSION = "updated"\n')
             (self.package / 'new.py').write_text('VALUE = 12\n')
             current = source.current_source_files()
-        self.assertNotIn('src/zipper_algebra/alpha.py', current)
-        self.assertNotIn('src/zipper_algebra/new.py', original)
-        self.assertIn('src/zipper_algebra/new.py', current)
-        self.assertNotEqual(original['src/zipper_algebra/__init__.py'],
-                            current['src/zipper_algebra/__init__.py'])
-        self.assertEqual(current['src/zipper_algebra/new.py'],
-                         source.file_identity(self.package / 'new.py'))
+        assert 'src/zipper_algebra/alpha.py' not in current
+        assert 'src/zipper_algebra/new.py' not in original
+        assert 'src/zipper_algebra/new.py' in current
+        assert original['src/zipper_algebra/__init__.py'] != current['src/zipper_algebra/__init__.py']
+        assert current['src/zipper_algebra/new.py'] == source.file_identity(self.package / 'new.py')
 
     def test_git_queries_disable_optional_index_writes(self):
         self.initialize()
@@ -101,11 +96,11 @@ class TestSourceSnapshots(ProvenanceFixture):
         (self.package / 'alpha.py').write_text('VALUE = 123\n')
         with patch.object(source.subprocess, 'check_output',
                           wraps=subprocess.check_output) as execute:
-            self.assertTrue(self.capture()['git']['dirty'])
-        self.assertTrue(execute.call_args_list)
+            assert self.capture()['git']['dirty']
+        assert execute.call_args_list
         for call in execute.call_args_list:
-            self.assertEqual(call.kwargs['env']['GIT_OPTIONAL_LOCKS'], '0')
-        self.assertEqual(index.read_bytes(), original)
+            assert call.kwargs['env']['GIT_OPTIONAL_LOCKS'] == '0'
+        assert index.read_bytes() == original
 
     def test_build_sources_include_untracked_hooks_and_exact_configuration_hashes(self):
         self.initialize()
@@ -114,15 +109,15 @@ class TestSourceSnapshots(ProvenanceFixture):
         manifest = self.root / 'MANIFEST.in'
         manifest.write_text('include README.md\n')
         result = self.capture()
-        self.assertTrue(result['git']['dirty'])
+        assert result['git']['dirty']
         for path in (setup, manifest, self.root / 'pyproject.toml'):
-            self.assertEqual(result['source_files'][path.name], source.file_identity(path))
+            assert result['source_files'][path.name] == source.file_identity(path)
         changes = {entry['path']: entry for entry in result['git']['changes']}
-        self.assertEqual(changes['setup.py']['index'], '?')
-        self.assertEqual(changes['MANIFEST.in']['index'], '?')
+        assert changes['setup.py']['index'] == '?'
+        assert changes['MANIFEST.in']['index'] == '?'
         with patch.object(source, '__file__', str(self.package / 'provenance.py')):
             package_only = source.current_source_files()
-        self.assertFalse(set(source.BUILD_SOURCES) & package_only.keys())
+        assert not set(source.BUILD_SOURCES) & package_only.keys()
 
     def test_build_source_symlink_cannot_escape_the_declared_project(self):
         external = self.base / 'outside_setup.py'
@@ -130,30 +125,30 @@ class TestSourceSnapshots(ProvenanceFixture):
         try:
             (self.root / 'setup.py').symlink_to(external)
         except OSError:
-            self.skipTest('symlinks are unavailable')
-        with self.assertRaisesRegex(ValueError, 'build source path leaves'):
+            pytest.skip('symlinks are unavailable')
+        with pytest.raises(ValueError, match='build source path leaves'):
             self.capture()
 
-    def test_git_change_names_preserve_legal_colons_and_newlines(self):
+    def test_git_change_names_preserve_legal_colons_and_newlines(self, subtests):
         self.initialize()
         names = ('calculation:notes.txt', 'calculation\nnotes.txt')
         for name in names:
             try:
                 (self.root / name).write_text('original\n')
             except OSError:
-                self.skipTest('filesystem does not support legal POSIX names')
+                pytest.skip('filesystem does not support legal POSIX names')
         self.git(self.root, 'add', '.')
         self.git(self.root, 'commit', '-q', '-m', 'Track legal names')
         for name in names:
             (self.root / name).write_text('changed\n')
         result = self.capture()
-        self.assertEqual({entry['path'] for entry in result['git']['changes']}, set(names))
+        assert {entry['path'] for entry in result['git']['changes']} == set(names)
         encoded = json.dumps(result)
-        self.assertIn('calculation\\nnotes.txt', encoded)
-        self.assertNotIn('changed', encoded)
-        self.assertEqual(json.loads(encoded), result)
+        assert 'calculation\\nnotes.txt' in encoded
+        assert 'changed' not in encoded
+        assert json.loads(encoded) == result
         for invalid in ('/absolute', '../outside', 'null\0name', None):
-            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+            with subtests.test(invalid=invalid), pytest.raises(ValueError):
                 source._git_relative(invalid)
 
     def test_ignored_untracked_python_is_excluded_but_tracked_matches_remain(self):
@@ -174,23 +169,22 @@ class TestSourceSnapshots(ProvenanceFixture):
         ignored.write_text('PRIVATE_NOTE = 1\n')
         ignored_recipe.write_text('PRIVATE_NOTE = 2\n')
         after = self.capture(extra_sources=[recipe, ignored_recipe, ignored_recipe])
-        self.assertEqual(before['omitted_source_count'], 0)
-        self.assertEqual(after['omitted_source_count'], 2)
-        self.assertEqual({key: value for key, value in before.items() if key != 'omitted_source_count'},
-                         {key: value for key, value in after.items() if key != 'omitted_source_count'})
-        self.assertEqual(before['source_sha256'], after['source_sha256'])
-        self.assertFalse(after['git']['dirty'])
-        self.assertNotIn('secret_notes', json.dumps(after))
-        self.assertIn('src/zipper_algebra/tracked_allowed.py', after['source_files'])
+        assert before['omitted_source_count'] == 0
+        assert after['omitted_source_count'] == 2
+        assert {key: value for key, value in before.items() if key != 'omitted_source_count'} == {key: value for key, value in after.items() if key != 'omitted_source_count'}
+        assert before['source_sha256'] == after['source_sha256']
+        assert not after['git']['dirty']
+        assert 'secret_notes' not in json.dumps(after)
+        assert 'src/zipper_algebra/tracked_allowed.py' in after['source_files']
         public_new = self.package / 'public_new.py'
         public_new.write_text('PUBLIC = 2\n')
         current = self.capture(extra_sources=[recipe])
-        self.assertTrue(current['git']['dirty'])
-        self.assertEqual(current['omitted_source_count'], 1)
-        self.assertIn('src/zipper_algebra/public_new.py', current['source_files'])
-        self.assertNotIn('secret_notes', json.dumps(current))
+        assert current['git']['dirty']
+        assert current['omitted_source_count'] == 1
+        assert 'src/zipper_algebra/public_new.py' in current['source_files']
+        assert 'secret_notes' not in json.dumps(current)
 
-    def test_declared_source_rehash_ignores_new_unused_files_and_detects_known_drift(self):
+    def test_declared_source_rehash_ignores_new_unused_files_and_detects_known_drift(self, subtests):
         self.initialize()
         producer = self.capture()
         expected = {name: identity for name, identity in producer['source_files'].items()
@@ -198,13 +192,13 @@ class TestSourceSnapshots(ProvenanceFixture):
         with patch.object(source, '__file__', str(self.package / 'provenance.py')), \
              patch.object(source.subprocess, 'check_output', side_effect=AssertionError('Git must not run')):
             (self.package / 'unused_new.py').write_text('UNUSED = 1\n')
-            self.assertEqual(source.current_source_files(expected), expected)
+            assert source.current_source_files(expected) == expected
             (self.package / 'alpha.py').write_text('VALUE = 22\n')
-            self.assertNotEqual(source.current_source_files(expected), expected)
+            assert source.current_source_files(expected) != expected
             (self.package / 'alpha.py').unlink()
-            self.assertNotIn('src/zipper_algebra/alpha.py', source.current_source_files(expected))
+            assert 'src/zipper_algebra/alpha.py' not in source.current_source_files(expected)
             for invalid in ('private.py', 'src/zipper_algebra/file.txt', '../outside.py'):
-                with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                with subtests.test(invalid=invalid), pytest.raises(ValueError):
                     source.current_source_files([invalid])
 
     def test_private_ignored_notes_and_outputs_do_not_change_snapshot(self):
@@ -217,9 +211,9 @@ class TestSourceSnapshots(ProvenanceFixture):
         (self.root / 'runs/output.txt').write_text('generated')
         (self.root / 'untracked-note.md').write_text('not a declared source')
         after = self.capture()
-        self.assertEqual(before, after)
+        assert before == after
         for hidden in ('Private instruction', 'Hidden session', 'CONTRIBUTING', 'memory.md', 'untracked-note'):
-            self.assertNotIn(hidden, json.dumps(after))
+            assert hidden not in json.dumps(after)
 
     def test_staged_unstaged_and_declared_untracked_sources(self):
         self.initialize()
@@ -232,14 +226,12 @@ class TestSourceSnapshots(ProvenanceFixture):
         (self.root / 'README.md').write_text('A local documentation change\n')
         result = self.capture()
         changes = {entry['path']: entry for entry in result['git']['changes']}
-        self.assertTrue(result['git']['dirty'])
-        self.assertEqual((changes['src/zipper_algebra/alpha.py']['index'],
-                          changes['src/zipper_algebra/alpha.py']['worktree']), ('M', 'M'))
-        self.assertEqual((changes['src/zipper_algebra/new.py']['index'],
-                          changes['src/zipper_algebra/new.py']['worktree']), ('?', '?'))
-        self.assertEqual(changes['README.md']['sha256'], source.file_identity(self.root / 'README.md')['sha256'])
-        self.assertEqual(result['source_files']['src/zipper_algebra/alpha.py'], source.file_identity(alpha))
-        self.assertNotIn('A local documentation change', json.dumps(result))
+        assert result['git']['dirty']
+        assert (changes['src/zipper_algebra/alpha.py']['index'], changes['src/zipper_algebra/alpha.py']['worktree']) == ('M', 'M')
+        assert (changes['src/zipper_algebra/new.py']['index'], changes['src/zipper_algebra/new.py']['worktree']) == ('?', '?')
+        assert changes['README.md']['sha256'] == source.file_identity(self.root / 'README.md')['sha256']
+        assert result['source_files']['src/zipper_algebra/alpha.py'] == source.file_identity(alpha)
+        assert 'A local documentation change' not in json.dumps(result)
 
     def test_deleted_and_renamed_files_keep_status_and_current_hash(self):
         self.initialize()
@@ -247,28 +239,28 @@ class TestSourceSnapshots(ProvenanceFixture):
         (self.root / 'README.md').unlink()
         changes = {entry['path']: entry for entry in self.capture()['git']['changes']}
         renamed = changes['src/zipper_algebra/renamed.py']
-        self.assertEqual(renamed['index'], 'R')
-        self.assertEqual(renamed['previous_path'], 'src/zipper_algebra/alpha.py')
-        self.assertEqual(renamed['sha256'], source.file_identity(self.package / 'renamed.py')['sha256'])
-        self.assertEqual((changes['README.md']['bytes'], changes['README.md']['sha256']), (None, None))
+        assert renamed['index'] == 'R'
+        assert renamed['previous_path'] == 'src/zipper_algebra/alpha.py'
+        assert renamed['sha256'] == source.file_identity(self.package / 'renamed.py')['sha256']
+        assert (changes['README.md']['bytes'], changes['README.md']['sha256']) == (None, None)
 
     def test_no_git_and_unborn_git_are_unknown(self):
         result = self.capture()
-        self.assertEqual(result['origin'], 'unversioned')
-        self.assertEqual(result['git'], {'commit': None, 'dirty': None, 'changes': []})
+        assert result['origin'] == 'unversioned'
+        assert result['git'] == {'commit': None, 'dirty': None, 'changes': []}
         self.initialize(commit=False)
-        self.assertEqual(self.capture()['git'], result['git'])
+        assert self.capture()['git'] == result['git']
 
     def test_missing_git_and_mismatched_toplevel_are_unknown(self):
         self.initialize()
         with patch.object(source.subprocess, 'check_output', side_effect=FileNotFoundError('git')):
-            self.assertIsNone(self.capture()['git']['commit'])
+            assert self.capture()['git']['commit'] is None
         with patch.object(source, '_git', return_value=str(self.base).encode()):
-            self.assertIsNone(self.capture()['git']['commit'])
+            assert self.capture()['git']['commit'] is None
 
     def test_source_export_does_not_inherit_an_enclosing_repository(self):
         self.initialize(self.base)
-        self.assertIsNone(self.capture()['git']['commit'])
+        assert self.capture()['git']['commit'] is None
 
     def test_package_source_symlink_cannot_leave_source_tree(self):
         external = self.base / 'outside.py'
@@ -277,22 +269,22 @@ class TestSourceSnapshots(ProvenanceFixture):
         try:
             link.symlink_to(external)
         except OSError:
-            self.skipTest('symlinks are unavailable')
-        with self.assertRaisesRegex(ValueError, 'leaves its source tree'):
+            pytest.skip('symlinks are unavailable')
+        with pytest.raises(ValueError, match='leaves its source tree'):
             self.capture()
 
     def test_missing_or_other_project_marker_is_not_a_checkout(self):
         self.initialize()
         marker = self.root / 'pyproject.toml'
         marker.unlink()
-        self.assertIsNone(self.capture()['git']['commit'])
+        assert self.capture()['git']['commit'] is None
         marker.write_text('[project]\nname="another-project"\n')
-        self.assertIsNone(self.capture()['git']['commit'])
+        assert self.capture()['git']['commit'] is None
 
     def test_empty_package_has_no_attributable_source(self):
         for path in self.package.glob('*.py'):
             path.unlink()
-        with self.assertRaisesRegex(ValueError, 'needs source files'):
+        with pytest.raises(ValueError, match='needs source files'):
             self.capture()
 
 
@@ -302,20 +294,16 @@ class TestBuildAndRecipeOrigins(ProvenanceFixture):
         baseline = self.capture()
         package = self.installed(baseline)
         unchanged = self.capture(package)
-        self.assertEqual(unchanged['git']['commit'], revision)
-        self.assertEqual(unchanged['origin'], 'build')
-        self.assertEqual(unchanged['changes_since_build'], [])
+        assert unchanged['git']['commit'] == revision
+        assert unchanged['origin'] == 'build'
+        assert unchanged['changes_since_build'] == []
         (package / 'alpha.py').unlink()
         (package / '__init__.py').write_text('VERSION = "modified"\n')
         (package / 'new.py').write_text('VALUE = 3\n')
         result = self.capture(package)
-        self.assertEqual(result['git'], baseline['git'])
-        self.assertEqual(result['changes_since_build'], [
-            {'path': 'src/zipper_algebra/__init__.py', 'status': 'modified'},
-            {'path': 'src/zipper_algebra/alpha.py', 'status': 'deleted'},
-            {'path': 'src/zipper_algebra/new.py', 'status': 'added'},
-        ])
-        self.assertNotEqual(result['source_sha256'], baseline['source_sha256'])
+        assert result['git'] == baseline['git']
+        assert result['changes_since_build'] == [{'path': 'src/zipper_algebra/__init__.py', 'status': 'modified'}, {'path': 'src/zipper_algebra/alpha.py', 'status': 'deleted'}, {'path': 'src/zipper_algebra/new.py', 'status': 'added'}]
+        assert result['source_sha256'] != baseline['source_sha256']
 
     def test_own_unborn_checkout_never_reuses_embedded_old_commit(self):
         self.initialize()
@@ -324,8 +312,8 @@ class TestBuildAndRecipeOrigins(ProvenanceFixture):
             {'schema': source.BUILD_SCHEMA, 'origin': baseline}))
         self.remove_git()
         self.initialize(commit=False)
-        self.assertEqual(self.capture()['origin'], 'unversioned')
-        self.assertIsNone(self.capture()['git']['commit'])
+        assert self.capture()['origin'] == 'unversioned'
+        assert self.capture()['git']['commit'] is None
 
     def test_export_recipe_and_build_changes_are_compared_with_their_baseline(self):
         recipes = self.root / 'experiments'
@@ -349,19 +337,10 @@ class TestBuildAndRecipeOrigins(ProvenanceFixture):
         added = recipes / 'added.py'
         added.write_text('VALUE = 3\n')
         result = self.capture(extra_sources=[changed, deleted, added])
-        self.assertEqual(result['git'], baseline['git'])
-        self.assertEqual(result['changes_since_build'], [
-            {'path': 'MANIFEST.in', 'status': 'modified'},
-            {'path': 'experiments/added.py', 'status': 'added'},
-            {'path': 'experiments/changed.py', 'status': 'modified'},
-            {'path': 'experiments/deleted.py', 'status': 'deleted'},
-            {'path': 'setup.py', 'status': 'deleted'},
-        ])
-        self.assertNotIn('experiments/unused.py', result['source_files'])
-        self.assertEqual(result['extra_source_git'], [{
-            'paths': ['experiments/added.py', 'experiments/changed.py', 'experiments/deleted.py'],
-            'git': {'commit': None, 'dirty': None, 'changes': []},
-        }])
+        assert result['git'] == baseline['git']
+        assert result['changes_since_build'] == [{'path': 'MANIFEST.in', 'status': 'modified'}, {'path': 'experiments/added.py', 'status': 'added'}, {'path': 'experiments/changed.py', 'status': 'modified'}, {'path': 'experiments/deleted.py', 'status': 'deleted'}, {'path': 'setup.py', 'status': 'deleted'}]
+        assert 'experiments/unused.py' not in result['source_files']
+        assert result['extra_source_git'] == [{'paths': ['experiments/added.py', 'experiments/changed.py', 'experiments/deleted.py'], 'git': {'commit': None, 'dirty': None, 'changes': []}}]
 
     def test_recipe_without_build_baseline_has_explicit_unknown_current_origin(self):
         self.initialize()
@@ -373,28 +352,26 @@ class TestBuildAndRecipeOrigins(ProvenanceFixture):
         recipe.parent.mkdir()
         recipe.write_text('VALUE = 5\n')
         result = self.capture(extra_sources=[recipe])
-        self.assertEqual(result['git'], baseline['git'])
-        self.assertEqual(result['changes_since_build'], [{'path': 'experiments/late.py', 'status': 'added'}])
-        self.assertEqual(result['extra_source_git'], [{
-            'paths': ['experiments/late.py'], 'git': {'commit': None, 'dirty': None, 'changes': []},
-        }])
+        assert result['git'] == baseline['git']
+        assert result['changes_since_build'] == [{'path': 'experiments/late.py', 'status': 'added'}]
+        assert result['extra_source_git'] == [{'paths': ['experiments/late.py'], 'git': {'commit': None, 'dirty': None, 'changes': []}}]
         (self.package / '_build_provenance.json').unlink()
         unversioned = self.capture(extra_sources=[recipe])
-        self.assertEqual(unversioned['origin'], 'unversioned')
-        self.assertEqual(unversioned['extra_source_git'][0]['git']['dirty'], None)
+        assert unversioned['origin'] == 'unversioned'
+        assert unversioned['extra_source_git'][0]['git']['dirty'] == None
 
-    def test_invalid_embedded_build_metadata_is_rejected(self):
+    def test_invalid_embedded_build_metadata_is_rejected(self, subtests):
         self.initialize()
         package = self.installed(self.capture())
         path = package / '_build_provenance.json'
         for bad in ([], {}, {'schema': 'other', 'origin': {}},
                     {'schema': source.BUILD_SCHEMA, 'origin': {}}):
-            with self.subTest(bad=bad):
+            with subtests.test(bad=bad):
                 path.write_text(json.dumps(bad))
-                with self.assertRaises(ValueError):
+                with pytest.raises(ValueError):
                     self.capture(package)
         path.write_text('not JSON')
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             self.capture(package)
 
     def test_declared_recipe_sources_are_hashed_and_track_untracked_files(self):
@@ -403,9 +380,9 @@ class TestBuildAndRecipeOrigins(ProvenanceFixture):
         recipe.parent.mkdir()
         recipe.write_text('RESULT = 1\n')
         result = self.capture(extra_sources=[recipe, recipe])
-        self.assertEqual(result['source_files']['experiments/recipe.py'], source.file_identity(recipe))
-        self.assertEqual(result['extra_source_git'], [])
-        self.assertIn('experiments/recipe.py', [item['path'] for item in result['git']['changes']])
+        assert result['source_files']['experiments/recipe.py'] == source.file_identity(recipe)
+        assert result['extra_source_git'] == []
+        assert 'experiments/recipe.py' in [item['path'] for item in result['git']['changes']]
 
     def test_wheel_and_recipe_checkout_have_separate_origins(self):
         self.initialize()
@@ -417,12 +394,10 @@ class TestBuildAndRecipeOrigins(ProvenanceFixture):
         recipe.write_text('RESULT = 2\n')
         recipe_revision = self.initialize(other)
         result = self.capture(package, extra_sources=[recipe])
-        self.assertEqual(result['git'], baseline['git'])
-        self.assertEqual(result['extra_source_git'], [
-            {'paths': ['experiments/recipe.py'],
-             'git': {'commit': recipe_revision, 'dirty': False, 'changes': []}}])
+        assert result['git'] == baseline['git']
+        assert result['extra_source_git'] == [{'paths': ['experiments/recipe.py'], 'git': {'commit': recipe_revision, 'dirty': False, 'changes': []}}]
 
-    def test_additional_sources_are_confined_to_declared_public_python_files(self):
+    def test_additional_sources_are_confined_to_declared_public_python_files(self, subtests):
         private = self.root / 'private.py'
         private.write_text('PRIVATE = 1\n')
         outside = self.base / 'outside.py'
@@ -431,12 +406,12 @@ class TestBuildAndRecipeOrigins(ProvenanceFixture):
         wrong_type.parent.mkdir()
         wrong_type.write_text('not Python')
         for path in (private, outside, wrong_type, self.root / 'missing.py', wrong_type.parent / 'missing.py'):
-            with self.subTest(path=path):
-                with self.assertRaises(ValueError):
+            with subtests.test(path=path):
+                with pytest.raises(ValueError):
                     self.capture(extra_sources=[path])
         baseline = self.capture()
         package = self.installed(baseline)
-        with self.assertRaisesRegex(ValueError, 'outside the declared project'):
+        with pytest.raises(ValueError, match='outside the declared project'):
             self.capture(package, extra_sources=[outside])
         a, _ = self.project(self.base / 'a')
         b, _ = self.project(self.base / 'b')
@@ -446,12 +421,12 @@ class TestBuildAndRecipeOrigins(ProvenanceFixture):
             path = root / 'experiments/recipe.py'
             path.write_text('VALUE = 1\n')
             paths.append(path)
-        with self.assertRaisesRegex(ValueError, 'one project'):
+        with pytest.raises(ValueError, match='one project'):
             self.capture(package, extra_sources=paths)
 
 
 class TestMetadataValidation(ProvenanceFixture):
-    def test_invalid_schema_git_source_and_build_change_metadata(self):
+    def test_invalid_schema_git_source_and_build_change_metadata(self, subtests):
         value = self.capture()
         invalid = [None, {}, {**value, 'schema': 'other'}, {**value, 'origin': 'cwd'},
                    {**value, 'git': []}, {**value, 'git': {'commit': 'wrong', 'dirty': False, 'changes': []}},
@@ -464,41 +439,41 @@ class TestMetadataValidation(ProvenanceFixture):
                    {**value, 'omitted_source_count': -1}, {**value, 'omitted_source_count': True},
                    {**value, 'omitted_source_count': '0'}]
         for bad in invalid:
-            with self.subTest(bad=bad):
-                with self.assertRaises(ValueError):
+            with subtests.test(bad=bad):
+                with pytest.raises(ValueError):
                     source.validate_provenance(bad)
 
-    def test_invalid_source_paths_and_hash_shapes(self):
+    def test_invalid_source_paths_and_hash_shapes(self, subtests):
         value = self.capture()
         for name in ('/absolute.py', '../parent.py', 'x\\y.py', 'drive:x.py', 'bad\n.py', '', 'data.txt', 'private.py', 'private.toml'):
             bad = deepcopy(value)
             bad['source_files'] = {name: {'bytes': 0, 'sha256': '0' * 64}}
-            with self.subTest(name=name), self.assertRaises(ValueError):
+            with subtests.test(name=name), pytest.raises(ValueError):
                 source.validate_provenance(bad)
         for identity in ({}, {'bytes': True, 'sha256': '0' * 64},
                          {'bytes': -1, 'sha256': '0' * 64}, {'bytes': 0, 'sha256': 'g' * 64},
                          {'bytes': 0, 'sha256': None}):
             bad = deepcopy(value)
             bad['source_files'] = {'src/zipper_algebra/a.py': identity}
-            with self.subTest(identity=identity), self.assertRaises(ValueError):
+            with subtests.test(identity=identity), pytest.raises(ValueError):
                 source.validate_provenance(bad)
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             source._relative(None)
 
-    def test_invalid_change_metadata_and_extra_origin_references(self):
+    def test_invalid_change_metadata_and_extra_origin_references(self, subtests):
         value = self.capture()
         valid = {'path': 'README.md', 'index': 'M', 'worktree': ' ', 'bytes': 0, 'sha256': '0' * 64}
         for change in ({}, {**valid, 'extra': 1}, {**valid, 'index': 'MM'},
                        {**valid, 'sha256': 'bad'}, {**valid, 'previous_path': '../old'}):
             bad = deepcopy(value)
             bad['git']['changes'] = [change]
-            with self.subTest(change=change), self.assertRaises(ValueError):
+            with subtests.test(change=change), pytest.raises(ValueError):
                 source.validate_provenance(bad)
         for entry in ({'paths': ['missing.py'], 'git': value['git']},
                       {'paths': None, 'git': value['git']}):
             bad = deepcopy(value)
             bad['extra_source_git'] = [entry]
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 source.validate_provenance(bad)
 
 
@@ -513,15 +488,15 @@ class TestOutputTags(ProvenanceFixture):
         producer = self.capture()
         input_path.write_bytes(b'changed later')
         record = source.write_output_provenance(output, producer=producer, inputs=[input_tag])
-        self.assertEqual(record['producer'], producer)
-        self.assertEqual(record['inputs'], [input_tag])
-        self.assertEqual(record['outputs'], {'result.txt': source.file_identity(output)})
-        self.assertEqual(json.loads(output.with_name('result.txt.provenance.json').read_text()), record)
-        self.assertEqual(output.read_bytes(), b'certificate bytes\r\n')
-        self.assertNotIn(str(self.base), json.dumps(record))
-        self.assertNotIn('original input', json.dumps(record))
+        assert record['producer'] == producer
+        assert record['inputs'] == [input_tag]
+        assert record['outputs'] == {'result.txt': source.file_identity(output)}
+        assert json.loads(output.with_name('result.txt.provenance.json').read_text()) == record
+        assert output.read_bytes() == b'certificate bytes\r\n'
+        assert str(self.base) not in json.dumps(record)
+        assert 'original input' not in json.dumps(record)
         second = source.write_output_provenance(output, producer=producer, inputs=[input_path])
-        self.assertEqual(second['inputs'][0]['sha256'], source.file_identity(input_path)['sha256'])
+        assert second['inputs'][0]['sha256'] == source.file_identity(input_path)['sha256']
 
     def test_bundle_and_implicit_capture(self):
         directory = self.base / 'outputs'
@@ -531,21 +506,21 @@ class TestOutputTags(ProvenanceFixture):
         with patch.object(source, '__file__', str(self.package / 'provenance.py')):
             record = source.write_bundle_provenance(directory, ['a.txt', 'b.json'])
             single = source.write_output_provenance(directory / 'a.txt')
-        self.assertEqual(record['schema'], source.OUTPUT_SCHEMA)
-        self.assertEqual(set(record['outputs']), {'a.txt', 'b.json'})
-        self.assertEqual(record['producer'], single['producer'])
-        self.assertEqual(json.loads((directory / 'provenance.json').read_text()), record)
+        assert record['schema'] == source.OUTPUT_SCHEMA
+        assert set(record['outputs']) == {'a.txt', 'b.json'}
+        assert record['producer'] == single['producer']
+        assert json.loads((directory / 'provenance.json').read_text()) == record
 
-    def test_unsafe_duplicate_missing_and_empty_outputs_do_not_publish(self):
+    def test_unsafe_duplicate_missing_and_empty_outputs_do_not_publish(self, subtests):
         (self.base / 'ok.txt').write_text('ok')
         producer = self.capture()
         for names in ([], ['../outside'], ['/absolute'], [''], ['.'], ['..'],
                       ['provenance.json'], ['ok.txt', 'ok.txt'], ['missing.txt'], [None], ['windows\\file.txt'], ['drive:x']):
-            with self.subTest(names=names), self.assertRaises((ValueError, FileNotFoundError)):
+            with subtests.test(names=names), pytest.raises((ValueError, FileNotFoundError)):
                 source.write_bundle_provenance(self.base, names, producer=producer)
-        self.assertFalse((self.base / 'provenance.json').exists())
+        assert not (self.base / 'provenance.json').exists()
 
-    def test_bad_prehashed_inputs_do_not_replace_existing_metadata(self):
+    def test_bad_prehashed_inputs_do_not_replace_existing_metadata(self, subtests):
         output = self.base / 'result.txt'
         output.write_text('result')
         producer = self.capture()
@@ -555,9 +530,9 @@ class TestOutputTags(ProvenanceFixture):
                     {'name': '..', 'bytes': 0, 'sha256': '0' * 64},
                     {'name': 'C:\\private', 'bytes': 0, 'sha256': '0' * 64},
                     {'name': None, 'bytes': 0, 'sha256': '0' * 64}):
-            with self.subTest(tag=tag), self.assertRaises(ValueError):
+            with subtests.test(tag=tag), pytest.raises(ValueError):
                 source.write_output_provenance(output, producer=producer, inputs=[tag])
-        self.assertEqual(json.loads(output.with_name('result.txt.provenance.json').read_text()), original)
+        assert json.loads(output.with_name('result.txt.provenance.json').read_text()) == original
 
     def test_failed_atomic_publication_preserves_previous_sidecar(self):
         output = self.base / 'result.txt'
@@ -567,12 +542,7 @@ class TestOutputTags(ProvenanceFixture):
         sidecar = output.with_name('result.txt.provenance.json')
         previous = sidecar.read_bytes()
         with patch.object(source.os, 'replace', side_effect=OSError('interrupted')):
-            with self.assertRaises(OSError):
+            with pytest.raises(OSError):
                 source.write_output_provenance(output, producer=producer)
-        self.assertEqual(sidecar.read_bytes(), previous)
-        self.assertEqual(sorted(p.name for p in self.base.iterdir()),
-                         ['project', 'result.txt', 'result.txt.provenance.json'])
-
-
-if __name__ == '__main__':
-    unittest.main()
+        assert sidecar.read_bytes() == previous
+        assert sorted((p.name for p in self.base.iterdir())) == ['project', 'result.txt', 'result.txt.provenance.json']

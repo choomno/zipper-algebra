@@ -46,7 +46,6 @@ def wide_fit_denominator(fit_pts, fit_vals, all_pts, all_vals, maxnum=10, maxden
 
 
 def _Dvals(D, pts):
-    f = sp.lambdify((q, t), D, "math") if False else None
     out = []
     for (qv, tv) in pts:
         val = D.subs({q: qv, t: tv})

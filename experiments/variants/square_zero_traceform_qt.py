@@ -94,66 +94,6 @@ def L_word(L, word, N):
     return M
 
 
-# ===========================================================================
-# Fraction-free rank over Q(q,t):  clear denominators row-wise to get a
-# polynomial matrix, then Bareiss fraction-free elimination.  Rank over the
-# field of fractions Q(q,t) equals the rank of the polynomial matrix over the
-# same field (clearing a per-row nonzero scalar does not change rank).
-# ===========================================================================
-def clear_denoms_rowwise(M):
-    """Return an integer/polynomial matrix P with P[i] = d_i * M[i], where d_i
-    is the lcm of the denominators in row i (a nonzero element of Q(q,t), so it
-    does not change the row space / rank over the field)."""
-    N = M.shape[0]
-    P = sp.zeros(*M.shape)
-    for i in range(N):
-        dens = []
-        for j in range(M.shape[1]):
-            _n, d = sp.fraction(sp.together(M[i, j]))
-            dens.append(d)
-        di = sp.Integer(1)
-        for d in dens:
-            di = sp.lcm(di, d)
-        for j in range(M.shape[1]):
-            P[i, j] = sp.expand(sp.cancel(M[i, j] * di))
-    return P
-
-
-def bareiss_rank(P):
-    """Fraction-free (Bareiss) Gaussian elimination over Q(q,t)[poly], returns
-    rank over the fraction field.  Entries are sympy polynomials in q,t.
-    (Kept for reference; the main path uses field_rank below, which is faster
-    for these swelling bivariate entries.)"""
-    A = [[sp.expand(P[i, j]) for j in range(P.shape[1])]
-         for i in range(P.shape[0])]
-    n = len(A)
-    m = len(A[0]) if n else 0
-    rank = 0
-    prev = sp.Integer(1)
-    row = 0
-    for col in range(m):
-        if row >= n:
-            break
-        piv = None
-        for r in range(row, n):
-            if sp.expand(A[r][col]) != 0:
-                piv = r
-                break
-        if piv is None:
-            continue
-        if piv != row:
-            A[row], A[piv] = A[piv], A[row]
-        for r in range(row + 1, n):
-            for c in range(col + 1, m):
-                num = A[r][c] * A[row][col] - A[r][col] * A[row][c]
-                A[r][c] = sp.cancel(num / prev)
-            A[r][col] = sp.Integer(0)
-        prev = sp.expand(A[row][col])
-        rank += 1
-        row += 1
-    return rank
-
-
 # Generic numeric probe points (off the bad locus {q,q-1,t}=0) used only to
 # GUIDE pivot selection.  The actual arithmetic is exact symbolic; the probe
 # never affects correctness, only the order in which pivots are chosen (which
@@ -553,7 +493,7 @@ def main():
     print("\n[STEP 5b] CROSS-CHECK via the radical: two-sided ideal <w_1>")
     print("  X_2 = S2_1 = q*y1 + (1-q) - x1 ;  w_1 = (x1 - t) * X_2")
     I = sp.eye(N)
-    X1, X2g, Y1, Y2 = L["x1"], L["x2"], L["y1"], L["y2"]
+    X1, X2g, Y1 = L["x1"], L["x2"], L["y1"]
     X2op = q * Y1 + (1 - q) * I - X1          # operator L_{X_2}=L_{S2_1}
     w1_op = (X1 - t * I) * X2op               # operator L_{w_1} = L_{(x1-t)X_2}
     w2_op = (X2g - t * I) * X2op              # L_{w_2}=L_{(x2-t)X_2}

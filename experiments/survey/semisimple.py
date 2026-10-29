@@ -15,24 +15,12 @@ DEFAULT_CHAR = 2147483647
 TRACE_SCHEMA = "zipper-survey-trace-observations-v1"
 
 
-def _rank_Fp(rows, p):
-    """Exact rank of the supplied matrix over a validated prime field."""
-    if p == 0:
-        raise ValueError("a prime characteristic is required")
-    return matrix_rank(rows, characteristic=p)
-
-
-def rank_of(matrix, char):
-    """Exact rank over Q for char=0, or over the specified prime field."""
-    return matrix_rank(matrix, characteristic=char)
-
-
-def semisimplicity(spec: Spec, scratch: str, points=((5, 7), (13, 17)),
-                  char: int = DEFAULT_CHAR):
+def trace_observations(spec: Spec, scratch: str, points=((5, 7), (13, 17)),
+                       char: int = DEFAULT_CHAR):
     """Collect specialized trace observations; no structural verdict is inferred.
 
-    The historical function name is retained for callers. Every point retains
-    its own standard-word count and matrix rank; ranks from different points
+    Every point retains its own standard-word count and matrix rank; ranks
+    from different points
     are never combined with an unrelated dimension.
     """
     validate_field_characteristic(char)
@@ -42,7 +30,7 @@ def semisimplicity(spec: Spec, scratch: str, points=((5, 7), (13, 17)),
         gram = model.trace_form()
         observations.append({
             "q": q, "t": t, "standard_word_count": model.dim,
-            "trace_rank": rank_of(gram, char),
+            "trace_rank": matrix_rank(gram, characteristic=char),
             "trace_form_symmetric": all(gram[i][j] == gram[j][i]
                                         for i in range(model.dim) for j in range(model.dim)),
             "basis_complete": False,

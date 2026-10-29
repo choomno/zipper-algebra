@@ -48,6 +48,7 @@ from io import StringIO
 import json
 import re
 from fractions import Fraction
+from typing import cast
 
 from .atoms import AtomSet
 from ..coefficients import Coef, NumericRing, SymbolicRing
@@ -205,7 +206,7 @@ def resolve_target(pres: Presentation, target, ring) -> Poly:
     name = s[6:-1] if s.startswith("EXTRA[") and s.endswith("]") else target
     if name in EXTRA_CATALOGUE:
         _, _, S, _ = pres.build(ring)
-        return EXTRA_CATALOGUE[name](S, ring, lambda i, j: _theta_word(i, j, ring, pres.n))
+        return EXTRA_CATALOGUE[name](S, ring, lambda i, j: _theta_word(i, j, ring))
     raise ValueError(f"cannot resolve target {target!r}: not S[i][j], X_k or an EXTRA name "
                      f"{sorted(EXTRA_CATALOGUE)}")
 
@@ -287,7 +288,7 @@ class Cofactor:
         self.atoms.validate()
         if not isinstance(self.presentation_hash, str):
             raise ValueError("presentation hash must be a string")
-        labels = None
+        labels: set[str] = set()
         if pres is not None:
             if self.n != pres.n:
                 raise ValueError(f"cofactor is for n={self.n}, presentation is n={pres.n}")
@@ -303,7 +304,7 @@ class Cofactor:
             validate_word(right, self.n)
             if not isinstance(lab, str) or not lab:
                 raise ValueError("relation labels must be nonempty strings")
-            if labels is not None and lab not in labels:
+            if pres is not None and lab not in labels:
                 raise ValueError(f"unknown relation label {lab!r} for {pres.slug()}")
             validate_qt_polynomial(num)
             self.atoms.validate_exponents(den)
@@ -442,8 +443,9 @@ class Cofactor:
                   *, name: str = "<memory>") -> "Cofactor":
         """Decode a text snapshot without reopening its original file.
 
-        Legacy data require an explicit presentation and otherwise retain the
-        historical default atoms. ``name`` identifies their source in metadata
+        Headerless data require an explicit presentation. Denominator factors must
+        be declared in the atoms header or supplied with atoms=; without either,
+        only polynomial coefficients (denominator one) can be read. ``name`` identifies their source in metadata
         and error messages; it is never read as a filesystem path.
         """
         header: dict = {}
@@ -474,7 +476,7 @@ class Cofactor:
         if "atoms" in header:
             atoms = AtomSet.from_json(json.loads(header["atoms"]))
         elif atoms is None:
-            atoms = AtomSet.DEFAULT
+            atoms = AtomSet([], [])
         if pres is not None:
             n = pres.n
         else:
@@ -506,6 +508,8 @@ class Cofactor:
                 raise ValueError(f"cannot parse cofactor line: {ln!r}")
 
         if legacy:
+            # The headerless-input check above required a presentation.
+            pres = cast(Presentation, pres)
             producer = f"cofactor_io.load from legacy {os.path.basename(name)}"
             return cls(terms, n, atoms, pres.slug(), pres.content_hash(),
                        target if target is not None else "", producer, anchor, notes)

@@ -174,7 +174,7 @@ assert report["pass"]
 After an editable install:
 
 ```sh
-python -m unittest discover -s tests -v
+python -m pytest tests -q
 ```
 
 [TESTING](docs/TESTING.md) describes the CI suite, regression

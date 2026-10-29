@@ -3,15 +3,27 @@
 Use Linux with Python 3.11 or newer and install the package before running source tests:
 
 ```sh
-python -m pip install -e '.[inference]'
-python ci/run_tests.py
+python -m pip install -e '.[dev,inference]'
+python -m ruff check src tests experiments examples ci setup.py
+python -m mypy
+python -m pytest tests
 ```
 
-Ordinary unittest discovery remains supported:
+The suite uses pytest 9, native pytest fixtures and parametrization.
+Standard-library `unittest.mock` remains available for mocking process boundaries.
 
-```sh
-python -m unittest discover -s tests -v
-```
+The pinned Ruff version checks package code, tests, research recipes, examples, CI
+scripts and the build script. The `F` and `E9` rule families detect unused imports
+and local variables, undefined names, repeated definitions and fatal syntax errors.
+The same command runs in the CI coverage job before the tests.
+
+Mypy checks every module under `src/zipper_algebra`, including the bodies of
+unannotated functions, and is pinned in the development extra. CI runs the same
+`python -m mypy` command. Collection and scalar annotations describe exact
+coefficients, parameter points, proof terms and stored artifacts. The optional
+Sympy dependency lacks type information and is treated as an external untyped
+boundary. Other unannotated interfaces can still carry `Any`, so this is gradual
+type checking; it complements the exact arithmetic and failure-path tests.
 
 The suite covers unit and integration tests, including installed interfaces,
 execution boundaries and the 129-term certificate under `examples/x3/`. It
@@ -42,6 +54,36 @@ The current example is checked as a free-algebra identity using symbolic
 accumulation and a degree-bounded product grid. Proof-graph regressions use
 independently specified polynomial identities, including forward references.
 
+## Mathematical and failure-path evidence
+
+Tests use literal noncommuting polynomial identities, exact rational and prime-field
+examples, deliberate false certificates, and storage/publication failures. Expected
+values are specified independently rather than obtained by calling the operation
+under test a second time.
+
+Degree-bound regressions include false identities with target, numerator and common
+denominator factors vanishing on an undersized grid. A mixed-denominator identity
+and its perturbed version test the clearing complements. These guard the reason
+that the finite grid check establishes an exact polynomial identity.
+
+Controlled local fault checks have exercised wrong inverses, commuted words, ignored
+held-out values, bypassed proof checks, altered metadata and stale storage selections.
+They found three missing degree-bound adversaries, now covered by explicit regressions.
+This is evidence for those selected faults, not an exhaustive correctness argument.
+
+## Runtime bounds
+
+Use `python -m pytest tests/unit -q --durations=10` for quick algebraic checks.
+The full software suite also exercises CLI, database and package boundaries.
+Each test, including its fixtures, has a 60-second Linux signal timeout; this is
+a hang guard, not a performance target. Review `--durations=15` output to find
+slow cases. Solver processes and native GAP checks also have explicit subprocess
+timeouts.
+
+CI uses small fixed inputs and a bounded two-strand native solver integration.
+Larger presentation searches and X₃ discovery remain optional local computations;
+termination of a general noncommutative basis computation is not assumed.
+
 ## Maintained package coverage
 
 The requirement is **at least 99.5% line coverage and 99.5% branch coverage**,
@@ -51,9 +93,9 @@ are excluded. Research recipes have their own regression checks and are not
 part of the maintained package measurement.
 
 ```sh
-python -m pip install -e '.[inference]' coverage==7.17.0
+python -m pip install -e '.[dev,inference]' coverage==7.17.0
 python -m coverage erase
-python -m coverage run ci/run_tests.py
+python -m coverage run -m pytest tests
 python -m coverage combine
 python -m coverage json -o coverage.json
 python ci/check_coverage.py coverage.json

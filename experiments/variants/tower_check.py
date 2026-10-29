@@ -24,8 +24,6 @@ that evidence. State the corresponding evidence when interpreting these observat
 from __future__ import annotations
 
 import argparse
-import os
-import sys
 from fractions import Fraction
 
 
@@ -91,7 +89,7 @@ def check_tower(
         rows.append(row)
     print("[reduce] done. Computing rank...", flush=True)
 
-    rank = _gauss_rank_Q(rows, N_big)
+    rank = matrix_rank(rows)
     is_tower = rank == N_small
     print(f"[result] N_small = {N_small}, N_big = {N_big}, "
           f"rank of image = {rank}, is_tower = {is_tower}")
@@ -104,17 +102,12 @@ def check_tower(
     }
 
 
-def _gauss_rank_Q(rows: list[list[Fraction]], ncols: int) -> int:
-    """Exact rational rank of supplied rows; ncols records the ambient dimension."""
-    return matrix_rank(rows)
-
-
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--framing-small", default="/tmp/bigelow-n3-a2-Q.basis")
-    ap.add_argument("--framing-big", default="/tmp/bigelow-n4-a2-Q.basis")
-    ap.add_argument("--square-zero-small", default="/tmp/n3-square-zero-Q.basis")
-    ap.add_argument("--square-zero-big", default="/tmp/square-zero-n4.basis")
+    ap.add_argument("--framing-small", required=True)
+    ap.add_argument("--framing-big", required=True)
+    ap.add_argument("--square-zero-small", required=True)
+    ap.add_argument("--square-zero-big", required=True)
     ap.add_argument("--max-dim", type=int, default=500)
     args = ap.parse_args()
 

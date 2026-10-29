@@ -119,7 +119,7 @@ def check(cof: Cofactor, pres: Presentation | None = None, target=None, verbose=
         print("\n" + "=" * 72)
         if ok:
             print(f"PASS: sum_j c_j(q,t) * L_j * R_{{i_j}} * R'_j  ==  {tgt_name}")
-            print(f"      identity verified in the FREE algebra")
+            print("      identity verified in the FREE algebra")
             print(f"      Q(q,t)<{','.join(names)}>.")
             print(f"      Tuples used:           {len(cof.terms)}")
             print(f"      Distinct R_i used:     {sorted(used)}")
@@ -247,9 +247,10 @@ def _evaluate_target(target, ring, q, t):
     return p
 
 
-def _grid_points(n: int) -> list:
+def _grid_points(n: int) -> list[int]:
     """n distinct small integers. Cleared polynomials can also be evaluated at poles."""
-    out, k = [], 2
+    out: list[int] = []
+    k = 2
     while len(out) < n:
         out.append(k)
         k += 1

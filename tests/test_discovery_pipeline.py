@@ -9,12 +9,10 @@ import io
 import json
 from pathlib import Path
 import sys
-import tempfile
-import unittest
+import pytest
 from unittest.mock import patch
 
 from zipper_algebra import Presentation, Atom, AtomSet, Cofactor, cli
-from zipper_algebra.coefficients import NumericRing
 from zipper_algebra.cofactor.artifacts import load_artifact
 from zipper_algebra.cofactor.compose import main as compose_command
 from zipper_algebra.execution.config import RunConfig
@@ -85,11 +83,10 @@ Path(a.p).write_text(proof+'\n', newline='\n')
 '''
 
 
-class DiscoveryFixture(unittest.TestCase):
-    def setUp(self):
-        self.temporary = tempfile.TemporaryDirectory(prefix='zipper-discovery-test-')
-        self.addCleanup(self.temporary.cleanup)
-        self.root = Path(self.temporary.name)
+class DiscoveryFixture:
+    @pytest.fixture(autouse=True)
+    def _setup(self, tmp_path):
+        self.root = tmp_path
         script = self.root / 'producer.py'
         script.write_text(PRODUCER)
         self.pres = Presentation(2, zero_from=2)
@@ -110,34 +107,33 @@ class DiscoveryFixture(unittest.TestCase):
 
 class TestPortableSamples(DiscoveryFixture):
     def test_spiral_preserves_the_historical_prime_pair_order(self):
-        self.assertEqual(list(islice(spiral(), 10)),
-                         [(3, 2), (2, 3), (5, 2), (5, 3), (3, 5),
+        assert (list(islice(spiral(), 10))) == ([(3, 2), (2, 3), (5, 2), (5, 3), (3, 5),
                           (2, 5), (7, 2), (7, 3), (7, 5), (5, 7)])
         atoms = AtomSet([Atom('t-q', {(0, 1): 1, (1, 0): -1})])
-        self.assertFalse(admissible(2, 3, atoms))
-        self.assertFalse(admissible(5, 5, atoms))
-        self.assertTrue(admissible(5, 7, atoms))
+        assert not (admissible(2, 3, atoms))
+        assert not (admissible(5, 5, atoms))
+        assert (admissible(5, 7, atoms))
 
     def test_selection_is_pure_and_parallel_growth_is_deterministically_ordered(self):
         samples = SampleSet(self.pres, self.target, (5, 7, 0), self.config, self.atoms)
-        self.assertEqual(samples.next_points(0), [])
-        self.assertEqual(samples.grow(0), [])
-        self.assertFalse(self.config.output_root.exists())
-        with self.assertRaisesRegex(ValueError, 'nonnegative'):
+        assert (samples.next_points(0)) == ([])
+        assert (samples.grow(0)) == ([])
+        assert not (self.config.output_root.exists())
+        with pytest.raises(ValueError, match='nonnegative'):
             samples.next_points(-1)
-        with self.assertRaisesRegex(ValueError, 'positive'):
+        with pytest.raises(ValueError, match='positive'):
             samples.grow(0, jobs=0)
         selected = samples.next_points(3)
-        self.assertEqual(samples.grow(3, jobs=2), selected)
-        self.assertEqual(samples.points, selected)
+        assert (samples.grow(3, jobs=2)) == (selected)
+        assert (samples.points) == (selected)
         samples.run_anchor()
-        self.assertTrue(samples.run_anchor().hit)
-        self.assertEqual(samples.char, 0)
-        self.assertEqual(samples.anchor_basis(), samples.basis(5, 7))
-        self.assertIs(samples.anchor_proof(), samples.proof(5, 7))
+        assert (samples.run_anchor().hit)
+        assert (samples.char) == (0)
+        assert (samples.anchor_basis()) == (samples.basis(5, 7))
+        assert (samples.anchor_proof()) is (samples.proof(5, 7))
         samples.reanchor(selected[0])
-        self.assertEqual(samples.anchor, (*selected[0], 0))
-        with self.assertRaises(KeyError):
+        assert (samples.anchor) == ((*selected[0], 0))
+        with pytest.raises(KeyError):
             samples.reanchor((101, 103))
 
     def test_census_names_actual_proof_shapes(self):
@@ -146,127 +142,127 @@ class TestPortableSamples(DiscoveryFixture):
         samples.grow(2)
         skeleton = pipeline._skeleton(self.pres, self.target, samples)
         modal, off = samples.modal_shapes(skeleton)
-        self.assertEqual(off, [])
-        self.assertEqual(set(modal), set(skeleton.basis_keys))
-        self.assertEqual(samples.stable(skeleton), samples.points)
+        assert (off) == ([])
+        assert (set(modal)) == (set(skeleton.basis_keys))
+        assert (samples.stable(skeleton)) == (samples.points)
         varied = SampleSet(self.pres, self.target, (5, 7, 0), self.configuration('vary'), self.atoms)
         varied.run_anchor()
         varied.grow(7)
         skeleton = pipeline._skeleton(self.pres, self.target, varied)
         census = varied.shape_census(skeleton)
-        self.assertIsNone(census['per_point'][(3,2)][skeleton.basis_keys[0]])
+        assert (census['per_point'][(3,2)][skeleton.basis_keys[0]]) is None
         # Most truncated outputs omit the required key. None cannot become a
         # proof shape; the anchor's actual shape remains the comparison reference.
-        self.assertEqual(varied.modal_shapes(skeleton)[1], [])
-        self.assertEqual(varied.stable(skeleton), [(5,7),(5,2),(5,3)])
+        assert (varied.modal_shapes(skeleton)[1]) == ([])
+        assert (varied.stable(skeleton)) == ([(5,7),(5,2),(5,3)])
 
 
 
 class TestFreshDiscovery(DiscoveryFixture):
     def test_process_to_bound_artifacts_and_exact_recomposition(self):
         report = self.discover()
-        self.assertEqual(report['status'], 'verified')
-        self.assertTrue(report['verified'])
-        self.assertTrue(report['in_ideal'])
-        self.assertFalse(report['basis_complete'])
+        assert (report['status']) == ('verified')
+        assert (report['verified'])
+        assert (report['in_ideal'])
+        assert not (report['basis_complete'])
         output = Path(report['certificate']).parent
-        self.assertEqual(json.loads((self.config.output_root/'result.json').read_text())['status'], 'verified')
-        self.assertEqual(len(report['runs']), 7)
+        assert (json.loads((self.config.output_root/'result.json').read_text())['status']) == ('verified')
+        assert (len(report['runs'])) == (7)
         for run in report['runs']:
-            self.assertTrue(Path(run['store']).is_file())
-        self.assertEqual(len({run['store'] for run in report['runs']}), 1)
+            assert (Path(run['store']).is_file())
+        assert (len({run['store'] for run in report['runs']})) == (1)
         order = {'solver': 'degree-lex', 'reduction': pipeline.REDUCTION_ORDER}
         skeleton = load_artifact(output/'skeleton.json', self.pres, self.target,
                                  kind='skeleton', order=order)
         fitted = load_artifact(output/'lift.json', self.pres, self.target, kind='lift', order=order)
-        self.assertEqual(len(skeleton.steps), 1)
-        self.assertEqual(fitted.samples_used, 7)
+        assert (len(skeleton.steps)) == (1)
+        assert (fitted.samples_used) == (7)
         certificate = Cofactor.load(output/'certificate.txt', pres=self.pres)
-        self.assertEqual(certificate.terms[0][1], 'ZERO_2_1')
+        assert (certificate.terms[0][1]) == ('ZERO_2_1')
         recomposed = self.root/'recomposed.txt'
         with redirect_stdout(io.StringIO()):
             code = compose_command(['--n','2','--zero-from','2','--target','X_2',
                                     '--lift',str(output/'lift.json'), '--skeleton',str(output/'skeleton.json'),
                                     '--multipliers',str(output/'multipliers.json'),'--out',str(recomposed)])
-        self.assertEqual(code, 0)
-        self.assertEqual(Cofactor.load(recomposed, pres=self.pres).terms, certificate.terms)
-        self.assertEqual(self.discover()['status'], 'verified')  # Validated cache reuse.
+        assert (code) == (0)
+        assert (Cofactor.load(recomposed, pres=self.pres).terms) == (certificate.terms)
+        assert (self.discover()['status']) == ('verified')  # Validated cache reuse.
 
     def test_symbolic_multiplier_is_reconstructed_instead_of_using_the_anchor(self):
         atoms = AtomSet([Atom('q', {(1,0): 1})], [1])
         report = self.discover(config=self.configuration('scaled'), atoms=atoms,
                                start=9, step=10, maxpts=49)
-        self.assertTrue(report['verified'], report)
+        assert (report['verified']), (report)
         multipliers = json.loads(Path(report['artifacts']['multipliers.json']).read_text())
         # X2 = (1/q)*(q X2). Its coefficient is not the anchor constant 1/5.
-        self.assertEqual(multipliers['steps'][0]['num'], [[[0,0], '1']])
-        self.assertEqual(multipliers['steps'][0]['denom'], [1])
+        assert (multipliers['steps'][0]['num']) == ([[[0,0], '1']])
+        assert (multipliers['steps'][0]['denom']) == ([1])
 
     def test_high_order_coefficient_pole_uses_lines_and_composes_exactly(self):
         atoms = AtomSet([Atom('q', {(1,0): 1})], [6])
         report = self.discover(config=self.configuration('pole'), atoms=atoms,
                                start=100, maxpts=100)
-        self.assertTrue(report['verified'], report)
+        assert (report['verified']), (report)
         order = {'solver': 'degree-lex', 'reduction': pipeline.REDUCTION_ORDER}
         fitted = load_artifact(report['artifacts']['lift.json'], self.pres, self.target,
                                kind='lift', order=order)
         coefficient, = next(iter(fitted.entries.values()))
-        self.assertEqual(coefficient[0], (5,))
-        self.assertEqual(coefficient[1], {(0,0): Fraction(1)})
-        self.assertEqual(fitted.timing['routes'], {'known': 1, 'enum': 0})
+        assert (coefficient[0]) == ((5,))
+        assert (coefficient[1]) == ({(0,0): Fraction(1)})
+        assert (fitted.timing['routes']) == ({'known': 1, 'enum': 0})
         # The multiplier q^5 cancels the reconstructed basis coefficient 1/q^5.
         multipliers = json.loads(Path(report['artifacts']['multipliers.json']).read_text())
         numerator = {tuple(m): Fraction(c) for m, c in multipliers['steps'][0]['num']
                      if Fraction(c)}
-        self.assertEqual(numerator, {(5,0): Fraction(1)})
-        self.assertEqual(multipliers['steps'][0]['denom'], [0])
+        assert (numerator) == ({(5,0): Fraction(1)})
+        assert (multipliers['steps'][0]['denom']) == ([0])
 
     def test_truncated_output_cannot_establish_nonmembership(self):
         report = self.discover(config=self.configuration('omit'))
-        self.assertEqual(report['status'], 'inconclusive')
-        self.assertIsNone(report['in_ideal'])
-        self.assertGreater(report['remainder_terms'], 0)
-        self.assertFalse((self.config.output_root/'certificate.txt').exists())
+        assert (report['status']) == ('inconclusive')
+        assert (report['in_ideal']) is None
+        assert (report['remainder_terms']) > (0)
+        assert not ((self.config.output_root/'certificate.txt').exists())
 
     def test_failed_process_is_an_inconclusive_computation(self):
         report = self.discover(config=self.configuration('exit'))
-        self.assertEqual(report['execution_status'], 'failed')
-        self.assertFalse(report['verified'])
-        self.assertIn('code 9', report['reason'])
+        assert (report['execution_status']) == ('failed')
+        assert not (report['verified'])
+        assert ('code 9') in (report['reason'])
 
     def test_sampling_caps_grow_and_remain_inconclusive_without_enough_data(self):
         report = self.discover(start=3, step=2, maxpts=5)
-        self.assertEqual(report['points'], 5)
-        self.assertEqual(report['status'], 'inconclusive')
-        self.assertIn('held-out', report['reason'])
-        self.assertFalse((self.config.output_root/'certificate.json').exists())
+        assert (report['points']) == (5)
+        assert (report['status']) == ('inconclusive')
+        assert ('held-out') in (report['reason'])
+        assert not ((self.config.output_root/'certificate.json').exists())
 
     def test_degenerate_anchor_is_replaced_using_valid_equivalent_proof_shapes(self):
         report = self.discover(config=self.configuration('shape'), start=7, maxpts=11)
-        self.assertTrue(report['verified'], report)
-        self.assertEqual(report['anchor'], [3,2,0])
-        self.assertGreater(report['points'], 7)
+        assert (report['verified']), (report)
+        assert (report['anchor']) == ([3,2,0])
+        assert (report['points']) > (7)
 
     def test_false_symbolic_fit_at_the_cap_remains_inconclusive(self):
         atoms = AtomSet([Atom('q', {(1,0):1})],[1])
         report = self.discover(config=self.configuration('scaled'), atoms=atoms,
                                start=9, maxpts=11)
-        self.assertFalse(report['verified'])
-        self.assertIn('failed exact verification', report['reason'])
-        self.assertFalse((self.config.output_root/'certificate.txt').exists())
+        assert not (report['verified'])
+        assert ('failed exact verification') in (report['reason'])
+        assert not ((self.config.output_root/'certificate.txt').exists())
 
     def test_replacement_anchor_is_checked_against_its_new_proof_closure(self):
         result = self.discover(config=self.configuration('closure'), start=11, maxpts=11)
-        self.assertEqual(result['status'], 'inconclusive')
-        self.assertIn('new closure', result['reason'])
-        self.assertEqual(result['anchor'], [3,2,0])
-        self.assertFalse((self.config.output_root/'certificate.txt').exists())
+        assert (result['status']) == ('inconclusive')
+        assert ('new closure') in (result['reason'])
+        assert (result['anchor']) == ([3,2,0])
+        assert not ((self.config.output_root/'certificate.txt').exists())
 
     def test_changed_closure_can_grow_and_reanchor_without_dropping_slots(self):
         result = self.discover(config=self.configuration('closure'), start=11, step=5, maxpts=26)
-        self.assertTrue(result['verified'], result)
-        self.assertNotEqual(result['anchor'][:2], [3,2])
-        self.assertGreater(result['points'], 11)
+        assert (result['verified']), (result)
+        assert (result['anchor'][:2]) != ([3,2])
+        assert (result['points']) > (11)
 
     def test_interrupted_final_record_preserves_prior_verified_generation(self):
         from zipper_algebra.execution.artifacts import file_identity
@@ -281,13 +277,13 @@ class TestFreshDiscovery(DiscoveryFixture):
             return original_write(path,data)
         other = Presentation(2, 'square-zero', zero_from=2)
         with patch.object(pipeline,'write_json_atomic',side_effect=interrupted), \
-             self.assertRaisesRegex(OSError,'interrupted'):
+             pytest.raises(OSError, match='interrupted'):
             pipeline.run(other,self.target,(5,7,0),self.config,start=7,step=2,maxpts=9,
                          atoms=self.atoms,verbose=False)
-        self.assertEqual(marker.read_bytes(),prior_record)
+        assert (marker.read_bytes()) == (prior_record)
         for name,path in prior['artifacts'].items():
-            self.assertEqual(Path(path).read_bytes(),prior_files[name])
-            self.assertEqual(file_identity(Path(path)),prior['files'][name])
+            assert (Path(path).read_bytes()) == (prior_files[name])
+            assert (file_identity(Path(path))) == (prior['files'][name])
 
     def test_new_context_inconclusive_report_does_not_select_older_certificate(self):
         prior = self.discover()
@@ -295,10 +291,10 @@ class TestFreshDiscovery(DiscoveryFixture):
         other = Presentation(2,'square-zero',zero_from=2)
         result = pipeline.run(other,self.target,(5,7,0),self.configuration('omit'),
                               start=7,maxpts=9,atoms=self.atoms,verbose=False)
-        self.assertEqual(result['status'],'inconclusive')
-        self.assertNotIn('certificate',result)
-        self.assertNotEqual(result['presentation']['sha256'],prior['presentation']['sha256'])
-        self.assertEqual(Path(prior['certificate']).read_bytes(),old_bytes)
+        assert (result['status']) == ('inconclusive')
+        assert ('certificate') not in (result)
+        assert (result['presentation']['sha256']) != (prior['presentation']['sha256'])
+        assert (Path(prior['certificate']).read_bytes()) == (old_bytes)
 
     def test_old_verified_result_binds_immutable_solver_generations_after_refresh(self):
         from zipper_algebra.execution.store import read
@@ -306,15 +302,15 @@ class TestFreshDiscovery(DiscoveryFixture):
         configuration = self.configuration('logged')
         prior = self.discover(config=configuration)
         refreshed = self.discover(config=configuration, refresh=True)
-        self.assertEqual(prior['runs'][0]['key'], refreshed['runs'][0]['key'])
-        self.assertNotEqual(prior['runs'][0]['generation'],refreshed['runs'][0]['generation'])
+        assert (prior['runs'][0]['key']) == (refreshed['runs'][0]['key'])
+        assert (prior['runs'][0]['generation']) != (refreshed['runs'][0]['generation'])
         for run in prior['runs']:
             _, selected = read(run['store'], run['key'])
-            self.assertNotEqual(selected['generation'],run['generation'])
+            assert (selected['generation']) != (run['generation'])
             files, _ = read(run['store'], run['key'], generation=run['generation'])
             for name, identity in run['files'].items():
-                self.assertEqual({'bytes':len(files[name]), 'sha256':digest_bytes(files[name])},identity)
-            self.assertEqual(run['request'],selected['request'])
+                assert ({'bytes':len(files[name]), 'sha256':digest_bytes(files[name])}) == (identity)
+            assert (run['request']) == (selected['request'])
 
     def test_existing_verified_generation_is_checked_before_reuse(self):
         from zipper_algebra.execution.artifacts import ArtifactError
@@ -328,9 +324,9 @@ class TestFreshDiscovery(DiscoveryFixture):
         multipliers=load_multipliers(paths['multipliers.json'],skeleton,fitted.atoms,self.pres)
         repeated=pipeline._publish_verified(self.config.output_root,self.pres,self.target,skeleton,
                                            fitted,multipliers,certificate,order)
-        self.assertEqual(repeated['generation'],report['generation'])
+        assert (repeated['generation']) == (report['generation'])
         paths['certificate.txt'].write_text('corrupt')
-        with self.assertRaisesRegex(ArtifactError,'different content'):
+        with pytest.raises(ArtifactError, match='different content'):
             pipeline._publish_verified(self.config.output_root,self.pres,self.target,skeleton,
                                        fitted,multipliers,certificate,order)
 
@@ -339,22 +335,22 @@ class TestFreshDiscovery(DiscoveryFixture):
         # at the original anchor. At q=3, reducing X3 by this truncated output
         # leaves 2*INV_1_p; its absence from the supplied basis proves nothing.
         pres=Presentation(3,zero_from=3)
-        self.assertEqual(pres.labels()[11],'T_2')
+        assert (pres.labels()[11]) == ('T_2')
         report=pipeline.run(pres,'X_3',(5,7,0),self.configuration('reanchor-remainder'),
                             start=7,maxpts=9,atoms=self.atoms,verbose=False)
-        self.assertEqual(report['status'],'inconclusive')
-        self.assertIn('replacement anchor',report['reason'])
-        self.assertGreater(report['remainder_terms'],0)
-        self.assertIsNone(report['in_ideal'])
+        assert (report['status']) == ('inconclusive')
+        assert ('replacement anchor') in (report['reason'])
+        assert (report['remainder_terms']) > (0)
+        assert (report['in_ideal']) is None
 
-    def test_invalid_limits_and_anchor_fail_before_creating_outputs(self):
+    def test_invalid_limits_and_anchor_fail_before_creating_outputs(self, subtests):
         for arguments in ({'start':0}, {'step':0}, {'jobs':0}, {'maxpts':0}, {'start':10,'maxpts':9}):
-            with self.subTest(arguments=arguments), self.assertRaises(ValueError):
+            with subtests.test(arguments=arguments), pytest.raises(ValueError):
                 self.discover(**arguments)
         for anchor in ((1,2,5), (True,2,0), (1,2), [1,2,0]):
-            with self.subTest(anchor=anchor), self.assertRaises(ValueError):
+            with subtests.test(anchor=anchor), pytest.raises(ValueError):
                 pipeline.run(self.pres,self.target,anchor,self.config)
-        self.assertFalse(self.config.output_root.exists())
+        assert not (self.config.output_root.exists())
 
 
 class TestInstalledDiscoveryCommands(DiscoveryFixture):
@@ -375,18 +371,18 @@ class TestInstalledDiscoveryCommands(DiscoveryFixture):
     def test_emit_json_and_text_preserve_bare_presentation(self):
         path = self.root/'inputs'/'bare.ms'
         code, output, errors = self.invoke(['emit','--n','2','--out',str(path),'--json'])
-        self.assertEqual(code, 0, errors)
-        self.assertEqual(json.loads(output)['relations'], 3)
-        self.assertEqual(len(path.read_text().splitlines())-2, 3)
-        self.assertEqual(self.invoke(['emit','--n','2','--out',str(path)])[0], 0)
-        self.assertIn('Wrote', self.invoke(['emit','--n','2','--out',str(path)])[1])
+        assert (code) == (0), (errors)
+        assert (json.loads(output)['relations']) == (3)
+        assert (len(path.read_text().splitlines())-2) == (3)
+        assert (self.invoke(['emit','--n','2','--out',str(path)])[0]) == (0)
+        assert ('Wrote') in (self.invoke(['emit','--n','2','--out',str(path)])[1])
 
-    def test_failed_rerun_replaces_verified_selection_and_preserves_immutable_products(self):
+    def test_failed_rerun_replaces_verified_selection_and_preserves_immutable_products(self, subtests):
         script = self.root/'producer.py'
         atoms_path = self.root/'atoms.json'
         self.atoms.save(atoms_path)
         for failure in ('output-record', 'cache-record', 'bad-proof', 'exit'):
-            with self.subTest(failure=failure):
+            with subtests.test(failure=failure):
                 script.write_text(PRODUCER)
                 output, cache = self.root/failure/'output', self.root/failure/'cache'
                 for directory in (output, cache):
@@ -397,9 +393,9 @@ class TestInstalledDiscoveryCommands(DiscoveryFixture):
                              '--atoms', str(atoms_path), '--start', '7', '--step', '2',
                              '--max', '9', '--json']
                 code, text, errors = self.invoke_with_producer(arguments)
-                self.assertEqual(code, 0, errors or text)
+                assert (code) == (0), (errors or text)
                 prior = json.loads(text)
-                self.assertTrue(prior['verified'])
+                assert (prior['verified'])
                 prior_files = {Path(path): Path(path).read_bytes()
                                for path in prior['artifacts'].values()}
                 import sqlite3
@@ -425,25 +421,25 @@ class TestInstalledDiscoveryCommands(DiscoveryFixture):
                         "default='plain'", "default='"+failure+"'"))
                     arguments.append('--refresh')
                 code, text, errors = self.invoke_with_producer(arguments)
-                self.assertEqual(code, 3, errors or text)
+                assert (code) == (3), (errors or text)
                 result = json.loads(text)
-                self.assertEqual(result, json.loads((output/'result.json').read_text()))
-                self.assertEqual(result['status'], 'inconclusive')
-                self.assertEqual(result['execution_status'], 'failed')
-                self.assertFalse(result['verified'])
-                self.assertIsNone(result['in_ideal'])
-                self.assertFalse(result['basis_complete'])
+                assert (result) == (json.loads((output/'result.json').read_text()))
+                assert (result['status']) == ('inconclusive')
+                assert (result['execution_status']) == ('failed')
+                assert not (result['verified'])
+                assert (result['in_ideal']) is None
+                assert not (result['basis_complete'])
                 for field in ('certificate', 'artifacts', 'generation', 'files', 'exact'):
-                    self.assertNotIn(field, result)
+                    assert (field) not in (result)
                 expected = ('invalid stored sample' if failure.endswith('record') else
                             'input-ideal identity' if failure == 'bad-proof' else 'code 9')
-                self.assertIn(expected, result['reason'])
+                assert (expected) in (result['reason'])
                 for path, contents in prior_files.items():
-                    self.assertEqual(path.read_bytes(), contents)
+                    assert (path.read_bytes()) == (contents)
                 for database, contents in before_samples.items():
-                    self.assertEqual(raw_samples(database), contents)
+                    assert (raw_samples(database)) == (contents)
                 for directory in (output, cache):
-                    self.assertEqual((directory/'.gitignore').read_text(), 'existing output policy\n')
+                    assert ((directory/'.gitignore').read_text()) == ('existing output policy\n')
 
     def test_invalid_discovery_configuration_preserves_prior_selection(self):
         prior = self.discover()
@@ -456,12 +452,12 @@ class TestInstalledDiscoveryCommands(DiscoveryFixture):
                      '--output', str(self.config.output_root), '--atoms', str(atoms_path),
                      '--start', '10', '--max', '9', '--json']
         code, text, errors = self.invoke_with_producer(arguments)
-        self.assertEqual(code, 2, errors)
-        self.assertEqual(json.loads(text)['status'], 'invalid-input')
-        self.assertEqual(marker.read_bytes(), contents)
-        self.assertTrue(Path(prior['certificate']).is_file())
+        assert (code) == (2), (errors)
+        assert (json.loads(text)['status']) == ('invalid-input')
+        assert (marker.read_bytes()) == (contents)
+        assert (Path(prior['certificate']).is_file())
 
-    def test_discover_dispatches_explicit_configuration_and_exit_statuses(self):
+    def test_discover_dispatches_explicit_configuration_and_exit_statuses(self, subtests):
         args=['discover','--n','2','--zero-from','2','--target','X_2',
               '--solver',sys.executable,'--output',str(self.root/'discovery'),
               '--cache',str(self.root/'shared-cache'),'--anchor','3,7',
@@ -469,17 +465,17 @@ class TestInstalledDiscoveryCommands(DiscoveryFixture):
         atoms_path=self.root/'atoms.json'
         self.atoms.save(atoms_path)
         for verified in (True,False):
-            with self.subTest(verified=verified), patch.object(pipeline,'run',return_value={
+            with subtests.test(verified=verified), patch.object(pipeline,'run',return_value={
                     'verified':verified,'status':'verified' if verified else 'inconclusive'}) as producer:
                 code, output, errors=self.invoke(args+['--atoms',str(atoms_path)])
-                self.assertEqual(code,0 if verified else 3,errors)
-                self.assertEqual(json.loads(output)['verified'],verified)
-                self.assertEqual(producer.call_args.args[2],(3,7,0))
-                self.assertEqual(producer.call_args.kwargs['jobs'],2)
+                assert (code) == (0 if verified else 3), (errors)
+                assert (json.loads(output)['verified']) == (verified)
+                assert (producer.call_args.args[2]) == ((3,7,0))
+                assert (producer.call_args.kwargs['jobs']) == (2)
         with patch.object(pipeline,'run',return_value={'verified':True,'status':'verified'}):
-            self.assertEqual(self.invoke(args[:-1])[1].strip(),'verified')
+            assert (self.invoke(args[:-1])[1].strip()) == ('verified')
         for value in ('bad','1,2,3','x,2'):
-            with self.subTest(value=value),redirect_stderr(io.StringIO()),self.assertRaises(SystemExit):
+            with subtests.test(value=value),redirect_stderr(io.StringIO()),pytest.raises(SystemExit):
                 cli.main(args+['--anchor',value])
 
     def test_installed_compose_has_the_shared_exact_verification_entrypoint(self):
@@ -489,18 +485,21 @@ class TestInstalledDiscoveryCommands(DiscoveryFixture):
              '--target','X_2','--skeleton',str(output/'skeleton.json'),
              '--lift',str(output/'lift.json'),'--multipliers',str(output/'multipliers.json'),
              '--out',str(self.root/'installed.txt'),'--json'])
-        self.assertEqual(code,0,errors)
-        self.assertTrue(json.loads(text)['pass'])
-        self.assertTrue(report['verified'])
+        assert (code) == (0), (errors)
+        assert (json.loads(text)['pass'])
+        assert (report['verified'])
 
 class TestCompositionArtifactBoundaries(DiscoveryFixture):
     def test_default_sampling_factors_are_local_to_each_run(self):
         left = SampleSet(self.pres,self.target,(5,7,0),self.config)
         right = SampleSet(self.pres,self.target,(5,7,0),self.config)
-        self.assertIsNot(left.atoms, right.atoms)
+        assert (left.atoms) is not (right.atoms)
+        assert (left.atoms.names()) == ([])
+        assert (right.atoms.names()) == ([])
         old = right.atoms.to_json()
-        left.atoms.max_exp = tuple(0 for _ in left.atoms.max_exp)
-        self.assertEqual(right.atoms.to_json(), old)
+        left.atoms.atoms.append(Atom("q+5", {(1, 0): 1, (0, 0): 5}))
+        left.atoms.max_exp.append(2)
+        assert (right.atoms.to_json()) == (old)
 
     def test_bound_composition_requires_explicit_target_and_rejects_bad_documents(self):
         report=self.discover()
@@ -511,12 +510,12 @@ class TestCompositionArtifactBoundaries(DiscoveryFixture):
                    '--skeleton',str(output/'skeleton.json'),'--multipliers',str(output/'multipliers.json'),
                    '--out',str(destination),'--json']
         with redirect_stdout(io.StringIO()):
-            self.assertEqual(compose_command(arguments),2)
-        self.assertEqual(destination.read_text(),'prior valid result\n')
+            assert (compose_command(arguments)) == (2)
+        assert (destination.read_text()) == ('prior valid result\n')
         (output/'skeleton.json').write_text('[]')
         with redirect_stdout(io.StringIO()):
-            self.assertEqual(compose_command(arguments+['--target','X_2']),2)
-        self.assertEqual(destination.read_text(),'prior valid result\n')
+            assert (compose_command(arguments+['--target','X_2'])) == (2)
+        assert (destination.read_text()) == ('prior valid result\n')
 
     def test_legacy_inputs_still_reject_an_explicit_different_target(self):
         from zipper_algebra.cofactor.skeleton import Skeleton
@@ -530,8 +529,8 @@ class TestCompositionArtifactBoundaries(DiscoveryFixture):
             code=compose_command(['--n','3','--target','X_3','--skeleton',str(self.root/'skeleton.json'),
                  '--lift',str(self.root/'lift.json'),'--multipliers',str(self.root/'unused.json'),
                  '--out',str(self.root/'bad.txt'),'--json'])
-        self.assertEqual(code,2)
-        self.assertFalse((self.root/'bad.txt').exists())
+        assert (code) == (2)
+        assert not ((self.root/'bad.txt').exists())
 
 
 class TestConcurrentVerifiedPublication(DiscoveryFixture):
@@ -570,12 +569,12 @@ class TestConcurrentVerifiedPublication(DiscoveryFixture):
                 first = executor.submit(pipeline._publish_verified,self.root/'concurrent',*arguments)
                 second = executor.submit(pipeline._publish_verified,self.root/'concurrent',*arguments)
                 results = [first.result(timeout=15),second.result(timeout=15)]
-        self.assertEqual(len(rename_failures),1)
-        self.assertEqual(results[0]['generation'],results[1]['generation'])
+        assert (len(rename_failures)) == (1)
+        assert (results[0]['generation']) == (results[1]['generation'])
         for name,path in results[0]['artifacts'].items():
-            self.assertEqual(file_identity(Path(path)),results[0]['files'][name])
-        self.assertEqual((self.config.output_root/'result.json').read_bytes(),prior_record)
-        self.assertTrue(Path(prior['certificate']).is_file())
+            assert (file_identity(Path(path))) == (results[0]['files'][name])
+        assert ((self.config.output_root/'result.json').read_bytes()) == (prior_record)
+        assert (Path(prior['certificate']).is_file())
 
     def test_unrelated_rename_failure_is_propagated_without_a_winner(self):
         import os
@@ -588,13 +587,13 @@ class TestConcurrentVerifiedPublication(DiscoveryFixture):
             if Path(source).name == 'generation' and Path(destination).parent.name == 'verified':
                 raise error
             return replace(source,destination)
-        with patch.object(pipeline.os,'replace',side_effect=denied), self.assertRaises(PermissionError) as raised:
+        with patch.object(pipeline.os,'replace',side_effect=denied), pytest.raises(PermissionError) as raised:
             pipeline._publish_verified(self.root/'denied',*arguments)
-        self.assertIs(raised.exception,error)
-        self.assertEqual(marker.read_bytes(),prior_record)
-        self.assertTrue(Path(prior['certificate']).is_file())
+        assert (raised.value) is (error)
+        assert (marker.read_bytes()) == (prior_record)
+        assert (Path(prior['certificate']).is_file())
 
-    def test_corrupt_or_incomplete_concurrent_winner_cannot_hide_a_rename_error(self):
+    def test_corrupt_or_incomplete_concurrent_winner_cannot_hide_a_rename_error(self, subtests):
         import os
         prior, arguments = self.material()
         marker = self.config.output_root/'result.json'
@@ -612,9 +611,9 @@ class TestConcurrentVerifiedPublication(DiscoveryFixture):
                         product.unlink()
                     raise error
                 return replace(source,destination)
-            with self.subTest(mode=mode),patch.object(pipeline.os,'replace',side_effect=raced), \
-                 self.assertRaises(OSError) as raised:
+            with subtests.test(mode=mode),patch.object(pipeline.os,'replace',side_effect=raced), \
+                 pytest.raises(OSError) as raised:
                 pipeline._publish_verified(self.root/mode,*arguments)
-            self.assertIs(raised.exception,error)
-            self.assertEqual(marker.read_bytes(),prior_record)
-            self.assertTrue(Path(prior['certificate']).is_file())
+            assert (raised.value) is (error)
+            assert (marker.read_bytes()) == (prior_record)
+            assert (Path(prior['certificate']).is_file())

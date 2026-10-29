@@ -6,10 +6,9 @@ Its numeric and symbolic views use one relation builder. The content hash identi
 that ordered symbolic presentation, independently of parameter specialization.
 Computational order, solver configuration and completion evidence belong to run records.
 """
-from __future__ import annotations
-
 import hashlib
 from dataclasses import dataclass, field
+from typing import ClassVar
 
 from .coefficients import NumericRing, SymbolicRing
 from .polynomial import Poly
@@ -22,7 +21,7 @@ from .relations import RelTag, build_relations_ring
 # Each takes (S, ring, theta) and returns a Poly over the ring.
 # ---------------------------------------------------------------------------
 
-def _theta_word(i: int, j: int, ring, n: int) -> Poly:
+def _theta_word(i: int, j: int, ring) -> Poly:
     """Full twist on an i-strand block: thesis Theta_{i-1,j}, represented by the positive word."""
     def x(k):
         return Poly.generator_over(k, ring.one)
@@ -46,6 +45,8 @@ EXTRA_CATALOGUE = {
 
 @dataclass(frozen=True)
 class Presentation:
+    DEFAULT: ClassVar["Presentation"]
+
     n: int
     untwist: str = "bigelow"
     framing_power: int = 1
@@ -101,7 +102,7 @@ class Presentation:
         for name in self.extra:
             if name not in EXTRA_CATALOGUE:
                 raise KeyError(f"unknown extra relation {name!r}; known: {sorted(EXTRA_CATALOGUE)}")
-            theta = lambda i, j: _theta_word(i, j, ring, self.n)  # noqa: E731
+            theta = lambda i, j: _theta_word(i, j, ring)  # noqa: E731
             rels.append(EXTRA_CATALOGUE[name](S, ring, theta))
             tags.append(RelTag("EXTRA", name, None))
         return names, rels, S, tags

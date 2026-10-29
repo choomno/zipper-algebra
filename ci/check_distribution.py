@@ -83,7 +83,7 @@ def inspect(directory):
                        "experiments/survey/pointalg.py",
                        "experiments/research/theta_min_poly.py",
                        "experiments/variants/square_zero_regular_rep_qt.py",
-                       "ci/run_tests.py", "ci/build_x3_manifest.py"):
+                       "ci/build_x3_manifest.py"):
             assert needed in relative, needed
         root = next(iter(roots))
         def read(name):

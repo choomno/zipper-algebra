@@ -6,7 +6,7 @@ at sampled parameters is not a proof of a generic formula or its minimality.
 Solver output has no basis-completeness certificate in this experimental driver.
 The Krylov calculation concerns the supplied reduction model.
 """
-import argparse, os, subprocess, sys
+import argparse, os, subprocess
 from fractions import Fraction as Fr
 from zipper_algebra import core, Presentation
 from zipper_algebra.linear import validate_field_characteristic

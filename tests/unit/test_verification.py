@@ -6,7 +6,7 @@ from pathlib import Path
 import runpy
 import sys
 import tempfile
-import unittest
+import pytest
 from unittest.mock import patch
 import warnings
 
@@ -19,7 +19,11 @@ from zipper_algebra.cofactor import verify
 ONE = {(0, 0): Fraction(1)}
 
 
-class TestVerifierExactExamples(unittest.TestCase):
+class TestVerifierExactExamples:
+    @pytest.fixture(autouse=True)
+    def case_groups(self, subtests):
+        self.subtests = subtests
+
     def certificate(self, pres=None, terms=(), atoms=None, target="X_2"):
         pres = pres or Presentation(2)
         return Cofactor.from_presentation(pres, target, atoms or AtomSet([]), terms,
@@ -29,18 +33,18 @@ class TestVerifierExactExamples(unittest.TestCase):
         cof = self.certificate()
         cof.presentation_hash = ""
         for checker in (verify.check, verify.pit_check):
-            with self.subTest(checker=checker.__name__):
-                with self.assertRaisesRegex(ValueError, "explicit pres"):
+            with self.subtests.test(checker=checker.__name__):
+                with pytest.raises(ValueError, match='explicit pres'):
                     checker(cof, target={}, verbose=False)
-                self.assertTrue(checker(cof, Presentation(2), {}, verbose=False)["pass"])
+                assert checker(cof, Presentation(2), {}, verbose=False)['pass']
 
     def test_default_presentation_and_stored_target(self):
         pres = Presentation(3)
         # The target is the canonical lasso untwisting relation. Its reverse-word
         # representative differs in the free algebra by explicit inverse terms.
         cof = self.lasso_certificate(pres)
-        self.assertTrue(verify.check(cof, verbose=False)["pass"])
-        self.assertTrue(verify.pit_check(cof, verbose=False)["pass"])
+        assert verify.check(cof, verbose=False)['pass']
+        assert verify.pit_check(cof, verbose=False)['pass']
 
     @staticmethod
     def lasso_certificate(pres):
@@ -65,12 +69,12 @@ class TestVerifierExactExamples(unittest.TestCase):
         output = io.StringIO()
         with redirect_stdout(output):
             result = verify.check(cof, pres, target, verbose=True)
-        self.assertTrue(result["pass"])
-        self.assertEqual(result["tuples"], 101)
-        self.assertEqual(result["labels_used"], ["INV_1_p"])
-        self.assertEqual(result["residual_monomials"], 0)
-        self.assertIn("[acc]   100/101", output.getvalue())
-        self.assertIn("identity verified in the FREE algebra", output.getvalue())
+        assert result['pass']
+        assert result['tuples'] == 101
+        assert result['labels_used'] == ['INV_1_p']
+        assert result['residual_monomials'] == 0
+        assert '[acc]   100/101' in output.getvalue()
+        assert 'identity verified in the FREE algebra' in output.getvalue()
 
     def test_failure_diagnostics_include_scalar_and_nonempty_word(self):
         cof = self.certificate()
@@ -78,11 +82,11 @@ class TestVerifierExactExamples(unittest.TestCase):
         output = io.StringIO()
         with redirect_stdout(output):
             result = verify.check(cof, Presentation(2), target, verbose=True)
-        self.assertFalse(result["pass"])
-        self.assertEqual(result["residual_monomials"], 2)
-        self.assertIn("FAIL: residual has 2", output.getvalue())
-        self.assertIn("1: 1 q,t-terms", output.getvalue())
-        self.assertIn("x1: 1 q,t-terms", output.getvalue())
+        assert not result['pass']
+        assert result['residual_monomials'] == 2
+        assert 'FAIL: residual has 2' in output.getvalue()
+        assert '1: 1 q,t-terms' in output.getvalue()
+        assert 'x1: 1 q,t-terms' in output.getvalue()
 
     def test_fractional_identity_remains_defined_on_clearing_factor_zero_set(self):
         pres = Presentation(2, "none")
@@ -94,10 +98,10 @@ class TestVerifierExactExamples(unittest.TestCase):
         with redirect_stdout(output):
             exact = verify.check(cof, pres, target, verbose=True)
             grid = verify.pit_check(cof, pres, target, verbose=True)
-        self.assertTrue(exact["pass"])
-        self.assertTrue(grid["pass"])
-        self.assertEqual(grid["failures"], [])
-        self.assertIn("exact by interpolation", output.getvalue())
+        assert exact['pass']
+        assert grid['pass']
+        assert grid['failures'] == []
+        assert 'exact by interpolation' in output.getvalue()
 
     def test_grid_failure_report_is_bounded_but_covers_entire_grid(self):
         pres = Presentation(2, "none")
@@ -107,37 +111,34 @@ class TestVerifierExactExamples(unittest.TestCase):
         output = io.StringIO()
         with redirect_stdout(output):
             result = verify.pit_check(cof, pres, target, verbose=True)
-        self.assertFalse(result["pass"])
-        self.assertEqual(result["bidegree"], [11, 0])
-        self.assertEqual(result["grid"], [12, 1])
-        self.assertEqual(len(result["failures"]), 10)
-        self.assertEqual(result["failures"][0], (2, 2, 1))
-        self.assertEqual(result["failures"][-1], (11, 2, 1))
-        self.assertIn("FAIL at 12 point(s)", output.getvalue())
+        assert not result['pass']
+        assert result['bidegree'] == [11, 0]
+        assert result['grid'] == [12, 1]
+        assert len(result['failures']) == 10
+        assert result['failures'][0] == (2, 2, 1)
+        assert result['failures'][-1] == (11, 2, 1)
+        assert 'FAIL at 12 point(s)' in output.getvalue()
 
     def test_target_resolver_retains_word_order(self):
         result = symbolic_target(Presentation(2), "X_2")
-        self.assertEqual(result, {(2,): {(1, 0): Fraction(1)},
-                                  (): {(0, 0): Fraction(1), (1, 0): Fraction(-1)},
-                                  (1,): {(0, 0): Fraction(-1)}})
+        assert result == {(2,): {(1, 0): Fraction(1)}, (): {(0, 0): Fraction(1), (1, 0): Fraction(-1)}, (1,): {(0, 0): Fraction(-1)}}
 
     def test_atom_powers_and_grid_have_independent_expected_values(self):
         atoms = AtomSet([Atom("q-2", {(1, 0): 1, (0, 0): -2})])
         powers = verify._atom_powers(atoms, (3,))[0]
-        self.assertEqual(powers[0], ONE)
-        self.assertEqual(powers[3], {(3, 0): 1, (2, 0): -6,
-                                   (1, 0): 12, (0, 0): -8})
-        self.assertEqual(verify._grid_points(0), [])
-        self.assertEqual(verify._grid_points(4), [2, 3, 4, 5])
+        assert powers[0] == ONE
+        assert powers[3] == {(3, 0): 1, (2, 0): -6, (1, 0): 12, (0, 0): -8}
+        assert verify._grid_points(0) == []
+        assert verify._grid_points(4) == [2, 3, 4, 5]
 
     def invoke_legacy_cli(self, path, arguments):
         output = io.StringIO()
         with patch.object(sys, "argv", ["verify", str(path), *arguments]), \
              warnings.catch_warnings(), redirect_stdout(output), redirect_stderr(output):
             warnings.simplefilter("ignore", RuntimeWarning)
-            with self.assertRaises(SystemExit) as caught:
+            with pytest.raises(SystemExit) as caught:
                 runpy.run_module("zipper_algebra.cofactor.verify", run_name="__main__")
-        return caught.exception.code, output.getvalue()
+        return caught.value.code, output.getvalue()
 
     def test_module_entrypoint_verifies_free_algebra_lasso_certificate(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -145,27 +146,23 @@ class TestVerifierExactExamples(unittest.TestCase):
             cof = self.lasso_certificate(Presentation(4))
             cof.save(path)
             status, output = self.invoke_legacy_cli(path, ["--pit"])
-            self.assertEqual(status, 0)
-            self.assertIn("PASS: identity holds on the full grid", output)
+            assert status == 0
+            assert 'PASS: identity holds on the full grid' in output
             status, output = self.invoke_legacy_cli(path, ["--n", "4"])
-            self.assertEqual(status, 0)
-            self.assertIn("identity verified in the FREE algebra", output)
+            assert status == 0
+            assert 'identity verified in the FREE algebra' in output
 
     def test_module_entrypoint_false_identity_and_explicit_target(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "cofactor.txt"
             self.certificate(Presentation(2)).save(path)
             status, output = self.invoke_legacy_cli(path, ["--n", "2", "--pit", "--target", "X_2"])
-            self.assertEqual(status, 1)
-            self.assertIn("FAIL: residual", output)
+            assert status == 1
+            assert 'FAIL: residual' in output
 
     def test_module_entrypoint_requests_missing_target(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "cofactor.txt"
             self.certificate(Presentation(2), target="").save(path)
             status, _output = self.invoke_legacy_cli(path, ["--n", "2"])
-            self.assertIn("carries no target", status)
-
-
-if __name__ == "__main__":
-    unittest.main()
+            assert 'carries no target' in status

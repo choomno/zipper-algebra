@@ -9,7 +9,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
-import unittest
+import pytest
 from unittest.mock import patch
 
 from zipper_algebra import Presentation
@@ -20,7 +20,7 @@ from zipper_algebra.cofactor.lift import Lift
 from zipper_algebra.cofactor.skeleton import Skeleton
 
 
-class TestExplicitAugmentedPresentation(unittest.TestCase):
+class TestExplicitAugmentedPresentation:
     @staticmethod
     def invoke(arguments):
         output, errors = io.StringIO(), io.StringIO()
@@ -32,24 +32,24 @@ class TestExplicitAugmentedPresentation(unittest.TestCase):
     def test_default_emission_keeps_only_defining_relations(self):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "bare.ms"
-            self.assertEqual(self.invoke(["--n", "2", "--out", str(output)])[0], 0)
+            assert self.invoke(['--n', '2', '--out', str(output)])[0] == 0
             lines = output.read_text().splitlines()
-            self.assertEqual(lines[:2], ["x1,y1", "0"])
-            self.assertEqual(len(lines) - 2, 3)
-            self.assertEqual(lines[-1], "-x1*x1+5*x1*y1+3*x1-35*y1+28")
+            assert lines[:2] == ['x1,y1', '0']
+            assert len(lines) - 2 == 3
+            assert lines[-1] == '-x1*x1+5*x1*y1+3*x1-35*y1+28'
 
     def test_append_target_is_an_explicit_extra_defining_relation(self):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "augmented.ms"
             code, text, errors = self.invoke(
                 ["--n", "2", "--append-target", "2", "--out", str(output)])
-            self.assertEqual(code, 0)
-            self.assertEqual(errors, "")
+            assert code == 0
+            assert errors == ''
             lines = output.read_text().splitlines()
-            self.assertEqual(len(lines) - 2, 4)
-            self.assertEqual(lines[-1], "-x1+5*y1-4")
-            self.assertIn("Augmented presentation", text)
-            self.assertNotIn("look at line", text)
+            assert len(lines) - 2 == 4
+            assert lines[-1] == '-x1+5*y1-4'
+            assert 'Augmented presentation' in text
+            assert 'look at line' not in text
 
     def test_removed_target_flag_rejects_before_overwriting_output(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -58,27 +58,28 @@ class TestExplicitAugmentedPresentation(unittest.TestCase):
             errors = io.StringIO()
             with patch.object(sys, "argv", ["msolve", "--n", "3", "--target", "3",
                                             "--out", str(output)]):
-                with redirect_stderr(errors), self.assertRaises(SystemExit) as raised:
+                with redirect_stderr(errors), pytest.raises(SystemExit) as raised:
                     emitter.main()
-            self.assertEqual(raised.exception.code, 2)
-            self.assertIn("--append-target", errors.getvalue())
-            self.assertIn("does not prove membership", errors.getvalue())
-            self.assertEqual(output.read_text(), "keep the existing input\n")
+            assert raised.value.code == 2
+            assert '--append-target' in errors.getvalue()
+            assert 'does not prove membership' in errors.getvalue()
+            assert output.read_text() == 'keep the existing input\n'
 
     def test_module_help_describes_actual_relations_and_no_structural_claim(self):
         process = subprocess.run([sys.executable, "-m", "zipper_algebra.msolve", "--help"],
                                  capture_output=True, text=True, timeout=20)
-        self.assertEqual(process.returncode, 0, process.stderr)
-        self.assertIn("--append-target", process.stdout)
-        self.assertIn("Higher levels retain", process.stdout)
-        self.assertNotIn("INDUCES NON-SEMISIMPLICITY", process.stdout)
-        self.assertNotIn("strictly larger", process.stdout)
+        assert process.returncode == 0, process.stderr
+        assert '--append-target' in process.stdout
+        assert 'Higher levels retain' in process.stdout
+        assert 'INDUCES NON-SEMISIMPLICITY' not in process.stdout
+        assert 'strictly larger' not in process.stdout
 
 
-class TestSymbolicCompositionEntryPoint(unittest.TestCase):
-    def setUp(self):
+class TestSymbolicCompositionEntryPoint:
+    @pytest.fixture(autouse=True)
+    def resources(self, request):
         self.directory = tempfile.TemporaryDirectory()
-        self.addCleanup(self.directory.cleanup)
+        request.addfinalizer(self.directory.cleanup)
         self.root = Path(self.directory.name)
         self.pres = Presentation(2, zero_from=2)
         self.atoms = AtomSet([Atom("q", {(1, 0): 1})], [1])
@@ -116,39 +117,37 @@ class TestSymbolicCompositionEntryPoint(unittest.TestCase):
 
     def test_versioned_multiplier_data_binds_full_presentation_and_occurrences(self):
         data = json.loads(self.multiplier_path.read_text())
-        self.assertEqual(data["schema"], "zipper-cofactor-multipliers-v1")
-        self.assertEqual(data["presentation_sha256"],
-                         hashlib.sha256(self.pres.canonical_text().encode()).hexdigest())
-        self.assertEqual(len(data["presentation_sha256"]), 64)
-        self.assertEqual(composition.load_multipliers(self.multiplier_path, self.skeleton,
-                                                       self.atoms, self.pres), self.correct)
+        assert data['schema'] == 'zipper-cofactor-multipliers-v1'
+        assert data['presentation_sha256'] == hashlib.sha256(self.pres.canonical_text().encode()).hexdigest()
+        assert len(data['presentation_sha256']) == 64
+        assert composition.load_multipliers(self.multiplier_path, self.skeleton, self.atoms, self.pres) == self.correct
 
     def test_nonconstant_symbolic_multiplier_is_exactly_verified_before_output(self):
         code, output, errors = self.invoke()
-        self.assertEqual(code, 0, (output, errors))
-        self.assertEqual(errors, "")
-        self.assertEqual(json.loads(output)["status"], "verified")
-        self.assertTrue(json.loads(output)["exact"]["pass"])
-        self.assertIn("ZERO_2_1", self.output.read_text())
-        self.assertFalse(list(self.root.glob("*.tmp")))
+        assert code == 0, (output, errors)
+        assert errors == ''
+        assert json.loads(output)['status'] == 'verified'
+        assert json.loads(output)['exact']['pass']
+        assert 'ZERO_2_1' in self.output.read_text()
+        assert not list(self.root.glob('*.tmp'))
 
     def test_valid_text_mode_reports_exact_success(self):
         code, output, errors = self.invoke(machine=False)
-        self.assertEqual(code, 0, errors)
-        self.assertIn("Verified exact identity", output)
-        self.assertTrue(self.output.exists())
+        assert code == 0, errors
+        assert 'Verified exact identity' in output
+        assert self.output.exists()
 
     def test_anchor_constant_is_rejected_and_preserves_existing_output(self):
         self.write_multipliers([({(0, 0): F(5)}, (0,))])
         self.output.write_text("previous verified certificate\n")
         code, output, errors = self.invoke()
-        self.assertEqual(code, 1, errors)
-        self.assertEqual(json.loads(output)["status"], "false-identity")
-        self.assertEqual(self.output.read_text(), "previous verified certificate\n")
+        assert code == 1, errors
+        assert json.loads(output)['status'] == 'false-identity'
+        assert self.output.read_text() == 'previous verified certificate\n'
         code, output, errors = self.invoke(machine=False)
-        self.assertEqual(code, 1, errors)
-        self.assertIn("Exact identity verification failed", output)
-        self.assertEqual(self.output.read_text(), "previous verified certificate\n")
+        assert code == 1, errors
+        assert 'Exact identity verification failed' in output
+        assert self.output.read_text() == 'previous verified certificate\n'
 
     def test_matching_all_numeric_check_points_still_does_not_certify_identity(self):
         # P vanishes at every q used by numeric_check; q+P is nevertheless not q.
@@ -164,14 +163,14 @@ class TestSymbolicCompositionEntryPoint(unittest.TestCase):
         multiplier = [(numerator, (0,))]
         candidate = composition.compose(self.lift, self.skeleton, self.pres,
                                           multipliers=multiplier, verbose=False)
-        self.assertTrue(composition.numeric_check(candidate, self.pres, verbose=False))
+        assert composition.numeric_check(candidate, self.pres, verbose=False)
         self.write_multipliers(multiplier)
         code, output, errors = self.invoke()
-        self.assertEqual(code, 1, errors)
-        self.assertFalse(json.loads(output)["exact"]["pass"])
-        self.assertFalse(self.output.exists())
+        assert code == 1, errors
+        assert not json.loads(output)['exact']['pass']
+        assert not self.output.exists()
 
-    def test_schema_presentation_target_atoms_and_context_mismatches_are_rejected(self):
+    def test_schema_presentation_target_atoms_and_context_mismatches_are_rejected(self, subtests):
         good = json.loads(self.multiplier_path.read_text())
         cases = [[], {**good, "schema": "future-schema"},
                  {**good, "presentation_sha256": "0" * 64},
@@ -182,14 +181,14 @@ class TestSymbolicCompositionEntryPoint(unittest.TestCase):
                        {**good["steps"][0], "right": [2]}):
             cases.append({**good, "steps": [change]})
         for data in cases:
-            with self.subTest(data=data):
+            with subtests.test(data=data):
                 self.multiplier_path.write_text(json.dumps(data))
                 code, output, errors = self.invoke()
-                self.assertEqual(code, 2, (output, errors))
-                self.assertEqual(json.loads(output)["status"], "invalid-input")
-                self.assertFalse(self.output.exists())
+                assert code == 2, (output, errors)
+                assert json.loads(output)['status'] == 'invalid-input'
+                assert not self.output.exists()
 
-    def test_numeric_atom_metadata_cannot_be_replaced_by_equal_boolean_or_float(self):
+    def test_numeric_atom_metadata_cannot_be_replaced_by_equal_boolean_or_float(self, subtests):
         good = json.loads(self.multiplier_path.read_text())
         # Every original numeric entry is an integer, including the atom's powers,
         # coefficient and search bound. Python equality alone conflates these types.
@@ -202,12 +201,12 @@ class TestSymbolicCompositionEntryPoint(unittest.TestCase):
                     index = 0 if location == "power" else 2
                     data["atoms"]["atoms"][0]["coefs"][0][index] = replacement
                 self.multiplier_path.write_text(json.dumps(data))
-                with self.subTest(replacement=replacement, location=location):
-                    with self.assertRaisesRegex(ValueError, "denominator atoms"):
+                with subtests.test(replacement=replacement, location=location):
+                    with pytest.raises(ValueError, match='denominator atoms'):
                         composition.load_multipliers(self.multiplier_path, self.skeleton,
                                                      self.atoms, self.pres)
 
-    def test_context_metadata_cannot_use_boolean_or_float_generator_indices(self):
+    def test_context_metadata_cannot_use_boolean_or_float_generator_indices(self, subtests):
         for side in ("left", "right"):
             self.skeleton.steps[0][side] = (1,)
             good = composition.multipliers_to_json(self.correct, self.skeleton,
@@ -216,23 +215,23 @@ class TestSymbolicCompositionEntryPoint(unittest.TestCase):
                 data = deepcopy(good)
                 data["steps"][0][side] = [replacement]
                 self.multiplier_path.write_text(json.dumps(data))
-                with self.subTest(side=side, replacement=replacement):
-                    with self.assertRaisesRegex(ValueError, "occurrence"):
+                with subtests.test(side=side, replacement=replacement):
+                    with pytest.raises(ValueError, match='occurrence'):
                         composition.load_multipliers(self.multiplier_path, self.skeleton,
                                                      self.atoms, self.pres)
             self.skeleton.steps[0][side] = ()
 
-    def test_export_rejects_noninteger_context_indices(self):
+    def test_export_rejects_noninteger_context_indices(self, subtests):
         for side in ("left", "right"):
             for replacement in (True, 1.0):
                 self.skeleton.steps[0][side] = (replacement,)
-                with self.subTest(side=side, replacement=replacement):
-                    with self.assertRaisesRegex(ValueError, "word"):
+                with subtests.test(side=side, replacement=replacement):
+                    with pytest.raises(ValueError, match='word'):
                         composition.multipliers_to_json(self.correct, self.skeleton,
                                                          self.atoms, self.pres)
             self.skeleton.steps[0][side] = ()
 
-    def test_malformed_exact_coefficients_and_denominators_are_rejected(self):
+    def test_malformed_exact_coefficients_and_denominators_are_rejected(self, subtests):
         good = json.loads(self.multiplier_path.read_text())
         cases = [[[[1, 0], 1]], [[[1, 0], "1"], [[1, 0], "2"]],
                  [[[-1, 0], "1"]], [[[1, 0], "1/0"]], [[[1, 0], "broken"]]]
@@ -240,61 +239,60 @@ class TestSymbolicCompositionEntryPoint(unittest.TestCase):
             data = deepcopy(good)
             data["steps"][0]["num"] = numerator
             self.multiplier_path.write_text(json.dumps(data))
-            with self.subTest(numerator=numerator):
-                self.assertEqual(self.invoke()[0], 2)
+            with subtests.test(numerator=numerator):
+                assert self.invoke()[0] == 2
         for den in ([], [-1], [True]):
             data = deepcopy(good)
             data["steps"][0]["denom"] = den
             self.multiplier_path.write_text(json.dumps(data))
-            with self.subTest(den=den):
-                self.assertEqual(self.invoke()[0], 2)
+            with subtests.test(den=den):
+                assert self.invoke()[0] == 2
         self.multiplier_path.write_text('{"schema":')
         code, output, errors = self.invoke(machine=False)
-        self.assertEqual(code, 2)
-        self.assertEqual(output, "")
-        self.assertIn("compose:", errors)
-        self.assertFalse(self.output.exists())
+        assert code == 2
+        assert output == ''
+        assert 'compose:' in errors
+        assert not self.output.exists()
 
-    def test_export_rejects_invalid_or_missing_symbolic_multiplier_values(self):
+    def test_export_rejects_invalid_or_missing_symbolic_multiplier_values(self, subtests):
         for values in ([], self.correct * 2,
                        [({(1, 0): 1.5}, (0,))], [({(1, 0): F(1)}, (-1,))]):
-            with self.subTest(values=values), self.assertRaises((TypeError, ValueError)):
+            with subtests.test(values=values), pytest.raises((TypeError, ValueError)):
                 composition.multipliers_to_json(values, self.skeleton, self.atoms, self.pres)
 
     def test_explicit_empty_multiplier_is_zero_not_a_missing_function(self):
         data = self.write_multipliers([({}, (0,))])
-        self.assertEqual(data["steps"][0]["num"], [])
-        self.assertEqual(composition.load_multipliers(self.multiplier_path, self.skeleton,
-                                                       self.atoms, self.pres), [({}, (0,))])
-        self.assertEqual(self.invoke()[0], 1)
-        self.assertFalse(self.output.exists())
+        assert data['steps'][0]['num'] == []
+        assert composition.load_multipliers(self.multiplier_path, self.skeleton, self.atoms, self.pres) == [({}, (0,))]
+        assert self.invoke()[0] == 1
+        assert not self.output.exists()
 
     def test_atomic_output_failure_cleans_temporary_files_and_keeps_directory(self):
         self.output.mkdir()
         marker = self.output / "keep.txt"
         marker.write_text("keep")
         code, output, errors = self.invoke()
-        self.assertEqual(code, 2, errors)
-        self.assertEqual(marker.read_text(), "keep")
-        self.assertFalse(list(self.root.glob("*.tmp")))
+        assert code == 2, errors
+        assert marker.read_text() == 'keep'
+        assert not list(self.root.glob('*.tmp'))
         self.output = self.root / "missing-parent" / "certificate.txt"
-        self.assertEqual(self.invoke()[0], 2)
-        self.assertFalse(self.output.exists())
+        assert self.invoke()[0] == 2
+        assert not self.output.exists()
 
     def test_cli_requires_explicit_multiplier_file_before_loading_other_inputs(self):
         arguments = self.arguments()
         at = arguments.index("--multipliers")
         del arguments[at:at+2]
         errors = io.StringIO()
-        with redirect_stderr(errors), self.assertRaises(SystemExit) as raised:
+        with redirect_stderr(errors), pytest.raises(SystemExit) as raised:
             composition.main(arguments)
-        self.assertEqual(raised.exception.code, 2)
-        self.assertIn("--multipliers", errors.getvalue())
-        self.assertFalse(self.output.exists())
+        assert raised.value.code == 2
+        assert '--multipliers' in errors.getvalue()
+        assert not self.output.exists()
 
     def test_module_entrypoint_uses_the_same_exact_check(self):
         result = subprocess.run([sys.executable, "-m", "zipper_algebra.cofactor.compose",
                                  *self.arguments()], capture_output=True, text=True, timeout=20)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertTrue(json.loads(result.stdout)["pass"])
-        self.assertTrue(self.output.exists())
+        assert result.returncode == 0, result.stderr
+        assert json.loads(result.stdout)['pass']
+        assert self.output.exists()

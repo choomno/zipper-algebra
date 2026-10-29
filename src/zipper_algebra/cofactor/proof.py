@@ -33,7 +33,7 @@ import re
 from fractions import Fraction
 from io import StringIO
 
-from ..coefficients import Coef
+from ..coefficients import Coef, QTCoef
 from ..polynomial import Poly
 
 
@@ -49,7 +49,7 @@ def mon_sort_key(mon: Word) -> tuple:
     return (len(mon),) + tuple(mon)
 
 
-def leading_term(p: Poly, order=mon_sort_key) -> tuple[Word, Coef]:
+def leading_term(p: Poly, order=mon_sort_key) -> tuple[Word, Coef | QTCoef]:
     if not p.terms:
         raise ValueError("leading_term of the zero polynomial")
     lm = max(p.terms.keys(), key=order)

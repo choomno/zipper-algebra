@@ -327,6 +327,18 @@ result. The reduced denominator must be nonzero at every supplied point, and the
 candidate must match every fitting and held-out value. This prevents a spurious
 cross-multiplied equation $0=0$ from concealing an incorrect sample at a pole.
 
+By default the factor family is proposed from fitting data, starting without
+predeclared denominator factors. Exact univariate factorization and lifting
+across parameter lines are tried before bounded polynomial enumeration.
+The current line-lifting budget allows degree at most four in the other
+parameter. Varying-factor lifting uses at least five distinct parallel coordinates
+and reserves two for validation, subject to the requested larger minimum.
+Repeated univariate factors also require at least five distinct parallel
+coordinates. These are inference heuristics.
+The search has explicit finite budgets and can leave unresolved line factors;
+it does not certify that every generic pole has been found. An explicitly
+supplied ordered factor family remains a user-selected search constraint.
+
 Held-out locations are reserved before fitting and denominator inference. Their
 coefficients do not participate in inference of the factor family. A passing
 held-out check is additional evidence, not a rational-function identity proof.
@@ -341,9 +353,8 @@ chosen degree or factor bounds do not show that more data cannot help. The
 experimental driver retries within its sampling cap and reports an inconclusive
 outcome when it lacks an exact certificate. In particular, reducing to a nonzero
 remainder against an uncertified basis establishes no nonmembership conclusion,
-even at that specialization. The historical exception name
-\texttt{WrongClass} is retained as a subtype of \texttt{NeedMoreSamples}; it is
-an inconclusive diagnostic. Candidate reconstruction is characteristic zero.
+even at that specialization. The exception \texttt{NeedMoreSamples} reports an
+inconclusive reconstruction. Candidate reconstruction is characteristic zero.
 
 \section{Research results and computational evidence}
 The linear untwisting case connects the family above to the BMW quotient.

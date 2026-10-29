@@ -22,8 +22,9 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from fractions import Fraction
+from typing import cast
 
-from ..coefficients import Coef
+from ..coefficients import Coef, QTCoef
 from ..polynomial import Poly
 from .proof import Basis, Proof, Word, Expanded, leading_term, mon_sort_key
 
@@ -47,6 +48,13 @@ def find_substring(mu: Word, lam: Word) -> tuple[Word, Word] | None:
         if mu[i:i + m] == lam:
             return mu[:i], mu[i + m:]
     return None
+
+
+def _numeric_value(coefficient: Coef | QTCoef) -> int | Fraction:
+    """Extract a scalar for reduction at a numeric parameter point."""
+    if not isinstance(coefficient, Coef):
+        raise TypeError("numeric reduction requires rational or residue-ring coefficients")
+    return coefficient.v
 
 
 def reduce(target: Poly, basis: Basis, order=mon_sort_key) -> tuple[list[Step], Poly]:
@@ -78,10 +86,12 @@ def reduce(target: Poly, basis: Basis, order=mon_sort_key) -> tuple[list[Step], 
             if split is None:
                 continue
             u, v = split
+            numerator = _numeric_value(lc_p)
+            denominator = _numeric_value(lc_g)
             if char == 0:
-                mult = Coef(Fraction(lc_p.v) / Fraction(lc_g.v), char)
+                mult = Coef(Fraction(numerator) / Fraction(denominator), char)
             else:
-                mult = Coef(int(lc_p.v) * pow(int(lc_g.v), -1, char), char)
+                mult = Coef(int(numerator) * pow(int(denominator), -1, char), char)
             for mg, cg in basis.polys[k].terms.items():
                 p.add_term(u + mg + v, -(mult * cg))
             steps.append((u, k, v, mult))
@@ -168,7 +178,7 @@ class Skeleton:
                        "mult": Fraction(mult.v)} for (u, k, v, mult) in steps]
         needed = closure((k for _u, k, _v, _m in steps), proof)
         keys = [basis.key[k] for k in sorted(needed)]     # anchor index order
-        return cls(pres.slug(), pres.content_hash(), target, tuple(anchor), step_dicts,
+        return cls(pres.slug(), pres.content_hash(), target, cast(Anchor, tuple(anchor)), step_dicts,
                    keys, len(remainder.terms))
 
     @property

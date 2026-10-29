@@ -22,8 +22,6 @@ that evidence. State the corresponding evidence when interpreting these observat
 from __future__ import annotations
 
 import argparse
-import os
-import sys
 from fractions import Fraction
 
 
@@ -61,11 +59,6 @@ def build_commutator_matrix_Q(
     return rows
 
 
-def rank_Q(rows: list[list[Fraction]], ncols: int) -> int:
-    """Exact rational rank of supplied rows; ncols records the ambient dimension."""
-    return matrix_rank(rows)
-
-
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("basis", help="char-0 .basis file from f4ncgb")
@@ -99,7 +92,7 @@ def main() -> int:
     print(f"[commutators] {len(rows)} non-zero commutator rows", flush=True)
 
     print("[rank] Gaussian elimination over Q...", flush=True)
-    dim_comm = rank_Q(rows, N)
+    dim_comm = matrix_rank(rows)
     dim_trace = N - dim_comm
 
     print()
@@ -107,10 +100,10 @@ def main() -> int:
     print(f"[result] dim [A, A]    = {dim_comm}")
     print(f"[result] dim A/[A,A]   = {dim_trace}")
     print()
-    print(f"[interpretation] The space of trace functionals τ: A → Q has")
+    print("[interpretation] The space of trace functionals τ: A → Q has")
     print(f"                 dimension {dim_trace}. For a semisimple algebra")
-    print(f"                 over an algebraically closed field this equals")
-    print(f"                 the number of irreducible summands.")
+    print("                 over an algebraically closed field this equals")
+    print("                 the number of irreducible summands.")
     return 0
 
 

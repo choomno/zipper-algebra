@@ -65,3 +65,12 @@ htmlcov/
 *.provenance.json
 grobner_zipper_*.gap
 /reconstruction_theory.pdf
+
+# Local pytest state
+.pytest_cache/
+
+# Local lint cache
+.ruff_cache/
+
+# Local type-checker cache
+.mypy_cache/

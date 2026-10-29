@@ -6,9 +6,8 @@ import hashlib
 import io
 import json
 from pathlib import Path
-import tempfile
 from types import SimpleNamespace
-import unittest
+import pytest
 from unittest.mock import patch
 
 from zipper_algebra import Presentation
@@ -19,11 +18,10 @@ from zipper_algebra.cofactor.lift import Lift
 from zipper_algebra.cofactor.skeleton import Skeleton
 
 
-class TestInputSnapshots(unittest.TestCase):
-    def setUp(self):
-        temporary = tempfile.TemporaryDirectory(prefix="zipper-input-snapshots-")
-        self.addCleanup(temporary.cleanup)
-        self.root = Path(temporary.name)
+class TestInputSnapshots:
+    @pytest.fixture(autouse=True)
+    def _setup(self, tmp_path):
+        self.root = tmp_path
         self.pres = Presentation(2, zero_from=2)
         self.atoms = AtomSet([Atom("q", {(1, 0): 1})], [1])
         self.cofactor = Cofactor.from_presentation(
@@ -31,7 +29,7 @@ class TestInputSnapshots(unittest.TestCase):
             [((), "ZERO_2_1", (), {(0, 0): Fraction(1)}, (0,))],
             producer="snapshot-reader-test", notes=["line\vseparator"])
 
-    def test_text_decoder_matches_file_readers_across_current_and_legacy_formats(self):
+    def test_text_decoder_matches_file_readers_across_current_and_legacy_formats(self, subtests):
         path = self.root / "certificate.txt"
         self.cofactor.save(path, provenance=False)
         texts = [path.read_text(),
@@ -45,10 +43,10 @@ class TestInputSnapshots(unittest.TestCase):
                 with patch("builtins.open", side_effect=AssertionError("text decoder reopened a file")):
                     from_text = Cofactor.from_text(raw, pres=self.pres, atoms=self.atoms,
                                                   target="X_2", name=str(path))
-                with self.subTest(format=text[:35], newline=repr(newline)):
-                    self.assertEqual(from_text.terms, from_file.terms)
-                    self.assertEqual(from_text.header, from_file.header)
-        with self.assertRaisesRegex(ValueError, "<memory> has no presentation"):
+                with subtests.test(format=text[:35], newline=repr(newline)):
+                    assert (from_text.terms) == (from_file.terms)
+                    assert (from_text.header) == (from_file.header)
+        with pytest.raises(ValueError, match="<memory> has no presentation"):
             Cofactor.from_text(texts[1])
 
     def test_bound_json_decoder_checks_current_schema_without_reopening(self):
@@ -60,18 +58,18 @@ class TestInputSnapshots(unittest.TestCase):
         with patch.object(Path, "read_bytes", side_effect=AssertionError("decoder reopened its source")):
             decoded = artifacts.artifact_from_json(document, self.pres, "X_2",
                                                    kind="cofactor", atoms=self.atoms)
-        self.assertEqual(decoded.terms, loaded.terms)
-        self.assertEqual(decoded.header, loaded.header)
+        assert (decoded.terms) == (loaded.terms)
+        assert (decoded.header) == (loaded.header)
         retired = deepcopy(document)
         retired["schema"] = "zipper-mathematical-artifact-v1"
         del retired["provenance"]
         path.write_text(json.dumps(retired))
-        with self.assertRaisesRegex(ValueError, "schema"):
+        with pytest.raises(ValueError, match="schema"):
             artifacts.load_artifact(path, self.pres, "X_2")
-        with self.assertRaisesRegex(ValueError, "schema"):
+        with pytest.raises(ValueError, match="schema"):
             artifacts.artifact_from_json(retired, self.pres, "X_2")
         document["payload"]["terms"][0]["num"] = [[[0, 0], "2"]]
-        with self.assertRaisesRegex(ValueError, "digest"):
+        with pytest.raises(ValueError, match="digest"):
             artifacts.artifact_from_json(document, self.pres, "X_2")
 
     def composition_inputs(self, bound):
@@ -97,11 +95,11 @@ class TestInputSnapshots(unittest.TestCase):
     def test_multiplier_decoder_consumes_its_snapshot(self):
         paths, skeleton, expected = self.composition_inputs(bound=False)
         document = json.loads(paths[2].read_bytes())
-        self.assertEqual(compose.load_multipliers(paths[2], skeleton, self.atoms, self.pres), expected)
+        assert (compose.load_multipliers(paths[2], skeleton, self.atoms, self.pres)) == (expected)
         paths[2].write_text("changed after the snapshot")
-        self.assertEqual(compose.multipliers_from_json(document, skeleton, self.atoms, self.pres), expected)
+        assert (compose.multipliers_from_json(document, skeleton, self.atoms, self.pres)) == (expected)
         document["target"] = "different"
-        with self.assertRaisesRegex(ValueError, "different presentation or target"):
+        with pytest.raises(ValueError, match="different presentation or target"):
             compose.multipliers_from_json(document, skeleton, self.atoms, self.pres)
 
     def test_direct_composition_reader_reads_each_artifact_once(self):
@@ -118,11 +116,11 @@ class TestInputSnapshots(unittest.TestCase):
                                     target="X_2", solver_order="degree-lex")
         with patch.object(Path, "read_bytes", count_read):
             fitted, decoded = compose._composition_inputs(arguments, self.pres)
-        self.assertEqual(reads, dict.fromkeys(paths[:2], 1))
-        self.assertEqual(decoded, skeleton)
-        self.assertEqual(set(fitted.entries), {"g"})
+        assert (reads) == (dict.fromkeys(paths[:2], 1))
+        assert (decoded) == (skeleton)
+        assert (set(fitted.entries)) == ({"g"})
 
-    def test_composition_hashes_and_decodes_the_same_bytes_after_source_files_change(self):
+    def test_composition_hashes_and_decodes_the_same_bytes_after_source_files_change(self, subtests):
         for bound in (False, True):
             paths, _, _ = self.composition_inputs(bound)
             snapshots = {path: path.read_bytes() for path in paths}
@@ -142,20 +140,19 @@ class TestInputSnapshots(unittest.TestCase):
                          "--multipliers", str(paths[2]), "--out", str(output)]
             stream = io.StringIO()
             with patch.object(Path, "read_bytes", change_after_read), redirect_stdout(stream):
-                self.assertEqual(compose.main(arguments), 0, stream.getvalue())
+                assert (compose.main(arguments)) == (0), (stream.getvalue())
             result = json.loads(stream.getvalue())
             sidecar = json.loads(output.with_name(output.name + ".provenance.json").read_text())
             expected = [{"name": path.name, "bytes": len(snapshots[path]),
                          "sha256": hashlib.sha256(snapshots[path]).hexdigest()} for path in paths]
-            with self.subTest(bound=bound):
-                self.assertEqual(reads, dict.fromkeys(paths, 1))
-                self.assertEqual(result["inputs"], expected)
-                self.assertEqual(sidecar["inputs"], expected)
-                self.assertTrue(result["pass"])
-                self.assertEqual(Cofactor.load(output, pres=self.pres).terms,
-                                 [((), "ZERO_2_1", (), {(1, 0): Fraction(1)}, (1,))])
-                self.assertFalse(list(self.root.glob(".*.provenance.json")))
-                self.assertFalse(list(self.root.glob("*.tmp*")))
+            with subtests.test(bound=bound):
+                assert (reads) == (dict.fromkeys(paths, 1))
+                assert (result["inputs"]) == (expected)
+                assert (sidecar["inputs"]) == (expected)
+                assert (result["pass"])
+                assert (Cofactor.load(output, pres=self.pres).terms) == ([((), "ZERO_2_1", (), {(1, 0): Fraction(1)}, (1,))])
+                assert not (list(self.root.glob(".*.provenance.json")))
+                assert not (list(self.root.glob("*.tmp*")))
 
     def test_snapshot_composition_rejects_a_wellformed_different_target(self):
         pres = Presentation(3)
@@ -170,6 +167,6 @@ class TestInputSnapshots(unittest.TestCase):
                      "--lift", str(paths[1]), "--multipliers", str(paths[2]), "--out", str(output)]
         stream = io.StringIO()
         with redirect_stdout(stream):
-            self.assertEqual(compose.main(arguments), 2)
-        self.assertIn("requested target differs", json.loads(stream.getvalue())["error"])
-        self.assertFalse(output.exists())
+            assert (compose.main(arguments)) == (2)
+        assert ("requested target differs") in (json.loads(stream.getvalue())["error"])
+        assert not (output.exists())

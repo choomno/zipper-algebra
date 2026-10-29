@@ -5,7 +5,7 @@ with --aggregate. An invocation recomputes the requested observations.
 """
 from __future__ import annotations
 import argparse, glob, json, os
-from .spec import Spec, UNTWIST
+from .spec import Spec
 from . import run as _run
 from . import semisimple as _ss
 

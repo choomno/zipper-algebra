@@ -62,7 +62,7 @@ def check(directory, no_isolation=False):
                         "--no-deps", str(wheel)], check=True)
         env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1", PYTHONNOUSERSITE="1")
         env.pop("PYTHONPATH", None)
-        subprocess.run([sys.executable, "ci/run_tests.py"],
+        subprocess.run([sys.executable, "-m", "pytest", "tests"],
                        cwd=tree, env=env, check=True)
         subprocess.run([sys.executable, "ci/check_installed.py"],
                        cwd=tree, env=env, check=True)
