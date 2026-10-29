@@ -11,8 +11,8 @@ from .artifacts import (ARTIFACT_NAMES, ArtifactError, canonical_json, digest_by
                         prepare_output_root, validate_proofs, validate_source_snapshot)
 from .config import RunConfig
 from .store import load, publish
-from ..cofactor.artifacts import presentation_identity, target_identity
-from ..cofactor.cofactor_io import resolve_target, target_name
+from ..cofactor.artifacts import presentation_identity
+from ..cofactor.cofactor_io import resolve_target
 from ..coefficients import NumericRing
 from ..provenance import capture_provenance, validate_provenance
 
@@ -65,22 +65,40 @@ def _run_file_solver(config, input_bytes):
         return files, seconds
 
 
-def run_point(pres, target: str, point: tuple[int, int, int], config: RunConfig,
-              *, refresh: bool = False, producer=None) -> SolverRun:
-    """Emit the presentation, execute the solver and publish validated proof data.
-
-    ``target`` identifies the intended computation but is never appended to the
-    defining relations. Only characteristic-zero points are supported here.
-    """
+def _point_ring(point):
     if (not isinstance(point, tuple) or len(point) != 3
             or any(type(value) is not int for value in point)):
         raise ValueError("point must be an integer (q, t, characteristic) tuple")
     if point[2] != 0:
         raise ValueError("the reconstruction runner supports characteristic zero only")
-    ring = NumericRing(*point)
+    return NumericRing(*point)
+
+
+def run_point(pres, target: str, point: tuple[int, int, int], config: RunConfig,
+              *, refresh: bool = False, producer=None) -> SolverRun:
+    """Validate a named target and reuse the presentation's solver calculation.
+
+    The target is not appended to the defining relations or included in the
+    solver cache identity. Target-specific reductions and certificates must
+    record their own target identity and the returned solver key/generation.
+    """
+    ring = _point_ring(point)
     if not isinstance(target, str):
         raise ValueError("the runner requires a named target")
     resolve_target(pres, target, ring)
+    return run_basis_point(pres, point, config, refresh=refresh, producer=producer)
+
+
+def run_basis_point(pres, point: tuple[int, int, int], config: RunConfig,
+                    *, refresh: bool = False, producer=None) -> SolverRun:
+    """Publish proof-validated solver data for the presentation at a rational point.
+
+    One calculation can support several independent target reductions. The
+    returned data establish input-ideal identities, not basis completeness.
+    Only characteristic-zero points are supported here. Earlier request-v2
+    records remain readable but are not relabelled or reused under this v3 key.
+    """
+    ring = _point_ring(point)
     names, inputs, _, _ = pres.build(ring)
     text = ",".join(names) + "\n0\n" + ",\n".join(
         polynomial.to_msolve_string(names) for polynomial in inputs) + "\n"
@@ -88,10 +106,9 @@ def run_point(pres, target: str, point: tuple[int, int, int], config: RunConfig,
     producer = capture_provenance() if producer is None else validate_provenance(producer)
     validate_source_snapshot(producer)
     request = {
-        "schema": "zipper-solver-request-v2",
+        "schema": "zipper-solver-request-v3",
         "presentation": presentation_identity(pres),
-        "point": list(point), "specialized_domain": "Q", "target": target_name(target),
-        "target_polynomial": target_identity(pres, target),
+        "point": list(point), "specialized_domain": "Q",
         "monomial_order": config.monomial_order, "input_sha256": digest_bytes(input_bytes),
         "producer": producer,
         "solver": {"binary": str(config.binary), "identity": file_identity(config.binary),

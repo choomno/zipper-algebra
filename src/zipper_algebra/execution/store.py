@@ -21,6 +21,8 @@ from ..provenance import validate_provenance
 SCHEMA = "zipper-sample-store-v1"
 APPLICATION_ID = 1514758226
 VERSION = 1
+_REQUEST_V3_FIELDS = {"schema", "presentation", "point", "specialized_domain",
+                      "monomial_order", "input_sha256", "producer", "solver"}
 _TABLES = {
     "metadata": "CREATE TABLE metadata (schema TEXT NOT NULL)",
     "generations": ("CREATE TABLE generations (key TEXT NOT NULL, generation TEXT NOT NULL, "
@@ -45,9 +47,12 @@ def _require_hash(value, name):
 
 
 def _request_key(request):
-    if (not isinstance(request, dict) or request.get("schema") != "zipper-solver-request-v2"
+    if (not isinstance(request, dict) or request.get("schema") not in
+            ("zipper-solver-request-v2", "zipper-solver-request-v3")
             or not _hash(request.get("input_sha256"))):
         raise ArtifactError("invalid sample request")
+    if request["schema"] == "zipper-solver-request-v3" and set(request) != _REQUEST_V3_FIELDS:
+        raise ArtifactError("sample request-v3 must contain exactly the presentation computation fields")
     try:
         validate_provenance(request.get("producer"))
         # Source metadata and configuration must be finite, serializable JSON.

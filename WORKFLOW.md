@@ -43,10 +43,21 @@ files for active solver calls. With the
 revision of the selected executable in `--solver-revision`.
 
 Each solver run has a versioned identity containing the actual input, coefficient
-domain, target, ordered generators, order, executable digest, flags and limits.
+domain, ordered generators, order, executable digest, flags and limits.
+The target belongs to the subsequent reduction and certificate, so different
+targets can reuse the same presentation calculation. The Python function
+`zipper_algebra.execution.run_basis_point` runs the presentation without selecting
+a target; `run_point` additionally validates a named target before using the same
+solver cache. Each discovery result retains its own target identity and links to
+the shared solver key and immutable generation. Reconstruction schedules and
+candidate coefficients are still specific to each target.
 Its outputs are parsed and every numeric proof identity is checked before the
 run is published. Atomic records distinguish usable proof data from a claim
 of basis completeness.
+
+New solver requests use `zipper-solver-request-v3`. Earlier target-bound v2
+records remain readable and exportable. They are separate cache entries and
+are not relabelled as new requests.
 
 Reconstruction uses exact samples, full-rank fits, nonzero denominators and
 held-out checks. It produces candidates. Composition preserves both word contexts
@@ -55,7 +66,9 @@ success condition.
 
 A successful result atomically selects an immutable product bundle with its hashes.
 `result.json` reports the presentation/target, anchor, sampled runs and certificate
-path. An interrupted publication preserves the preceding valid result.
+path. The bundle's `solver-runs.json` preserves its sample keys and immutable
+generations after subsequent runs replace `result.json`. An interrupted
+publication preserves the preceding valid result.
 
 The result and solver records retain the producer's commit, recorded local
 changes and exact source-file hashes. The final bundle includes a shared

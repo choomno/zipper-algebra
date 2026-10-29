@@ -73,11 +73,14 @@ files, with their hashes. They are published together under
 - `skeleton.json`: contextual reduction occurrences and proof closure.
 - `lift.json`: reconstructed basis-proof coefficients.
 - `multipliers.json`: reconstructed multipliers for those ordered occurrences.
-- `provenance.json`: source revision, local changes and hashes of the five products.
+- `solver-runs.json`: presentation/target binding and the exact sample keys,
+  immutable generations and artifact hashes recorded by this discovery. Its
+  database paths are relative to the discovery output directory.
+- `provenance.json`: source revision, local changes and hashes of the six other files.
 
 `samples.sqlite3` stores every sample's input, basis, nonexpanded proof, process
 output and validation record. Sample keys and generation identifiers in
-`result.json` locate these records. The cache uses the same database format and
+`result.json` and the bundle's `solver-runs.json` locate these records. The cache uses the same database format and
 reuses matching, validated samples. The default `--solver-io files` uses
 temporary files only while a solver call is active. The
 [optional SQLite-enabled solver](../patches/f4ncgb/README.md#optional-direct-sqlite-io)
@@ -97,15 +100,12 @@ This restores the five original solver files and their record, retaining their
 original producer provenance. The [provenance guide](PROVENANCE.md) explains the
 revision, local-change and source-hash fields.
 
-With a single successful product generation, discovery keeps ten files:
-one database, six product files, the candidate skeleton, the result and the
+With a single successful product generation, discovery keeps eleven files:
+one database, seven product files, the candidate skeleton, the result and the
 directory's ignore file. The sample count changes the database's contents,
 not the number of persistent sample files. A separate shared cache adds its own
-database and ignore file. Refreshed product generations remain available.
-The earlier directory layout used 607 pipeline files for a 100-sample run:
-600 sample files and seven products or reports. The previously reported total
-of 609 also included two reports added after that run; those were not pipeline
-outputs. The new database layout avoids that per-sample file growth.
+database and ignore file. Refreshed product generations remain available,
+including their links to the original solver generations.
 
 A result with exit code `3` is inconclusive. A nonzero remainder from an
 uncertified basis, an exhausted fit budget or unavailable compatible proof
