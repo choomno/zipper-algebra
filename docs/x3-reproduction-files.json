@@ -11,8 +11,8 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "bytes": 4041,
-      "sha256": "af825455f93ea8b1529192f20351c7151f3130378ac98156b8d014851a96dea2",
+      "bytes": 4062,
+      "sha256": "13965a5d436426603f6627dd3e5a411ab3b88d6149afee789b3824458aca37bb",
       "role": "CI execution of regression and distribution checks"
     },
     {
