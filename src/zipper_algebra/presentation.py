@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
 """Ordered defining data for the implemented zipper-algebra quotients.
 
-``Presentation`` selects a strand count, untwisting preset and additional relations.
+``Presentation`` selects a strand count, an untwisting preset or explicit
+per-level rational polynomials, and additional relations.
 Its numeric and symbolic views use one relation builder. The content hash identifies
 that ordered symbolic presentation, independently of parameter specialization.
 Computational order, solver configuration and completion evidence belong to run records.
 """
 import hashlib
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import ClassVar
 
 from .coefficients import NumericRing, SymbolicRing
 from .polynomial import Poly
 from .relations import RelTag, build_relations_ring
+from .untwisting import UntwistingFamily, UntwistingPolynomial
 
 
 # ---------------------------------------------------------------------------
@@ -55,6 +58,7 @@ class Presentation:
     max_untwist_level: int | None = None
     zero_from: int | None = None
     extra: tuple = field(default_factory=tuple)    # names from EXTRA_CATALOGUE, in order
+    untwistings: UntwistingFamily | None = None
 
     # --- construction ------------------------------------------------------
     def __post_init__(self):
@@ -74,6 +78,15 @@ class Presentation:
             raise ValueError("extra must be a tuple of relation names")
         if len(set(self.extra)) != len(self.extra):
             raise ValueError("extra relation names must be distinct")
+        if self.untwistings is not None:
+            if not isinstance(self.untwistings, UntwistingFamily):
+                raise TypeError("untwistings must be an UntwistingFamily or None")
+            if (self.untwist != "none" or self.framing_power != 1
+                    or self.theta_power != 1 or self.max_untwist_level is not None):
+                raise ValueError("explicit untwistings cannot be combined with presets, "
+                                 "power options or an untwisting level limit")
+            if any(level > self.n for level, _ in self.untwistings.items):
+                raise ValueError("an untwisting level cannot exceed the strand count")
         required_strands = {
             "X_4": 4, "X_5": 5, "(Theta_3-q^2)X_3": 3,
             "(Theta_4+t)X_4": 4, "(Theta_5+t)X_5": 5,
@@ -84,6 +97,20 @@ class Presentation:
             if self.n < required_strands[name]:
                 raise ValueError(f"extra relation {name!r} requires at least {required_strands[name]} strands")
 
+    @classmethod
+    def from_untwistings(cls, n: int,
+                        polynomials: Mapping[int, UntwistingPolynomial], *,
+                        max_zipper_level: int | None = None,
+                        zero_from: int | None = None, extra: tuple = ()) -> "Presentation":
+        """Impose exactly the supplied per-level polynomials and all their shifts.
+
+        Coefficients are rational. An omitted level supplies no untwisting, and
+        no monicity or unit-constant-term hypothesis is silently imposed.
+        """
+        return cls(n, untwist="none", max_zipper_level=max_zipper_level,
+                   zero_from=zero_from, extra=extra,
+                   untwistings=UntwistingFamily(polynomials))
+
     def var_names(self) -> list[str]:
         return [f"x{i}" for i in range(1, self.n)] + [f"y{i}" for i in range(1, self.n)]
 
@@ -93,6 +120,13 @@ class Presentation:
         names, rels, S, tags = build_relations_ring(
             self.n, ring, self.untwist, self.framing_power, self.theta_power,
             self.max_zipper_level, self.max_untwist_level)
+        if self.untwistings is not None:
+            for level, polynomial in self.untwistings.items:
+                for j in range(1, self.n - level + 2):
+                    operator = (Poly.generator_over(j, ring.one) if level == 2
+                                else _theta_word(level, j, ring))
+                    rels.append(polynomial.evaluate(operator, ring) * S[level, j])
+                    tags.append(RelTag("T", level, j))
         if self.zero_from is not None:
             for i in range(self.zero_from, self.n + 1):
                 for j in range(1, self.n - i + 2):
@@ -132,7 +166,8 @@ class Presentation:
         return len(self.labels())
 
     def slug(self) -> str:
-        s = f"n{self.n}-{self.untwist}"
+        s = (f"n{self.n}-{self.untwist}" if self.untwistings is None
+             else f"n{self.n}-polynomial-{self.content_hash()}")
         if self.framing_power != 1:
             s += f"-a{self.framing_power}"
         if self.theta_power != 1:
