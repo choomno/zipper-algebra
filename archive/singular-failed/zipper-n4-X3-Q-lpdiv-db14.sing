@@ -1,0 +1,87 @@
+LIB "freegb.lib";
+ring r = 0,(x1,x2,x3,y1,y2,y3),(c,Dp);
+ring R = freeAlgebra(r, 14, 31);
+ideal I = x1*y1-1,
+  y1*x1-1,
+  x2*y2-1,
+  y2*x2-1,
+  x3*y3-1,
+  y3*x3-1,
+  x1*x2*x1-x2*x1*x2,
+  y1*y2*y1-y2*y1*y2,
+  x1*x3-x3*x1,
+  y1*y3-y3*y1,
+  -x3*y1+y1*x3,
+  x1*y3-y3*x1,
+  x2*x3*x2-x3*x2*x3,
+  y2*y3*y2-y3*y2*y3,
+  x1*x2*y1-y2*x1*x2,
+  -x2*y1*y2+y1*y2*x1,
+  x1*y2*y1-y2*y1*x2,
+  -x2*x1*y2+y1*x2*x1,
+  x2*x3*y2-y3*x2*x3,
+  -x3*y2*y3+y2*y3*x2,
+  x2*y3*y2-y3*y2*x3,
+  -x3*x2*y3+y2*x3*x2,
+  -x1*x2*x1+5*x1*x2*y1+5*y1*y2*x1-25*y1*y2*y1-4*x1*x2+x2*x1-5*x2*y1+20*y1*y2-5*y2*x1+25*y2*y1+4*x1+4*x2-20*y1-20*y2+16,
+  -x2*x3*x2+5*x2*x3*y2+5*y2*y3*x2-25*y2*y3*y2-4*x2*x3+x3*x2-5*x3*y2+20*y2*y3-5*y3*x2+25*y3*y2+4*x2+4*x3-20*y2-20*y3+16,
+  x1*x2*x3*x1*x2*x1-5*x1*x2*x3*x1*x2*y1-25*x1*x2*x3*y1*y2*x1+125*x1*x2*x3*y1*y2*y1-25*y1*y2*y3*x1*x2*x1+125*y1*y2*y3*x1*x2*y1+625*y1*y2*y3*y1*y2*x1-3125*y1*y2*y3*y1*y2*y1+4*x1*x2*x3*x1*x2-100*x1*x2*x3*y1*y2-x2*x3*x1*x2*x1+5*x2*x3*x1*x2*y1+25*x2*x3*y1*y2*x1-125*x2*x3*y1*y2*y1-100*y1*y2*y3*x1*x2+2500*y1*y2*y3*y1*y2+25*y2*y3*x1*x2*x1-125*y2*y3*x1*x2*y1-625*y2*y3*y1*y2*x1+3125*y2*y3*y1*y2*y1-4*x2*x3*x1*x2+100*x2*x3*y1*y2+100*y2*y3*x1*x2-2500*y2*y3*y1*y2,
+  -x1*x1+5*x1*y1+3*x1-35*y1+28,
+  -x2*x2+5*x2*y2+3*x2-35*y2+28,
+  -x3*x3+5*x3*y3+3*x3-35*y3+28,
+  x2*x1*x1*x2*x1-5*x2*x1*x1*x2*y1-25*x2*x1*y1*y2*x1+125*x2*x1*y1*y2*y1-25*y2*y1*x1*x2*x1+125*y2*y1*x1*x2*y1+625*y2*y1*y1*y2*x1-3125*y2*y1*y1*y2*y1+4*x2*x1*x1*x2-100*x2*x1*y1*y2-100*y2*y1*x1*x2+2500*y2*y1*y1*y2,
+  x3*x2*x2*x3*x2-5*x3*x2*x2*x3*y2-25*x3*x2*y2*y3*x2+125*x3*x2*y2*y3*y2-25*y3*y2*x2*x3*x2+125*y3*y2*x2*x3*y2+625*y3*y2*y2*y3*x2-3125*y3*y2*y2*y3*y2+4*x3*x2*x2*x3-100*x3*x2*y2*y3-100*y3*y2*x2*x3+2500*y3*y2*y2*y3,
+  -x3*x2*x1*x1*x2*x3*x1*x2*x1+5*x3*x2*x1*x1*x2*x3*x1*x2*y1+25*x3*x2*x1*x1*x2*x3*y1*y2*x1-125*x3*x2*x1*x1*x2*x3*y1*y2*y1+125*x3*x2*x1*y1*y2*y3*x1*x2*x1-625*x3*x2*x1*y1*y2*y3*x1*x2*y1-3125*x3*x2*x1*y1*y2*y3*y1*y2*x1+15625*x3*x2*x1*y1*y2*y3*y1*y2*y1+125*y3*y2*y1*x1*x2*x3*x1*x2*x1-625*y3*y2*y1*x1*x2*x3*x1*x2*y1-3125*y3*y2*y1*x1*x2*x3*y1*y2*x1+15625*y3*y2*y1*x1*x2*x3*y1*y2*y1-15625*y3*y2*y1*y1*y2*y3*x1*x2*x1+78125*y3*y2*y1*y1*y2*y3*x1*x2*y1+390625*y3*y2*y1*y1*y2*y3*y1*y2*x1-1953125*y3*y2*y1*y1*y2*y3*y1*y2*y1-4*x3*x2*x1*x1*x2*x3*x1*x2+100*x3*x2*x1*x1*x2*x3*y1*y2+500*x3*x2*x1*y1*y2*y3*x1*x2-12500*x3*x2*x1*y1*y2*y3*y1*y2+500*y3*y2*y1*x1*x2*x3*x1*x2-12500*y3*y2*y1*x1*x2*x3*y1*y2-62500*y3*y2*y1*y1*y2*y3*x1*x2+1562500*y3*y2*y1*y1*y2*y3*y1*y2;
+poly X3 = x1*x2*x1-5*x1*x2*y1-25*y1*y2*x1+125*y1*y2*y1+4*x1*x2-100*y1*y2;
+int s0 = system("--ticks-per-sec");
+print("--- twostd(I) ---");
+int t0 = timer; int rt0 = rtimer;
+matrix Tstd;
+ideal J = liftstd(I, Tstd);
+int t1 = timer; int rt1 = rtimer;
+print("twostd CPU sec:"); print((t1-t0) div s0);
+print("twostd real sec:"); print(rt1-rt0);
+print("size(J)="); print(size(J));
+print("--- reduce(X3, J) ---");
+poly nfX3 = reduce(X3, J);
+print("NF(X3,J)="); print(nfX3);
+print("--- lpDivision(X3, J) ---");
+int td0 = timer; int rtd0 = rtimer;
+list LD = lpDivision(X3, J);
+int td1 = timer; int rtd1 = rtimer;
+print("lpDivision CPU sec:"); print((td1-td0) div s0);
+print("lpDivision real sec:"); print(rtd1-rtd0);
+print("nsummands="); print(size(LD[2]));
+link out = "ASCII:w /home/choom/gap_scripts/zipper-algebra/logs_and_traces/f4ncgb/cofactor-X3-n4-Q-singular.txt";
+write(out, "# lpDivision(X3, J) two-sided GB presentation");
+write(out, "# degbound = 14");
+write(out, "# size(J) = " + string(size(J)));
+write(out, "# NF(X3,J) = " + string(nfX3));
+write(out, "# nsummands = " + string(size(LD[2])));
+write(out, "");
+write(out, "# J = GB elements, listed one per line as J[k] = <poly>:");
+int kk;
+for (kk = 1; kk <= size(J); kk++) {
+  write(out, "J[" + string(kk) + "] = " + string(J[kk]));
+}
+write(out, "");
+write(out, "# Summands of X3 wrt J:  each line = idx | left_poly | right_poly | coef");
+int ss;
+for (ss = 1; ss <= size(LD[2]); ss++) {
+  list sm = LD[2][ss];
+  write(out, "S " + string(ss) + " | " + string(sm[1]) + " | " + string(sm[2]) + " | " + string(sm[3]));
+}
+write(out, "");
+write(out, "# liftstd transformation matrix Tstd: J[k] = sum_i Tstd[i,k] * I[i] (ncgen form)");
+write(out, "# Tstd: " + string(nrows(Tstd)) + " x " + string(ncols(Tstd)));
+int ii; int jj;
+for (jj = 1; jj <= ncols(Tstd); jj++) {
+  for (ii = 1; ii <= nrows(Tstd); ii++) {
+    poly tij = Tstd[ii,jj];
+    if (tij != 0) {
+      write(out, "Tstd " + string(ii) + " " + string(jj) + " = " + string(tij));
+    }
+  }
+}
+print("--- DONE ---");
+quit;

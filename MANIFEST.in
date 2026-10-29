@@ -29,3 +29,6 @@ prune build
 prune dist
 
 exclude CONTRIBUTING.md CONTRIBUTING.MD
+
+# Historical generated bases are excluded before checkout cleanup.
+recursive-exclude archive/gap grobner_zipper_*.gap
