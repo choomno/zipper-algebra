@@ -5,14 +5,11 @@ No solver, precomputed basis, sibling research directory or cache is used.
 """
 from __future__ import annotations
 
-import sys
 import pytest
 from fractions import Fraction
-from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from tests.support import ROOT
 from zipper_algebra.cofactor.atoms import Atom, AtomSet
 from zipper_algebra.cofactor.compose import Rat, compose, lift_multipliers
 from zipper_algebra.cofactor.lift import Lift

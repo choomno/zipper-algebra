@@ -9,12 +9,10 @@ import io
 import json
 from pathlib import Path
 import sys
-import tempfile
 import pytest
 from unittest.mock import patch
 
 from zipper_algebra import Presentation, Atom, AtomSet, Cofactor, cli
-from zipper_algebra.coefficients import NumericRing
 from zipper_algebra.cofactor.artifacts import load_artifact
 from zipper_algebra.cofactor.compose import main as compose_command
 from zipper_algebra.execution.config import RunConfig

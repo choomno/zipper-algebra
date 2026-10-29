@@ -8,7 +8,6 @@ import shutil
 import sqlite3
 import subprocess
 import sys
-import tempfile
 from threading import Event
 import pytest
 from unittest.mock import patch

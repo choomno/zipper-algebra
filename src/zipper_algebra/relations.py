@@ -73,7 +73,6 @@ def build_relations_ring(n: int, ring, untw: str,
     by sigma_j^k - t; strict quotient comparisons require separate evidence.
     """
     var_names = [f"x{i}" for i in range(1, n)] + [f"y{i}" for i in range(1, n)]
-    char = ring.char
 
     # Helpers
     one_p = Poly.scalar(ring.one)

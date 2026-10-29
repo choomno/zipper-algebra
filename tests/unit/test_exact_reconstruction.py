@@ -1,12 +1,9 @@
 """Exact synthetic regressions for reconstruction, without solvers or research files."""
 from __future__ import annotations
 
-import contextlib
 from fractions import Fraction
-import io
-from pathlib import Path
 import sys
-from types import ModuleType, SimpleNamespace
+from types import SimpleNamespace
 import pytest
 from unittest.mock import patch
 
@@ -15,10 +12,6 @@ from zipper_algebra.cofactor.univariate import (_poly_eval, _reduce_univariate_f
                                                reconstruct_univariate)
 from zipper_algebra.cofactor.lift import (NeedMoreSamples, fit_poly_qt, fit_rational,
                    fit_rational_known, is_reduced, lift, line_denominator, poly_eval_qt)
-from zipper_algebra.coefficients import NumericRing
-from zipper_algebra.polynomial import Poly
-from zipper_algebra.presentation import Presentation
-from zipper_algebra.cofactor.proof import Basis, Proof
 
 
 class TestExactReconstruction:

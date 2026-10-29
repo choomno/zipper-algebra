@@ -9,7 +9,6 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
-from types import SimpleNamespace
 import pytest
 
 from zipper_algebra import Presentation

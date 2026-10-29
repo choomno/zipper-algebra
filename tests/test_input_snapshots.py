@@ -6,7 +6,6 @@ import hashlib
 import io
 import json
 from pathlib import Path
-import tempfile
 from types import SimpleNamespace
 import pytest
 from unittest.mock import patch

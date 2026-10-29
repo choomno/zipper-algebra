@@ -10,7 +10,6 @@ import shutil
 import sqlite3
 import subprocess
 import sys
-import tempfile
 import pytest
 from unittest.mock import patch
 

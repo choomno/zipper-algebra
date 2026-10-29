@@ -12,7 +12,7 @@ import warnings
 
 from zipper_algebra import core
 from zipper_algebra.presentation import Presentation
-from zipper_algebra.coefficients import NumericRing, SymbolicRing
+from zipper_algebra.coefficients import NumericRing
 from zipper_algebra.polynomial import Poly
 
 

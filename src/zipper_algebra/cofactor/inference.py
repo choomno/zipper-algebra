@@ -152,7 +152,7 @@ def _fit_univariate_exact(data, max_deg):
     data = sorted(data)
     if len(data) < 3:
         return None
-    fit, hold = data[:-2], data[-2:]
+    fit = data[:-2]
     for deg in range(max_deg + 1):
         if len(fit) < deg + 1:
             break

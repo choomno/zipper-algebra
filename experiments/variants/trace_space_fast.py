@@ -166,7 +166,7 @@ def main() -> int:
         gen_L[v] = col
     print(f"[gen-L] done in {time.time()-t0:.1f}s.", flush=True)
 
-    print(f"[L-action] precomputing L_{{m_i}} columns...", flush=True)
+    print("[L-action] precomputing L_{m_i} columns...", flush=True)
     t_la = time.time()
     mi_action = precompute_left_mult_columns(standard, gen_L, p)
     print(f"[L-action] done in {time.time()-t_la:.1f}s.", flush=True)

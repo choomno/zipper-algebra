@@ -20,7 +20,7 @@ from zipper_algebra.cofactor.cofactor_io import (
     var_names, word_from_json, word_str,
 )
 from zipper_algebra.presentation import Presentation
-from zipper_algebra.coefficients import Coef, NumericRing, QTCoef, SymbolicRing
+from zipper_algebra.coefficients import Coef, NumericRing, QTCoef
 from zipper_algebra.polynomial import Poly
 
 

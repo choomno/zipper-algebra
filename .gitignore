@@ -68,3 +68,6 @@ grobner_zipper_*.gap
 
 # Local pytest state
 .pytest_cache/
+
+# Local lint cache
+.ruff_cache/

@@ -4,11 +4,17 @@ Use Linux with Python 3.11 or newer and install the package before running sourc
 
 ```sh
 python -m pip install -e '.[dev,inference]'
+python -m ruff check src tests experiments examples ci setup.py
 python -m pytest tests
 ```
 
 The suite uses pytest 9, native pytest fixtures and parametrization.
 Standard-library `unittest.mock` remains available for mocking process boundaries.
+
+The pinned Ruff version checks package code, tests, research recipes, examples, CI
+scripts and the build script. The `F` and `E9` rule families detect unused imports
+and local variables, undefined names, repeated definitions and fatal syntax errors.
+The same command runs in the CI coverage job before the tests.
 
 The suite covers unit and integration tests, including installed interfaces,
 execution boundaries and the 129-term certificate under `examples/x3/`. It

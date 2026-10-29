@@ -1,8 +1,6 @@
 """Output preparation preserves checkout visibility and custom ignore rules."""
 
-from pathlib import Path
 import subprocess
-import tempfile
 import pytest
 
 from experiments.output import prepare_output_dir

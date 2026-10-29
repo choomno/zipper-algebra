@@ -100,10 +100,10 @@ def main() -> int:
     print(f"[result] dim [A, A]    = {dim_comm}")
     print(f"[result] dim A/[A,A]   = {dim_trace}")
     print()
-    print(f"[interpretation] The space of trace functionals τ: A → Q has")
+    print("[interpretation] The space of trace functionals τ: A → Q has")
     print(f"                 dimension {dim_trace}. For a semisimple algebra")
-    print(f"                 over an algebraically closed field this equals")
-    print(f"                 the number of irreducible summands.")
+    print("                 over an algebraically closed field this equals")
+    print("                 the number of irreducible summands.")
     return 0
 
 

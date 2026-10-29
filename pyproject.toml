@@ -22,7 +22,7 @@ classifiers = [
 
 [project.optional-dependencies]
 inference = ["sympy>=1.12"]
-dev = ["build>=1.2", "pytest>=9,<10", "pytest-timeout>=2.4,<3", "coverage>=7.17,<8"]
+dev = ["build>=1.2", "pytest>=9,<10", "pytest-timeout>=2.4,<3", "coverage>=7.17,<8", "ruff==0.17.3"]
 
 [project.scripts]
 zipper-algebra = "zipper_algebra.cli:main"
@@ -47,3 +47,9 @@ testpaths = ["tests"]
 addopts = ["--import-mode=importlib", "--strict-config", "--strict-markers"]
 timeout = 60
 timeout_method = "signal"
+
+[tool.ruff]
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["F", "E9"]

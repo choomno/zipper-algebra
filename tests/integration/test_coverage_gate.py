@@ -2,7 +2,6 @@
 from contextlib import redirect_stdout
 from copy import deepcopy
 import io
-from pathlib import Path
 import pytest
 
 from ci.check_coverage import check
