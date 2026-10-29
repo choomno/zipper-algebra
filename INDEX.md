@@ -4,7 +4,7 @@ The maintained implementation is installed from `src/zipper_algebra/`.
 
 | Area | Purpose |
 | --- | --- |
-| `presentation.py`, `relations.py` | Algebra presentations, ordered generators, relations and targets. |
+| `presentation.py`, `relations.py`, `untwisting.py` | Algebra presentations, ordered generators, relations and targets. |
 | `coefficients.py`, `polynomial.py`, `msolve.py` | Coefficient domains, free polynomials and solver-input emission. |
 | `core.py`, `linear.py` | Basis parsing, standard-word automata, reduction and exact linear algebra. |
 | `cofactor/proof.py`, `cofactor/skeleton.py` | Proof graphs, contextual reductions and dependency closure. |

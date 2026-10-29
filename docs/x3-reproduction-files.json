@@ -29,8 +29,8 @@
     },
     {
       "path": "MANIFEST.in",
-      "bytes": 1079,
-      "sha256": "3ff292e8718ff4ae7b797f89cfeec299ac044c995668bc5c58fae85ce503f0ec",
+      "bytes": 1110,
+      "sha256": "ec1ef8abd91468481c0745fefd9d52408b0a07117433a7c0a1c897da8d5121bf",
       "role": "Source-distribution inclusion rules"
     },
     {
@@ -149,8 +149,8 @@
     },
     {
       "path": "src/zipper_algebra/__init__.py",
-      "bytes": 753,
-      "sha256": "9bc912011f8c6d81a616efb1c2e95ccf139f0f1f5643a171da68a31f85d8bedd",
+      "bytes": 886,
+      "sha256": "73a459f874c7758d34ff1f8cabc123f2cd11fa68848413085e2a928ef635793e",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
@@ -317,8 +317,8 @@
     },
     {
       "path": "src/zipper_algebra/presentation.py",
-      "bytes": 10130,
-      "sha256": "f4c5553c2d2a85875c0b435630b2ce6f2f50a3d6cf22d9fb9d299c93e931c4c5",
+      "bytes": 12254,
+      "sha256": "6bc0d05cd2762c0b1e260500d81488b196469d97b6e2c4a2c6055ba9993c1cbe",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
@@ -331,6 +331,12 @@
       "path": "src/zipper_algebra/relations.py",
       "bytes": 13147,
       "sha256": "a6b6cf752762b582d73a622813c8ff5291efe14a74d3acc7ad58b93cbeadd700",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
+      "path": "src/zipper_algebra/untwisting.py",
+      "bytes": 6050,
+      "sha256": "26a765d9b57c40ef51a5da170778f2083d9e483f80294e32f801b8d233e3c16c",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
@@ -397,6 +403,12 @@
       "path": "tests/integration/test_pipeline_outcomes.py",
       "bytes": 5312,
       "sha256": "61dcdb6f7b1b341054258273918c7262106cb7c3c05459ccb0bbb079e0734afb",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/integration/test_polynomial_presentations.py",
+      "bytes": 2104,
+      "sha256": "67634aee076f7cfa4236ca289b2c09885f21ee5677de0b489057352897acdb8f",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
@@ -589,6 +601,12 @@
       "path": "tests/unit/test_polynomial_arithmetic.py",
       "bytes": 13655,
       "sha256": "008b2f7a09220149bb4e425370502267f75be672a0f22cb1fc52095f7ee987ac",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/unit/test_polynomial_untwisting.py",
+      "bytes": 14858,
+      "sha256": "73690ea09faf5754c1afd253ee9e66a95817b68e6d328b29cb79e4fb9994aff4",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {

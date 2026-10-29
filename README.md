@@ -173,6 +173,13 @@ report = check(certificate, presentation, target="X_3", verbose=False)
 assert report["pass"]
 ```
 
+## Explicit polynomial untwistings
+
+Use `Presentation.from_untwistings` to supply independent exact polynomials at
+selected strand levels. The [polynomial-input guide](docs/POLYNOMIAL_UNTWISTINGS.md)
+explains rational coefficients, omitted relations, specialization and verification.
+The existing preset presentations and certificate route remain available.
+
 ## Tests and development
 
 Install the development tools and optional inference dependency, then run the

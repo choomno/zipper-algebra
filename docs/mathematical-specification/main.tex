@@ -183,11 +183,15 @@ the dimension, or establish semisimplicity.
 The function \texttt{build\_relations\_ring} is in
 \path{src/zipper_algebra/relations.py}; its front end is
 \texttt{Presentation} in \path{src/zipper_algebra/presentation.py}.
-A presentation records the strand count, untwisting choice, powers, level
-limits, imposed zero sliders and named additional relations. Its symbolic
-relation content is hashed; readable labels alone do not identify an algebra.
-The builder implements selected members and variants of the preceding family,
-rather than arbitrary polynomial input.
+A presentation records the strand count, an untwisting preset or explicit
+per-level polynomials, powers, level limits, imposed zero sliders and named
+additional relations. Its symbolic relation content is hashed; readable labels
+alone do not identify an algebra. The Python constructor
+\texttt{Presentation.from\_untwistings} accepts independent rational-coefficient
+polynomials at selected levels. It emits $p_2(\sigma_j)X_{2,j}$ at level two and
+$p_i(\Theta_{i-1,j})X_{i,j}$ at higher levels, including every valid shift.
+An omitted level supplies no untwisting relation. The existing presets retain
+their chosen free-algebra representatives and presentation hashes.
 
 In the canonical untwisting presentation, the relations are the chosen
 free-algebra representatives of
@@ -207,7 +211,12 @@ the squared relation $(\sigma_j-t)^2X_{2,j}$, and a historical option
 $(\sigma_j^2-t^2)X_{2,j}$. The twist-power parameter affects level three only:
 for exponent $m>1$, the emitted relation is the chosen representative of
 $(\Theta_{2,j}^m-q^{2m})X_{3,j}$. At higher levels the canonical relation remains.
-The software does not yet accept an arbitrary untwisting polynomial as input.
+Explicit polynomial input currently has rational coefficients; arbitrary
+parameter-dependent coefficients remain a separate extension. Nonmonic inputs
+and zero constant terms are accepted as raw relations, without normalization or
+a finiteness verdict. The theorem's unit hypotheses must be checked in the
+selected coefficient domain, including after specialization. Exact input and
+serialization examples are in \path{docs/POLYNOMIAL_UNTWISTINGS.md}.
 No structural theorem about a variant follows simply from choosing a flag.
 
 The public presentation object rejects unknown untwisting choices, noninteger
