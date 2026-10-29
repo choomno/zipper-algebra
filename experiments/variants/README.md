@@ -2,9 +2,7 @@
 
 These scripts explore dimensions, trace forms, radical candidates, tower maps and
 Markov-trace conditions for specified untwisting quotients. They are research
-programs outside the maintained installed package. Their historical inputs
-and outputs are optional research data listed in
-[`data/research-archive.json`](../../data/research-archive.json).
+programs outside the maintained installed package.
 
 | Script | Computation |
 | --- | --- |
@@ -51,8 +49,5 @@ python -m experiments.variants.square_zero_traceform_qt
 ```
 
 Set `ZIPPER_EXPERIMENT_OUTPUT` to use another input and output directory for both
-recipes. Historical results can separately be restored for provenance and
-inspection with `python -m experiments.restore_data --group variants`. Restoration
-copies verified bytes without loading Python objects. An exact JSON matrix export
-is included in that archive under `data/variants/` for inspection without using
-pickle. The recorded calculations retain the interpretation limits above.
+recipes. Regenerate their inputs with the representation producer.
+The recorded calculations retain the interpretation limits above.

@@ -33,10 +33,8 @@ EXACT = {
     "MANIFEST.in": "Source-distribution inclusion rules",
     "pyproject.toml": "Package dependencies and installed commands",
     "setup.py": "Build-time source provenance embedded in wheels and source archives",
-    "data/research-archive.json": "Checksums and pinned source for optional historical research data",
     "experiments/output.py": "Ignore markers for generated research output directories",
     "experiments/__init__.py": "Research recipe package marker",
-    "experiments/restore_data.py": "Optional restoration of archived data outside the source tree",
     "patches/f4ncgb/msolve-parser-fix.patch": "Pinned external-solver parser correction",
     "patches/f4ncgb/LICENSE": "License accompanying the solver correction",
     "singular_run/x3-membership-Q.sing": "Independent specialized Singular producer for the canonical presentation",
@@ -51,7 +49,6 @@ REQUIRED = (
     "tests/fixtures/legacy_x3/basis-n4-Q.txt",
     "tests/fixtures/legacy_x3/cofactor-X3-n4-Qqt-symbolic.txt",
     "examples/x3/certificate.txt",
-    "data/research-archive.json",
 )
 
 def build(root=ROOT):
@@ -67,24 +64,6 @@ def build(root=ROOT):
     for name in REQUIRED:
         if name not in roles:
             raise ValueError(f"Required reproduction input or source is absent: {name}")
-    archive = json.loads((root / "data/research-archive.json").read_text())
-    if archive.get("schema") != "zipper-research-archive-v1":
-        raise ValueError("Unknown historical research archive schema")
-    revision = archive.get("source_revision", "")
-    if len(revision) != 40 or any(c not in "0123456789abcdef" for c in revision):
-        raise ValueError("Historical research archive needs a full pinned Git revision")
-    seen = set()
-    for entry in archive["files"]:
-        name = entry["path"]
-        relative = Path(name)
-        if (relative.is_absolute() or ".." in relative.parts or "\\" in name
-                or name in seen or entry["group"] not in archive["groups"]):
-            raise ValueError(f"Invalid archived research path: {name}")
-        seen.add(name)
-        digest = entry["sha256"]
-        if (type(entry["bytes"]) is not int or entry["bytes"] < 0 or len(digest) != 64
-                or any(c not in "0123456789abcdef" for c in digest)):
-            raise ValueError(f"Invalid archived research identity: {name}")
     files = []
     for name, role in sorted(roles.items()):
         path = root / name
@@ -101,7 +80,7 @@ def build(root=ROOT):
     prefix = "archive/cofactor-pre-consolidation/"
     return {
         "schema": "zipper-x3-reproduction-files-v1",
-        "scope": "Curated X3 source and fixture inventory. Bulk historical data are optional and catalogued separately in data/research-archive.json. Fresh production uses the installed discovery command.",
+        "scope": "Curated X3 source and fixture inventory. Fresh production uses the installed discovery command.",
         "excluded": "This inventory, reader documentation, private working records, workspace configuration, caches and retired duplicate files.",
         "historical_sources": [
             {"path": prefix + name, "revision": HISTORICAL_REVISION,

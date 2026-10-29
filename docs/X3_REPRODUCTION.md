@@ -11,8 +11,7 @@ There are three useful routes:
 The [mathematical reference](mathematical-specification/mathematical-specification.pdf)
 defines the algebras, coefficients, localization and verification conclusions.
 The [source inventory](x3-reproduction-files.json) records the curated current
-files. Bulk historical experiments and samples are available through the pinned
-archive described below.
+files needed to inspect the current implementation and its tests.
 
 ## Fresh production
 
@@ -140,8 +139,7 @@ zipper-algebra emit --n 4 --q 5 --t 7 --char 0 \
 ```
 
 The canonical four-strand input has 31 relations in six free generators and
-presentation hash `091bbb92271ab870`. The historical anchor input is available
-in the `inputs` archive group. Discovery never automatically appends its target.
+presentation hash `091bbb92271ab870`. Discovery never automatically appends its target.
 Explicit zeroing and extra relations are part of the selected presentation and
 can make membership immediate; the resulting certificate concerns that presentation.
 
@@ -195,9 +193,9 @@ polynomial and applicable order. Historical readers remain explicit.
 
 ## Historical calculations
 
-The `x3-history` archive group includes the historical compression sequence:
+The following earlier compression sequence is recorded in Git history:
 
-| File under the restored `logs_and_traces/f4ncgb/` | Role |
+| File formerly under `logs_and_traces/f4ncgb/` | Role |
 | --- | --- |
 | `cofactor-X3-n4-Qqt-symbolic.txt` | 695-term free-algebra witness, also retained as a regression fixture. |
 | `cofactor-X3-n4-Qqt-compressed.txt` | 1077-term substitution of dependent relations. |
@@ -214,7 +212,7 @@ identified.
 
 The [Singular producer](../singular_run/README.md) preserves the 31-relation
 specialized reduction at `(q,t)=(5,7)`. GAP/GBNP source programs remain under
-`archive/gap/`; their saved bases are in the `gap` archive group. Their specialized
+`archive/gap/`. Their specialized
 conclusions, degree bounds and old path/completion assumptions remain distinct
 from a generic rational-function certificate.
 
@@ -229,29 +227,8 @@ python ci/build_x3_manifest.py --check
 python ci/check_x3_manifest.py
 ```
 
-The maintained reproduction path uses one certificate example and immutable
-regression fixtures. Bulk historical datasets remain at their original checkout
-paths until the separate data-removal change is merged. Source distributions and
-wheels omit them. Regression tests use curated fixtures; fresh production uses
-`discover`.
-Bulk inputs, logs, saved bases and variant survey results
-are recorded in [data/research-archive.json](../data/research-archive.json), pinned
-to Git revision `d30b36aa2da0819dfa28954bd9223ef72163edf5` with original paths and
-SHA-256 hashes. Restore all groups or a selected group into a separate directory:
-
-```sh
-python -m experiments.restore_data --output .research-data
-python -m experiments.restore_data --group x3-history --output .research-data
-python -m experiments.restore_data --group variants --output .research-data
-python -m experiments.restore_data --group gap --output .research-data
-```
-
-The restore command verifies the recorded hashes. Paths below that output
-directory follow the historical repository layout. The default tests, checking
-the curated example and fresh production need no restored archive.
-The archive manifest’s `previous_aliases` field records the historical names of
-byte-identical duplicates. The two old coefficient-collection names referred to
-the same 212 samples and 695 coefficient slots.
+The maintained reproduction path uses the curated example and regression fixtures.
+Retired datasets remain available in Git history.
 
 The `reproduce-` input/basis/proof triplet is a different experiment:
 it has **32 relations including the target itself**, and 131 basis/proof entries.

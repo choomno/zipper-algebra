@@ -49,7 +49,7 @@ CONTRIBUTING.MD
 coverage.json
 htmlcov/
 
-# Generated research runs and optional historical datasets
+# Generated runs and local computation data
 /runs/
 /.research-data/
 /reproduction/
