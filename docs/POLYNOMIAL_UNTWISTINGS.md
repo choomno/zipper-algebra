@@ -2,8 +2,10 @@
 
 `Presentation.from_untwistings` accepts independent rational-coefficient
 polynomials at selected strand levels. This extends the preset constructors with
-an exact Python interface. Parameter-dependent polynomial coefficients are a
-separate extension; the existing symbolic coefficients still use `q,t`.
+an exact Python interface. For parameter-dependent coefficients over arbitrary
+ordered rational-function fields, use the domain-bound `AlgebraPresentation`
+interface in the [parameter-field guide](PARAMETER_FIELDS.md). The established
+`Presentation` interface retains its symbolic `q,t` format.
 
 ```python
 from fractions import Fraction

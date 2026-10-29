@@ -14,7 +14,7 @@
 \newtheorem*{thesistheorem}{Finite-generation theorem (Moos)}
 \title{Zipper Algebras: Mathematical Context and Software Specification}
 \author{}
-\date{27 October 2026}
+\date{29 October 2026}
 \begin{document}
 \maketitle
 
@@ -211,12 +211,13 @@ the squared relation $(\sigma_j-t)^2X_{2,j}$, and a historical option
 $(\sigma_j^2-t^2)X_{2,j}$. The twist-power parameter affects level three only:
 for exponent $m>1$, the emitted relation is the chosen representative of
 $(\Theta_{2,j}^m-q^{2m})X_{3,j}$. At higher levels the canonical relation remains.
-Explicit polynomial input currently has rational coefficients; arbitrary
-parameter-dependent coefficients remain a separate extension. Nonmonic inputs
-and zero constant terms are accepted as raw relations, without normalization or
-a finiteness verdict. The theorem's unit hypotheses must be checked in the
-selected coefficient domain, including after specialization. Exact input and
-serialization examples are in \path{docs/POLYNOMIAL_UNTWISTINGS.md}.
+The established \texttt{Presentation} interface accepts rational coefficients;
+the domain-bound interface below also accepts parameter-dependent coefficients.
+Nonmonic inputs and zero constant terms are accepted as raw relations, without
+normalization or a finiteness verdict. The theorem's unit hypotheses must be
+checked in the selected coefficient domain, including after specialization.
+Exact input and serialization examples are in
+\path{docs/POLYNOMIAL_UNTWISTINGS.md} and \path{docs/PARAMETER_FIELDS.md}.
 No structural theorem about a variant follows simply from choosing a flag.
 
 The public presentation object rejects unknown untwisting choices, noninteger
@@ -224,9 +225,87 @@ strand counts and powers, level bounds outside $2,\ldots,n$, repeated additional
 relation labels and targets requiring more strands than are present. Numeric
 coefficients use either $\Q$ or $\Z/m\Z$. Calling the latter a field requires
 the additional hypothesis that $m$ is prime; the coefficient backend does not
-perform a primality proof. Nonunits cannot be inverted.
+perform a primality proof. Nonunits cannot be inverted. The new field interface
+below verifies positive characteristic separately.
 
-\section{Certificate data and exact conclusion}
+\section{Exact parameter fields and domain-bound identities}
+The classes in \path{src/zipper_algebra/fields.py} implement
+$k(z_1,\ldots,z_r)$ for $k=\Q$ or a checked prime field, including $r=0$.
+The ordered parameter list and characteristic belong to the domain. Sparse
+polynomials have nonnegative exponent tuples of the declared arity. A field
+element stores a numerator and nonzero denominator; equality is checked by
+cross multiplication. No polynomial gcd or factorization is needed for this
+equality test. Equal fractions may retain different literal representations.
+
+Specialization evaluates a specified finite collection of stored expressions
+where their denominators are defined and nonzero. Rational constants must also
+be defined in the selected characteristic. This operation is not a map from
+the entire function field to a fibre. For example, $(s^2-1)/(s-1)=s+1$ in
+$\Q(s)$, but the former stored representative excludes $s=1$. Arithmetic can
+change the representative and its recorded excluded locus, including by
+cancellation to zero. Generic degree and dimension need not survive specialization.
+
+The classes in \path{src/zipper_algebra/algebra.py} record an explicit field,
+ordered alphabet and literal ordered relations. Even a zero free polynomial
+retains its complete parent. The constructor
+\texttt{AlgebraPresentation.zipper} substitutes the chosen $q$ into the existing
+bare zipper emitter, then appends independent polynomial untwistings at all
+valid shifts. No omitted level is inserted. The versioned JSON identity and
+its SHA-256 record the field, alphabet and literal coefficients, including
+denominator data. Equal fractions can conservatively give different literal
+presentation identities.
+
+A \texttt{CofactorIdentity} verifies
+\[
+ f=\sum_\nu L_\nu r_{i_\nu}R_\nu
+\]
+by exact free-algebra arithmetic over the declared field. Its factors may be
+free polynomials, and its relation references are zero-based indices. Both
+the parent and the full presentation hash are checked. A successful check
+establishes membership over that field; it does not establish membership over
+a smaller coefficient ring or at a pole. This JSON format is separate from
+the established symbolic $q,t$ text-certificate format described next. Solver
+production and reconstruction for arbitrary parameter fields remain further
+integration work.
+
+\subsection{Two-strand dimension witnesses}
+Put $x=x_1$, $y=y_1$, $X=qy+(1-q)-x$, $r_0=xy-1$ and
+$r_2=p(x)X$. For any polynomial $p$ with central coefficients, set
+$F(x)=p(x)(x-1)(x+q)$. There is a literal free-algebra identity
+\[
+ F(x)=q\,p(x)r_0-xr_2.
+\]
+Modulo $xy=yx=1$, conversely $r_2=-yF(x)$. Thus the two-strand quotient is
+$k[x,x^{-1}]/(F)$. If $F$ is monic of degree $N$ with nonzero constant term,
+the words $1,x,\ldots,x^{N-1}$ span. The companion matrix of $F$, together with
+its inverse, satisfies the defining relations, and these words applied to the
+first coordinate vector give the coordinate basis. This proves independence
+and hence dimension $N$. In particular, a monic degree-$d$ untwisting with
+nonzero constant term gives dimension $d+2$ when $q\ne0$.
+
+The executable examples in \path{examples/polynomial_quotients.py} check this
+cofactor and cyclic representation. Over $\Q(q,a,b)$ they use
+$p(x)=x^2+ax+b$ and the independently expanded polynomial
+\[
+ F(x)=x^4+(a+q-1)x^3+(b+a(q-1)-q)x^2
+       +(b(q-1)-aq)x-bq,
+\]
+giving dimension four. A prime-field specialization is also checked. For
+$q=2$ and $p=(x-u)^2$ over $\Q(u)$, the dimension is again four. Writing
+$h=(x-1)(x+2)$, the element $(x-u)h$ is nonzero and square-zero: its square
+is $Fh$, and the companion representation verifies nonvanishing.
+
+Two exceptional-fibre examples distinguish different mechanisms. For $q=2$
+and $p_s=sx^2+x+1$, the generic dimension is four, while at $s=0$ it is
+three. Dividing by $s$ to obtain a generic monic polynomial would exclude
+that fibre. For $p_s=x^2-s$ the generic dimension is four, but the fibre at
+$s=0$ has dimension two: $x^2$ is invertible in the Laurent algebra, leaving
+only $(x-1)(x+2)$. The examples certify removal of these invertible factors
+using explicit inverse-relation cofactors. These conclusions use the exact
+two-strand calculation, rather than assuming the full untwisting theorem's
+hypotheses survive specialization.
+
+\section{Symbolic q,t certificate data and exact conclusion}
 Let $r_1,\ldots,r_s\in F_n$ be the ordered defining relations of a specified
 presentation. A certificate for $f\in F_n$ is a finite list of terms
 $(u_\nu,i_\nu,v_\nu,N_\nu,e_\nu)$, together with an ordered family of nonzero

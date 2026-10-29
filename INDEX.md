@@ -6,6 +6,7 @@ The maintained implementation is installed from `src/zipper_algebra/`.
 | --- | --- |
 | `presentation.py`, `relations.py`, `untwisting.py` | Algebra presentations, ordered generators, relations and targets. |
 | `coefficients.py`, `polynomial.py`, `msolve.py` | Coefficient domains, free polynomials and solver-input emission. |
+| `fields.py`, `algebra.py` | Arbitrary parameter fields, domain-bound free algebras, literal presentations and exact cofactor identities. |
 | `core.py`, `linear.py` | Basis parsing, standard-word automata, reduction and exact linear algebra. |
 | `cofactor/proof.py`, `cofactor/skeleton.py` | Proof graphs, contextual reductions and dependency closure. |
 | `cofactor/inference.py`, `cofactor/univariate.py`, `cofactor/lift.py` | Denominator inference and exact coefficient reconstruction. |
@@ -17,8 +18,10 @@ The maintained implementation is installed from `src/zipper_algebra/`.
 | `cli.py` | Installed commands and their exit statuses. |
 
 The coefficient and polynomial modules provide the canonical Python imports.
-`zipper-algebra` is the command line interface. New bound mathematical records
-use version-2 envelopes; older JSON envelope versions are rejected.
+`zipper-algebra` is the command line interface. Execution records use version-2
+envelopes; older JSON envelope versions are rejected. The domain-bound algebra
+interface has separate, versioned JSON formats described in the
+[parameter-field guide](docs/PARAMETER_FIELDS.md).
 
 ## Tests and examples
 
@@ -28,6 +31,8 @@ reconstruction, proof graphs, invalid inputs and execution boundaries.
 and publication outcomes. Test data are constructed locally by those tests.
 `examples/x3/certificate.txt` is the retained 129-term certificate, with commands
 and expected results in its adjacent README.
+`examples/polynomial_quotients.py` computes small exact parameter-family examples,
+including companion representations, cofactor identities and exceptional fibres.
 
 The [Singular check](singular_run/README.md) independently tests specialized
 X₃ membership over the rationals. It supplies a separate computation, with its
