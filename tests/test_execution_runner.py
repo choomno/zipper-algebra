@@ -11,7 +11,7 @@ import sqlite3
 import subprocess
 import sys
 import tempfile
-import unittest
+import pytest
 from unittest.mock import patch
 
 from zipper_algebra import Presentation
@@ -122,11 +122,10 @@ print(json.dumps({"iterations": a.m, "degree": a.d}))
 '''
 
 
-class RunnerFixture(unittest.TestCase):
-    def setUp(self):
-        self.temporary = tempfile.TemporaryDirectory(prefix="zipper-runner-")
-        self.addCleanup(self.temporary.cleanup)
-        self.root = Path(self.temporary.name)
+class RunnerFixture:
+    @pytest.fixture(autouse=True)
+    def _setup(self, tmp_path):
+        self.root = tmp_path
         self.producer = self.root / "producer.py"
         self.producer.write_text(PRODUCER)
         self.counter = self.root / "counter"
@@ -160,14 +159,14 @@ class RunnerFixture(unittest.TestCase):
 class TestRunConfiguration(RunnerFixture):
     def test_configuration_is_immutable_and_has_explicit_limits(self):
         config = self.config(max_degree=9)
-        with self.assertRaises(FrozenInstanceError):
+        with pytest.raises(FrozenInstanceError):
             config.max_degree = 10
-        self.assertEqual(config.arguments()[-4:], ("-m", "13", "-d", "9"))
-        self.assertEqual(config.binary, Path(sys.executable).resolve())
-        self.assertIsNone(config.cache_root)
-        self.assertEqual(RunConfig(Path(sys.executable), self.root).flags, DEFAULT_FLAGS)
+        assert (config.arguments()[-4:]) == (("-m", "13", "-d", "9"))
+        assert (config.binary) == (Path(sys.executable).resolve())
+        assert (config.cache_root) is None
+        assert (RunConfig(Path(sys.executable), self.root).flags) == (DEFAULT_FLAGS)
 
-    def test_invalid_configuration_is_refused(self):
+    def test_invalid_configuration_is_refused(self, subtests):
         invalid = [
             {"binary": None}, {"output_root": None}, {"binary": self.root / "absent"},
             *({"timeout_seconds": value} for value in (True, "3", 0, -1, float("inf"), float("nan"))),
@@ -181,38 +180,37 @@ class TestRunConfiguration(RunnerFixture):
             {"command_prefix": (self.root / "absent",)},
         ]
         for change in invalid:
-            with self.subTest(change=change), self.assertRaises(ValueError):
+            with subtests.test(change=change), pytest.raises(ValueError):
                 self.config(**change)
 
-    def test_named_target_and_characteristic_are_explicit(self):
+    def test_named_target_and_characteristic_are_explicit(self, subtests):
         for point in ([5, 7, 0], (5, 7), (True, 7, 0), (5, 7, 5)):
-            with self.subTest(point=point), self.assertRaises(ValueError):
+            with subtests.test(point=point), pytest.raises(ValueError):
                 run_point(self.pres, "X_2", point, self.config())
         for target in ((2, 1), "X_3"):
-            with self.subTest(target=target), self.assertRaises(ValueError):
+            with subtests.test(target=target), pytest.raises(ValueError):
                 run_point(self.pres, target, self.point, self.config())
-        self.assertFalse(self.counter.exists())
-        self.assertFalse((self.root / "output").exists())
+        assert not (self.counter.exists())
+        assert not ((self.root / "output").exists())
 
 
 class TestOutputRootProtection(RunnerFixture):
-    def test_custom_output_and_cache_roots_ignore_generated_artifacts_in_git(self):
+    def test_custom_output_and_cache_roots_ignore_generated_artifacts_in_git(self, subtests):
         subprocess.run(["git", "init", "--quiet", str(self.root)], check=True)
         config = self.config(output_root=self.root / "custom-computation",
                              cache_root=self.root / "custom-shared-cache")
         run = run_point(self.pres, "X_2", self.point, config)
         for root in (config.output_root, config.cache_root):
-            with self.subTest(root=root):
-                self.assertEqual((root / ".gitignore").read_text(), "*\n!.gitignore\n")
-                self.assertEqual(subprocess.run(
+            with subtests.test(root=root):
+                assert ((root / ".gitignore").read_text()) == ("*\n!.gitignore\n")
+                assert (subprocess.run(
                     ["git", "check-ignore", "--quiet", str(root / "samples.sqlite3")],
-                    cwd=self.root).returncode, 0)
-                self.assertEqual(subprocess.run(
+                    cwd=self.root).returncode) == (0)
+                assert (subprocess.run(
                     ["git", "check-ignore", "--quiet", str(root / ".gitignore")],
-                    cwd=self.root).returncode, 1)
-        self.assertEqual(set(run.files), set(ARTIFACT_NAMES))
-        self.assertEqual(set(path.name for path in config.output_root.iterdir()),
-                         {".gitignore", "samples.sqlite3"})
+                    cwd=self.root).returncode) == (1)
+        assert (set(run.files)) == (set(ARTIFACT_NAMES))
+        assert (set(path.name for path in config.output_root.iterdir())) == ({".gitignore", "samples.sqlite3"})
 
     def test_reused_runs_prepare_missing_output_and_cache_markers(self):
         config = self.config(cache_root=self.root / "cache")
@@ -220,15 +218,15 @@ class TestOutputRootProtection(RunnerFixture):
         for root in (config.output_root, config.cache_root):
             (root / ".gitignore").unlink()
         reused = run_point(self.pres, "X_2", self.point, config)
-        self.assertTrue(reused.hit)
-        self.assertEqual(reused.store, first.store)
+        assert (reused.hit)
+        assert (reused.store) == (first.store)
         for root in (config.output_root, config.cache_root):
-            self.assertEqual((root / ".gitignore").read_text(), "*\n!.gitignore\n")
+            assert ((root / ".gitignore").read_text()) == ("*\n!.gitignore\n")
         other = replace(config, output_root=self.root / "from-cache")
         copied = run_point(self.pres, "X_2", self.point, other)
-        self.assertTrue(copied.hit)
-        self.assertEqual((other.output_root / ".gitignore").read_text(), "*\n!.gitignore\n")
-        self.assertEqual(self.counter.read_text(), "1")
+        assert (copied.hit)
+        assert ((other.output_root / ".gitignore").read_text()) == ("*\n!.gitignore\n")
+        assert (self.counter.read_text()) == ("1")
 
     def test_existing_custom_ignore_policy_survives_repeated_preparation(self):
         config = self.config(cache_root=self.root / "cache")
@@ -239,26 +237,26 @@ class TestOutputRootProtection(RunnerFixture):
         run_point(self.pres, "X_2", self.point, config)
         run_point(self.pres, "X_2", self.point, config)
         for root in (config.output_root, config.cache_root):
-            self.assertEqual((root / ".gitignore").read_bytes(), custom)
+            assert ((root / ".gitignore").read_bytes()) == (custom)
 
     def test_invalid_root_or_marker_propagates_filesystem_errors(self):
         occupied = self.root / "occupied"
         occupied.write_text("existing file")
-        with self.assertRaises(FileExistsError):
+        with pytest.raises(FileExistsError):
             prepare_output_root(occupied)
         root = self.root / "blocked-marker"
         (root / ".gitignore").mkdir(parents=True)
-        with self.assertRaises(OSError):
+        with pytest.raises(OSError):
             prepare_output_root(root)
-        self.assertTrue((root / ".gitignore").is_dir())
+        assert ((root / ".gitignore").is_dir())
 
     def test_pipeline_prepares_root_and_sample_markers_before_execution(self):
         config = self.config("exit", output_root=self.root / "custom-pipeline")
         result = pipeline.run(self.pres, "X_2", self.point, config,
                               start=1, step=1, maxpts=1, verbose=False)
-        self.assertEqual(result["execution_status"], "failed")
+        assert (result["execution_status"]) == ("failed")
         for root in (config.output_root,):
-            self.assertEqual((root / ".gitignore").read_text(), "*\n!.gitignore\n")
+            assert ((root / ".gitignore").read_text()) == ("*\n!.gitignore\n")
 
 
 class TestSolverExecution(RunnerFixture):
@@ -271,58 +269,54 @@ class TestSolverExecution(RunnerFixture):
         names = self.pres.var_names()
         actual = Basis.from_text(basis_text, 0, names)
         expected = Basis.load(basis_path, 0, names)
-        self.assertEqual([p.terms for p in actual.polys], [p.terms for p in expected.polys])
-        self.assertEqual(Proof.from_text(proof_text, names).terms,
-                         Proof.load(proof_path, names).terms)
+        assert ([p.terms for p in actual.polys]) == ([p.terms for p in expected.polys])
+        assert (Proof.from_text(proof_text, names).terms) == (Proof.load(proof_path, names).terms)
 
     def test_exact_input_and_all_proof_identities_are_retained(self):
         run = self.run_solver("all", max_degree=11)
-        self.assertFalse(run.hit)
-        self.assertGreaterEqual(run.seconds, 0)
+        assert not (run.hit)
+        assert (run.seconds) >= (0)
         expected = self.root / "expected.ms"
         self.pres.emit_ms(str(expected), *self.point)
-        self.assertEqual(run.files["input.ms"], expected.read_bytes())
-        self.assertEqual(run.record["status"], "proof-validated")
-        self.assertIs(run.record["basis_complete"], False)
-        self.assertEqual(run.record["basis_entries"], self.pres.n_relations())
-        self.assertEqual(run.record["request"]["presentation"]["legacy_hash"],
-                         self.pres.content_hash())
-        self.assertEqual(run.record["request"]["presentation"]["coefficient_domain"], "Q[q,t]")
-        self.assertEqual(run.record["request"]["point"], [5, 7, 0])
-        self.assertEqual(run.record["request"]["target"], "X_2")
-        self.assertEqual(run.record["request"]["monomial_order"], "degree-lex")
+        assert (run.files["input.ms"]) == (expected.read_bytes())
+        assert (run.record["status"]) == ("proof-validated")
+        assert (run.record["basis_complete"]) is (False)
+        assert (run.record["basis_entries"]) == (self.pres.n_relations())
+        assert (run.record["request"]["presentation"]["legacy_hash"]) == (self.pres.content_hash())
+        assert (run.record["request"]["presentation"]["coefficient_domain"]) == ("Q[q,t]")
+        assert (run.record["request"]["point"]) == ([5, 7, 0])
+        assert (run.record["request"]["target"]) == ("X_2")
+        assert (run.record["request"]["monomial_order"]) == ("degree-lex")
         names = self.pres.var_names()
-        self.assertEqual(len(Basis.from_text(run.files["basis.txt"].decode(), 0, names)),
-                         run.record["basis_entries"])
-        self.assertEqual(len(Proof.from_text(run.files["proof.txt"].decode(), names)),
-                         run.record["basis_entries"])
+        assert (len(Basis.from_text(run.files["basis.txt"].decode(), 0, names))) == (run.record["basis_entries"])
+        assert (len(Proof.from_text(run.files["proof.txt"].decode(), names))) == (run.record["basis_entries"])
         stdout = json.loads(run.files["stdout.txt"])
-        self.assertEqual(stdout, {"iterations": 13, "degree": 11})
+        assert (stdout) == ({"iterations": 13, "degree": 11})
 
-    def test_forward_references_and_supported_output_spacing(self):
+    def test_forward_references_and_supported_output_spacing(self, subtests):
         for mode in ("forward", "contexts", "comma", "standalone", "blank-basis", "extra"):
-            with self.subTest(mode=mode):
+            with subtests.test(mode=mode):
                 run = self.run_solver(mode)
-                self.assertEqual(set(run.files), set(ARTIFACT_NAMES))
-                self.assertEqual(run.record["basis_entries"], 2 if mode == "forward" else 1)
+                assert (set(run.files)) == (set(ARTIFACT_NAMES))
+                assert (run.record["basis_entries"]) == (2 if mode == "forward" else 1)
 
-    def test_invalid_and_partial_outputs_never_have_completion_records(self):
+    def test_invalid_and_partial_outputs_never_have_completion_records(self, subtests):
         for mode in ("missing", "empty", "empty-proof", "count", "identity", "cycle",
                      "zero-reference", "cancelled-reference", "basis-reference",
                      "dangling", "double-standalone", "double-sign", "missing-sign",
                      "malformed", "zero-basis", "zero-denominator", "bad-bytes", "mutate-input"):
             output = self.root / mode
-            with self.subTest(mode=mode), self.assertRaises(ArtifactError):
+            with subtests.test(mode=mode), pytest.raises(ArtifactError):
                 self.run_solver(mode, output_root=output)
-            self.assertFalse((output / "samples.sqlite3").exists())
-            self.assertFalse(list(output.glob(".solver-*")))
+            assert not ((output / "samples.sqlite3").exists())
+            assert not (list(output.glob(".solver-*")))
 
     def test_nonzero_exit_and_timeout_are_distinct_process_failures(self):
-        with self.assertRaisesRegex(ExecutionError, "code 7.*test producer"):
+        with pytest.raises(ExecutionError, match="code 7.*test producer"):
             self.run_solver("exit")
-        with self.assertRaisesRegex(ExecutionError, "exceeded"):
+        with pytest.raises(ExecutionError, match="exceeded"):
             self.run_solver("timeout", timeout_seconds=0.03)
-        self.assertFalse((self.root / "output" / "samples.sqlite3").exists())
+        assert not ((self.root / "output" / "samples.sqlite3").exists())
 
     def test_missing_binary_after_configuration_is_a_start_failure(self):
         executable = self.root / "copied-executable"
@@ -330,32 +324,32 @@ class TestSolverExecution(RunnerFixture):
         config = self.config(binary=executable)
         executable.unlink()
         # Identity hashing catches this before a process is attempted.
-        with self.assertRaises(FileNotFoundError):
+        with pytest.raises(FileNotFoundError):
             run_point(self.pres, "X_2", self.point, config)
         nonexecutable = self.root / "not-an-executable"
         nonexecutable.write_bytes(b"invalid executable contents")
-        with self.assertRaisesRegex(ExecutionError, "could not start"):
+        with pytest.raises(ExecutionError, match="could not start"):
             self.run_solver(binary=nonexecutable)
 
     def test_output_cache_and_refresh_do_not_conflate_computation_with_completeness(self):
         config = self.config(cache_root=self.root / "cache")
         first = run_point(self.pres, "X_2", self.point, config)
         hit = run_point(self.pres, "S[2][1]", self.point, config)
-        self.assertTrue(hit.hit)
-        self.assertEqual(first.key, hit.key)
-        self.assertEqual(self.counter.read_text(), "1")
+        assert (hit.hit)
+        assert (first.key) == (hit.key)
+        assert (self.counter.read_text()) == ("1")
         other = replace(config, output_root=self.root / "other-output")
         copied = run_point(self.pres, "X_2", self.point, other)
-        self.assertTrue(copied.hit)
-        self.assertEqual(copied.key, first.key)
-        self.assertEqual(copied.files, first.files)
-        self.assertEqual(self.counter.read_text(), "1")
+        assert (copied.hit)
+        assert (copied.key) == (first.key)
+        assert (copied.files) == (first.files)
+        assert (self.counter.read_text()) == ("1")
         refreshed = run_point(self.pres, "X_2", self.point, config, refresh=True)
-        self.assertFalse(refreshed.hit)
-        self.assertEqual(self.counter.read_text(), "2")
-        self.assertEqual(refreshed.store, first.store)
-        self.assertEqual(refreshed.record["generation"], first.record["generation"])
-        self.assertIs(refreshed.record["basis_complete"], False)
+        assert not (refreshed.hit)
+        assert (self.counter.read_text()) == ("2")
+        assert (refreshed.store) == (first.store)
+        assert (refreshed.record["generation"]) == (first.record["generation"])
+        assert (refreshed.record["basis_complete"]) is (False)
 
     def test_changed_inputs_binary_source_flags_and_limits_change_keys(self):
         config = self.config()
@@ -366,7 +360,7 @@ class TestSolverExecution(RunnerFixture):
         flag = self.run_solver("comma")
         self.producer.write_text(PRODUCER + "\n# changed executable source\n")
         changed = run_point(self.pres, "X_2", self.point, config)
-        self.assertEqual(len({r.key for r in (first, points, different, limit, flag, changed)}), 6)
+        assert (len({r.key for r in (first, points, different, limit, flag, changed)})) == (6)
 
 
 class TestCompletedRunRecords(RunnerFixture):
@@ -382,23 +376,23 @@ class TestCompletedRunRecords(RunnerFixture):
         with patch('tests.test_execution_runner.sqlite3.connect', side_effect=track_connection):
             self.replace_record(run, changed)
             self.alter_file(run, 'proof.txt', b'changed\n')
-        self.assertEqual(len(connections), 2)
+        assert (len(connections)) == (2)
         for connection in connections:
-            with self.assertRaises(sqlite3.ProgrammingError):
+            with pytest.raises(sqlite3.ProgrammingError):
                 connection.execute('SELECT 1')
         with closing(connect(run.store)) as connection:
             record = connection.execute('SELECT record FROM generations').fetchone()[0]
             proof = connection.execute("SELECT content FROM artifacts WHERE name='proof.txt'").fetchone()[0]
-        self.assertEqual(json.loads(record)['basis_entries'], 99)
-        self.assertEqual(proof, b'changed\n')
+        assert (json.loads(record)['basis_entries']) == (99)
+        assert (proof) == (b'changed\n')
 
     def test_absent_database_is_not_a_completed_run(self):
         run = self.run_solver()
         absent = self.root / "absent.sqlite3"
-        self.assertIsNone(store.load(absent, run.key, run.record["request"]))
-        self.assertFalse(absent.exists())
+        assert (store.load(absent, run.key, run.record["request"])) is None
+        assert not (absent.exists())
 
-    def test_record_schema_request_and_metadata_tampering_are_rejected(self):
+    def test_record_schema_request_and_metadata_tampering_are_rejected(self, subtests):
         run = self.run_solver()
         original = run.record
         changes = [
@@ -420,28 +414,28 @@ class TestCompletedRunRecords(RunnerFixture):
             record = json.loads(json.dumps(original))
             mutate(record)
             self.replace_record(run, record)
-            with self.subTest(record=record), self.assertRaises(ArtifactError):
+            with subtests.test(record=record), pytest.raises(ArtifactError):
                 self.run_solver()
         with closing(sqlite3.connect(run.store)) as connection, connection:
             connection.execute("UPDATE generations SET record=?", (b"{not json",))
-        with self.assertRaises(ArtifactError):
+        with pytest.raises(ArtifactError):
             self.run_solver()
         self.replace_record(run, original)
-        self.assertTrue(self.run_solver().hit)
+        assert (self.run_solver().hit)
 
     def test_output_byte_tampering_is_rejected_and_refresh_repairs_it(self):
         run = self.run_solver()
         self.alter_file(run, "proof.txt", b"[i1]\n")
-        with self.assertRaisesRegex(ArtifactError, "recorded identities"):
+        with pytest.raises(ArtifactError, match="recorded identities"):
             self.run_solver()
         fixed = run_point(self.pres, "X_2", self.point, self.config(), refresh=True)
-        self.assertEqual(fixed.files["proof.txt"], b"[i0]\n")
+        assert (fixed.files["proof.txt"]) == (b"[i0]\n")
         with closing(sqlite3.connect(run.store)) as connection, connection:
             connection.execute("DELETE FROM artifacts WHERE name='proof.txt'")
-        with self.assertRaises(ArtifactError):
+        with pytest.raises(ArtifactError):
             self.run_solver()
         fixed = run_point(self.pres, "X_2", self.point, self.config(), refresh=True)
-        self.assertEqual(fixed.files["proof.txt"], b"[i0]\n")
+        assert (fixed.files["proof.txt"]) == (b"[i0]\n")
 
     def _replace_generation(self, run, filename, content):
         """Model a coherently rehashed but mathematically false external record."""
@@ -464,20 +458,20 @@ class TestCompletedRunRecords(RunnerFixture):
     def test_a_rehashed_false_proof_still_fails_numeric_validation(self):
         run = self.run_solver()
         self._replace_generation(run, "proof.txt", b"[i1]\n")
-        with self.assertRaisesRegex(ArtifactError, "fails its input-ideal identity"):
+        with pytest.raises(ArtifactError, match="fails its input-ideal identity"):
             self.run_solver()
 
     def test_a_rehashed_different_input_is_not_the_requested_input(self):
         run = self.run_solver()
         self._replace_generation(run, "input.ms", b"x1,y1\n0\nx1*y1-2\n")
-        with self.assertRaisesRegex(ArtifactError, "recorded identities"):
+        with pytest.raises(ArtifactError, match="recorded identities"):
             self.run_solver()
 
     def test_corrupt_shared_cache_is_refused_for_a_new_output(self):
         config = self.config(cache_root=self.root / "cache")
         run = run_point(self.pres, "X_2", self.point, config)
         self.replace_record(run, {}, self.root / "cache" / "samples.sqlite3")
-        with self.assertRaises(ArtifactError):
+        with pytest.raises(ArtifactError):
             run_point(self.pres, "X_2", self.point,
                       replace(config, output_root=self.root / "another"))
 
@@ -486,27 +480,21 @@ class TestCompletedRunRecords(RunnerFixture):
         with closing(sqlite3.connect(run.store)) as connection, connection:
             connection.execute("DELETE FROM selections WHERE key=?", (run.key,))
         rerun = self.run_solver()
-        self.assertFalse(rerun.hit)
-        self.assertEqual(self.counter.read_text(), "2")
-        self.assertEqual(rerun.record["generation"], run.record["generation"])
+        assert not (rerun.hit)
+        assert (self.counter.read_text()) == ("2")
+        assert (rerun.record["generation"]) == (run.record["generation"])
 
     def test_multiple_points_use_one_database_without_loose_sample_files(self):
         config = self.config()
         runs = [run_point(self.pres, "X_2", (q, 7, 0), config) for q in (3, 5, 7, 11)]
-        self.assertEqual(len({run.store for run in runs}), 1)
-        self.assertEqual(set(path.name for path in config.output_root.iterdir()),
-                         {".gitignore", "samples.sqlite3"})
+        assert (len({run.store for run in runs})) == (1)
+        assert (set(path.name for path in config.output_root.iterdir())) == ({".gitignore", "samples.sqlite3"})
         with closing(sqlite3.connect(runs[0].store)) as connection, connection:
-            self.assertEqual(connection.execute("SELECT COUNT(*) FROM selections").fetchone()[0], 4)
-        self.assertFalse(list(config.output_root.glob(".solver-*")))
+            assert (connection.execute("SELECT COUNT(*) FROM selections").fetchone()[0]) == (4)
+        assert not (list(config.output_root.glob(".solver-*")))
 
     def test_file_hashing_streams_more_than_one_chunk(self):
         path = self.root / "large-artifact"
         content = b"proof output" * 20000
         path.write_bytes(content)
-        self.assertEqual(file_identity(path),
-                         {"bytes": len(content), "sha256": hashlib.sha256(content).hexdigest()})
-
-
-if __name__ == "__main__":
-    unittest.main()
+        assert (file_identity(path)) == ({"bytes": len(content), "sha256": hashlib.sha256(content).hexdigest()})

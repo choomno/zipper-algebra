@@ -22,7 +22,7 @@ classifiers = [
 
 [project.optional-dependencies]
 inference = ["sympy>=1.12"]
-dev = ["build>=1.2"]
+dev = ["build>=1.2", "pytest>=9,<10", "pytest-timeout>=2.4,<3", "coverage>=7.17,<8"]
 
 [project.scripts]
 zipper-algebra = "zipper_algebra.cli:main"
@@ -41,3 +41,9 @@ namespaces = false
 
 [tool.setuptools.package-data]
 zipper_algebra = ["_build_provenance.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["--import-mode=importlib", "--strict-config", "--strict-markers"]
+timeout = 60
+timeout_method = "signal"

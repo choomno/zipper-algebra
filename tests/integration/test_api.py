@@ -1,6 +1,5 @@
 """Use the certificate interface with ordinary package imports and exact arithmetic."""
 from fractions import Fraction
-import unittest
 
 from zipper_algebra.coefficients import NumericRing, SymbolicRing
 from zipper_algebra.polynomial import Poly
@@ -10,16 +9,15 @@ from zipper_algebra.cofactor.cofactor_io import Cofactor
 from zipper_algebra.cofactor.verify import check, pit_check
 
 
-class TestPackageImports(unittest.TestCase):
+class TestPackageImports:
     def test_symbolic_and_numeric_objects_share_the_public_coefficient_classes(self):
         pres = Presentation(3)
         target = pres.relations(SymbolicRing())[0]
-        self.assertIsInstance(target, Poly)
+        assert isinstance(target, Poly)
         cof = Cofactor.from_presentation(
             pres, "inverse relation", AtomSet([]),
             [((), pres.labels()[0], (), {(0, 0): Fraction(1)}, ())], "test",
         )
         for verifier in (check, pit_check):
-            self.assertTrue(verifier(cof, pres, target, verbose=False)["pass"])
-        self.assertEqual(cof.evaluate(3, 5, pres).terms,
-                         pres.relations(NumericRing(3, 5, 0))[0].terms)
+            assert verifier(cof, pres, target, verbose=False)['pass']
+        assert (cof.evaluate(3, 5, pres).terms) == (pres.relations(NumericRing(3, 5, 0))[0].terms)

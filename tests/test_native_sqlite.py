@@ -6,7 +6,7 @@ from pathlib import Path
 import sqlite3
 import sys
 import tempfile
-import unittest
+import pytest
 from unittest.mock import patch
 
 from zipper_algebra import Presentation
@@ -84,11 +84,10 @@ print(json.dumps({'iterations': a.m, 'degree': a.d}))
 '''
 
 
-class TestNativeSQLite(unittest.TestCase):
-    def setUp(self):
-        temporary = tempfile.TemporaryDirectory(prefix='zipper-native-')
-        self.addCleanup(temporary.cleanup)
-        self.root = Path(temporary.name)
+class TestNativeSQLite:
+    @pytest.fixture(autouse=True)
+    def _setup(self, tmp_path):
+        self.root = tmp_path
         self.script = self.root / 'producer.py'
         self.script.write_text(PRODUCER)
         self.counter = self.root / 'counter'
@@ -110,7 +109,7 @@ class TestNativeSQLite(unittest.TestCase):
     def assert_no_pending_jobs(self, path=None):
         path = path or self.root / 'output/samples.sqlite3'
         with closing(sqlite3.connect(path)) as connection, connection:
-            self.assertEqual(connection.execute('SELECT count(*) FROM f4ncgb_io').fetchone()[0], 0)
+            assert (connection.execute('SELECT count(*) FROM f4ncgb_io').fetchone()[0]) == (0)
 
     def test_pending_job_inspection_closes_its_database_connection(self):
         self.execute()
@@ -122,119 +121,114 @@ class TestNativeSQLite(unittest.TestCase):
             return connection
         with patch('tests.test_native_sqlite.sqlite3.connect', side_effect=track_connection):
             self.assert_no_pending_jobs()
-        self.assertEqual(len(connections), 1)
-        with self.assertRaises(sqlite3.ProgrammingError):
+        assert (len(connections)) == (1)
+        with pytest.raises(sqlite3.ProgrammingError):
             connections[0].execute('SELECT 1')
 
     def test_native_and_file_routes_retain_identical_bytes_with_distinct_request_modes(self):
         native = self.execute()
         file = run_point(self.pres, 'X_2', self.point, self.configuration(solver_io='files'))
-        self.assertEqual(native.files, file.files)
-        self.assertNotEqual(native.key, file.key)
-        self.assertEqual(native.record['request']['solver']['io_mode'], 'sqlite')
-        self.assertEqual(file.record['request']['solver']['io_mode'], 'files')
+        assert (native.files) == (file.files)
+        assert (native.key) != (file.key)
+        assert (native.record['request']['solver']['io_mode']) == ('sqlite')
+        assert (file.record['request']['solver']['io_mode']) == ('files')
         self.assert_no_pending_jobs()
 
     def test_native_route_creates_no_solver_files_and_reuses_validated_cache(self):
         config = self.configuration(cache_root=self.root / 'cache')
         first = run_point(self.pres, 'X_2', self.point, config)
-        self.assertFalse(first.hit)
-        self.assertEqual(self.counter.read_text(), '1')
-        self.assertEqual({path.name for path in config.output_root.iterdir()},
-                         {'.gitignore', 'samples.sqlite3'})
+        assert not (first.hit)
+        assert (self.counter.read_text()) == ('1')
+        assert ({path.name for path in config.output_root.iterdir()}) == ({'.gitignore', 'samples.sqlite3'})
         again = run_point(self.pres, 'X_2', self.point, config)
-        self.assertTrue(again.hit)
-        self.assertEqual(self.counter.read_text(), '1')
+        assert (again.hit)
+        assert (self.counter.read_text()) == ('1')
         shared = run_point(self.pres, 'X_2', self.point,
                            replace(config, output_root=self.root / 'another'))
-        self.assertTrue(shared.hit)
-        self.assertEqual(shared.files, first.files)
-        self.assertEqual(self.counter.read_text(), '1')
+        assert (shared.hit)
+        assert (shared.files) == (first.files)
+        assert (self.counter.read_text()) == ('1')
         refreshed = run_point(self.pres, 'X_2', self.point, config, refresh=True)
-        self.assertFalse(refreshed.hit)
-        self.assertEqual(self.counter.read_text(), '2')
+        assert not (refreshed.hit)
+        assert (self.counter.read_text()) == ('2')
         self.assert_no_pending_jobs()
 
-    def test_nonzero_exit_and_timeout_preserve_process_errors_and_remove_pending_jobs(self):
+    def test_nonzero_exit_and_timeout_preserve_process_errors_and_remove_pending_jobs(self, subtests):
         for mode, kwargs, message in [('exit', {}, 'code 7'),
                                       ('timeout', {'timeout_seconds':0.1}, 'exceeded')]:
-            with self.subTest(mode=mode), self.assertRaisesRegex(ExecutionError, message):
+            with subtests.test(mode=mode), pytest.raises(ExecutionError, match=message):
                 self.execute(mode, **kwargs)
             self.assert_no_pending_jobs()
         self.assert_no_pending_jobs()
 
-    def test_invalid_native_database_outputs_cannot_become_validated_samples(self):
+    def test_invalid_native_database_outputs_cannot_become_validated_samples(self, subtests):
         for mode, message in [('missing', 'complete result'), ('delete-row', 'disappeared'),
                               ('delete-db', 'disappeared'), ('mutate-input', 'changed'),
                               ('text-input', 'changed'), ('text-basis', 'exact bytes'),
                               ('text-proof', 'exact bytes'), ('partial', 'exact bytes'),
                               ('bad-bytes', 'invalid solver proof'),
                               ('false-proof', 'input-ideal identity')]:
-            with self.subTest(mode=mode), self.assertRaisesRegex(ArtifactError, message):
+            with subtests.test(mode=mode), pytest.raises(ArtifactError, match=message):
                 self.execute(mode)
             self.assert_no_pending_jobs()
             with closing(sqlite3.connect(self.root / 'output/samples.sqlite3')) as connection, connection:
-                self.assertEqual(connection.execute('SELECT count(*) FROM selections').fetchone()[0], 0)
+                assert (connection.execute('SELECT count(*) FROM selections').fetchone()[0]) == (0)
 
     def test_timeout_rolls_back_a_native_transaction_and_the_store_remains_resumable(self):
-        with self.assertRaisesRegex(ExecutionError, 'exceeded'):
+        with pytest.raises(ExecutionError, match='exceeded'):
             self.execute('transaction-timeout', timeout_seconds=2)
-        self.assertTrue(self.counter.with_name(self.counter.name + '.transaction').is_file())
+        assert (self.counter.with_name(self.counter.name + '.transaction').is_file())
         self.assert_no_pending_jobs()
         resumed = self.execute()
-        self.assertFalse(resumed.hit)
+        assert not (resumed.hit)
         self.assert_no_pending_jobs()
 
-    def test_configuration_rejects_unknown_routes_and_native_option_hijacking(self):
+    def test_configuration_rejects_unknown_routes_and_native_option_hijacking(self, subtests):
         for mode in ('unknown', None, True, []):
-            with self.subTest(mode=mode), self.assertRaisesRegex(ValueError, 'solver_io'):
+            with subtests.test(mode=mode), pytest.raises(ValueError, match='solver_io'):
                 self.configuration(solver_io=mode)
         for option in ('--sqlite', '--sqlite=elsewhere', '--sqlite-job=other', '--features'):
-            with self.subTest(option=option), self.assertRaisesRegex(ValueError, 'owned by RunConfig'):
+            with subtests.test(option=option), pytest.raises(ValueError, match='owned by RunConfig'):
                 self.configuration(flags=(option,))
 
     def test_native_input_rejects_nonbyte_values_before_creating_any_database(self):
         config = self.configuration()
         path = self.root / 'other.sqlite3'
-        with self.assertRaisesRegex(ArtifactError, 'exact bytes'):
+        with pytest.raises(ArtifactError, match='exact bytes'):
             native_io.execute(config, 'not bytes', path)
-        self.assertFalse(path.exists())
+        assert not (path.exists())
 
     def test_start_failure_removes_its_pending_row(self):
         binary = self.root / 'not-an-executable'
         binary.write_bytes(b'not an executable')
         config = self.configuration(binary=binary, command_prefix=())
-        with self.assertRaisesRegex(native_io.NativeExecutionError, 'could not start'):
+        with pytest.raises(native_io.NativeExecutionError, match='could not start'):
             native_io.execute(config, b'x\n0\nx\n', config.output_root / 'samples.sqlite3')
         self.assert_no_pending_jobs()
 
     def test_cleanup_failure_does_not_hide_the_original_process_error(self):
         with patch.object(native_io, '_discard', side_effect=ArtifactError('cleanup unavailable')):
-            with self.assertRaisesRegex(ExecutionError, 'code 7'):
+            with pytest.raises(ExecutionError, match='code 7'):
                 self.execute('exit')
 
     def test_cleanup_failure_after_success_is_not_reported_as_a_validated_sample(self):
         with patch.object(native_io, '_discard', side_effect=ArtifactError('cleanup unavailable')):
-            with self.assertRaisesRegex(ArtifactError, 'cleanup unavailable'):
+            with pytest.raises(ArtifactError, match='cleanup unavailable'):
                 self.execute()
         with closing(sqlite3.connect(self.root / 'output/samples.sqlite3')) as connection, connection:
-            self.assertEqual(connection.execute('SELECT count(*) FROM selections').fetchone()[0], 0)
+            assert (connection.execute('SELECT count(*) FROM selections').fetchone()[0]) == (0)
 
     def test_full_discovery_and_export_use_the_same_native_byte_validation(self):
         pres = Presentation(2, zero_from=2)
         report = pipeline.run(pres, 'X_2', self.point, self.configuration('all'),
                               start=7, step=2, maxpts=9, atoms=AtomSet([]), verbose=False)
-        self.assertEqual(report['status'], 'verified')
+        assert (report['status']) == ('verified')
         self.assert_no_pending_jobs()
-        self.assertEqual(len(report['runs']), 7)
+        assert (len(report['runs'])) == (7)
         sample = report['runs'][0]
         files, record = store.read(sample['store'], sample['key'], sample['generation'])
         output = self.root / 'export'
-        self.assertEqual(store.export(sample['store'], sample['key'], output), record)
+        assert (store.export(sample['store'], sample['key'], output)) == (record)
         for name, content in files.items():
-            self.assertEqual((output / name).read_bytes(), content)
-        self.assertEqual(json.loads((output / 'record.json').read_text()), record)
-
-
-if __name__ == '__main__':
-    unittest.main()
+            assert ((output / name).read_bytes()) == (content)
+        assert (json.loads((output / 'record.json').read_text())) == (record)

@@ -65,3 +65,6 @@ htmlcov/
 *.provenance.json
 grobner_zipper_*.gap
 /reconstruction_theory.pdf
+
+# Local pytest state
+.pytest_cache/
