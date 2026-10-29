@@ -1,0 +1,92 @@
+--- computing two-sided GB of I via twostd ---
+twostd CPU seconds:
+8
+twostd real seconds:
+7
+size of GB J:
+108
+--- reducing target X3 against J ---
+NF(X3, J) =
+0
+--- lift(I, ideal(X3)) to get cofactor in original generators ---
+   ? degree bound of Letterplace ring is 10, but at least 11 is needed for this multiplication
+   ? degree bound of Letterplace ring is 10, but at least 11 is needed for this multiplication
+   ? degree bound of Letterplace ring is 10, but at least 11 is needed for this multiplication
+   ? degree bound of Letterplace ring is 10, but at least 11 is needed for this multiplication
+   ? degree bound of Letterplace ring is 10, but at least 11 is needed for this multiplication
+   ? degree bound of Letterplace ring is 10, but at least 11 is needed for this multiplication
+   ? degree bound of Letterplace ring is 10, but at least 11 is needed for this multiplication
+   ? degree bound of Letterplace ring is 10, but at least 11 is needed for this multiplication
+   ? degree bound of Letterplace ring is 10, but at least 11 is needed for this multiplication
+   ? degree bound of Letterplace ring is 10, but at least 11 is needed for this multiplication
+   ? degree bound of Letterplace ring is 10, but at least 11 is needed for this multiplication
+   ? degree bound of Letterplace ring is 10, but at least 11 is needed for this multiplication
+   ? degree bound of Letterplace ring is 10, but at least 11 is needed for this multiplication
+   ? degree bound of Letterplace ring is 10, but at least 11 is needed for this multiplication
+   ? degree bound of Letterplace ring is 10, but at least 11 is needed for this multiplication
+   ? degree bound of Letterplace ring is 10, but at least 11 is needed for this multiplication
+   ? degree bound of Letterplace ring is 10, but at least 11 is needed for this multiplication
+   ? degree bound of Letterplace ring is 10, but at least 11 is needed for this multiplication
+   ? degree bound of Letterplace ring is 10, but at least 11 is needed for this multiplication
+   ? degree bound of Letterplace ring is 10, but at least 11 is needed for this multiplication
+   ? degree bound of Letterplace ring is 10, but at least 11 is needed for this multiplication
+   ? degree bound of Letterplace ring is 10, but at least 11 is needed for this multiplication
+   ? degree bound of Letterplace ring is 10, but at least 11 is needed for this multiplication
+   ? degree bound of Letterplace ring is 10, but at least 11 is needed for this multiplication
+   ? 2nd module does not lie in the first
+   ? error occurred in or before zipper-n4-X3-Q-db10.sing line 58: `matrix T = lift(I, IX3);`
+   ? expected matrix-expression. type 'help matrix;'
+lift CPU seconds:
+2
+lift real seconds:
+2
+dim T: nrows=
+   ? `T` is not defined
+   ? error occurred in or before zipper-n4-X3-Q-db10.sing line 64: `print("dim T: nrows="); print(nrows(T));`
+dim T: ncols=
+   ? `T` is not defined
+   ? error occurred in or before zipper-n4-X3-Q-db10.sing line 65: `print("dim T: ncols="); print(ncols(T));`
+--- verifying lift via testLift ---
+   ? can not convert $INVALID$(T) -> matrix
+   ? error occurred in or before freegb.lib::testLift line 3795: `parameter ideal M; parameter matrix T;  `
+   ? wrong type declaration. type 'help matrix;'
+   ? leaving freegb.lib::testLift (0)
+   skipping text from `;` error at token `)`
+V[1] (should equal X3):
+0
+V[1] - X3 (should be 0):
+-x1*x2*x1+5*x1*x2*y1+25*y1*y2*x1-125*y1*y2*y1-4*x1*x2+100*y1*y2
+   ? open: Error for link _ of type: ASCII, mode: , name: w /home/choom/gap_scripts/zipper-algebra/logs_and_traces/f4ncgb/cofactor-X3-n4-Q-singular.txt
+   ? cannot write to w /home/choom/gap_scripts/zipper-algebra/logs_and_traces/f4ncgb/cofactor-X3-n4-Q-singular.txt
+   ? error occurred in or before zipper-n4-X3-Q-db10.sing line 76: `write(out, "# Cofactor representation of X3 = sum_i l_i * I[i] * r_i");`
+   ? open: Error for link _ of type: ASCII, mode: , name: w /home/choom/gap_scripts/zipper-algebra/logs_and_traces/f4ncgb/cofactor-X3-n4-Q-singular.txt
+   ? cannot write to w /home/choom/gap_scripts/zipper-algebra/logs_and_traces/f4ncgb/cofactor-X3-n4-Q-singular.txt
+   ? error occurred in or before zipper-n4-X3-Q-db10.sing line 77: `write(out, "# Produced by Singular freegb.lib lift(I, ideal(X3))");`
+   ? open: Error for link _ of type: ASCII, mode: , name: w /home/choom/gap_scripts/zipper-algebra/logs_and_traces/f4ncgb/cofactor-X3-n4-Q-singular.txt
+   ? cannot write to w /home/choom/gap_scripts/zipper-algebra/logs_and_traces/f4ncgb/cofactor-X3-n4-Q-singular.txt
+   ? error occurred in or before zipper-n4-X3-Q-db10.sing line 78: `write(out, "# ncgen(i) markers indicate slot for I[i]");`
+   ? open: Error for link _ of type: ASCII, mode: , name: w /home/choom/gap_scripts/zipper-algebra/logs_and_traces/f4ncgb/cofactor-X3-n4-Q-singular.txt
+   ? cannot write to w /home/choom/gap_scripts/zipper-algebra/logs_and_traces/f4ncgb/cofactor-X3-n4-Q-singular.txt
+   ? error occurred in or before zipper-n4-X3-Q-db10.sing line 79: `write(out, "# Each row T[i,1] is a polynomial in ncgen(i):");`
+   ? open: Error for link _ of type: ASCII, mode: , name: w /home/choom/gap_scripts/zipper-algebra/logs_and_traces/f4ncgb/cofactor-X3-n4-Q-singular.txt
+   ? cannot write to w /home/choom/gap_scripts/zipper-algebra/logs_and_traces/f4ncgb/cofactor-X3-n4-Q-singular.txt
+   ? error occurred in or before zipper-n4-X3-Q-db10.sing line 80: `write(out, "#   T[i,1] = sum_j a_ij * ncgen(i) * b_ij");`
+   ? open: Error for link _ of type: ASCII, mode: , name: w /home/choom/gap_scripts/zipper-algebra/logs_and_traces/f4ncgb/cofactor-X3-n4-Q-singular.txt
+   ? cannot write to w /home/choom/gap_scripts/zipper-algebra/logs_and_traces/f4ncgb/cofactor-X3-n4-Q-singular.txt
+   ? error occurred in or before zipper-n4-X3-Q-db10.sing line 81: `, "# meaning the i-th generator contributes sum_j a_ij * I[i] * b_ij to X3.");`
+   ? open: Error for link _ of type: ASCII, mode: , name: w /home/choom/gap_scripts/zipper-algebra/logs_and_traces/f4ncgb/cofactor-X3-n4-Q-singular.txt
+   ? cannot write to w /home/choom/gap_scripts/zipper-algebra/logs_and_traces/f4ncgb/cofactor-X3-n4-Q-singular.txt
+   ? error occurred in or before zipper-n4-X3-Q-db10.sing line 82: `write(out, "");`
+   ? `T` is not defined
+   ? error occurred in or before zipper-n4-X3-Q-db10.sing line 83: `write(out, "ngens = " + string(nrows(T)));`
+   ? wrong type declaration. type 'help string;'
+   ? open: Error for link _ of type: ASCII, mode: , name: w /home/choom/gap_scripts/zipper-algebra/logs_and_traces/f4ncgb/cofactor-X3-n4-Q-singular.txt
+   ? cannot write to w /home/choom/gap_scripts/zipper-algebra/logs_and_traces/f4ncgb/cofactor-X3-n4-Q-singular.txt
+   ? error occurred in or before zipper-n4-X3-Q-db10.sing line 84: `write(out, "NF(X3,J) = " + string(nfX3));`
+   ? wrong type declaration. type 'help string;'
+   ? open: Error for link _ of type: ASCII, mode: , name: w /home/choom/gap_scripts/zipper-algebra/logs_and_traces/f4ncgb/cofactor-X3-n4-Q-singular.txt
+   ? cannot write to w /home/choom/gap_scripts/zipper-algebra/logs_and_traces/f4ncgb/cofactor-X3-n4-Q-singular.txt
+   ? error occurred in or before zipper-n4-X3-Q-db10.sing line 85: `write(out, "");`
+   ? `T` is not defined
+   ? error occurred in or before zipper-n4-X3-Q-db10.sing line 86: `forif (!( ii <= nrows(T))) break;`
+--- wrote cofactor to /home/choom/gap_scripts/zipper-algebra/logs_and_traces/f4ncgb/cofactor-X3-n4-Q-singular.txt ---

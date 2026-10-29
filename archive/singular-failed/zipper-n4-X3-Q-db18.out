@@ -1,0 +1,13 @@
+--- computing two-sided GB of I via twostd ---
+twostd CPU seconds:
+14
+twostd real seconds:
+16
+size of GB J:
+108
+--- reducing target X3 against J ---
+NF(X3, J) =
+0
+--- lift(I, ideal(X3)) to get cofactor in original generators ---
+
+halt 1

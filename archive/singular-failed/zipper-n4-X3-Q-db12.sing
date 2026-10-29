@@ -1,0 +1,92 @@
+LIB "freegb.lib";
+ring r = 0,(x1,x2,x3,y1,y2,y3),(c,Dp);
+ring R = freeAlgebra(r, 12, 31);
+// number of input generators (excluding target): 31
+ideal I = x1*y1-1,
+  y1*x1-1,
+  x2*y2-1,
+  y2*x2-1,
+  x3*y3-1,
+  y3*x3-1,
+  x1*x2*x1-x2*x1*x2,
+  y1*y2*y1-y2*y1*y2,
+  x1*x3-x3*x1,
+  y1*y3-y3*y1,
+  -x3*y1+y1*x3,
+  x1*y3-y3*x1,
+  x2*x3*x2-x3*x2*x3,
+  y2*y3*y2-y3*y2*y3,
+  x1*x2*y1-y2*x1*x2,
+  -x2*y1*y2+y1*y2*x1,
+  x1*y2*y1-y2*y1*x2,
+  -x2*x1*y2+y1*x2*x1,
+  x2*x3*y2-y3*x2*x3,
+  -x3*y2*y3+y2*y3*x2,
+  x2*y3*y2-y3*y2*x3,
+  -x3*x2*y3+y2*x3*x2,
+  -x1*x2*x1+5*x1*x2*y1+5*y1*y2*x1-25*y1*y2*y1-4*x1*x2+x2*x1-5*x2*y1+20*y1*y2-5*y2*x1+25*y2*y1+4*x1+4*x2-20*y1-20*y2+16,
+  -x2*x3*x2+5*x2*x3*y2+5*y2*y3*x2-25*y2*y3*y2-4*x2*x3+x3*x2-5*x3*y2+20*y2*y3-5*y3*x2+25*y3*y2+4*x2+4*x3-20*y2-20*y3+16,
+  x1*x2*x3*x1*x2*x1-5*x1*x2*x3*x1*x2*y1-25*x1*x2*x3*y1*y2*x1+125*x1*x2*x3*y1*y2*y1-25*y1*y2*y3*x1*x2*x1+125*y1*y2*y3*x1*x2*y1+625*y1*y2*y3*y1*y2*x1-3125*y1*y2*y3*y1*y2*y1+4*x1*x2*x3*x1*x2-100*x1*x2*x3*y1*y2-x2*x3*x1*x2*x1+5*x2*x3*x1*x2*y1+25*x2*x3*y1*y2*x1-125*x2*x3*y1*y2*y1-100*y1*y2*y3*x1*x2+2500*y1*y2*y3*y1*y2+25*y2*y3*x1*x2*x1-125*y2*y3*x1*x2*y1-625*y2*y3*y1*y2*x1+3125*y2*y3*y1*y2*y1-4*x2*x3*x1*x2+100*x2*x3*y1*y2+100*y2*y3*x1*x2-2500*y2*y3*y1*y2,
+  -x1*x1+5*x1*y1+3*x1-35*y1+28,
+  -x2*x2+5*x2*y2+3*x2-35*y2+28,
+  -x3*x3+5*x3*y3+3*x3-35*y3+28,
+  x2*x1*x1*x2*x1-5*x2*x1*x1*x2*y1-25*x2*x1*y1*y2*x1+125*x2*x1*y1*y2*y1-25*y2*y1*x1*x2*x1+125*y2*y1*x1*x2*y1+625*y2*y1*y1*y2*x1-3125*y2*y1*y1*y2*y1+4*x2*x1*x1*x2-100*x2*x1*y1*y2-100*y2*y1*x1*x2+2500*y2*y1*y1*y2,
+  x3*x2*x2*x3*x2-5*x3*x2*x2*x3*y2-25*x3*x2*y2*y3*x2+125*x3*x2*y2*y3*y2-25*y3*y2*x2*x3*x2+125*y3*y2*x2*x3*y2+625*y3*y2*y2*y3*x2-3125*y3*y2*y2*y3*y2+4*x3*x2*x2*x3-100*x3*x2*y2*y3-100*y3*y2*x2*x3+2500*y3*y2*y2*y3,
+  -x3*x2*x1*x1*x2*x3*x1*x2*x1+5*x3*x2*x1*x1*x2*x3*x1*x2*y1+25*x3*x2*x1*x1*x2*x3*y1*y2*x1-125*x3*x2*x1*x1*x2*x3*y1*y2*y1+125*x3*x2*x1*y1*y2*y3*x1*x2*x1-625*x3*x2*x1*y1*y2*y3*x1*x2*y1-3125*x3*x2*x1*y1*y2*y3*y1*y2*x1+15625*x3*x2*x1*y1*y2*y3*y1*y2*y1+125*y3*y2*y1*x1*x2*x3*x1*x2*x1-625*y3*y2*y1*x1*x2*x3*x1*x2*y1-3125*y3*y2*y1*x1*x2*x3*y1*y2*x1+15625*y3*y2*y1*x1*x2*x3*y1*y2*y1-15625*y3*y2*y1*y1*y2*y3*x1*x2*x1+78125*y3*y2*y1*y1*y2*y3*x1*x2*y1+390625*y3*y2*y1*y1*y2*y3*y1*y2*x1-1953125*y3*y2*y1*y1*y2*y3*y1*y2*y1-4*x3*x2*x1*x1*x2*x3*x1*x2+100*x3*x2*x1*x1*x2*x3*y1*y2+500*x3*x2*x1*y1*y2*y3*x1*x2-12500*x3*x2*x1*y1*y2*y3*y1*y2+500*y3*y2*y1*x1*x2*x3*x1*x2-12500*y3*y2*y1*x1*x2*x3*y1*y2-62500*y3*y2*y1*y1*y2*y3*x1*x2+1562500*y3*y2*y1*y1*y2*y3*y1*y2;
+poly X3 = x1*x2*x1-5*x1*x2*y1-25*y1*y2*x1+125*y1*y2*y1+4*x1*x2-100*y1*y2;
+
+int s0 = system("--ticks-per-sec");
+print("--- computing two-sided GB of I via twostd ---");
+int t0 = timer; int rt0 = rtimer;
+ideal J = twostd(I);
+int t1 = timer; int rt1 = rtimer;
+print("twostd CPU seconds:");
+print((t1-t0) div s0);
+print("twostd real seconds:");
+print(rt1-rt0);
+print("size of GB J:");
+print(size(J));
+
+print("--- reducing target X3 against J ---");
+poly nfX3 = reduce(X3, J);
+print("NF(X3, J) =");
+print(nfX3);
+
+print("--- lift(I, ideal(X3)) to get cofactor in original generators ---");
+int tL0 = timer; int rtL0 = rtimer;
+ideal IX3 = X3;
+matrix T = lift(I, IX3);
+int tL1 = timer; int rtL1 = rtimer;
+print("lift CPU seconds:");
+print((tL1-tL0) div s0);
+print("lift real seconds:");
+print(rtL1-rtL0);
+print("dim T: nrows="); print(nrows(T));
+print("dim T: ncols="); print(ncols(T));
+
+print("--- verifying lift via testLift ---");
+ideal V = testLift(I, T);
+print("V[1] (should equal X3):");
+print(V[1]);
+print("V[1] - X3 (should be 0):");
+print(V[1] - X3);
+
+// write cofactor to file
+link out = "ASCII:w /home/choom/gap_scripts/zipper-algebra/logs_and_traces/f4ncgb/cofactor-X3-n4-Q-singular.txt";
+write(out, "# Cofactor representation of X3 = sum_i l_i * I[i] * r_i");
+write(out, "# Produced by Singular freegb.lib lift(I, ideal(X3))");
+write(out, "# ncgen(i) markers indicate slot for I[i]");
+write(out, "# Each row T[i,1] is a polynomial in ncgen(i):");
+write(out, "#   T[i,1] = sum_j a_ij * ncgen(i) * b_ij");
+write(out, "# meaning the i-th generator contributes sum_j a_ij * I[i] * b_ij to X3.");
+write(out, "");
+write(out, "ngens = " + string(nrows(T)));
+write(out, "NF(X3,J) = " + string(nfX3));
+write(out, "");
+int ii;
+for (ii = 1; ii <= nrows(T); ii++) {
+  write(out, "T[" + string(ii) + ",1] = " + string(T[ii,1]));
+}
+print("--- wrote cofactor to /home/choom/gap_scripts/zipper-algebra/logs_and_traces/f4ncgb/cofactor-X3-n4-Q-singular.txt ---");
+
+quit;
