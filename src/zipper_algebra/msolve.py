@@ -76,7 +76,7 @@ def main() -> int:
         print(f"Augmented presentation: added S[{args.append_target}][1] "
               f"as defining relation #{target_idx} (0-based).")
 
-    with open(args.out, "w") as f:
+    with open(args.out, "w", encoding="utf-8", newline="\n") as f:
         f.write(",".join(var_names) + "\n")
         f.write(str(args.char) + "\n")
         for i, rel in enumerate(relations):

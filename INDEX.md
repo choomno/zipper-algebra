@@ -1,59 +1,57 @@
 # Repository map
 
-Updated 27 October 2026 for the public package. Scientific experiment inputs and saved results
-remain available alongside the maintained implementation.
-Current installation and test instructions are in [README](README.md) and
-[TESTING](docs/TESTING.md).
+The installed package provides current presentation and certificate operations.
+Research recipes and historical data remain separately identifiable.
 
-## Maintained package
+## Maintained implementation
 
-| Path | Purpose |
+All source below is under `src/zipper_algebra/`.
+
+| Location | Purpose |
 | --- | --- |
-| `src/zipper_algebra/presentation.py` | Presentation parameters, relation labels and symbolic content hashes. |
-| `src/zipper_algebra/zipper_in_ms.py` | Exact coefficient and noncommutative polynomial arithmetic; presentation builder and input emitter. |
-| `src/zipper_algebra/core.py` | Basis parsing, leading-word automata and reduction utilities. |
-| `src/zipper_algebra/cofactor/atoms.py` | Structured denominator factors and optional inference. |
-| `src/zipper_algebra/cofactor/cofactor_io.py` | Certificate data, validation, targets and legacy readers. |
-| `src/zipper_algebra/cofactor/proof.py` | Basis keys, proof references and expansion. |
-| `src/zipper_algebra/cofactor/skeleton.py` | Recorded contextual reduction steps. |
-| `src/zipper_algebra/cofactor/lift.py` | Exact interpolation and candidate reconstruction. |
-| `src/zipper_algebra/cofactor/compose.py` | Expansion and composition preserving both word contexts and repeated occurrences. |
-| `src/zipper_algebra/cofactor/verify.py` | Symbolic and degree-bounded grid checks of free-algebra identities. |
-| `tests/` | Default regression and package tests. |
-| `tests/fixtures/legacy_x3/` | Immutable inputs for historical compatibility comparisons, with hashes. |
+| `coefficients.py`, `polynomial.py` | Exact coefficient backends and free polynomial arithmetic. |
+| `presentation.py`, `relations.py` | One authority for the implemented zipper presentations and relation order. |
+| `core.py` | Basis parsing, leading-word matching and reduction utilities. |
+| `msolve.py` | Solver-format emission and the explicit augmented-presentation operation. |
+| `cofactor/atoms.py` | Denominator data and validation. |
+| `cofactor/univariate.py`, `cofactor/lift.py`, `cofactor/inference.py` | Exact reconstruction, held-out validation and optional factor inference. |
+| `cofactor/proof.py`, `skeleton.py`, `compose.py` | Proof graphs, contextual reductions and symbolic composition. |
+| `cofactor/cofactor_io.py`, `cofactor/artifacts.py` | Historical readers and new presentation-bound artifact envelopes. |
+| `cofactor/verify.py`, `cofactor/ncpoly.py` | Exact symbolic and degree-bounded product-grid checks. |
+| `execution/` | Explicit configuration, validated solver runs, sampling and bounded discovery. |
+| `linear.py` | Exact rational rank and validated prime-field rank. |
+| `cli.py` | Installed describe, emit, verify, compose and discover commands. |
 
-The modules under `tools/` that correspond to these package modules are
-compatibility entry points. They share the maintained implementation rather than
-maintaining a second copy of the arithmetic.
+`zipper_in_ms.py` retains the documented Python imports and module command as a
+small compatibility facade. Historical `tools.*` imports and launchers have
+been retired; use the installed package and commands.
 
-## Experimental execution and research
+## Tests, examples and research recipes
 
-| Path | Purpose and status |
+| Location | Purpose |
 | --- | --- |
-| `tools/cofactor/pipeline.py` | Solver sampling, reconstruction and verification driver; execution remains experimental. |
-| `tools/cofactor/paths.py`, `samples.py`, `tools/cache.py` | Historical workspace configuration, sample collection and caching. |
-| `tools/cofactor/{compress_cofactor,simplify_cofactor,reduce_to_three_rels,rename_to_ZT,verify_ZT_and_ideal_equality}.py` | Specialized historical transformations and checks. Their ambient algebra and dependencies require individual review. |
-| `tools/auxiliary/` | Diagnostics for earlier certificates. |
-| `tools/variants/` | Dimension, trace, radical, inclusion and representation experiments. |
-| `tools/research/`, `tools/survey/` | Parameter surveys and candidate higher relations. |
-| `tools/tests.py` | Older solver integration suite, separate from the default CI tests. |
-| `gap_scripts/`, `singular_run/` | Independent computational routes and saved outputs. |
-| `reproduce_X3_zero.sh` | Historical solver workflow entry point. |
+| `tests/unit/` | Mathematical arithmetic, parsing, validation and reconstruction regressions. |
+| `tests/integration/` | CLI, installation, coverage and computation-outcome checks. |
+| `tests/reproduction/` | Saved certificate and historical proof comparisons. |
+| `tests/reference/` | Frozen historical implementation used by those comparisons. |
+| `tests/fixtures/legacy_x3/` | Immutable 695-term witness, lift, skeleton, canonical anchor proof and numeric bases. |
+| `examples/` | Executable small examples and the curated 129-term X_3 certificate. |
+| `experiments/variants/` | Specialized quotient, trace, radical and representation calculations. |
+| `experiments/research/` | Slider/lasso minimal-polynomial investigations. |
+| `experiments/survey/` | Per-point observations with explicit coefficient domains and completion limits. |
+| [experiments/x3](experiments/x3/README.md) | Compact certificate transformations and braid-algebra checks. |
 
-Experimental script names, saved process output and agreement at several
-specializations do not establish a completed generic basis or a generic theorem.
-Use the evidence requirements in the mathematical specification when interpreting
-those records.
+Experimental observations are not generic theorems or automatically certified
+finite-dimensional-algebra data. Their unique mathematical computations remain
+available while shared arithmetic and presentation construction use the package.
 
-## Documentation
+## Scientific data and documentation
 
-| Document | Purpose |
-| --- | --- |
-| [Mathematical specification](docs/mathematical-specification/main.tex) | Objects, conventions, relation formulas, certificate domains and verification conclusions. |
-| [X3 reproduction](docs/X3_REPRODUCTION.md) | Commands, expected results, file inventory and solver dependencies. |
-| [WORKFLOW](WORKFLOW.md) | Current package and certificate workflow. |
-| [TESTING](docs/TESTING.md) | Default tests, package checks and optional integrations. |
+Current examples and regression tests accompany the maintained implementation.
+Retired experiments and datasets remain available in Git history.
 
-The reproduction guide maps the saved cofactor result to its inputs, source
-code and exact checks. Historical execution scripts retain the dependency and
-path assumptions described there.
+- [README](README.md): mathematical purpose, installation and principal commands.
+- [Mathematical reference](docs/mathematical-specification/main.tex): definitions, hypotheses and exact conclusions.
+- [Reproduction guide](docs/X3_REPRODUCTION.md): fresh production, saved-data replay and historical provenance.
+- [Workflow](WORKFLOW.md): operations and result statuses.
+- [Testing](docs/TESTING.md): mathematical regressions, coverage and CI.

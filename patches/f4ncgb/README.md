@@ -10,8 +10,10 @@ Checking the saved certificate, recomposing it from the saved symbolic lift,
 and replaying its retained proof require neither f4ncgb nor this patch; see the
 [reproduction guide](../../docs/X3_REPRODUCTION.md).
 
-The recovered research environment used the [parser patch](msolve-parser-fix.patch)
-against upstream commit `f152bb0d040d7947d4296f9d68ca849ee135629c` (v1.1.3).
+The bundled [parser patch](msolve-parser-fix.patch) targets upstream commit
+`f152bb0d040d7947d4296f9d68ca849ee135629c` (v1.1.3). This patch baseline is
+separate from the original research binary, whose recovered settings describe
+v1.0.1 without establishing its exact executable bytes.
 That revision was still upstream `main` when checked on 27 October 2026.
 The production parser changes extend recovered local commit
 `0301fb910fdfed3270cf95fe2742d34d0683cca7` with single-variable CRLF header
@@ -61,16 +63,15 @@ cmake --build ../f4ncgb-source/build-release
 Build the default target: the target named `f4ncgb` is the library, while the
 executable target is `f4ncgb_bin`.
 
-The recovered record reports 31 sanitizer tests and 23 accepted-input output
-comparisons. During the current cleanup the patch was checked against the exact
-base source. The strengthened patch and all 31 tests then passed in a fresh
+All 31 tests passed in the recorded
 [Ubuntu 24.04 GitHub build](https://github.com/choomno/f4ncgb/actions/runs/40625473978)
-at `789504d7c7da6af6946faecb73421b037766a5b8`. A local compiler and CMake
-remain absent from the preparation environment. The 23 historical output comparisons
-used iteration caps and do not assert completed Gröbner bases.
+at `789504d7c7da6af6946faecb73421b037766a5b8` and locally on Fedora 44. The
+historical 23 accepted-input output comparisons used iteration caps and do not
+assert completed Gröbner bases.
 
-The historical solver driver also needs workspace configuration and path repairs;
-applying this patch alone does not make that driver portable. Its supported
-alternative for auditing the result is the solver-free route in the reproduction
-guide. The patch is reviewed in the personal GitHub copy; no upstream issue or merge
-request is being submitted.
+Pass the resulting executable explicitly to `zipper-algebra discover --solver`.
+The installed command takes output/cache locations and limits directly; it does
+not use the old research workspace configuration. The reproduction guide gives
+the complete command and its smaller three-strand integration example, as well
+as solver-free certificate checking. The patch is reviewed in the personal
+GitHub copy; no upstream issue or merge request is being submitted.

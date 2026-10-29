@@ -47,8 +47,8 @@ For **fresh Gröbner-basis and cofactor discovery**, also build the external
 and Clemens Hofstadler. Follow the [solver installation instructions](patches/f4ncgb/README.md)
 for the pinned upstream revision, parser patch, C++ dependencies and build commands.
 Python package installation does not install this executable. The current
-experimental discovery driver additionally needs the workspace configuration
-described in the [reproduction guide](docs/X3_REPRODUCTION.md).
+discovery command takes the solver, output directory, cache and limits explicitly;
+the [reproduction guide](docs/X3_REPRODUCTION.md) explains its stages and outputs.
 
 Presentation construction, checking saved certificates, recomposition from saved
 proof data and the maintained tests run without the solver. Optional factor
@@ -79,37 +79,59 @@ cofactor representations are not unique in their term count or coefficients.
 
 The [reproduction guide](docs/X3_REPRODUCTION.md) identifies the
 input, program and output at every stage, including the original presentation
-input and the files needed for reconstruction. It distinguishes those stages
-from replaying a saved symbolic lift and states the current driver's workspace
-dependencies and missing historical proof logs.
+input and the files needed for reconstruction. Fresh production generates its own
+samples and proofs; replay of the retained symbolic lift is a separate route.
+
+### Produce a new certificate
+
+Install the inference extra and build the solver using the instructions above.
+Then run from any working directory:
+
+```sh
+zipper-algebra discover --n 4 --target X_3 \
+  --solver /absolute/path/to/f4ncgb \
+  --solver-revision 789504d7c7da6af6946faecb73421b037766a5b8 \
+  --output runs/x3 --cache runs/solver-cache \
+  --anchor 5,7 --start 100 --step 40 --max 260 --jobs 1 --json
+```
+
+The command emits the defining presentation, obtains and validates solver proofs,
+samples parameters, reconstructs coefficients, composes the certificate, and
+checks the identity exactly. It reads no saved certificate or symbolic lift.
+The result is recorded in `runs/x3/result.json`. Success has `"status": "verified"`;
+the report names an immutable certificate bundle and its hashes. Exit code `3`
+means discovery was inconclusive within the chosen limits. The full four-strand
+search can be expensive; a small three-strand example and the exact source map
+are in the guide.
 
 ### Audit the result
 
-Run from the repository root after installation. This checks the saved 695-term
-cofactor identity exactly, using both symbolic accumulation and a degree-bounded
-product grid:
+Run from the repository root after installation. The curated example contains a
+129-term cofactor identity. Check it exactly using symbolic accumulation and a
+degree-bounded product grid:
 
 ```sh
 python -m zipper_algebra describe --n 4 --json
 python -m zipper_algebra verify \
-  logs_and_traces/f4ncgb/cofactor-X3-n4-Qqt-symbolic.txt \
+  examples/x3/certificate.txt \
   --n 4 --target X_3 --pit --json > x3-verification.json
 ```
 
 Success means exit code `0` and `"pass": true` in the overall, `exact`, and `pit`
-reports in `x3-verification.json`; the exact report records 695 terms. The
+reports in `x3-verification.json`; the exact report records 129 terms. The
 presentation options select the four-strand canonical untwisting presentation.
 The command checks a generic rational-function identity, with specialization
 conditions explained in the mathematical reference. It needs no algebra solver.
 
-To reproduce the certificate body from the saved symbolic coefficients and
-reduction skeleton, then replay the retained numeric proof expansion:
+The older 695-term witness, symbolic lift, reduction skeleton and numeric proof
+data are retained under `tests/fixtures/legacy_x3/` for regression comparisons.
+Recompose that witness and replay the historical proof expansion with:
 
 ```sh
 python -m unittest \
-  tools.cofactor.tests_compose_io_verify.TestCompose.test_composed_body_is_byte_identical_to_the_shipped_certificate \
+  tests.reproduction.test_x3.TestCompose.test_composed_body_is_byte_identical_to_the_shipped_certificate \
   -v
-python -m unittest tools.cofactor.tests_proof_skeleton -v
+python -m unittest tests.reproduction.test_legacy_proofs -v
 ```
 
 The first command must report one passing test and byte-for-byte agreement;
@@ -117,7 +139,7 @@ the second must report 16 passing tests. These replay saved proof data; they do
 not rerun the original sampling and interpolation.
 
 The [reproduction guide](docs/X3_REPRODUCTION.md) maps every substantial source,
-input and output to its role, including the later compact certificate and the
+input and output to its role, with links to the optional historical data and
 independent specialized calculations. Its [file inventory](docs/x3-reproduction-files.json)
 records exact paths, sizes and SHA-256 hashes. Check those against the checkout:
 
@@ -125,11 +147,12 @@ records exact paths, sizes and SHA-256 hashes. Check those against the checkout:
 python ci/check_x3_manifest.py
 ```
 
-Fresh discovery uses the experimental solver driver and needs additional
-configuration. The [f4ncgb parser patch and build instructions](patches/f4ncgb/README.md)
-are included for that route. The guide states the remaining portability and
-archival gaps. The retained large certificate is auditable computational
-evidence, rather than the latest mathematical proof.
+The [f4ncgb parser patch and build instructions](patches/f4ncgb/README.md)
+provide the external dependency for fresh discovery. A local fresh four-strand
+run produced the curated example from 100 fresh parameter points, with 99
+compatible samples and 107 reconstructed coefficient slots. Exact symbolic and
+product-grid checks passed. This full computation is separate from the smaller
+native solver integration run in CI.
 
 The same operation is available in Python:
 
@@ -139,7 +162,7 @@ from zipper_algebra.cofactor.verify import check
 
 presentation = Presentation(n=4)
 certificate = Cofactor.load(
-    "logs_and_traces/f4ncgb/cofactor-X3-n4-Qqt-symbolic.txt",
+    "examples/x3/certificate.txt",
     pres=presentation,
 )
 report = check(certificate, presentation, target="X_3", verbose=False)
@@ -164,14 +187,19 @@ checks, package checks and optional integrations.
 | `src/zipper_algebra/` | Maintained Python implementation and command line interface. |
 | `tests/` | Regression tests, installation checks and immutable fixtures. |
 | `docs/` | Mathematical reference, reproduction guide and testing instructions. |
-| `tools/` | Compatibility entry points and experimental solver/research scripts. |
-| `logs_and_traces/`, `ms_inputs/` | Historical scientific artifacts and inputs, retained with their provenance. |
-| `gap_scripts/`, `singular_run/`, `archive/` | Independent or older computational paths and saved experiments. |
+| `experiments/` | Research recipes, specialized transformations and independent comparisons. |
+| `examples/` | Small executable examples and the curated X_3 certificate. |
+| `gap_scripts/`, `singular_run/`, `archive/` | Source programs for independent and older computational paths. |
 
-The installed wheel contains the maintained package, not the private recovery
-workspace or the research archive. Solver execution, variant surveys, dimension
-and trace calculations remain experimental while their completion and exactness
-requirements are audited. [INDEX](INDEX.md) maps those sources.
+Bulk historical datasets remain at their original checkout paths until the separate
+data-removal change is merged. Source distributions and wheels omit them.
+Regression tests use curated fixtures; fresh production uses `discover`.
+
+Retired research material remains available in Git history.
+
+The installed wheel contains the maintained package. The execution layer
+validates solver proofs and exact certificate identities. Variant surveys, dimension and trace recipes
+retain separate completion and exactness requirements. [INDEX](INDEX.md) maps those sources.
 
 ## References
 

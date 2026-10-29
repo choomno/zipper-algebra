@@ -1,40 +1,19 @@
 #!/usr/bin/env python3
-"""Presentation: the one object that says which algebra we are talking about.
+"""Ordered defining data for the implemented zipper-algebra quotients.
 
-GENERALITY_CENSUS.md §3.1. Before 2026-09-17 the presentation lived in four places that agreed
-only by luck: the .ms emitter (`zipper_in_ms.build_relations`, integers q,t), a hand-copied
-symbolic version in `symbolic_identity_check.build_inputs_and_X3` (n=4, bigelow, hard-coded),
-`extract_cofactor.build_originals_and_target` (calling the emitter with `"bigelow"` spelled out),
-and `papers/generic/fit_symbolic.py`, which reconstructed the symbolic coefficients by sampling
-the emitter because the emitter could not be handed symbols. A cofactor verified against one
-copy is a cofactor for whatever algebra that copy happened to encode.
-
-Now there is one builder, `zipper_in_ms.build_relations_ring`, parameterised by a coefficient
-ring, and this class is its front end:
-
-    pres = Presentation(n=4)                        # the X_3 pipeline's algebra
-    pres = Presentation(n=4, untwist="square-zero", max_untwist_level=3)
-
-    names, rels, S, tags = pres.build(NumericRing(5, 7, 0))   # the .ms emitter's view
-    names, rels, S, tags = pres.build(SymbolicRing())         # exact, q,t transcendental
-    pres.labels()            -> ['INV_1_p', ..., 'Z_2', ..., 'T_4']   derived, not typed
-    pres.target(3, 1, ring)  -> S[(3,1)] = X_3
-    pres.slug()              -> 'n4-bigelow'            for file names
-    pres.content_hash()      -> sha256 of the symbolic relations, for cache keys
-    pres.emit_ms(path, 5, 7, 0)                          byte-identical to zipper_in_ms.py's CLI
-
-Nothing here is specific to X_3 or to n=4.
+``Presentation`` selects a strand count, untwisting preset and additional relations.
+Its numeric and symbolic views use one relation builder. The content hash identifies
+that ordered symbolic presentation, independently of parameter specialization.
+Computational order, solver configuration and completion evidence belong to run records.
 """
 from __future__ import annotations
 
 import hashlib
-import os
-import sys
 from dataclasses import dataclass, field
-from fractions import Fraction
 
-from .zipper_in_ms import (Poly, NumericRing, SymbolicRing, QTCoef, RelTag,
-                          build_relations_ring)
+from .coefficients import NumericRing, SymbolicRing
+from .polynomial import Poly
+from .relations import RelTag, build_relations_ring
 
 
 # ---------------------------------------------------------------------------
@@ -44,7 +23,7 @@ from .zipper_in_ms import (Poly, NumericRing, SymbolicRing, QTCoef, RelTag,
 # ---------------------------------------------------------------------------
 
 def _theta_word(i: int, j: int, ring, n: int) -> Poly:
-    """Theta_{i,j} = (x_j x_{j+1} ... x_{j+i-2}) * (x_{j+i-2} ... x_j), as in build_relations."""
+    """Full twist on an i-strand block: thesis Theta_{i-1,j}, represented by the positive word."""
     def x(k):
         return Poly.generator_over(k, ring.one)
     asc = x(j)
@@ -189,7 +168,7 @@ class Presentation:
         """Write the msolve input exactly as zipper_in_ms.py's CLI does (same bytes, so the
         driver's content-addressed cache keys are unchanged). Returns the relation count."""
         names, rels, _, _ = self.build(NumericRing(q, t, char))
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8", newline="\n") as f:
             f.write(",".join(names) + "\n")
             f.write(str(char) + "\n")
             for i, rel in enumerate(rels):

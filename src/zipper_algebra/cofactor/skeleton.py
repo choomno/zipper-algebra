@@ -23,7 +23,8 @@ import json
 from dataclasses import dataclass, field
 from fractions import Fraction
 
-from ..zipper_in_ms import Coef, Poly
+from ..coefficients import Coef
+from ..polynomial import Poly
 from .proof import Basis, Proof, Word, Expanded, leading_term, mon_sort_key
 
 
@@ -104,6 +105,47 @@ def closure(indices, proof: Proof) -> set[int]:
     return out
 
 
+def _json_integer(value, name: str, minimum: int | None = None) -> int:
+    """Decode integers without JSON booleans or floating point coercion."""
+    if type(value) not in (int, str):
+        raise ValueError(f"noncanonical skeleton {name}: expected an exact integer")
+    try:
+        result = int(value)
+    except ValueError as exc:
+        raise ValueError(f"skeleton {name} must be an integer") from exc
+    if minimum is not None and result < minimum:
+        raise ValueError(f"skeleton {name} must be at least {minimum}")
+    return result
+
+
+def _json_sequence(value, name: str):
+    if not isinstance(value, (list, tuple)):
+        raise ValueError(f"skeleton {name} must be an array")
+    return value
+
+
+def _json_text(value, name: str, *, nonempty: bool = False) -> str:
+    if not isinstance(value, str) or (nonempty and not value):
+        raise ValueError(f"skeleton {name} must be a {'nonempty ' if nonempty else ''}string")
+    return value
+
+
+def _json_word(value, name: str) -> Word:
+    word = _json_sequence(value, name)
+    if any(type(index) is not int or index < 1 for index in word):
+        raise ValueError(f"skeleton {name} must contain positive integer variable indices")
+    return tuple(word)
+
+
+def _json_multiplier(value) -> Fraction:
+    if isinstance(value, bool) or not isinstance(value, (int, str, Fraction)):
+        raise ValueError("skeleton multipliers must be exact rational numbers")
+    try:
+        return Fraction(value)
+    except (ValueError, ZeroDivisionError) as exc:
+        raise ValueError("skeleton multipliers must be exact rational numbers") from exc
+
+
 @dataclass
 class Skeleton:
     presentation: str                       # Presentation.slug()
@@ -162,12 +204,34 @@ class Skeleton:
 
     @classmethod
     def from_json(cls, d: dict) -> "Skeleton":
+        """Read exact metadata, including historical integer and rational strings.
+
+        Contexts use positive, one-based variable indices; the presentation supplies
+        their upper bound when the skeleton is used. Empty contexts denote the unit.
+        """
+        if not isinstance(d, dict):
+            raise ValueError("a skeleton must be a JSON object")
         a = d["anchor"]
-        steps = [{"left": tuple(s["left"]), "basis_key": s["basis_key"],
-                  "right": tuple(s["right"]), "mult": Fraction(s["mult"])} for s in d["steps"]]
-        return cls(d["presentation"], d["presentation_hash"], d["target"],
-                   (int(a["q"]), int(a["t"]), int(a["char"])), steps,
-                   list(d["basis_keys"]), int(d["remainder_terms"]))
+        if not isinstance(a, dict):
+            raise ValueError("a skeleton anchor must be a JSON object")
+        anchor = (_json_integer(a["q"], "anchor q"), _json_integer(a["t"], "anchor t"),
+                  _json_integer(a["char"], "anchor characteristic", 0))
+        steps = []
+        for s in _json_sequence(d["steps"], "steps"):
+            if not isinstance(s, dict):
+                raise ValueError("each skeleton step must be a JSON object")
+            steps.append({"left": _json_word(s["left"], "left context"),
+                          "basis_key": _json_text(s["basis_key"], "basis key", nonempty=True),
+                          "right": _json_word(s["right"], "right context"),
+                          "mult": _json_multiplier(s["mult"])})
+        if "n_steps" in d and _json_integer(d["n_steps"], "step count", 0) != len(steps):
+            raise ValueError("skeleton step count does not match its steps")
+        keys = [_json_text(key, "basis key", nonempty=True)
+                for key in _json_sequence(d["basis_keys"], "basis keys")]
+        return cls(_json_text(d["presentation"], "presentation"),
+                   _json_text(d["presentation_hash"], "presentation hash"),
+                   _json_text(d["target"], "target"), anchor, steps, keys,
+                   _json_integer(d["remainder_terms"], "remainder term count", 0))
 
     def save(self, path: str) -> None:
         with open(path, "w") as f:

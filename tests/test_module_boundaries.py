@@ -1,5 +1,4 @@
 """Public arithmetic imports and the separated solver-input entry point."""
-import os
 from pathlib import Path
 import subprocess
 import sys
@@ -45,7 +44,7 @@ class TestEmitterModuleBoundaries(unittest.TestCase):
             )
             self.assertEqual(result.returncode, 0, result.stderr)
             expected = "x1,y1\n0\nx1*y1-1,\ny1*x1-1\n"
-            self.assertEqual(output.read_bytes(), expected.replace("\n", os.linesep).encode("ascii"))
+            self.assertEqual(output.read_bytes(), expected.encode("ascii"))
             self.assertIn("Wrote 2 relations in 2 variables", result.stdout)
 
     def test_new_msolve_module_rejects_the_removed_membership_shortcut(self):

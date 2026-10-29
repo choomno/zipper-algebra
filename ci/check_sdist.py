@@ -24,19 +24,36 @@ def check(directory, no_isolation=False):
         trees = [p for p in Path(directory).iterdir() if p.is_dir()]
         assert len(trees) == 1
         tree = trees[0]
-        command = [sys.executable, "-m", "build", "--wheel"]
+        for script, arguments in (("ci/check_docs.py", ()),
+                                  ("ci/check_x3_manifest.py", ()),
+                                  ("ci/build_x3_manifest.py", ("--check",))):
+            subprocess.run([sys.executable, script, *arguments], cwd=tree, check=True)
+        # Local ignored working files must never leak into a rebuilt release.
+        # These are synthetic privacy-regression fixtures, not instructions.
+        for name in ("docs/PRIVATE_BASELINE.md", "docs/baseline.json", "docs/HISTORY.md",
+                     "AGENTS.md", "CONTRIBUTING.md", ".agents/notes.md"):
+            private = tree / name
+            private.parent.mkdir(parents=True, exist_ok=True)
+            private.write_text("Private build regression fixture.\n", encoding="utf-8")
+        command = [sys.executable, "-m", "build", "--wheel", "--sdist"]
         if no_isolation:
             command.append("--no-isolation")
         subprocess.run(command, cwd=tree, check=True)
+        subprocess.run([sys.executable, "ci/check_distribution.py", "dist"], cwd=tree, check=True)
         wheel = single(tree / "dist", "*.whl")
         subprocess.run([sys.executable, "-m", "pip", "install", "--force-reinstall",
                         "--no-deps", str(wheel)], check=True)
         env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1", PYTHONNOUSERSITE="1")
         env.pop("PYTHONPATH", None)
-        for args in (["discover", "-s", "tests", "-v"],
-                     ["tools.cofactor.tests_proof_skeleton", "-v"]):
-            subprocess.run([sys.executable, "-m", "unittest", *args], cwd=tree, env=env,
-                           check=True)
+        subprocess.run([sys.executable, "ci/run_tests.py", "--suite", "fast"],
+                       cwd=tree, env=env, check=True)
+        # The full historical comparison suite runs once in the coverage job.
+        # Here one complete certificate recomposition proves that its immutable
+        # data and reference adapters survive extraction and wheel rebuilding.
+        subprocess.run([sys.executable, "-m", "unittest",
+                        "tests.reproduction.test_x3.TestCompose."
+                        "test_composed_body_is_byte_identical_to_the_shipped_certificate",
+                        "-v"], cwd=tree, env=env, check=True)
     print("Source-distribution build and regressions passed")
 
 

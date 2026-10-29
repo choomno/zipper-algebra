@@ -31,7 +31,7 @@ def check():
         report = run("describe", "--n", "3", "--json", cwd=directory)
         assert report["n"] == 3 and "Z_2" in report["relations"]
         certificate = Path(directory) / "historical.txt"
-        shutil.copyfile(root / "logs_and_traces/f4ncgb/cofactor-X3-n4-Qqt-symbolic.txt",
+        shutil.copyfile(root / "tests/fixtures/legacy_x3/cofactor-X3-n4-Qqt-symbolic.txt",
                         certificate)
         report = run("verify", str(certificate), "--n", "4", "--target", "X_3", "--json",
                      cwd=directory)

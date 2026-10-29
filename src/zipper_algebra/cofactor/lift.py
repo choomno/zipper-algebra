@@ -41,8 +41,10 @@ import json
 import time
 from fractions import Fraction
 
-from .atoms import (AtomSet, infer as infer_atoms, reconstruct_univariate,
-                    exact_fraction, normalise_points)
+from .atoms import AtomSet
+from .inference import infer as infer_atoms
+from .univariate import (_poly_divmod, _specialise, exact_fraction,
+                         normalise_points, reconstruct_univariate)
 
 
 Anchor = tuple  # (q, t, char); char 0 = Q
@@ -254,47 +256,8 @@ def fit_rational_known(points, atoms: AtomSet, denom_exps, max_pq=5, max_pt=5):
 
 
 # ----------------------------------------------------------------------------
-# per-slot denominator from line reconstruction (the SPEC optimisation's input)
+# Per-slot denominator proposals from line reconstruction
 # ----------------------------------------------------------------------------
-
-def _specialise(coefs: dict, fixed: str, x0) -> list:
-    """{(i,j): c} restricted to t = x0 ('t') or q = x0 ('q'), as a univariate coefficient
-    list low->high in the other variable.  (atoms._specialise, kept private there.)"""
-    out = {}
-    for (i, j), c in coefs.items():
-        if fixed == "t":
-            out[i] = out.get(i, 0) + c * Fraction(x0) ** j
-        else:
-            out[j] = out.get(j, 0) + c * Fraction(x0) ** i
-    deg = max(out) if out else 0
-    poly = [out.get(k, Fraction(0)) for k in range(deg + 1)]
-    while len(poly) > 1 and poly[-1] == 0:
-        poly.pop()
-    return poly
-
-
-def _poly_divmod(num, den):
-    """Exact univariate division over Fraction, coefficient lists low->high.  (atoms._poly_divmod.)"""
-    num = [Fraction(c) for c in num]
-    den = [Fraction(c) for c in den]
-    while den and den[-1] == 0:
-        den.pop()
-    if not den:
-        raise ZeroDivisionError
-    q = [Fraction(0)] * max(0, len(num) - len(den) + 1)
-    r = num[:]
-    while len(r) >= len(den) and any(r):
-        if r[-1] == 0:
-            r.pop(); continue
-        k = len(r) - len(den)
-        c = r[-1] / den[-1]
-        q[k] = c
-        for i, d in enumerate(den):
-            r[k + i] -= c * d
-        r.pop()
-    while r and r[-1] == 0:
-        r.pop()
-    return q, r
 
 
 def line_denominator(points, atoms: AtomSet, min_line=6, max_lines=None):
@@ -393,6 +356,29 @@ def holdout_size(n_samples: int) -> int:
 # the result
 # ----------------------------------------------------------------------------
 
+def _json_integer(value, name, minimum=None):
+    """Read exact integer metadata without truncating floats or accepting booleans."""
+    if type(value) not in (int, str):
+        raise ValueError(f"lift {name} must be an exact integer")
+    try:
+        result = int(value)
+    except ValueError as exc:
+        raise ValueError(f"lift {name} must be an exact integer") from exc
+    if minimum is not None and result < minimum:
+        raise ValueError(f"lift {name} must be at least {minimum}")
+    return result
+
+
+def _json_coefficient(value):
+    """Historical rational strings stay exact; JSON binary floats are rejected."""
+    if isinstance(value, bool) or not isinstance(value, (int, str, Fraction)):
+        raise ValueError("lift numerator coefficients must be exact rational numbers")
+    try:
+        return Fraction(value)
+    except (ValueError, ZeroDivisionError) as exc:
+        raise ValueError("lift numerator coefficients must be exact rational numbers") from exc
+
+
 class Lift:
     """entries[key] = [(den_exps, num, left, kind, key_or_idx, right), ...] in the anchor
     proof's term order; num is {(dq,dt): Fraction} without zero coefficients.  anchor_index
@@ -430,17 +416,27 @@ class Lift:
 
     @classmethod
     def from_json(cls, d):
+        """Read historical unbound lifts without lossy numeric coercion."""
+        if not isinstance(d, dict):
+            raise ValueError("a lift must be a JSON object")
+        a = d["anchor"]
+        if not isinstance(a, (list, tuple)) or len(a) != 3:
+            raise ValueError("a lift anchor must be an array of three exact integers")
+        anchor = (_json_integer(a[0], "anchor q"), _json_integer(a[1], "anchor t"),
+                  _json_integer(a[2], "anchor characteristic", 0))
         atoms = AtomSet.from_json(d["atoms"])
         entries, anchor_index = {}, {}
         for key, ent in d["entries"].items():
-            anchor_index[key] = ent["anchor_index"]
+            index = ent["anchor_index"]
+            anchor_index[key] = None if index is None else _json_integer(index, "anchor index", 0)
             terms = []
             for it in ent["terms"]:
-                num = {tuple(m): Fraction(c) for m, c in it["num"]}
+                num = {tuple(m): _json_coefficient(c) for m, c in it["num"]}
                 terms.append((tuple(it["denom"]), num, tuple(it["left"]), it["kind"],
                               it["ref"], tuple(it["right"])))
             entries[key] = terms
-        return cls(atoms, entries, d["samples_used"], d["holdout"], tuple(d["anchor"]),
+        return cls(atoms, entries, _json_integer(d["samples_used"], "sample count", 0),
+                   _json_integer(d["holdout"], "holdout count", 0), anchor,
                    anchor_index, d.get("atom_report"), d.get("timing"))
 
     def save(self, path):

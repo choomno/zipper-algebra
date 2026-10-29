@@ -1,7 +1,7 @@
 """Exercise the optional exact polynomial-factorization dependency."""
 from fractions import Fraction
 
-from zipper_algebra.cofactor.atoms import residual_factors
+from zipper_algebra.cofactor.inference import residual_factors
 
 
 if __name__ == "__main__":

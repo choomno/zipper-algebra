@@ -1,63 +1,80 @@
 # Tests and continuous integration
 
-Use Python 3.11 or newer. Install the package before running the source tests:
+Use Python 3.11 or newer and install the package before running source tests:
 
 ```sh
-python -m pip install -e .
-python -m unittest discover -s tests -v
-python -m unittest tools.cofactor.tests_proof_skeleton -v
+python -m pip install -e '.[inference]'
+python ci/run_tests.py --suite all
 ```
 
-The maintained tests need no solver, personal configuration, sibling research
-folders, populated cache or network access after installation. They cover exact
-and modular arithmetic, basis parsing, presentation validation, proof expansion,
-certificate validation, contextual composition, repeated reduction steps, exact
-interpolation, held-out validation, inconclusive outcomes, package imports and
-CLI exit codes. Tests use temporary directories for output.
+Ordinary unittest discovery remains supported:
 
-The historical comparisons use the archived implementation and immutable
-fixtures under `tests/fixtures/legacy_x3/`. Their hashes and original records are
-listed in the adjacent manifest. The retained large free-algebra certificate is
-a compatibility fixture; tests do not identify it as the latest mathematical proof.
+```sh
+python -m unittest discover -s tests -v
+```
+
+The complete suite includes unit, integration and reproduction tests, including
+all 16 historical proof comparisons. Separate selections are:
+
+```sh
+python ci/run_tests.py --suite fast
+python ci/run_tests.py --suite reproduction
+```
+
+These selections partition the full suite without overlap or omissions. The fast
+selection includes all non-reproduction cases, including execution-boundary,
+CLI and installation regressions. The reproduction selection checks the 695-term
+certificate fixtures and frozen historical implementation. The curated 129-term certificate lives under
+`examples/x3/`. No default test selection requires the optional bulk archive.
+
+## What the tests establish
+
+Small tests check independently specified identities, coefficient domains,
+parsing, invalid data, noncommuting contexts, repeated occurrences, interpolation
+rank and held-out checks. They are separate from compatibility with the large
+retained witness.
+
+Process-boundary tests use an explicitly identified deterministic producer to
+exercise timeout, unsuccessful exit, malformed/truncated proof output, cache
+identity, interrupted publication and resumption. They do not pretend to be
+Gröbner-basis computations. Native f4ncgb integration is a separate CI job,
+described below.
+
+Historical comparisons use immutable fixtures under `tests/fixtures/legacy_x3/`
+and a frozen implementation under `tests/reference/`. That implementation shares
+the coefficient kernel with the package. Its purpose is historical equivalence;
+the separate symbolic and degree-grid checks have their own stated independence.
+The retained 695-term witness and its numeric bases are computational regression
+cases. The current example is checked as a free-algebra identity using both
+symbolic accumulation and a degree-bounded product grid.
 
 ## Maintained package coverage
 
-The target is **at least 99.5% line coverage and 99.5% branch coverage**, checked
-separately before rounding. The measured source is every Python file in
-`src/zipper_algebra/`. Experimental scripts and archived implementations have
-separate test requirements and are outside this package measurement.
-
-The complete local suite measured **99.90% lines (3088/3091)** and
-**99.72% branches (1424/1428)** across 231 maintained tests and 16 historical
-proof comparisons. No source lines or branches are excluded. The tests cover
-exact identities, coefficient domains, parsing and validation, reduction,
-reconstruction, noncommuting contexts, CLI behaviour and optional inference.
-These percentages describe exercised code; the mathematical assertions and
-independent expected results in the tests remain essential.
-
-To measure the complete default suite and historical proof comparisons:
+The requirement is **at least 99.5% line coverage and 99.5% branch coverage**,
+checked separately before rounding. Every Python file under `src/zipper_algebra/`
+is measured, including the execution layer. No source lines or partial branches
+are excluded. Research recipes have their own regression checks and are not
+part of the maintained package measurement.
 
 ```sh
 python -m pip install -e '.[inference]' coverage==7.17.0
 python -m coverage erase
-python -m coverage run -m unittest discover -s tests -v
-python -m coverage run -m unittest tools.cofactor.tests_proof_skeleton -v
+python -m coverage run ci/run_tests.py --suite all
 python -m coverage combine
 python -m coverage json -o coverage.json
 python ci/check_coverage.py coverage.json
 ```
 
-The checked-in configuration enables branch measurement and Python subprocess
-coverage, including isolated CLI invocations. The checker requires the complete
-maintained file list, rejects excluded source lines, and enforces both thresholds.
-The configuration clears both line-exclusion and partial-branch-exclusion patterns.
-The CI coverage job installs the real optional inference dependency and runs
-these checks. For a local annotated report, run `python -m coverage html` after
-combining the data, then open `htmlcov/index.html`.
+The configuration measures Python subprocesses as well as the parent process.
+The gate requires the complete maintained file list and rejects exclusions.
+It compares raw line and branch ratios with the threshold. The CI log records
+the current counts; a percentage displayed after rounding is not enough.
+
+For an annotated local report, run `python -m coverage html` after combining
+the data. Coverage describes execution; the mathematical assertions and
+independent expected results remain essential.
 
 ## Distribution checks
-
-Build both formats, then inspect their contents:
 
 ```sh
 python -m pip install build
@@ -65,55 +82,57 @@ python -m build
 python ci/check_distribution.py dist
 ```
 
-In a fresh environment, install the built wheel and run
-`python ci/check_installed.py` from the checkout. That script imports the package
-and runs commands from a separate temporary working directory in isolated Python
-processes. It rejects an editable installation for this check. It distinguishes
-a valid certificate, a false identity and malformed input.
+Install the built wheel in a fresh environment and run
+`python ci/check_installed.py` from the checkout. It imports the package and
+executes commands outside the source tree in isolated Python processes.
 
-`python ci/check_sdist.py dist` extracts the source distribution, rebuilds its
-wheel and runs the source regressions. Run it in a disposable environment: it
-replaces that environment's installed development package with the rebuilt wheel.
+`python ci/check_sdist.py dist` extracts the source archive, rebuilds and installs
+its wheel, then runs the fast suite and a full retained-certificate recomposition.
+Use a disposable environment: this check replaces its installed package.
 
-The wheel contains only the maintained package and distribution metadata. The
-source archive includes public documentation, tests and selected regression
-fixtures. Private histories, recovered manuscripts, machine configuration,
-caches and experimental result collections are excluded.
+The wheel contains only package code and distribution metadata. The source
+archive includes reader documentation, tests, examples, selected fixtures and
+experimental recipes needed by those tests. It omits the full research archive,
+private working records, caches, binary matrix pickles and machine configuration.
 
 ## GitHub Actions
 
-The workflow runs on pushes, pull requests and manual dispatch. Its matrix
-checks Linux on Python 3.11, 3.12, 3.13 and 3.14, plus Windows on Python 3.13.
-It builds the wheel and source archive, tests the installed wheel, runs the
-regressions and rebuilds the source archive. A separate job measures maintained-package coverage and checks the optional
-Sympy factorization extra. Documentation checks validate local links and compile
-the mathematical specification.
+The platform matrix checks Linux on Python 3.11, 3.12, 3.13 and 3.14, and Windows
+on Python 3.13. It runs the fast suite and isolated wheel checks; the Linux 3.13
+job also rebuilds the source archive. The full suite, including historical
+comparisons, runs in the coverage job with the real optional Sympy dependency.
 
-The compiled [mathematical reference](mathematical-specification/mathematical-specification.pdf)
-is committed beside its source and included in the source distribution. With
-`pdflatex` installed, rebuild it from the repository root using:
+The native solver job builds the pinned parser-fixed f4ncgb source on Ubuntu,
+installs the zipper-algebra wheel, and exercises a small two-generator test
+presentation with `X_2=0` explicitly imposed. It checks native input/output,
+proof identities, coefficient reconstruction, the result bundle and both
+certificate checks outside this workspace. Full four-strand discovery and
+other research computations run locally. A local full four-strand run produced
+the curated 129-term certificate from 100 fresh parameter points, with both exact
+checks passing; see the [reproduction guide](X3_REPRODUCTION.md). The workflow
+and `ci/check_solver.py` record the pinned source and commands.
+
+The documentation job validates local links, deterministic inventory
+regeneration and recorded hashes, then compiles the mathematical reference.
+Workflow run pages record actual hosted results; configured jobs and local
+checks alone do not establish a hosted pass.
+
+## Mathematical documentation and audit inventory
 
 ```sh
+python ci/check_docs.py
+python ci/build_x3_manifest.py --check
+python ci/check_x3_manifest.py
 python ci/build_docs.py
 ```
 
-The helper runs two passes, keeps auxiliary files in a temporary directory and
-rejects unresolved references or overfull boxes before replacing the PDF. It
-uses the source revision's timestamp when Git history is available; PDF bytes
-can still differ across TeX and font versions. CI rebuilds the reference and
-retains it as a downloadable artifact on the workflow run.
+The compiler runs two passes, checks references and overfull boxes, and replaces
+the output PDF only after success. The committed
+[mathematical reference](mathematical-specification/mathematical-specification.pdf)
+and its source are included in the source archive. CI also retains its newly
+compiled PDF as an artifact. PDF bytes can vary across compiler/font versions.
 
-Jobs have time limits, read-only repository permissions and no publication step.
-The workflow does not require project secrets or an algebra solver. A local test
-pass and a GitHub-hosted run are separate evidence; workflow run pages record the
-hosted results.
+The inventory covers the curated current source, example, fixtures and test/build
+support. The [reproduction guide](X3_REPRODUCTION.md) identifies the inputs and
+implementation used by each current route. Retired material remains in Git history.
 
-## Experimental integrations
-
-The older `python -m tools.tests`, solver sampling, dimension and trace scripts
-retain separate dependency and completion requirements. They are outside the
-maintained CI boundary. Large discovery computations need explicit tool versions
-and completion evidence before their mathematical conclusions can be accepted.
-
-See the [mathematical specification](mathematical-specification/main.tex) for
-the coefficient domains, assumptions and conclusions of the maintained operations.

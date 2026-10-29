@@ -1,27 +1,33 @@
 include README.md LICENSE pyproject.toml .coveragerc
+include INDEX.md WORKFLOW.md reconstruction_theory.tex .gitignore .gitattributes
+include .github/workflows/ci.yml
 recursive-include src/zipper_algebra *.py
-recursive-include docs *.md *.tex *.json
+include docs/TESTING.md docs/X3_REPRODUCTION.md docs/x3-reproduction-files.json
+include docs/mathematical-specification/README.md docs/mathematical-specification/main.tex
 include docs/mathematical-specification/mathematical-specification.pdf
 recursive-include ci *.py
-recursive-include patches *.md *.patch LICENSE
-recursive-include tests *.py *.json *.txt
-include tools/__init__.py tools/presentation.py tools/zipper_in_ms.py tools/core.py
-include tools/cofactor/__init__.py
-include tools/cofactor/atoms.py tools/cofactor/cofactor_io.py tools/cofactor/compose.py
-include tools/cofactor/lift.py tools/cofactor/ncpoly.py tools/cofactor/proof.py
-include tools/cofactor/skeleton.py tools/cofactor/verify.py
-include tools/cofactor/paths.py tools/cofactor/pipeline.py tools/cofactor/relations_naming.py
-include tools/cofactor/tests_*.py
-include archive/cofactor-pre-consolidation/extract_cofactor.py
-include logs_and_traces/f4ncgb/cofactor-X3-n4-Qqt-symbolic.txt
-include logs_and_traces/f4ncgb/basis-n4-Q.txt
-include logs_and_traces/f4ncgb/basis-n4-Q-q5-t7.txt
-include logs_and_traces/f4ncgb/basis-n4-Q-q3-t11.txt
-include logs_and_traces/f4ncgb/basis-n4-Q-q7-t13.txt
+include patches/f4ncgb/README.md patches/f4ncgb/msolve-parser-fix.patch patches/f4ncgb/LICENSE
+recursive-include tests *.py
+recursive-include tests/fixtures/legacy_x3 *.json *.txt
+recursive-include examples *.py
+include examples/x3/README.md
+include examples/x3/certificate.txt
+recursive-include experiments *.py
+include experiments/research/README.md experiments/variants/README.md experiments/x3/README.md
+include experiments/survey/cluster_array.sbatch.template
+recursive-include gap_scripts *.gap
+recursive-include archive/gap *.gap *.sh
+recursive-include singular_run *.sing
+include singular_run/README.md
+recursive-include zipping_algorithm *.py
 global-exclude *.py[cod]
 global-exclude __pycache__
+global-exclude AGENTS.md CLAUDE.md CONTRIBUTING.md CONTRIBUTING.MD
 prune .cache
 prune build
 prune dist
 
 exclude CONTRIBUTING.md CONTRIBUTING.MD
+
+# Historical generated bases are excluded before checkout cleanup.
+recursive-exclude archive/gap grobner_zipper_*.gap

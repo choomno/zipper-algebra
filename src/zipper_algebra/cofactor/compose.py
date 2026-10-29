@@ -42,7 +42,7 @@ from .cofactor_io import (Cofactor, resolve_target, target_name,
                          validate_word, validate_qt_polynomial)
 from .lift import NeedMoreSamples, fit_rational
 from ..presentation import Presentation
-from ..zipper_in_ms import NumericRing
+from ..coefficients import NumericRing
 
 
 # ---------------------------------------------------------------------------
@@ -269,7 +269,7 @@ def multipliers_at_anchor(skeleton, atoms: AtomSet) -> list:
 # ---------------------------------------------------------------------------
 
 def compose(lift, skeleton, pres: Presentation, multipliers=None, samples=None,
-            producer="tools/cofactor/compose.py", verbose=True) -> Cofactor:
+            producer="zipper_algebra.cofactor.compose", verbose=True) -> Cofactor:
     """The target's cofactor over the input relations, as a Cofactor."""
     if getattr(skeleton, "remainder_terms", 0) != 0:
         raise ValueError("cannot compose a membership certificate from a nonzero remainder")
@@ -358,6 +358,11 @@ def numeric_check(cof: Cofactor, pres: Presentation, points=((5, 7), (3, 11), (7
 MULTIPLIER_SCHEMA = "zipper-cofactor-multipliers-v1"
 
 
+def _metadata_json(value):
+    """Compare JSON metadata without equating booleans, integers and floats."""
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False)
+
+
 def multipliers_to_json(multipliers, skeleton, atoms, pres):
     """Encode exact rational multipliers in contextual skeleton-occurrence order.
 
@@ -365,10 +370,13 @@ def multipliers_to_json(multipliers, skeleton, atoms, pres):
     its legacy display hash. Ordered atom definitions and contexts bind coefficient
     interpretation and the particular reduction occurrences.
     """
+    atoms.validate()
     records = []
     for (num, den), step in zip(multipliers, skeleton.steps, strict=True):
         validate_qt_polynomial(num)
         atoms.validate_exponents(den)
+        validate_word(step["left"], pres.n)
+        validate_word(step["right"], pres.n)
         records.append({"basis_key": step["basis_key"], "left": list(step["left"]),
                         "right": list(step["right"]), "denom": list(den),
                         "num": [[list(m), str(c)] for m, c in sorted(num.items())]})
@@ -386,7 +394,7 @@ def load_multipliers(path, skeleton, atoms, pres):
     digest = hashlib.sha256(pres.canonical_text().encode()).hexdigest()
     if data.get("presentation_sha256") != digest or data.get("target") != skeleton.target:
         raise ValueError("multipliers belong to a different presentation or target")
-    if data.get("atoms") != atoms.to_json():
+    if _metadata_json(data.get("atoms")) != _metadata_json(atoms.to_json()):
         raise ValueError("multiplier denominator atoms do not match the lift")
     records = data["steps"]
     if not isinstance(records, list) or len(records) != len(skeleton.steps):
@@ -395,7 +403,8 @@ def load_multipliers(path, skeleton, atoms, pres):
     for record, step in zip(records, skeleton.steps):
         expected = {"basis_key": step["basis_key"], "left": list(step["left"]),
                     "right": list(step["right"])}
-        if not isinstance(record, dict) or any(record.get(k) != v for k, v in expected.items()):
+        if (not isinstance(record, dict)
+                or _metadata_json({k: record.get(k) for k in expected}) != _metadata_json(expected)):
             raise ValueError("multiplier occurrence does not match the reduction skeleton")
         num = {}
         for monomial, coefficient in record["num"]:
@@ -422,25 +431,47 @@ def _save_atomic(cofactor, output):
             os.unlink(temporary)
 
 
-def main(argv=None):
-    """Compose from explicit symbolic multipliers and publish only an exact identity."""
-    import argparse
-    from ..cli import _presentation_arguments, _presentation
+def add_arguments(parser):
+    """Shared installed/module command arguments for exact symbolic composition."""
+    from ..cli import _presentation_arguments
+    parser.add_argument("--lift", required=True)
+    parser.add_argument("--skeleton", required=True)
+    parser.add_argument("--multipliers", required=True,
+                        help="versioned symbolic multipliers in contextual occurrence order")
+    parser.add_argument("--out", required=True)
+    parser.add_argument("--target", help="explicit target required for bound artifact files")
+    parser.add_argument("--solver-order", choices=("degree-lex",), default="degree-lex")
+    _presentation_arguments(parser, require_n=True)
+
+
+def _composition_inputs(args, pres):
+    from .artifacts import load_artifact, target_identity
     from .lift import Lift
     from .skeleton import Skeleton
-    from .verify import check
+    documents = [json.loads(Path(path).read_text()) for path in (args.skeleton, args.lift)]
+    if any(not isinstance(data, dict) for data in documents):
+        raise ValueError("composition inputs must contain JSON objects")
+    bound = any("schema" in data for data in documents)
+    if bound and args.target is None:
+        raise ValueError("bound composition artifacts require an explicit --target")
+    order = {"solver": args.solver_order, "reduction": "length-lex-index-v1"}
+    skeleton = (load_artifact(args.skeleton, pres, args.target, kind="skeleton", order=order)
+                if "schema" in documents[0] else Skeleton.from_json(documents[0]))
+    target = skeleton.target if args.target is None else args.target
+    if target_identity(pres, target) != target_identity(pres, skeleton.target):
+        raise ValueError("requested target differs from the reduction skeleton")
+    fitted = (load_artifact(args.lift, pres, target, kind="lift", order=order)
+              if "schema" in documents[1] else Lift.from_json(documents[1]))
+    return fitted, skeleton
 
-    ap = argparse.ArgumentParser(description="compose and exactly verify a Q(q,t) cofactor")
-    ap.add_argument("--lift", required=True)
-    ap.add_argument("--skeleton", required=True)
-    ap.add_argument("--multipliers", required=True,
-                    help="versioned symbolic multiplier JSON in contextual occurrence order")
-    ap.add_argument("--out", required=True)
-    _presentation_arguments(ap, require_n=False)
-    args = ap.parse_args(argv)
+
+def run(args):
+    """Compose and publish an exact identity using already parsed command arguments."""
+    from ..cli import _presentation
+    from .verify import check
     try:
         pres = _presentation(args)
-        lift, skeleton = Lift.load(args.lift), Skeleton.load(args.skeleton)
+        lift, skeleton = _composition_inputs(args, pres)
         multipliers = load_multipliers(args.multipliers, skeleton, lift.atoms, pres)
         cofactor = compose(lift, skeleton, pres, multipliers=multipliers, verbose=not args.json)
         report = check(cofactor, pres, verbose=not args.json)
@@ -458,6 +489,14 @@ def main(argv=None):
         else:
             print(f"compose: {error}", file=sys.stderr)
         return 2
+
+
+def main(argv=None):
+    """Compatibility module command using the installed frontend's implementation."""
+    import argparse
+    parser = argparse.ArgumentParser(description="compose and exactly verify a Q(q,t) cofactor")
+    add_arguments(parser)
+    return run(parser.parse_args(argv))
 
 
 if __name__ == "__main__":

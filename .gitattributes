@@ -1,3 +1,6 @@
+# Keep source and inventory hashes stable across checkout platforms.
+* text=auto eol=lf
+
 # Stored unified patches retain meaningful context whitespace.
 *.patch -whitespace
 
