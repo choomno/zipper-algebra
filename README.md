@@ -203,10 +203,6 @@ checks, package checks and optional integrations.
 | `data/` | Pinned archive manifest and historical aliases. |
 | `gap_scripts/`, `singular_run/`, `archive/` | Source programs for independent and older computational paths. |
 
-Bulk historical datasets remain at their original checkout paths until the separate
-data-removal change is merged. Source distributions and wheels omit them.
-Regression tests use curated fixtures; fresh production uses `discover`.
-
 All historical scientific data remain available in pinned Git revision
 `d30b36aa2da0819dfa28954bd9223ef72163edf5`. Restore selected inputs, logs, saved
 bases and variant results on demand with

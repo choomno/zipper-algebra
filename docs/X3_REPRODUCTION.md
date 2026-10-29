@@ -229,12 +229,8 @@ python ci/build_x3_manifest.py --check
 python ci/check_x3_manifest.py
 ```
 
-The maintained reproduction path uses one certificate example and immutable
-regression fixtures. Bulk historical datasets remain at their original checkout
-paths until the separate data-removal change is merged. Source distributions and
-wheels omit them. Regression tests use curated fixtures; fresh production uses
-`discover`.
-Bulk inputs, logs, saved bases and variant survey results
+The current checkout keeps one certificate example and the immutable data used
+by the regression suite. Bulk inputs, logs, saved bases and variant survey results
 are recorded in [data/research-archive.json](../data/research-archive.json), pinned
 to Git revision `d30b36aa2da0819dfa28954bd9223ef72163edf5` with original paths and
 SHA-256 hashes. Restore all groups or a selected group into a separate directory:

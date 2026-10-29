@@ -3,7 +3,7 @@
 These scripts explore dimensions, trace forms, radical candidates, tower maps and
 Markov-trace conditions for specified untwisting quotients. They are research
 programs outside the maintained installed package. Their historical inputs
-and outputs are optional research data listed in
+and outputs are optional external research data listed in
 [`data/research-archive.json`](../../data/research-archive.json).
 
 | Script | Computation |

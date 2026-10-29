@@ -79,8 +79,8 @@
     },
     {
       "path": "MANIFEST.in",
-      "bytes": 1515,
-      "sha256": "ce898a7c34ffa9d93ff8152a5d628b6f78bac43a375544468a594df625a245af",
+      "bytes": 1396,
+      "sha256": "50a8a4822dacf7dd3fa18157eb48e0cf27be1de5a1e48a45602aaad291d275bf",
       "role": "Source-distribution inclusion rules"
     },
     {
