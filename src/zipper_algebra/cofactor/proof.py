@@ -31,8 +31,9 @@ from __future__ import annotations
 
 import re
 from fractions import Fraction
+from io import StringIO
 
-from ..coefficients import Coef
+from ..coefficients import Coef, QTCoef
 from ..polynomial import Poly
 
 
@@ -48,7 +49,7 @@ def mon_sort_key(mon: Word) -> tuple:
     return (len(mon),) + tuple(mon)
 
 
-def leading_term(p: Poly, order=mon_sort_key) -> tuple[Word, Coef]:
+def leading_term(p: Poly, order=mon_sort_key) -> tuple[Word, Coef | QTCoef]:
     if not p.terms:
         raise ValueError("leading_term of the zero polynomial")
     lm = max(p.terms.keys(), key=order)
@@ -172,24 +173,34 @@ class Basis:
     def load(cls, path: str, char: int, var_names: list[str], order=mon_sort_key) -> "Basis":
         return cls(parse_basis(path, char, var_names), char, var_names, order)
 
+    @classmethod
+    def from_text(cls, text: str, char: int, var_names: list[str], order=mon_sort_key) -> "Basis":
+        """Parse retained solver bytes without materializing an intermediate file."""
+        return cls(_parse_basis_lines(StringIO(text, newline=None), char, var_names, "<memory>"),
+                   char, var_names, order)
+
 
 def parse_basis(path: str, char: int, var_names: list[str]) -> list[Poly]:
     """One Poly per non-empty line of an f4ncgb basis file."""
+    with open(path) as stream:
+        return _parse_basis_lines(stream, char, var_names, path)
+
+
+def _parse_basis_lines(lines, char, var_names, source):
     var_index = {name: i + 1 for i, name in enumerate(var_names)}
     polys: list[Poly] = []
-    with open(path) as f:
-        for raw in f:
-            line = raw.strip().rstrip(",")
-            if not line:
-                continue
-            p = Poly(char)
-            for tok in _split_terms(line):
-                coef, names = _split_coef(tok)
-                for v in names:
-                    if v not in var_index:
-                        raise ValueError(f"unknown variable {v!r} in basis term {tok!r} of {path}")
-                p.add_term(tuple(var_index[v] for v in names), Coef(coef, char))
-            polys.append(p)
+    for raw in lines:
+        line = raw.strip().rstrip(",")
+        if not line:
+            continue
+        p = Poly(char)
+        for tok in _split_terms(line):
+            coef, names = _split_coef(tok)
+            for v in names:
+                if v not in var_index:
+                    raise ValueError(f"unknown variable {v!r} in basis term {tok!r} of {source}")
+            p.add_term(tuple(var_index[v] for v in names), Coef(coef, char))
+        polys.append(p)
     return polys
 
 
@@ -230,13 +241,17 @@ def _parse_noex_term(tok: str, var_index: dict[str, int]) -> Term:
 
 def parse_noex_proof(path: str, var_names: list[str]) -> list[list[Term]]:
     """One term list per line; an empty line is an element with no proof terms."""
+    with open(path) as stream:
+        return _parse_proof_lines(stream, var_names)
+
+
+def _parse_proof_lines(lines, var_names):
     var_index = {name: i + 1 for i, name in enumerate(var_names)}
     out: list[list[Term]] = []
-    with open(path) as f:
-        for raw in f:
-            line = raw.strip()
-            out.append([_parse_noex_term(tok, var_index) for tok in _split_terms(line)]
-                       if line else [])
+    for raw in lines:
+        line = raw.strip()
+        out.append([_parse_noex_term(tok, var_index) for tok in _split_terms(line)]
+                   if line else [])
     return out
 
 
@@ -264,6 +279,11 @@ class Proof:
     @classmethod
     def load(cls, path: str, var_names: list[str]) -> "Proof":
         return cls(parse_noex_proof(path, var_names))
+
+    @classmethod
+    def from_text(cls, text: str, var_names: list[str]) -> "Proof":
+        """Parse a proof retained in the sample database."""
+        return cls(_parse_proof_lines(StringIO(text, newline=None), var_names))
 
     # --- the reference graph -------------------------------------------------
     def refs(self, k: int) -> list[int]:

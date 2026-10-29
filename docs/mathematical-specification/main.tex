@@ -327,6 +327,18 @@ result. The reduced denominator must be nonzero at every supplied point, and the
 candidate must match every fitting and held-out value. This prevents a spurious
 cross-multiplied equation $0=0$ from concealing an incorrect sample at a pole.
 
+By default the factor family is proposed from fitting data, starting without
+predeclared denominator factors. Exact univariate factorization and lifting
+across parameter lines are tried before bounded polynomial enumeration.
+The current line-lifting budget allows degree at most four in the other
+parameter. Varying-factor lifting uses at least five distinct parallel coordinates
+and reserves two for validation, subject to the requested larger minimum.
+Repeated univariate factors also require at least five distinct parallel
+coordinates. These are inference heuristics.
+The search has explicit finite budgets and can leave unresolved line factors;
+it does not certify that every generic pole has been found. An explicitly
+supplied ordered factor family remains a user-selected search constraint.
+
 Held-out locations are reserved before fitting and denominator inference. Their
 coefficients do not participate in inference of the factor family. A passing
 held-out check is additional evidence, not a rational-function identity proof.
@@ -341,9 +353,8 @@ chosen degree or factor bounds do not show that more data cannot help. The
 experimental driver retries within its sampling cap and reports an inconclusive
 outcome when it lacks an exact certificate. In particular, reducing to a nonzero
 remainder against an uncertified basis establishes no nonmembership conclusion,
-even at that specialization. The historical exception name
-\texttt{WrongClass} is retained as a subtype of \texttt{NeedMoreSamples}; it is
-an inconclusive diagnostic. Candidate reconstruction is characteristic zero.
+even at that specialization. The exception \texttt{NeedMoreSamples} reports an
+inconclusive reconstruction. Candidate reconstruction is characteristic zero.
 
 \section{Research results and computational evidence}
 The linear untwisting case connects the family above to the BMW quotient.
@@ -362,11 +373,10 @@ units; then
 \]
 This scalar extension is part of that parameter comparison.
 
-The maintained historical free-algebra fixture and the thesis's compact
+The current free-algebra certificate example and the thesis's compact
 braid-group-algebra representation use different ambient equalities. Checking
 the latter requires braid normal forms or explicit braid/inverse relation
-terms; it cannot be passed unchanged to the free-algebra checker. The large
-fixture is retained for reproducible regression checks.
+terms; it cannot be passed unchanged to the free-algebra checker.
 
 The thesis also discusses dimension, module structure and possible
 semisimplicity patterns. These questions motivate experiments, but are separate
@@ -384,10 +394,17 @@ experiment drivers retain separate completion requirements. The general
 finite-generation theorem gives mathematical context; the installed verifier
 checks the explicit algebraic identity submitted to it.
 
+The optional GAP exporter produces a standalone identity in the free associative
+algebra over $\Q(q,t)$. It shares the validated certificate parser and defining
+presentation with the Python implementation; GAP separately performs the
+rational-function arithmetic and noncommutative expansion. A zero residual
+checks the generic identity, subject to the denominator hypotheses above,
+without a Gr\"obner-basis computation.
+
 \section{Verification commands and source map}
 The solver-free regressions and distribution checks cover strict certificate validation,
 noncommuting contexts, repeated basis occurrences, schedule alignment, poles,
-target degrees and historical certificate compatibility. See
+target degrees and current certificate interchange formats. See
 \path{docs/TESTING.md} for the maintained commands and optional integrations.
 
 The maintained implementation is under \path{src/zipper_algebra/}:
@@ -399,6 +416,7 @@ The maintained implementation is under \path{src/zipper_algebra/}:
 \item Presentation and relation formulas: \path{presentation.py}, \path{relations.py}.
 \item Certificate data: \path{cofactor/cofactor_io.py}, \path{cofactor/atoms.py}.
 \item Symbolic and grid checks: \path{cofactor/verify.py}.
+\item Independent GAP identity expansion: \path{verification/gap.py}.
 \item Proof graph and reduction: \path{cofactor/proof.py}, \path{cofactor/skeleton.py}.
 \item Symbolic composition: \path{cofactor/compose.py}.
 \item Coefficient reconstruction: \path{cofactor/lift.py}.

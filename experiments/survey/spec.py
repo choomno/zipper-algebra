@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from zipper_algebra import Presentation
 
-# untwisting name -> (zipper_in_ms --untwist value, --framing-power)
+# untwisting name -> (relations --untwist value, --framing-power)
 UNTWIST = {
     "linear": ("bigelow", 1),    # p_2 = sigma - t      ; p* = L + t
     "square-zero": ("square-zero", 1),     # p_2 = (sigma - t)^2  ; p* = (L + t)^2

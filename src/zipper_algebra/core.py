@@ -84,7 +84,7 @@ def _basis_rows(path: str, *, integers=False):
                 line = line[:-1].strip()
             if not line or "," in line:
                 raise ValueError(f"{path}:{line_number}: invalid polynomial separator")
-            coefficients = {}
+            coefficients: dict[Mon, int | Fraction] = {}
             try:
                 for term in _line_terms(line):
                     coefficient, word = _parse_term(term, integers=integers)

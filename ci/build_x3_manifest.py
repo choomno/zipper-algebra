@@ -12,42 +12,36 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-HISTORICAL_REVISION = "0db1dd9e2a33fb0e5d07e216c8a5354911446e97"
 
 # Keep selection rules visible here rather than relying on the current Git
 # index, caches, an enclosing workspace or an unversioned generator.
 FAMILIES = (
     ("src/zipper_algebra/**/*.py", "Maintained implementation used by presentation, production or verification"),
     ("tests/**/*.py", "Mathematical regression, installation or independent implementation comparison"),
-    ("tests/fixtures/legacy_x3/*", "Curated historical X3 regression fixture or its provenance manifest"),
     ("ci/*.py", "Installation, test, coverage, documentation or inventory support"),
-    ("experiments/x3/*.py", "Compact X3 transformations and checks"),
     ("examples/x3/*", "Sparse current X3 output example and its reproduction instructions"),
 )
 
 EXACT = {
     ".coveragerc": "Complete line and branch measurement, including Python subprocesses",
-    ".gitattributes": "Stable source line endings and byte-preserving fixture rules",
-    ".gitignore": "Generated runs, caches and historical datasets stay untracked",
+    ".gitattributes": "Canonical line endings and solver-input classification",
+    ".gitignore": "Generated computation files and caches stay untracked",
     ".github/workflows/ci.yml": "Hosted software tests, small solver integration and documentation checks",
     "MANIFEST.in": "Source-distribution inclusion rules",
     "pyproject.toml": "Package dependencies and installed commands",
+    "setup.py": "Build-time source provenance embedded in wheels and source archives",
     "experiments/output.py": "Ignore markers for generated research output directories",
     "experiments/__init__.py": "Research recipe package marker",
     "patches/f4ncgb/msolve-parser-fix.patch": "Pinned external-solver parser correction",
     "patches/f4ncgb/LICENSE": "License accompanying the solver correction",
-    "singular_run/x3-membership-Q.sing": "Independent specialized Singular producer for the canonical presentation",
+    "singular_run/x3-membership-Q.sing": "Independent rational-specialization membership cross-check in Singular",
 }
 
 REQUIRED = (
     "src/zipper_algebra/presentation.py",
     "src/zipper_algebra/cofactor/verify.py",
-    "tests/fixtures/legacy_x3/proof-n4-Q-noex.txt",
-    "tests/fixtures/legacy_x3/basis-symbolic-Qqt.json",
-    "tests/fixtures/legacy_x3/skeleton-n4-Q.json",
-    "tests/fixtures/legacy_x3/basis-n4-Q.txt",
-    "tests/fixtures/legacy_x3/cofactor-X3-n4-Qqt-symbolic.txt",
     "examples/x3/certificate.txt",
+    "singular_run/x3-membership-Q.sing",
 )
 
 def build(root=ROOT):
@@ -71,22 +65,10 @@ def build(root=ROOT):
         content = path.read_bytes()
         files.append({"path": name, "bytes": len(content),
                       "sha256": hashlib.sha256(content).hexdigest(), "role": role})
-    retired = (
-        "extract_cofactor.py", "extract_cofactor_qt.py", "symbolic_lift_x3.py",
-        "compose_x3_cofactor_qt.py", "lift_until_verified.py", "run_lift_grid.py",
-        "run_lift_grid_canonical.py", "reproduce_X3_zero.sh",
-    )
-    prefix = "archive/cofactor-pre-consolidation/"
     return {
         "schema": "zipper-x3-reproduction-files-v1",
         "scope": "Curated X3 source and fixture inventory. Fresh production uses the installed discovery command.",
         "excluded": "This inventory, reader documentation, private working records, workspace configuration, caches and retired duplicate files.",
-        "historical_sources": [
-            {"path": prefix + name, "revision": HISTORICAL_REVISION,
-             "url": f"https://github.com/choomno/zipper-algebra/blob/{HISTORICAL_REVISION}/{prefix}{name}",
-             "role": "Retired historical producer; source retained in the phase 1 Git baseline"}
-            for name in retired
-        ],
         "files": files,
     }
 

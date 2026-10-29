@@ -6,8 +6,10 @@ from urllib.parse import unquote, urlsplit
 
 if __name__ == "__main__":
     root = Path(__file__).resolve().parents[1]
-    files = (list(root.glob("*.md")) + list((root / "docs").rglob("*.md"))
-             + list((root / "tools").rglob("README.md")))
+    files = ([root / name for name in ("README.md", "INDEX.md", "WORKFLOW.md")]
+             + list((root / "docs").rglob("*.md"))
+             + [path for family in ("experiments", "examples", "patches", "singular_run")
+                for path in (root / family).rglob("README.md")])
     checked = 0
     for source in files:
         text = re.sub(r"```.*?```", "", source.read_text(encoding="utf-8"), flags=re.S)

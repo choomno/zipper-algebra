@@ -30,8 +30,8 @@ def check():
         assert not package.is_relative_to(root), "this check requires an installed wheel"
         report = run("describe", "--n", "3", "--json", cwd=directory)
         assert report["n"] == 3 and "Z_2" in report["relations"]
-        certificate = Path(directory) / "historical.txt"
-        shutil.copyfile(root / "tests/fixtures/legacy_x3/cofactor-X3-n4-Qqt-symbolic.txt",
+        certificate = Path(directory) / "certificate.txt"
+        shutil.copyfile(root / "examples/x3/certificate.txt",
                         certificate)
         report = run("verify", str(certificate), "--n", "4", "--target", "X_3", "--json",
                      cwd=directory)

@@ -32,7 +32,7 @@ compress/simplify/three-rels family) and none recorded the atoms or the presenta
 still reads all of them, given the presentation the caller knows they were written over.
 
 Words are tuples of 1-based variable indices in the presentation's variable order
-(x1..x_{n-1}, y1..y_{n-1}), as in zipper_in_ms.Poly.  Relation labels are the strings
+(x1..x_{n-1}, y1..y_{n-1}), as in polynomial.Poly.  Relation labels are the strings
 Presentation.labels() derives from the construction (INV_1_p, BR_1, Z_2, T_3, ...);
 `relation_indices(pres)` maps them back to positions in the relation list, and the legacy
 "R_<idx>" form is accepted too.
@@ -43,10 +43,12 @@ and a trivial denominator; it is an interior node of the reconstruction, never a
 from __future__ import annotations
 
 import os
+from io import StringIO
 
 import json
 import re
 from fractions import Fraction
+from typing import cast
 
 from .atoms import AtomSet
 from ..coefficients import Coef, NumericRing, SymbolicRing
@@ -204,7 +206,7 @@ def resolve_target(pres: Presentation, target, ring) -> Poly:
     name = s[6:-1] if s.startswith("EXTRA[") and s.endswith("]") else target
     if name in EXTRA_CATALOGUE:
         _, _, S, _ = pres.build(ring)
-        return EXTRA_CATALOGUE[name](S, ring, lambda i, j: _theta_word(i, j, ring, pres.n))
+        return EXTRA_CATALOGUE[name](S, ring, lambda i, j: _theta_word(i, j, ring))
     raise ValueError(f"cannot resolve target {target!r}: not S[i][j], X_k or an EXTRA name "
                      f"{sorted(EXTRA_CATALOGUE)}")
 
@@ -286,7 +288,7 @@ class Cofactor:
         self.atoms.validate()
         if not isinstance(self.presentation_hash, str):
             raise ValueError("presentation hash must be a string")
-        labels = None
+        labels: set[str] = set()
         if pres is not None:
             if self.n != pres.n:
                 raise ValueError(f"cofactor is for n={self.n}, presentation is n={pres.n}")
@@ -302,7 +304,7 @@ class Cofactor:
             validate_word(right, self.n)
             if not isinstance(lab, str) or not lab:
                 raise ValueError("relation labels must be nonempty strings")
-            if labels is not None and lab not in labels:
+            if pres is not None and lab not in labels:
                 raise ValueError(f"unknown relation label {lab!r} for {pres.slug()}")
             validate_qt_polynomial(num)
             self.atoms.validate_exponents(den)
@@ -409,13 +411,18 @@ class Cofactor:
                        f"({num_str(num)}) / ({self.atoms.denom_str(den)})")
         return out
 
-    def save(self, path: str) -> None:
+    def save(self, path: str, *, provenance=True) -> None:
+        if provenance:
+            from ..provenance import capture_provenance, write_output_provenance
+            producer = capture_provenance()
         self.validate()
         with open(path, "w") as f:
             for ln in self.header_lines():
                 f.write(ln + "\n")
             for ln in self.body_lines():
                 f.write(ln + "\n")
+        if provenance:
+            write_output_provenance(path, producer=producer)
 
     @staticmethod
     def strip_header(text: str) -> str:
@@ -425,15 +432,26 @@ class Cofactor:
     @classmethod
     def load(cls, path: str, pres: Presentation | None = None, atoms: AtomSet | None = None,
              target: str | None = None) -> "Cofactor":
-        """Read a cofactor file in the current format or any of the three legacy formats.
+        """Read one file snapshot using the current and explicit legacy formats."""
+        with open(path) as source:
+            text = source.read()
+        return cls.from_text(text, pres=pres, atoms=atoms, target=target, name=os.fspath(path))
 
-        A legacy file names neither its presentation nor its atoms: `pres` is then required
-        (variable order, relation labels for the extract format) and `atoms` defaults to the
-        historical six, AtomSet.DEFAULT, over which every legacy denominator was written."""
+    @classmethod
+    def from_text(cls, text: str, pres: Presentation | None = None,
+                  atoms: AtomSet | None = None, target: str | None = None,
+                  *, name: str = "<memory>") -> "Cofactor":
+        """Decode a text snapshot without reopening its original file.
+
+        Headerless data require an explicit presentation. Denominator factors must
+        be declared in the atoms header or supplied with atoms=; without either,
+        only polynomial coefficients (denominator one) can be read. ``name`` identifies their source in metadata
+        and error messages; it is never read as a filesystem path.
+        """
         header: dict = {}
         notes: list[str] = []
         body: list[str] = []
-        with open(path) as f:
+        with StringIO(text, newline=None) as f:
             for raw in f:
                 ln = raw.rstrip("\n")
                 s = ln.strip()
@@ -454,11 +472,11 @@ class Cofactor:
 
         legacy = "presentation" not in header
         if legacy and pres is None:
-            raise ValueError(f"{os.path.basename(path)} has no presentation header; pass pres=")
+            raise ValueError(f"{os.path.basename(name)} has no presentation header; pass pres=")
         if "atoms" in header:
             atoms = AtomSet.from_json(json.loads(header["atoms"]))
         elif atoms is None:
-            atoms = AtomSet.DEFAULT
+            atoms = AtomSet([], [])
         if pres is not None:
             n = pres.n
         else:
@@ -490,7 +508,9 @@ class Cofactor:
                 raise ValueError(f"cannot parse cofactor line: {ln!r}")
 
         if legacy:
-            producer = f"cofactor_io.load from legacy {os.path.basename(path)}"
+            # The headerless-input check above required a presentation.
+            pres = cast(Presentation, pres)
+            producer = f"cofactor_io.load from legacy {os.path.basename(name)}"
             return cls(terms, n, atoms, pres.slug(), pres.content_hash(),
                        target if target is not None else "", producer, anchor, notes)
         return cls(terms, n, atoms, header["presentation"], header.get("presentation_hash", ""),

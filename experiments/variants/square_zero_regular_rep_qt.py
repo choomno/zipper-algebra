@@ -18,8 +18,8 @@ THE ALGEBRA
 Generators x1, x2 (= sigma_1, sigma_2) and their inverses y1, y2.
 Sliders   S2_j = q*y_j + (1-q) - x_j,   X_2 = S2_1.
 
-Relations (square-zero variant; mirrors zipper_in_ms.build_relations(n=3,'square-zero')
-and singular_run/square-zero-n3-symbolic.sing):
+Relations (square-zero variant; constructed by
+Presentation(3, untwist="square-zero")):
 
   R1: x_j y_j = y_j x_j = 1                       (j = 1, 2)
   R2: x1 x2 x1 = x2 x1 x2 ;  y1 y2 y1 = y2 y1 y2
@@ -92,7 +92,6 @@ that evidence. State the corresponding evidence when interpreting these observat
 from __future__ import annotations
 
 import os
-import pickle
 import subprocess
 import sys
 import tempfile
@@ -102,7 +101,8 @@ import sympy as sp
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-from experiments.output import prepare_output_dir
+from experiments.output import (prepare_output_dir, capture_experiment_provenance,
+                                save_pickle_output, tag_solver_input, tag_solver_basis)
 from zipper_algebra import core                            # noqa: E402
 from zipper_algebra import Presentation
 
@@ -121,12 +121,14 @@ q, t = sp.symbols("q t")
 # ===========================================================================
 # f4ncgb driver + standard-monomial machinery at a single integer (q0, t0)
 # ===========================================================================
-def write_square_zero_ms(path: str, q0: int, t0: int) -> None:
+def write_square_zero_ms(path: str, q0: int, t0: int, *, provenance=True) -> None:
     """Emit the current square-zero presentation at the requested exact point."""
-    Presentation(3, untwist="square-zero").emit_ms(path, q0, t0, 0)
+    Presentation(3, untwist="square-zero").emit_ms(path, q0, t0, 0, provenance=provenance)
 
 
 def run_f4ncgb(ms_path: str, basis_path: str) -> None:
+    producer = capture_experiment_provenance(__file__)
+    inputs = tag_solver_input(ms_path, producer=producer)
     res = subprocess.run(
         [F4NCGB, "-i", ms_path, "-o", basis_path, "--maxiter", str(MAXITER),
          "-v", "0"],
@@ -137,6 +139,7 @@ def run_f4ncgb(ms_path: str, basis_path: str) -> None:
             f"f4ncgb failed (rc={res.returncode}) on {ms_path}\n"
             f"stderr:\n{res.stderr}\nstdout:\n{res.stdout}"
         )
+    tag_solver_basis(basis_path, producer=producer, inputs=inputs)
 
 
 class Quotient:
@@ -146,7 +149,7 @@ class Quotient:
         self.q0, self.t0 = q0, t0
         ms = os.path.join(workdir, f"square-zero-n3-Q-{q0}-{t0}.ms")
         basis = os.path.join(workdir, f"square-zero-n3-Q-{q0}-{t0}.basis")
-        write_square_zero_ms(ms, q0, t0)
+        write_square_zero_ms(ms, q0, t0, provenance=False)
         run_f4ncgb(ms, basis)
         self.basis_path = basis
         self.polys = core.parse_basis_Q(basis)
@@ -653,20 +656,19 @@ def build_symbolic_matrices(ref_standard, samples, log):
         log(f"  L_{g}: grown common denominator D_{g} = {D}  "
             f"({n_heal} self-heal steps)")
         # EXACT validation of the whole matrix on every sample point
-        _validate_matrix(g, Mexpr, samples, log)
+        _validate_matrix(g, Mexpr, samples)
         L[g] = Mexpr
         log(f"  L_{g}: reconstructed and validated "
             f"({n_const} constant, {n_rat} rational entries)")
     return L
 
 
-def _validate_matrix(g, Mexpr, samples, log):
+def _validate_matrix(g, Mexpr, samples):
     """Re-evaluate the symbolic matrix at every sample point and confirm it
     equals the directly computed Fraction matrix.  Raises on mismatch."""
     N = Mexpr.shape[0]
     # cache per-entry sympy lambda-free eval via subs (entries are simple)
     for (q0, t0, mats) in samples:
-        sub = {q: sp.Integer(q0), t: sp.Integer(t0)}
         for k in range(N):
             for l in range(N):
                 e = Mexpr[k, l]
@@ -772,6 +774,7 @@ def relation_checks(L):
 # Main
 # ===========================================================================
 def main():
+    producer = capture_experiment_provenance(__file__)
     def log(msg):
         print(f"[{msg}]", file=sys.stderr, flush=True)
 
@@ -883,8 +886,7 @@ def main():
         "cyclic_basis_verified": bool(cyclic_ok),
         "all_pass": bool(all_ok),
     }
-    with open(OUT_PKL, "wb") as f:
-        pickle.dump(payload, f)
+    save_pickle_output(OUT_PKL, payload, producer=producer)
     print(f"  pickle -> {OUT_PKL}")
 
     # ---- final verdict -------------------------------------------------

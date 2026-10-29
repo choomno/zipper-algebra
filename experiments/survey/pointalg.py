@@ -10,6 +10,8 @@ from zipper_algebra import core
 from zipper_algebra.linear import validate_field_characteristic
 from experiments.research import theta_min_poly as _T
 from .spec import Spec
+from experiments.output import (capture_experiment_provenance, tag_solver_input,
+                                tag_solver_basis)
 
 F4 = os.environ.get("F4NCGB", "f4ncgb")
 
@@ -17,10 +19,13 @@ F4 = os.environ.get("F4NCGB", "f4ncgb")
 def point_gb(spec: Spec, q: int, t: int, scratch: str, char: int = 0, maxiter: int = 200000):
     """Emit the presentation and parse solver output; completion is uncertified."""
     validate_field_characteristic(char)
+    producer = capture_experiment_provenance(__file__, _T.__file__)
     tag = f"{spec.name}-{q}-{t}-c{char}"
     ms = os.path.join(scratch, f"pa-{tag}.ms"); bs = ms[:-3] + ".basis"
-    spec.presentation().emit_ms(ms, q, t, char)
+    spec.presentation().emit_ms(ms, q, t, char, provenance=False)
+    inputs = tag_solver_input(ms, producer=producer)
     subprocess.run([F4, "-m", str(maxiter), "-i", ms, "-o", bs], check=True, capture_output=True)
+    tag_solver_basis(bs, producer=producer, inputs=inputs)
     return core.parse_basis_Q(bs) if char == 0 else core.parse_basis_Fp(bs)
 
 

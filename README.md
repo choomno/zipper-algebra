@@ -24,7 +24,7 @@ finite-generation theorem, connection with BMW algebras, and precise input requi
 
 ## Install
 
-Python 3.11 or newer is required. From a checkout:
+Use Linux with Python 3.11 or newer. From a checkout:
 
 ```sh
 python -m pip install .
@@ -38,16 +38,19 @@ Optional denominator-factor inference uses Sympy:
 python -m pip install '.[inference]'
 ```
 
-For development, use `python -m pip install -e .`. The installed package is named
-`zipper_algebra`; `python -m zipper_algebra` provides the same commands as
-`zipper-algebra`.
+For development, install the tools under [Tests and development](#tests-and-development).
+The installed package is named `zipper_algebra`; `python -m zipper_algebra`
+provides the same commands as `zipper-algebra`.
 
 For **fresh Gröbner-basis and cofactor discovery**, also build the external
 [f4ncgb solver](https://gitlab.sai.jku.at/f4ncgb/f4ncgb), by Maximilian Heisinger
 and Clemens Hofstadler. Follow the [solver installation instructions](patches/f4ncgb/README.md)
 for the pinned upstream revision, parser patch, C++ dependencies and build commands.
-Python package installation does not install this executable. The current
-discovery command takes the solver, output directory, cache and limits explicitly;
+Python package installation does not install this executable. Sample data are
+stored in SQLite. The default solver interface uses temporary files; an
+[optional SQLite-enabled solver build](patches/f4ncgb/README.md#optional-direct-sqlite-io)
+accepts `--solver-io sqlite` for direct database input and output. The discovery
+command takes the solver, output directory, cache and limits explicitly;
 the [reproduction guide](docs/X3_REPRODUCTION.md) explains its stages and outputs.
 
 Presentation construction, checking saved certificates, recomposition from saved
@@ -80,7 +83,7 @@ cofactor representations are not unique in their term count or coefficients.
 The [reproduction guide](docs/X3_REPRODUCTION.md) identifies the
 input, program and output at every stage, including the original presentation
 input and the files needed for reconstruction. Fresh production generates its own
-samples and proofs; replay of the retained symbolic lift is a separate route.
+samples and proofs; checking the curated certificate is a separate route.
 
 ### Produce a new certificate
 
@@ -98,11 +101,23 @@ zipper-algebra discover --n 4 --target X_3 \
 The command emits the defining presentation, obtains and validates solver proofs,
 samples parameters, reconstructs coefficients, composes the certificate, and
 checks the identity exactly. It reads no saved certificate or symbolic lift.
+Denominator factors are inferred from fitting samples, starting without a preset
+factor family. The bounded reconstruction is checked against held-out samples,
+and the complete free-algebra identity is verified before publication.
+
 The result is recorded in `runs/x3/result.json`. Success has `"status": "verified"`;
 the report names an immutable certificate bundle and its hashes. Exit code `3`
 means discovery was inconclusive within the chosen limits. The full four-strand
 search can be expensive; a small three-strand example and the exact source map
 are in the guide.
+
+A successful run with one product generation keeps ten files, including one
+sample database, regardless of the number of samples. The guide explains the
+[stored products and sample export](docs/X3_REPRODUCTION.md#read-the-result).
+
+Generated computation files also identify their source commit, local changes
+and source-file hashes. See [output provenance](docs/PROVENANCE.md) for bundle
+records, standalone sidecars and installed-package build origins.
 
 ### Audit the result
 
@@ -123,24 +138,13 @@ presentation options select the four-strand canonical untwisting presentation.
 The command checks a generic rational-function identity, with specialization
 conditions explained in the mathematical reference. It needs no algebra solver.
 
-The older 695-term witness, symbolic lift, reduction skeleton and numeric proof
-data are retained under `tests/fixtures/legacy_x3/` for regression comparisons.
-Recompose that witness and replay the historical proof expansion with:
-
-```sh
-python -m unittest \
-  tests.reproduction.test_x3.TestCompose.test_composed_body_is_byte_identical_to_the_shipped_certificate \
-  -v
-python -m unittest tests.reproduction.test_legacy_proofs -v
-```
-
-The first command must report one passing test and byte-for-byte agreement;
-the second must report 16 passing tests. These replay saved proof data; they do
-not rerun the original sampling and interpolation.
+For an independent generic identity check in GAP, export a standalone script
+with `python -m zipper_algebra.verification.gap`; the
+[reproduction guide](docs/X3_REPRODUCTION.md#independent-algebra-system-checks)
+gives the complete commands and expected result.
 
 The [reproduction guide](docs/X3_REPRODUCTION.md) maps every substantial source,
-input and output to its role, with links to the optional historical data and
-independent specialized calculations. Its [file inventory](docs/x3-reproduction-files.json)
+input and output to its role. Its [file inventory](docs/x3-reproduction-files.json)
 records exact paths, sizes and SHA-256 hashes. Check those against the checkout:
 
 ```sh
@@ -171,29 +175,39 @@ assert report["pass"]
 
 ## Tests and development
 
-After an editable install:
+Install the development tools and optional inference dependency, then run the
+same static checks and test suite used in CI:
 
 ```sh
-python -m unittest discover -s tests -v
+python -m pip install -e '.[dev,inference]'
+python -m ruff check src tests experiments examples ci setup.py
+python -m mypy
+python -m pytest tests -q --durations=15
 ```
 
-[TESTING](docs/TESTING.md) describes the CI suite, historical compatibility
-checks, package checks and optional integrations.
+Ruff checks the public Python code; Mypy checks all maintained package modules,
+including unannotated function bodies. CI requires at least **99.5% line coverage
+and 99.5% branch coverage**, measured separately with no exclusions. Each test
+has a 60-second hang guard.
+
+CI also checks wheel and source-package installation, compiles the mathematical
+reference, and exercises both solver I/O modes on a small native integration
+case. Full X₃ discovery and larger research computations run locally.
+
+[TESTING](docs/TESTING.md) explains the exact algebraic and failure-path
+regressions, coverage commands, gradual type-checking limits and optional
+GAP/Singular checks.
 
 ## Repository map
 
 | Location | Purpose |
 | --- | --- |
 | `src/zipper_algebra/` | Maintained Python implementation and command line interface. |
-| `tests/` | Regression tests, installation checks and immutable fixtures. |
+| `tests/` | Algebraic regressions, constructed test inputs and installation checks. |
 | `docs/` | Mathematical reference, reproduction guide and testing instructions. |
-| `experiments/` | Research recipes, specialized transformations and independent comparisons. |
+| `experiments/` | Quotient surveys, representations and structural research recipes. |
 | `examples/` | Small executable examples and the curated X_3 certificate. |
-| `gap_scripts/`, `singular_run/`, `archive/` | Source programs for independent and older computational paths. |
-
-Bulk historical datasets remain at their original checkout paths until the separate
-data-removal change is merged. Source distributions and wheels omit them.
-Regression tests use curated fixtures; fresh production uses `discover`.
+| `singular_run/` | Independent specialized membership check in Singular. |
 
 Retired research material remains available in Git history.
 

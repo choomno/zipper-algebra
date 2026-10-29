@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -9,6 +10,7 @@ from pathlib import Path
 from .presentation import Presentation, EXTRA_CATALOGUE
 from .cofactor.cofactor_io import Cofactor
 from .cofactor.verify import check, pit_check
+from .provenance import capture_provenance, write_output_provenance
 
 
 def _integer_at_least(minimum):
@@ -92,16 +94,34 @@ def parser():
     discover.add_argument("--max-iterations", type=_integer_at_least(1), default=100000)
     discover.add_argument("--max-degree", type=_integer_at_least(1))
     discover.add_argument("--solver-revision", default="unrecorded")
+    discover.add_argument("--solver-io", choices=("files", "sqlite"), default="files",
+                          help="native solver I/O route; sqlite requires a SQLite-enabled f4ncgb build")
     discover.add_argument("--refresh", action="store_true")
+    export = subcommands.add_parser("export-sample", help="export one stored sample for inspection")
+    export.add_argument("--store", type=Path, required=True)
+    export.add_argument("--key", required=True)
+    export.add_argument("--generation")
+    export.add_argument("--output", type=Path, required=True)
+    export.add_argument("--json", action="store_true")
     return command
 
 
 def main(argv=None):
     args = parser().parse_args(argv)
     if args.command == "compose":
-        from .cofactor.compose import run
-        return run(args)
+        from .cofactor.compose import run as run_composition
+        return run_composition(args)
     try:
+        if args.command == "export-sample":
+            from .execution.store import export
+            producer = capture_provenance()
+            record = export(args.store, args.key, args.output, generation=args.generation)
+            report = {"store": str(args.store), "key": args.key,
+                      "generation": record["generation"], "output": str(args.output),
+                      "original_producer": record["request"]["producer"], "producer": producer}
+            print(json.dumps(report, sort_keys=True) if args.json
+                  else f"Exported sample {args.key} to {args.output}")
+            return 0
         presentation = _presentation(args)
         if args.command == "describe":
             report = {"presentation": presentation.slug(),
@@ -109,6 +129,7 @@ def main(argv=None):
                       "n": presentation.n, "variables": presentation.var_names(),
                       "relations": presentation.labels()}
             if args.json:
+                report["producer"] = capture_provenance()
                 print(json.dumps(report, sort_keys=True))
             else:
                 print(report["presentation"], report["presentation_hash"],
@@ -118,9 +139,11 @@ def main(argv=None):
             return 0
 
         if args.command == "emit":
+            producer = capture_provenance()
             args.out.parent.mkdir(parents=True, exist_ok=True)
-            count = presentation.emit_ms(str(args.out), args.q, args.t, args.char)
-            report = {"input": str(args.out), "relations": count,
+            count = presentation.emit_ms(str(args.out), args.q, args.t, args.char, provenance=False)
+            write_output_provenance(args.out, producer=producer)
+            report = {"input": str(args.out), "relations": count, "producer": producer,
                       "presentation_hash": presentation.content_hash()}
             print(json.dumps(report, sort_keys=True) if args.json
                   else f"Wrote {count} defining relations to {args.out}")
@@ -128,23 +151,28 @@ def main(argv=None):
         if args.command == "discover":
             from .cofactor.atoms import AtomSet
             from .execution.config import RunConfig
-            from .execution.pipeline import run
+            from .execution.pipeline import run as run_discovery
             config = RunConfig(args.solver, args.output, args.cache, args.timeout,
                                args.max_iterations, args.max_degree,
-                               solver_revision=args.solver_revision)
+                               solver_revision=args.solver_revision, solver_io=args.solver_io)
             atoms = None if args.atoms is None else AtomSet.load(args.atoms)
-            report = run(presentation, args.target, (*args.anchor, 0), config,
+            report = run_discovery(presentation, args.target, (*args.anchor, 0), config,
                          start=args.start, step=args.step, maxpts=args.maxpts,
                          jobs=args.jobs, atoms=atoms, refresh=args.refresh, verbose=not args.json)
             print(json.dumps(report, sort_keys=True) if args.json else report["status"])
             return 0 if report["verified"] else 3
 
-        certificate = Cofactor.load(str(args.certificate), pres=presentation, target=args.target)
+        producer = capture_provenance()
+        content = args.certificate.read_bytes()
+        inputs = [{"name": args.certificate.name, "bytes": len(content),
+                   "sha256": hashlib.sha256(content).hexdigest()}]
+        certificate = Cofactor.from_text(content.decode('utf-8'), pres=presentation,
+                                         target=args.target, name=str(args.certificate))
         target = args.target if args.target is not None else certificate.target
         if not target:
             raise ValueError("this certificate has no target; supply --target")
         exact = check(certificate, presentation, target, verbose=not args.json)
-        report = {"pass": exact["pass"], "exact": exact}
+        report = {"pass": exact["pass"], "exact": exact, "producer": producer, "inputs": inputs}
         if args.pit:
             grid = pit_check(certificate, presentation, target, verbose=not args.json)
             report["pit"] = grid

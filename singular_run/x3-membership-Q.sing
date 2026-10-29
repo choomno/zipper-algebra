@@ -1,10 +1,8 @@
-// Specialized independent X_3 membership reduction over Q at q=5, t=7.
-// Uses the original 31 relations and Letterplace degree bound 12.
-// Extracted without changing the presentation, target, twostd, or reduce calls
-// from archive/singular-failed/zipper-n4-X3-Q-db12.sing at commit
-// 0db1dd9e2a33fb0e5d07e216c8a5354911446e97.
-// The historical run reduced X_3 to zero before a later cofactor-lift attempt
-// failed. This replay stops after the reduction; see README.md for provenance.
+// Independent specialized X_3 membership calculation over Q at q=5, t=7.
+// Four-strand presentation: 31 defining relations in six free generators.
+// Singular/Letterplace degree bound: 12. The target is not adjoined to the ideal.
+// This program computes a specialized normal form; it does not parse or verify
+// a supplied cofactor certificate. See README.md for its scope and invocation.
 
 LIB "freegb.lib";
 ring r = 0,(x1,x2,x3,y1,y2,y3),(c,Dp);

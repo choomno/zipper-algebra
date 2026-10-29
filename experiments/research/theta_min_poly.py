@@ -6,10 +6,12 @@ at sampled parameters is not a proof of a generic formula or its minimality.
 Solver output has no basis-completeness certificate in this experimental driver.
 The Krylov calculation concerns the supplied reduction model.
 """
-import argparse, os, subprocess, sys
+import argparse, os, subprocess
 from fractions import Fraction as Fr
 from zipper_algebra import core, Presentation
 from zipper_algebra.linear import validate_field_characteristic
+from experiments.output import (capture_experiment_provenance, tag_solver_input,
+                                tag_solver_basis)
 
 F4 = os.environ.get("F4NCGB", "f4ncgb")
 P31 = 2 ** 31 - 1
@@ -181,11 +183,14 @@ def predicted_min_poly(case, q, t, k):
 
 def build_basis(case, n, q, t, char, scratch):
     validate_field_characteristic(char)
+    producer = capture_experiment_provenance(__file__)
     untw, fp = UNTW[case]
     ms = f"{scratch}/z{n}-{case}-{q}-{t}-c{char}.ms"
     bs = ms[:-3] + ".basis"
-    Presentation(n, untw, framing_power=int(fp), max_untwist_level=2).emit_ms(ms, q, t, char)
+    Presentation(n, untw, framing_power=int(fp), max_untwist_level=2).emit_ms(ms, q, t, char, provenance=False)
+    inputs = tag_solver_input(ms, producer=producer)
     subprocess.run([F4, "-m", "200000", "-i", ms, "-o", bs], check=True, capture_output=True)
+    tag_solver_basis(bs, producer=producer, inputs=inputs)
     return bs
 
 

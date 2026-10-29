@@ -1,30 +1,43 @@
-"""Infer the historical denominator family from deterministic synthetic samples.
+"""Discover unfamiliar denominator factors from exact synthetic observations.
 
 Run after installing the package with its optional inference extra:
     python examples/infer_denominators.py
+
+The formula constructs test data. Only its sampled rational values are passed
+into inference: no denominator family or seed is supplied. Both factors lie
+outside the small initial candidate box, so their discovery uses reconstruction
+and factorization of the sampled line denominators. This is a heuristic proposal;
+production certificates still require their separate exact identity check.
 """
 from fractions import Fraction
-import random
+import importlib.util
 
-from zipper_algebra.cofactor.atoms import AtomSet
+from zipper_algebra.cofactor.atoms import Atom
 from zipper_algebra.cofactor.inference import infer
 
 
 def main():
-    random.seed(1)
-    six = AtomSet.DEFAULT
-    pts = [(q, t) for q in (3, 5, 7, 8, 9, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47)
-           for t in (3, 5, 7, 11, 13, 17) if q != t]
-    slots = {}
-    for si, exps in enumerate([(1, 2, 1, 0, 0, 0), (0, 0, 0, 1, 1, 0), (2, 0, 0, 0, 1, 1), (0, 1, 1, 1, 0, 1)]):
-        num = {(i, j): random.randint(-5, 5) for i in range(3) for j in range(2)}
-        slots[si] = [(p, Fraction(sum(c * p[0] ** i * p[1] ** j for (i, j), c in num.items()),
-                                  six.eval_denom(exps, *p))) for p in pts]
-    got, rep = infer(slots, seed=AtomSet.UNITS)
-    print(got, "unexplained:", rep["unexplained"])
-    assert set(got.atoms) == set(six.atoms), got.names()
-    assert rep["unexplained"] == 0
-    print("OK: from the units alone, rediscovered the six from denominators")
+    if importlib.util.find_spec("sympy") is None:
+        raise SystemExit("Install the inference extra from the project root: "
+                         "python -m pip install '.[inference]'")
+    observations = {
+        0: [((q, t), Fraction(q + 2 * t, (q + t + 5) * (q * q + t + 7)))
+            for q in range(2, 15) for t in range(17, 30)]
+    }
+    family, report = infer(observations, max_bideg=(1, 1), coef_bound=1, verbose=False)
+
+    # These expected factors check the synthetic experiment; they are not inputs
+    # to inference. The initial box excludes their constants and the q^2 term.
+    expected = {
+        Atom("q+t+5", {(1, 0): 1, (0, 1): 1, (0, 0): 5}),
+        Atom("q^2+t+7", {(2, 0): 1, (0, 1): 1, (0, 0): 7}),
+    }
+    assert set(family.atoms) == expected, family.names()
+    assert report["seed"] == []
+    assert report["unexplained"] == 0
+    print("Discovered denominator factors:", ", ".join(family.names()))
+    print("No denominator family or seed was supplied.")
+    return family, report
 
 
 if __name__ == "__main__":

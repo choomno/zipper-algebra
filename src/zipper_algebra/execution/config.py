@@ -28,6 +28,7 @@ class RunConfig:
     solver_revision: str = "unrecorded"
     monomial_order: str = "degree-lex"
     command_prefix: tuple[Path, ...] = ()
+    solver_io: str = "files"
 
     def __post_init__(self):
         for name in ("binary", "output_root", "cache_root"):
@@ -53,7 +54,7 @@ class RunConfig:
                 or any(not isinstance(arg, str) or not arg for arg in self.flags)):
             raise ValueError("flags must be a tuple of nonempty strings")
         reserved = {"-i", "--input", "-o", "--output", "-p", "--proof",
-                    "-m", "--maxiter", "-d", "--maxdeg"}
+                    "-m", "--maxiter", "-d", "--maxdeg", "--sqlite", "--sqlite-job", "--features"}
         if any(arg.split("=", 1)[0] in reserved
                or any(arg.startswith(short) for short in ("-i", "-o", "-p", "-m", "-d"))
                for arg in self.flags):
@@ -62,6 +63,8 @@ class RunConfig:
             raise ValueError("solver_revision must be a nonempty description")
         if self.monomial_order != "degree-lex":
             raise ValueError("this runner supports only the degree-lex monomial order")
+        if self.solver_io not in ("files", "sqlite"):
+            raise ValueError("solver_io must be 'files' or 'sqlite'")
         if not isinstance(self.command_prefix, tuple):
             raise ValueError("command_prefix must be a tuple of executable source paths")
         prefix = tuple(Path(path).resolve() for path in self.command_prefix)

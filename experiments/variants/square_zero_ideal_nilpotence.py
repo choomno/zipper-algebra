@@ -17,11 +17,12 @@ from __future__ import annotations
 import argparse
 import os
 import subprocess
-import sys
 from fractions import Fraction
 
 
 from zipper_algebra import core, Presentation
+from experiments.output import (capture_experiment_provenance, tag_solver_input,
+                                tag_solver_basis)
 
 
 # ---------------------------------------------------------------------------
@@ -30,10 +31,6 @@ from zipper_algebra import core, Presentation
 
 Mon = tuple[str, ...]
 Poly = dict[Mon, Fraction]  # sparse free-algebra polynomial
-
-
-def poly_zero() -> Poly:
-    return {}
 
 
 def poly_add(p: Poly, q: Poly) -> Poly:
@@ -45,12 +42,6 @@ def poly_add(p: Poly, q: Poly) -> Poly:
         else:
             out[m] = new
     return out
-
-
-def poly_scale(p: Poly, c: Fraction) -> Poly:
-    if c == 0:
-        return {}
-    return {m: c * cc for m, cc in p.items()}
 
 
 def poly_mul(p: Poly, q: Poly) -> Poly:
@@ -221,9 +212,11 @@ def ensure_basis(n: int, q: int, t: int, basis_path: str | None) -> str:
         basis_path = f"/tmp/square-zero-n{n}-q{q}-t{t}-c0.basis"
     if os.path.exists(basis_path):
         return basis_path
+    producer = capture_experiment_provenance(__file__)
     ms_path = basis_path.replace(".basis", ".ms")
     print(f"[setup] generating {ms_path} (n={n}, q={q}, t={t}, square-zero)", flush=True)
-    Presentation(n, untwist="square-zero").emit_ms(ms_path, q, t, 0)
+    Presentation(n, untwist="square-zero").emit_ms(ms_path, q, t, 0, provenance=False)
+    inputs = tag_solver_input(ms_path, producer=producer)
     print(f"[setup] running f4ncgb -> {basis_path}", flush=True)
     subprocess.run(
         [
@@ -234,6 +227,7 @@ def ensure_basis(n: int, q: int, t: int, basis_path: str | None) -> str:
         ],
         check=True,
     )
+    tag_solver_basis(basis_path, producer=producer, inputs=inputs)
     return basis_path
 
 
@@ -325,7 +319,6 @@ def two_sided_ideal_basis(
     variables: list[str],
     gen_L,
     gen_R,
-    log=lambda s: None,
 ) -> Subspace:
     """Compute V_1 = <w> as a two-sided ideal of A, given w_vec already in
     standard form.
@@ -355,38 +348,6 @@ def two_sided_ideal_basis(
             if out_R and V1.add(out_R):
                 queue.append(out_R)
     return V1
-
-
-def algebra_product_via_operators(
-    u_vec: dict[int, Fraction],
-    v_vec: dict[int, Fraction],
-    standard: list[Mon],
-    gen_L,
-) -> dict[int, Fraction]:
-    """Compute u * v in standard form by writing u = sum c_a m_a in standard
-    monomials and then computing sum c_a * (m_a applied to v as left
-    operator).
-
-    Left-application of monomial m_a = v_1 ... v_k to v_vec:  apply L[v_k],
-    L[v_{k-1}], ..., L[v_1] in order (since L[v_1] sees the result of
-    L[v_2] etc.). Equivalently, we walk m_a right-to-left.
-    """
-    out: dict[int, Fraction] = {}
-    for a, ca in u_vec.items():
-        cur = v_vec
-        for letter in reversed(standard[a]):
-            cur = apply_L(gen_L, letter, cur)
-            if not cur:
-                break
-        if not cur:
-            continue
-        for k, ck in cur.items():
-            new = out.get(k, Fraction(0)) + ca * ck
-            if new == 0 and k in out:
-                del out[k]
-            elif new != 0:
-                out[k] = new
-    return out
 
 
 def build_monomial_left_op(
@@ -442,9 +403,9 @@ def algebra_product_cached(
     gen_L,
     left_op_cache: dict[int, dict[int, dict[int, Fraction]]],
 ) -> dict[int, Fraction]:
-    """Same as algebra_product_via_operators but using the cached
-    left-mult-by-standard-monomial operator. Each (a, j) lookup is O(1) sparse
-    vector and we accumulate u[a] * v[j] * M_a[j]."""
+    """Multiply coefficient vectors using cached left-multiplication operators
+    for standard monomials. Each (a, j) lookup is an O(1) sparse vector,
+    accumulated as u[a] * v[j] * M_a[j]."""
     out: dict[int, Fraction] = {}
     for a, ca in u_vec.items():
         M_a = build_monomial_left_op(a, standard, gen_L, left_op_cache)
@@ -515,7 +476,6 @@ def compute_w_power_subspaces(
     where K is the smallest power with V_K = 0 (or max_power if no such
     power is found within the budget).
     """
-    N = len(standard)
     # --- step 1: reduce w to standard form ---
     w_vec = reduce_poly_Q(w_poly, mon_idx, lm_to_tail, delta, is_match, match_pat)
     log(f"  w (reduced) supp = {len(w_vec)}   {fmt_vec(w_vec, standard)}")
@@ -528,8 +488,8 @@ def compute_w_power_subspaces(
         V1 = V1_precomputed
         log(f"  V_1 has dim {V1.dim()} (cached)")
     else:
-        log(f"  building V_1 = <w> as two-sided ideal of A via BFS closure under L_v, R_v")
-        V1 = two_sided_ideal_basis(w_vec, variables, gen_L, gen_R, log=log)
+        log('  building V_1 = <w> as two-sided ideal of A via BFS closure under L_v, R_v')
+        V1 = two_sided_ideal_basis(w_vec, variables, gen_L, gen_R)
         log(f"  V_1 has dim {V1.dim()}")
 
     powers: list[Subspace] = [V1]
@@ -591,8 +551,6 @@ def compute_w_power_subspaces(
     return powers
 
 
-
-
 def compute_full_radical_candidate(
     V1_list: list[Subspace],
     log=lambda s: None,
@@ -648,11 +606,11 @@ def main() -> int:
     mon_idx = {m: i for i, m in enumerate(standard)}
     lm_to_tail = core.lm_to_tail_Q(polys)
 
-    log(f"[ops]   building left/right generator matrices for each variable")
+    log('[ops]   building left/right generator matrices for each variable')
     gen_L, gen_R = build_LR_generators(
         variables, standard, mon_idx, lm_to_tail, delta, is_match, match_pat,
     )
-    log(f"[ops]   L/R generator matrices ready")
+    log('[ops]   L/R generator matrices ready')
     left_op_cache: dict[int, dict[int, dict[int, Fraction]]] = {}
 
     q = Fraction(args.q)
@@ -671,9 +629,9 @@ def main() -> int:
 
     for j in js:
         log("")
-        log(f"=" * 72)
+        log('=' * 72)
         log(f"WITNESS j = {j}:   w_{j}  =  (sigma_{j} - t) * X_{{2,{j}}}")
-        log(f"=" * 72)
+        log('=' * 72)
         w_poly = witness_w(j, q, t)
         w_polys_for_radical.append(w_poly)
         log(f"  free-algebra form  w_{j}  =  {fmt_poly(w_poly)}")
@@ -709,7 +667,7 @@ def main() -> int:
             max_power=args.max_power, log=log,
         )
         if not powers:
-            log(f"  [skip] no powers computed")
+            log('  [skip] no powers computed')
             continue
         V1_cache.append(powers[0])
         dims = [p.dim() for p in powers]
@@ -740,14 +698,14 @@ def main() -> int:
         log(f"  dim_Q <w_1, ..., w_{{n-1}}>  =  {I.dim()}")
         # Typical comparison points
         if args.n == 3:
-            log(f"  prior trace-form dim J(A)    =  9")
+            log('  prior trace-form dim J(A)    =  9')
             if I.dim() == 9:
-                log(f"  [MATCH] the w_j generate the full radical; Wedderburn-Mal'cev")
-                log(f"          splitting candidate identified.")
+                log("  [MATCH] the w_j generate the full radical; Wedderburn-Mal'cev")
+                log('          splitting candidate identified.')
         elif args.n == 4:
-            log(f"  prior trace-form dim J(A)    =  81 (per writeup)")
+            log('  prior trace-form dim J(A)    =  81 (per writeup)')
             if I.dim() == 81:
-                log(f"  [MATCH] the w_j generate the full radical.")
+                log('  [MATCH] the w_j generate the full radical.')
 
     log("")
     log("=" * 72)
@@ -761,7 +719,7 @@ def main() -> int:
         return 0
     else:
         log(f"  No witness with <w_j>^k = 0 (k <= {args.max_power}) was found.")
-        log(f"  Increase --max-power or check the square-zero presentation.")
+        log('  Increase --max-power or check the square-zero presentation.')
         return 2
 
 

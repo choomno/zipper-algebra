@@ -7,29 +7,30 @@ agreement produces candidates that still need exact certificate verification.
 from __future__ import annotations
 
 from fractions import Fraction
+from collections.abc import Iterable, Mapping
 
 
 def _poly_eval(coefs, x):
     return sum(c * x ** i for i, c in enumerate(coefs))
 
 
-def _poly_divmod(num, den):
+def _poly_divmod(num: Iterable[int | Fraction], den: Iterable[int | Fraction]) -> tuple[list[Fraction], list[Fraction]]:
     """Exact univariate division over Fraction; polynomials as coefficient lists, low->high."""
-    num = [Fraction(c) for c in num]
-    den = [Fraction(c) for c in den]
-    while den and den[-1] == 0:
-        den.pop()
-    if not den:
+    numerator = [Fraction(c) for c in num]
+    denominator = [Fraction(c) for c in den]
+    while denominator and denominator[-1] == 0:
+        denominator.pop()
+    if not denominator:
         raise ZeroDivisionError
-    q = [Fraction(0)] * max(0, len(num) - len(den) + 1)
-    r = num[:]
-    while len(r) >= len(den) and any(r):
+    q = [Fraction(0)] * max(0, len(numerator) - len(denominator) + 1)
+    r = numerator[:]
+    while len(r) >= len(denominator) and any(r):
         if r[-1] == 0:
             r.pop(); continue
-        k = len(r) - len(den)
-        c = r[-1] / den[-1]
+        k = len(r) - len(denominator)
+        c = r[-1] / denominator[-1]
         q[k] = c
-        for i, d in enumerate(den):
+        for i, d in enumerate(denominator):
             r[k + i] -= c * d
         r.pop()
     while r and r[-1] == 0:
@@ -37,7 +38,7 @@ def _poly_divmod(num, den):
     return q, r
 
 
-def _solve(aug, ncols):
+def _solve(aug: list[list[Fraction]], ncols: int) -> list[Fraction] | None:
     """Exact Gauss-Jordan on an augmented matrix; returns a solution vector or None."""
     n = len(aug)
     rank, piv = 0, []
@@ -64,7 +65,7 @@ def _solve(aug, ncols):
     return sol
 
 
-def exact_fraction(value):
+def exact_fraction(value: object) -> Fraction:
     """An exact rational input, excluding bool and implicit binary-float coercion."""
     if isinstance(value, bool) or not isinstance(value, (int, Fraction)):
         raise ValueError("sample coordinates and values must be exact rational numbers")
@@ -73,7 +74,7 @@ def exact_fraction(value):
 
 def normalise_points(points, dimensions):
     """Sorted, distinct exact samples; consistent repeats do not add information."""
-    values = {}
+    values: dict[Fraction | tuple[Fraction, ...], Fraction] = {}
     for point in points:
         if not isinstance(point, (tuple, list)) or len(point) != 2:
             raise ValueError("each sample must contain a coordinate and a value")
@@ -118,7 +119,7 @@ def _reduce_univariate_fraction(numerator, denominator):
     return [c / lead for c in numerator], [c / lead for c in denominator]
 
 
-def reconstruct_univariate(points, holdout=2):
+def reconstruct_univariate(points, holdout: int = 2) -> tuple[list[Fraction], list[Fraction]] | None:
     """Reconstruct a reduced rational candidate from distinct exact rational samples.
 
     Fit on all but `holdout` locations and predict the remaining ones. Every supplied
@@ -152,10 +153,11 @@ def reconstruct_univariate(points, holdout=2):
     return None
 
 
-def _specialise(coefs: dict, fixed: str, x0) -> list:
+def _specialise(coefs: Mapping[tuple[int, int], int | Fraction], fixed: str,
+                x0: int | Fraction) -> list[Fraction]:
     """Bivariate {(i,j): c} restricted to q = x0 ('q') or t = x0 ('t'); returns a univariate
     coefficient list in the other variable, low->high."""
-    out = {}
+    out: dict[int, Fraction] = {}
     for (i, j), c in coefs.items():
         if fixed == "t":
             out[i] = out.get(i, 0) + c * Fraction(x0) ** j

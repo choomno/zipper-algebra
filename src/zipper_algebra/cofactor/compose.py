@@ -38,7 +38,7 @@ from collections.abc import Mapping
 from fractions import Fraction
 
 from .atoms import AtomSet
-from .cofactor_io import (Cofactor, resolve_target, target_name,
+from .cofactor_io import (Cofactor, resolve_target,
                          validate_word, validate_qt_polynomial)
 from .lift import NeedMoreSamples, fit_rational
 from ..presentation import Presentation
@@ -119,14 +119,15 @@ class Rat:
 # Expansion of the lifted proofs over the input relations
 # ---------------------------------------------------------------------------
 
-def _order(entries: dict) -> list:
+def _order(entries: dict) -> list[str]:
     """Keys in an order where every basis reference precedes its referrer.
 
     The legacy code relied on ascending integer index (proof entries referencing only smaller
     indices).  Keys are leading words, so the order has to be computed; a genuine cycle is an
     error, a forward reference is not.
     """
-    state, out = {}, []
+    state: dict[str, int] = {}
+    out: list[str] = []
 
     def visit(k):
         st = state.get(k)
@@ -257,13 +258,6 @@ def lift_multipliers(skeleton, samples, atoms: AtomSet, max_pq=5, max_pt=5) -> l
     return out
 
 
-def multipliers_at_anchor(skeleton, atoms: AtomSet) -> list:
-    """The anchor values as constants -- correct only when a multiplier is constant in (q,t).
-    Used for a numeric cross-check, never for a shipped certificate."""
-    return [({(0, 0): Fraction(s["mult"])} if Fraction(s["mult"]) else {}, atoms.zero())
-            for s in skeleton.steps]
-
-
 # ---------------------------------------------------------------------------
 # Composition
 # ---------------------------------------------------------------------------
@@ -389,6 +383,11 @@ def load_multipliers(path, skeleton, atoms, pres):
     """Read explicit symbolic multipliers, rejecting mismatched or ambiguous data."""
     with open(path) as source:
         data = json.load(source)
+    return multipliers_from_json(data, skeleton, atoms, pres)
+
+
+def multipliers_from_json(data, skeleton, atoms, pres):
+    """Decode a multiplier snapshot with its presentation and occurrence checks."""
     if not isinstance(data, dict) or data.get("schema") != MULTIPLIER_SCHEMA:
         raise ValueError("unknown multiplier data schema")
     digest = hashlib.sha256(pres.canonical_text().encode()).hexdigest()
@@ -418,14 +417,17 @@ def load_multipliers(path, skeleton, atoms, pres):
     return out
 
 
-def _save_atomic(cofactor, output):
+def _save_atomic(cofactor, output, *, producer=None, inputs=()):
+    from ..provenance import capture_provenance, write_output_provenance
+    producer = capture_provenance() if producer is None else producer
     output = Path(output)
     descriptor, temporary = tempfile.mkstemp(prefix="." + output.name + "-", suffix=".tmp",
                                              dir=output.parent)
     os.close(descriptor)
     try:
-        cofactor.save(temporary)
+        cofactor.save(temporary, provenance=False)
         os.replace(temporary, output)
+        write_output_provenance(output, producer=producer, inputs=inputs)
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)
@@ -444,23 +446,24 @@ def add_arguments(parser):
     _presentation_arguments(parser, require_n=True)
 
 
-def _composition_inputs(args, pres):
-    from .artifacts import load_artifact, target_identity
+def _composition_inputs(args, pres, documents=None):
+    from .artifacts import artifact_from_json, target_identity
     from .lift import Lift
     from .skeleton import Skeleton
-    documents = [json.loads(Path(path).read_text()) for path in (args.skeleton, args.lift)]
+    if documents is None:
+        documents = [json.loads(Path(path).read_bytes()) for path in (args.skeleton, args.lift)]
     if any(not isinstance(data, dict) for data in documents):
         raise ValueError("composition inputs must contain JSON objects")
     bound = any("schema" in data for data in documents)
     if bound and args.target is None:
         raise ValueError("bound composition artifacts require an explicit --target")
     order = {"solver": args.solver_order, "reduction": "length-lex-index-v1"}
-    skeleton = (load_artifact(args.skeleton, pres, args.target, kind="skeleton", order=order)
+    skeleton = (artifact_from_json(documents[0], pres, args.target, kind="skeleton", order=order)
                 if "schema" in documents[0] else Skeleton.from_json(documents[0]))
     target = skeleton.target if args.target is None else args.target
     if target_identity(pres, target) != target_identity(pres, skeleton.target):
         raise ValueError("requested target differs from the reduction skeleton")
-    fitted = (load_artifact(args.lift, pres, target, kind="lift", order=order)
+    fitted = (artifact_from_json(documents[1], pres, target, kind="lift", order=order)
               if "schema" in documents[1] else Lift.from_json(documents[1]))
     return fitted, skeleton
 
@@ -469,18 +472,28 @@ def run(args):
     """Compose and publish an exact identity using already parsed command arguments."""
     from ..cli import _presentation
     from .verify import check
+    from ..provenance import capture_provenance
     try:
+        producer = capture_provenance()
+        paths = (args.skeleton, args.lift, args.multipliers)
+        snapshots = [Path(path).read_bytes() for path in paths]
+        inputs = [{"name": Path(path).name, "bytes": len(content),
+                   "sha256": hashlib.sha256(content).hexdigest()}
+                  for path, content in zip(paths, snapshots)]
+        documents = [json.loads(content) for content in snapshots]
         pres = _presentation(args)
-        lift, skeleton = _composition_inputs(args, pres)
-        multipliers = load_multipliers(args.multipliers, skeleton, lift.atoms, pres)
+        lift, skeleton = _composition_inputs(args, pres, documents[:2])
+        multipliers = multipliers_from_json(documents[2], skeleton, lift.atoms, pres)
         cofactor = compose(lift, skeleton, pres, multipliers=multipliers, verbose=not args.json)
         report = check(cofactor, pres, verbose=not args.json)
         if not report["pass"]:
-            result = {"pass": False, "status": "false-identity", "exact": report}
+            result = {"pass": False, "status": "false-identity", "exact": report,
+                      "producer": producer, "inputs": inputs}
             print(json.dumps(result) if args.json else "Exact identity verification failed; output was not written.")
             return 1
-        _save_atomic(cofactor, args.out)
-        result = {"pass": True, "status": "verified", "exact": report, "output": args.out}
+        _save_atomic(cofactor, args.out, producer=producer, inputs=inputs)
+        result = {"pass": True, "status": "verified", "exact": report, "output": args.out,
+                  "producer": producer, "inputs": inputs}
         print(json.dumps(result) if args.json else "Verified exact identity; wrote " + args.out)
         return 0
     except (OSError, ValueError, TypeError, KeyError, ZeroDivisionError) as error:

@@ -9,6 +9,7 @@ __pycache__/
 build/
 dist/
 *.egg-info/
+/src/zipper_algebra/_build_provenance.json
 
 # Local instructions, session notes and research planning
 AGENTS.md
@@ -57,5 +58,19 @@ htmlcov/
 *.ms
 *.pkl
 *.pickle
+*.sqlite3
+*.sqlite3-journal
+*.sqlite3-wal
+*.sqlite3-shm
+*.provenance.json
 grobner_zipper_*.gap
 /reconstruction_theory.pdf
+
+# Local pytest state
+.pytest_cache/
+
+# Local lint cache
+.ruff_cache/
+
+# Local type-checker cache
+.mypy_cache/

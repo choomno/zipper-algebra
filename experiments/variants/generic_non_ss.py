@@ -15,7 +15,8 @@ this script does not produce a certified generic nonsemisimplicity theorem.
 from __future__ import annotations
 
 import argparse
-from experiments.output import prepare_output_dir
+from experiments.output import (prepare_output_dir, capture_experiment_provenance,
+                                tag_solver_input, tag_solver_basis)
 import os
 import random
 import subprocess
@@ -34,7 +35,6 @@ from experiments.variants import semisimple_Q
 # ---------------------------------------------------------------------------
 
 
-
 def find_f4ncgb() -> str:
     executable = shutil.which(os.environ.get("F4NCGB", "f4ncgb"))
     if executable is None:
@@ -50,16 +50,19 @@ def build_basis_at(workdir: str, *, n: int, q: int, t: int,
                    maxiter: int = 500, verbose: bool = False) -> str:
     """Emit the square-zero-variant relations at (q, t) over Q, run f4ncgb,
     and return the path to the resulting .basis file."""
+    producer = capture_experiment_provenance(__file__)
     tag = f"square_zero_n{n}_q{q}_t{t}"
     ms = os.path.join(workdir, f"{tag}.ms")
     basis = os.path.join(workdir, f"{tag}.basis")
-    Presentation(n, untwist="square-zero").emit_ms(ms, q, t, 0)
+    Presentation(n, untwist="square-zero").emit_ms(ms, q, t, 0, provenance=False)
+    inputs = tag_solver_input(ms, producer=producer)
     f4 = find_f4ncgb()
     cmd_gb = [f4, "-m", str(maxiter), "-o", basis, "-i", ms]
     subprocess.check_call(
         cmd_gb, stdout=subprocess.DEVNULL,
         stderr=(None if verbose else subprocess.DEVNULL),
     )
+    tag_solver_basis(basis, producer=producer, inputs=inputs)
     return basis
 
 
@@ -85,8 +88,7 @@ def trace_form_at(basis_path: str, *, n: int, max_dim: int = 500,
     return N, rank, det
 
 
-def trace_form_matrix_at(basis_path: str, *, n: int, max_dim: int = 500,
-                         verbose: bool = False) -> list[list[Fraction]]:
+def trace_form_matrix_at(basis_path: str, *, n: int, max_dim: int = 500) -> list[list[Fraction]]:
     """Same as ``trace_form_at`` but returns the full matrix T (not just
     its rank and determinant). Used by the interpolation step."""
     polys = core.parse_basis_Q(basis_path)
@@ -101,8 +103,6 @@ def trace_form_matrix_at(basis_path: str, *, n: int, max_dim: int = 500,
     N = len(standard)
     mon_idx = {m: i for i, m in enumerate(standard)}
     lm_to_tail = core.lm_to_tail_Q(polys)
-    log = (lambda s: print(f"   [{s}]", file=sys.stderr, flush=True)) \
-        if verbose else (lambda *a: None)
     gen_L = semisimple_Q.build_generator_matrices_Q(
         variables, standard, mon_idx, lm_to_tail, delta, is_match, match_pat,
     )
@@ -178,35 +178,6 @@ def qp_total_degree(a: QPoly) -> int:
     return max((i + j for (i, j) in a), default=-1)
 
 
-def qp_str(a: QPoly) -> str:
-    if not a:
-        return "0"
-    items = sorted(a.items(), key=lambda kv: (-(kv[0][0] + kv[0][1]),
-                                              kv[0]))
-    parts = []
-    for (i, j), c in items:
-        mon = ""
-        if i > 0:
-            mon += f"q^{i}" if i > 1 else "q"
-        if j > 0:
-            mon += f"*t^{j}" if i > 0 else (f"t^{j}" if j > 1 else "t")
-            if i == 0 and j == 1:
-                mon = "t"
-            elif i == 0 and j > 1:
-                mon = f"t^{j}"
-        if not mon:
-            parts.append(str(c))
-            continue
-        if c == 1:
-            parts.append("+" + mon if parts else mon)
-        elif c == -1:
-            parts.append("-" + mon)
-        else:
-            sgn = "+" if c > 0 and parts else ""
-            parts.append(f"{sgn}{c}*{mon}")
-    return "".join(parts)
-
-
 # ---------------------------------------------------------------------------
 # Bivariate Lagrange interpolation: from samples on a grid to QPoly
 # ---------------------------------------------------------------------------
@@ -267,29 +238,6 @@ def interpolate_qt(
 
 
 # ---------------------------------------------------------------------------
-# Matrix utilities over Q (for reuse with the polynomial matrix)
-# ---------------------------------------------------------------------------
-
-def qpoly_matrix_det_via_eval(
-    T_polys: list[list[QPoly]], q_val: int, t_val: int,
-) -> Fraction:
-    """Evaluate each entry of T_polys at (q, t) = (q_val, t_val) and
-    compute the determinant over Q."""
-    N = len(T_polys)
-    Teval = [[Fraction(0)] * N for _ in range(N)]
-    for i in range(N):
-        for j in range(N):
-            s = Fraction(0)
-            for (a, b), c in T_polys[i][j].items():
-                s += c * (q_val ** a) * (t_val ** b)
-            Teval[i][j] = s
-    det, _ = semisimple_Q.gauss_rank_det_Q(
-        [row[:] for row in Teval],
-    )
-    return det
-
-
-# ---------------------------------------------------------------------------
 # Argument (A): many-point Schwartz--Zippel certificate
 # ---------------------------------------------------------------------------
 
@@ -305,7 +253,6 @@ def schwartz_zippel_grid(
     def primes():
         # naive sieve generator
         candidates = []
-        n_seen = 0
         x = 2
         while True:
             ok = True
@@ -462,7 +409,7 @@ def reconstruct_T_polynomial(
     # Determine N from one specialisation (assumed stable across the grid).
     basis0 = build_basis_at(workdir, n=n, q=q_nodes[0], t=t_nodes[0],
                             verbose=verbose)
-    T0 = trace_form_matrix_at(basis0, n=n, verbose=verbose)
+    T0 = trace_form_matrix_at(basis0, n=n)
     N = len(T0)
     if verbose:
         print(f"   [N = {N}, total entries = {N * N}]", file=sys.stderr)
@@ -483,7 +430,7 @@ def reconstruct_T_polynomial(
                 continue
             basis = build_basis_at(workdir, n=n, q=qv, t=tv,
                                    verbose=verbose)
-            Tv = trace_form_matrix_at(basis, n=n, verbose=verbose)
+            Tv = trace_form_matrix_at(basis, n=n)
             if len(Tv) != N:
                 raise RuntimeError(
                     f"dim changed at (q, t) = ({qv}, {tv}): "
@@ -516,7 +463,7 @@ def verify_T_polynomial_at(
     """Sanity check: T_polys evaluated at (q, t) must match the
     direct trace-form computation at (q, t). Returns True on match."""
     basis = build_basis_at(workdir, n=n, q=q, t=t, verbose=verbose)
-    T_direct = trace_form_matrix_at(basis, n=n, verbose=verbose)
+    T_direct = trace_form_matrix_at(basis, n=n)
     N = len(T_direct)
     if len(T_polys) != N:
         return False
@@ -552,83 +499,6 @@ def det_polynomial_matrix_evaluate(
         [row[:] for row in Teval],
     )
     return det
-
-
-def check_polynomial_det_is_zero(
-    T_polys: list[list[QPoly]], n_test_points: int = 5,
-    deg_bound_for_det: int | None = None, verbose: bool = False,
-) -> tuple[bool, list[tuple[int, int, Fraction]]]:
-    """Test whether det( T_polys(q, t) ) is the zero polynomial.
-
-    Since we already have T_polys as an explicit polynomial matrix, the
-    determinant det T(q, t) is an explicit polynomial in Q[q, t] (we
-    compute it by symbolic evaluation at many points and interpolating
-    --- equivalent to symbolic expansion of the det). Concretely:
-    the matrix has entries of total degree <= D := max_{ij}
-    deg(T_polys[i][j]), so det has total degree <= N * D. We sample at
-    a (N * D + 1) x (N * D + 1) grid of small primes and assert the
-    sampled value is zero everywhere; by 2-variable Schwartz--Zippel
-    this proves det T == 0.
-
-    Returns (all_zero, samples) where samples is a small subset
-    (n_test_points) for reporting purposes.
-    """
-    N = len(T_polys)
-    D = max(qp_total_degree(p) for row in T_polys for p in row)
-    if deg_bound_for_det is None:
-        deg_bound_for_det = N * max(D, 0)
-    if verbose:
-        print(f"   [N={N}, entry degree bound D={D}, "
-              f"det degree bound {deg_bound_for_det}]",
-              file=sys.stderr)
-    # Pick (deg_bound_for_det + 2)^2 grid points (small distinct primes).
-    from itertools import islice
-
-    def primes():
-        candidates = []
-        x = 2
-        while True:
-            ok = True
-            for p in candidates:
-                if p * p > x:
-                    break
-                if x % p == 0:
-                    ok = False
-                    break
-            if ok:
-                candidates.append(x)
-                yield x
-            x += 1
-
-    L = deg_bound_for_det + 2
-    pgen = primes()
-    nodes_q = list(islice(pgen, L))
-    nodes_t = list(islice(pgen, L * 2))
-    nodes_t = [x for x in nodes_t if x not in set(nodes_q)][:L]
-    all_zero = True
-    samples: list[tuple[int, int, Fraction]] = []
-    n_checked = 0
-    for qv in nodes_q:
-        for tv in nodes_t:
-            det = det_polynomial_matrix_evaluate(T_polys, qv, tv)
-            if det != 0:
-                all_zero = False
-                if verbose:
-                    print(f"   [det T({qv}, {tv}) = {det} -- NON-ZERO]",
-                          file=sys.stderr)
-                samples.append((qv, tv, det))
-                if len(samples) >= n_test_points:
-                    return all_zero, samples
-            else:
-                if len(samples) < n_test_points:
-                    samples.append((qv, tv, det))
-            n_checked += 1
-    if verbose:
-        print(f"   [grid certificate: det T = 0 at all "
-              f"{n_checked} grid points; det T == 0 in Q[q, t] "
-              f"by Schwartz--Zippel.]",
-              file=sys.stderr)
-    return all_zero, samples
 
 
 # ---------------------------------------------------------------------------
@@ -683,7 +553,6 @@ def transcendental_specialisation(
         digits = len(PI_DEC)
     q0_num = int(PI_DEC[:digits])
     t0_num = int(E_DEC[:digits])
-    den = 10 ** (digits - 1)
     # We *must* feed integers to f4ncgb. Take ((q0_num), (t0_num)) as
     # large primes-of-best-approximation. Drop the denominator (it just
     # scales (q, t) uniformly; for a *rational* approximation of (pi, e)
@@ -820,18 +689,17 @@ def main() -> int:
         print(f"  all det T zero on the grid? {all_zero_grid}")
         if all_zero_grid:
             L = args.deg_bound + 2
-            print(f"  ==> Conditional grid implication (bounds and common basis are assumptions):")
-            print(f"      Write det T(q, t) = P(q, t) / (q^A t^B) "
-                  f"with P in Q[q, t].")
-            print(f"      The grid avoids q = 0 and t = 0, so")
-            print(f"      det T(q_i, t_j) = 0 <=> P(q_i, t_j) = 0.")
+            print('  ==> Conditional grid implication (bounds and common basis are assumptions):')
+            print('      Write det T(q, t) = P(q, t) / (q^A t^B) with P in Q[q, t].')
+            print('      The grid avoids q = 0 and t = 0, so')
+            print('      det T(q_i, t_j) = 0 <=> P(q_i, t_j) = 0.')
             print(f"      Provided deg_q P <= {args.deg_bound} and "
                   f"deg_t P <= {args.deg_bound}, P is uniquely "
                   f"determined by its values on any "
                   f"({args.deg_bound + 1})x({args.deg_bound + 1}) "
                   f"grid; here L = {L} > {args.deg_bound + 1} on each "
                   f"axis, so the vanishing forces P == 0, hence")
-            print(f"      det T(q, t) == 0 in Q(q, t).")
+            print('      det T(q, t) == 0 in Q(q, t).')
             # show first few non-trivial rows
             if args.verbose or True:
                 for qv, tv, Nn, rk, dt in table[:5]:
@@ -885,7 +753,7 @@ def main() -> int:
             print(f"    poly  (q*t)^{args.denom_exp} * det T"
                   f"({qcheck},{tcheck}) = {val}")
             if val == target:
-                print(f"    => interpolation is consistent.")
+                print('    => interpolation is consistent.')
                 print(f"  (q*t)^{args.denom_exp} * det T is NOT the "
                       f"zero polynomial -- printing a snippet:")
                 # print top 6 monomials
@@ -894,15 +762,10 @@ def main() -> int:
                                                kv[0]))
                 for k, (deg, c) in enumerate(items[:6]):
                     print(f"     coeff (q^{deg[0]} t^{deg[1]}) = {c}")
-                print(f"  ==> the reconstructed candidate is not the zero polynomial; "
-                      f"this is at odds with Argument (A) and "
-                      f"(empirical) Remark 1.5. Investigate "
-                      f"--denom-exp / --deg-bound.")
+                print('  ==> the reconstructed candidate is not the zero polynomial; this is at odds with Argument (A) and (empirical) Remark 1.5. Investigate --denom-exp / --deg-bound.')
             else:
-                print(f"    => interpolation INCONSISTENT.")
-                print(f"  Likely cause: degree underestimate or "
-                      f"Laurent-exponent underestimate. Increase "
-                      f"--deg-bound and/or --denom-exp and re-run.")
+                print('    => interpolation INCONSISTENT.')
+                print('  Likely cause: degree underestimate or Laurent-exponent underestimate. Increase --deg-bound and/or --denom-exp and re-run.')
 
     # ---------------------------------------------------------------
     # Argument (B'): entry-wise interpolation (slower, optional)
@@ -918,7 +781,7 @@ def main() -> int:
         max_entry_deg = max(qp_total_degree(p) for row in T_polys
                             for p in row)
         nonzero_entries = sum(1 for row in T_polys for p in row if p)
-        print(f"  T(q, t) reconstructed as polynomial matrix")
+        print('  T(q, t) reconstructed as polynomial matrix')
         print(f"    N = {N}")
         print(f"    max total degree per entry = {max_entry_deg}")
         print(f"    non-zero entries           = "

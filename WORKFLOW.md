@@ -27,7 +27,7 @@ Install the inference extra and build the external solver using the
 ```sh
 zipper-algebra discover --n 4 --target X_3 \
   --solver /absolute/path/to/f4ncgb \
-  --solver-revision f152bb0-with-bundled-parser-patch \
+  --solver-revision 789504d7c7da6af6946faecb73421b037766a5b8 \
   --output runs/x3 --cache runs/solver-cache \
   --start 100 --step 40 --max 260 --jobs 1 --json
 ```
@@ -35,7 +35,12 @@ zipper-algebra discover --n 4 --target X_3 \
 The [reproduction guide](docs/X3_REPRODUCTION.md) explains the stages and
 provides a smaller example. Initial inputs are the presentation, target and
 explicit execution configuration. Samples and proofs are generated and managed
-automatically.
+automatically. Sample inputs, solver outputs and validation records are stored
+in one `samples.sqlite3` database. The default `--solver-io files` uses temporary
+files for active solver calls. With the
+[optional SQLite-enabled solver](patches/f4ncgb/README.md#optional-direct-sqlite-io),
+`--solver-io sqlite` reads and writes directly in that database. Use the source
+revision of the selected executable in `--solver-revision`.
 
 Each solver run has a versioned identity containing the actual input, coefficient
 domain, target, ordered generators, order, executable digest, flags and limits.
@@ -51,6 +56,11 @@ success condition.
 A successful result atomically selects an immutable product bundle with its hashes.
 `result.json` reports the presentation/target, anchor, sampled runs and certificate
 path. An interrupted publication preserves the preceding valid result.
+
+The result and solver records retain the producer's commit, recorded local
+changes and exact source-file hashes. The final bundle includes a shared
+`provenance.json`; standalone saves receive adjacent sidecars. See
+[output provenance](docs/PROVENANCE.md) for field meanings and build origins.
 
 ## Verify or recompose
 
@@ -89,13 +99,11 @@ A nonzero remainder from an uncertified basis establishes no nonmembership
 conclusion. Process success does not prove a completed basis. Sample agreement
 does not prove a rational-function identity.
 
-## Historical comparisons and development
+## Development and verification
 
-[TESTING](docs/TESTING.md) describes the unit, integration and reproduction suites,
+[TESTING](docs/TESTING.md) describes the unit and integration tests,
 coverage gate, isolated distributions and native solver integration.
 [INDEX](INDEX.md) maps the source and experimental recipes.
-The curated example is a 129-term free-algebra certificate. The older 695-term
-witness and its recomposition inputs are regression fixtures under
-`tests/fixtures/legacy_x3/`. Retired datasets remain available in Git history.
-The compact braid-algebra transformations retain their own explicit equality
-conventions under [experiments/x3](experiments/x3/README.md).
+The curated example is a 129-term free-algebra certificate. Unit and integration
+tests use explicit algebraic identities, constructed proof graphs and temporary
+solver records. Retired experiments and datasets remain in Git history.
