@@ -109,8 +109,8 @@ def parser():
 def main(argv=None):
     args = parser().parse_args(argv)
     if args.command == "compose":
-        from .cofactor.compose import run
-        return run(args)
+        from .cofactor.compose import run as run_composition
+        return run_composition(args)
     try:
         if args.command == "export-sample":
             from .execution.store import export
@@ -151,12 +151,12 @@ def main(argv=None):
         if args.command == "discover":
             from .cofactor.atoms import AtomSet
             from .execution.config import RunConfig
-            from .execution.pipeline import run
+            from .execution.pipeline import run as run_discovery
             config = RunConfig(args.solver, args.output, args.cache, args.timeout,
                                args.max_iterations, args.max_degree,
                                solver_revision=args.solver_revision, solver_io=args.solver_io)
             atoms = None if args.atoms is None else AtomSet.load(args.atoms)
-            report = run(presentation, args.target, (*args.anchor, 0), config,
+            report = run_discovery(presentation, args.target, (*args.anchor, 0), config,
                          start=args.start, step=args.step, maxpts=args.maxpts,
                          jobs=args.jobs, atoms=atoms, refresh=args.refresh, verbose=not args.json)
             print(json.dumps(report, sort_keys=True) if args.json else report["status"])

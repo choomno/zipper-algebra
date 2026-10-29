@@ -46,6 +46,12 @@ from .univariate import (_poly_divmod, _specialise, exact_fraction,
                          normalise_points, reconstruct_univariate)
 
 
+Word = tuple[int, ...]
+Numerator = dict[tuple[int, int], Fraction]
+LiftTerm = tuple[tuple[int, ...], Numerator, Word, str, str | int, Word]
+SlotFailure = tuple[str, int] | tuple[str, int, str]
+
+
 # ----------------------------------------------------------------------------
 # Reconstruction results
 # ----------------------------------------------------------------------------
@@ -256,7 +262,8 @@ def line_denominator(points, atoms: AtomSet, min_line=6, max_lines=None):
     max_lines limits the number of longest lines considered in each direction.
     """
     points = normalise_points(points, 2)
-    by_t, by_q = {}, {}
+    by_t: dict[Fraction, list[tuple[Fraction, Fraction]]] = {}
+    by_q: dict[Fraction, list[tuple[Fraction, Fraction]]] = {}
     for (q, t), v in points:
         by_t.setdefault(t, []).append((q, v))
         by_q.setdefault(q, []).append((t, v))
@@ -507,7 +514,8 @@ def lift(skeleton, samples, atoms: AtomSet | None = None, holdout: int | None = 
         print(f"  {len(stable)} stable samples of {len(samples.points)}")
     # values per slot at every stable point, then the proofs can go
     n_terms = {k: len(anchor_proof.terms[anchor_index[k]]) for k in keys}
-    values = {(k, i): [] for k in keys for i in range(n_terms[k])}
+    values: dict[tuple[str, int], list[tuple[tuple[Fraction, Fraction], Fraction]]] = {
+        (k, i): [] for k in keys for i in range(n_terms[k])}
     for q, t in stable:
         proof, basis = samples.proof(q, t), samples.basis(q, t)
         for k in keys:
@@ -538,12 +546,13 @@ def lift(skeleton, samples, atoms: AtomSet | None = None, holdout: int | None = 
         print(f"  fitting on {n_fit}, holding out {h} for verification")
 
     candidates = atoms.candidates()
-    entries, failed = {}, []
+    entries: dict[str, list[LiftTerm | None]] = {}
+    failed: list[SlotFailure] = []
     routes = {"known": 0, "enum": 0}
     t_known = 0.0
     for k in keys:
         t_k = time.time()
-        terms_out = []
+        terms_out: list[LiftTerm | None] = []
         for i, (_c0, left, kind, idx, right) in enumerate(anchor_proof.terms[anchor_index[k]]):
             pts = values[(k, i)]
             pts_fit, pts_hold = pts[:n_fit], pts[n_fit:]

@@ -7,10 +7,14 @@ imported only by the residual-factor operation that needs it.
 from __future__ import annotations
 
 import math
+from fractions import Fraction
 from itertools import product
 
 from .atoms import Atom, AtomSet, poly_str
 from .univariate import _poly_divmod, _specialise, _solve, reconstruct_univariate
+
+
+Rational = int | Fraction
 
 
 def _candidate_polys(max_bideg=(2, 1), coef_bound=2):
@@ -62,14 +66,14 @@ def residual_factors(lines, verbose=True):
     """
     import sympy as sp
     x = sp.Symbol("x")
-    out = {}
+    out: dict[tuple[str, tuple[int, ...]], list[Rational]] = {}
     for fixed, x0, D in lines:
         if len(D) < 2:
             continue
         poly = sp.Poly(list(reversed([sp.Rational(c) for c in D])), x)
         for f, _e in sp.factor_list(poly)[1]:
-            cs = list(reversed(f.all_coeffs()))
-            out.setdefault((fixed, _primitive(cs)), []).append(x0)
+            factor_coefs = list(reversed(f.all_coeffs()))
+            out.setdefault((fixed, _primitive(factor_coefs)), []).append(x0)
     if verbose and out:
         print(f"[atoms] residual irreducible factors ({len(out)} distinct):")
         for (fixed, cs), xs in sorted(out.items(), key=lambda kv: -len(kv[1]))[:8]:
@@ -101,12 +105,12 @@ def atoms_from_residual_factors(factors, max_other_deg=4, min_lines=3, verbose=T
     are required. Ambiguous same-degree factor matches are left unresolved.
     """
     from fractions import Fraction as F
-    by_deg = {}
+    by_deg: dict[tuple[str, int], list[tuple[tuple[int, ...], list[Rational]]]] = {}
     for (fixed, cs), xs in factors.items():
         by_deg.setdefault((fixed, len(cs)), []).append((cs, xs))
     found = []
     for (fixed, ln), group in sorted(by_deg.items()):
-        pts = {}
+        pts: dict[Rational, set[tuple[int, ...]]] = {}
         for cs, xs in group:
             for x0 in xs:
                 pts.setdefault(x0, set()).add(cs)
@@ -126,7 +130,7 @@ def atoms_from_residual_factors(factors, max_other_deg=4, min_lines=3, verbose=T
         if not ok:
             continue
         # assemble: coefficient of q^pos is a polynomial in t (or vice versa)
-        bi = {}
+        bi: dict[tuple[int, int], Fraction] = {}
         for pos, poly in coefs.items():
             for d, c in poly.items():
                 key = (pos, d) if fixed == "t" else (d, pos)
@@ -137,8 +141,8 @@ def atoms_from_residual_factors(factors, max_other_deg=4, min_lines=3, verbose=T
         den = 1
         for c in bi.values():
             den = den * F(c).denominator // math.gcd(den, F(c).denominator)
-        bi = {k: int(F(v) * den) for k, v in bi.items()}
-        a = Atom(poly_str(bi), bi)
+        primitive_bi = {k: int(F(v) * den) for k, v in bi.items()}
+        a = Atom(poly_str(primitive_bi), primitive_bi)
         if a not in found:
             found.append(a)
             if verbose:
@@ -195,7 +199,8 @@ def infer(values_by_slot: dict, seed: AtomSet | None = None, max_bideg=(2, 1), c
     lines = []
     n_rec = n_try = 0
     for slot, pts in values_by_slot.items():
-        by_t, by_q = {}, {}
+        by_t: dict[Rational, list[tuple[Rational, Rational]]] = {}
+        by_q: dict[Rational, list[tuple[Rational, Rational]]] = {}
         for (q, t), v in pts:
             by_t.setdefault(t, []).append((q, v))
             by_q.setdefault(q, []).append((t, v))
@@ -290,12 +295,14 @@ def infer(values_by_slot: dict, seed: AtomSet | None = None, max_bideg=(2, 1), c
     cands = (_candidate_polys(max_bideg, coef_bound)
              if any(len(D) >= 2 for _, _, D in lines) else [])
     while True:
-        best, best_key = None, None
+        best: tuple[Atom, tuple[int]] | None = None
         for coefs in cands:
             a = Atom(poly_str(coefs), coefs)
             if a in known:
                 continue
-            hits, tvals, qvals = 0, set(), set()
+            hits = 0
+            tvals: set[Rational] = set()
+            qvals: set[Rational] = set()
             for fixed, x0, D in lines:
                 if len(D) < 2:
                     continue
@@ -314,14 +321,15 @@ def infer(values_by_slot: dict, seed: AtomSet | None = None, max_bideg=(2, 1), c
             if dep_q and len(qvals) < 2 and len(tvals) < 2:
                 continue
             key = (hits,)
-            if best_key is None or key > best_key:
-                best, best_key = a, key
+            if best is None or key > best[1]:
+                best = a, key
         if best is None:
             break
-        found.append(best); known.add(best)
-        mult[best.name] = strip(best)
+        best_atom, best_key = best
+        found.append(best_atom); known.add(best_atom)
+        mult[best_atom.name] = strip(best_atom)
         if verbose:
-            print(f"[atoms]   found {best.name}  (multiplicity <= {mult[best.name]}, "
+            print(f"[atoms]   found {best_atom.name}  (multiplicity <= {mult[best_atom.name]}, "
                   f"{best_key[0]} lines)")
         if all(len(D) < 2 for _, _, D in lines):
             break

@@ -247,9 +247,10 @@ def _evaluate_target(target, ring, q, t):
     return p
 
 
-def _grid_points(n: int) -> list:
+def _grid_points(n: int) -> list[int]:
     """n distinct small integers. Cleared polynomials can also be evaluated at poles."""
-    out, k = [], 2
+    out: list[int] = []
+    k = 2
     while len(out) < n:
         out.append(k)
         k += 1

@@ -6,10 +6,9 @@ Its numeric and symbolic views use one relation builder. The content hash identi
 that ordered symbolic presentation, independently of parameter specialization.
 Computational order, solver configuration and completion evidence belong to run records.
 """
-from __future__ import annotations
-
 import hashlib
 from dataclasses import dataclass, field
+from typing import ClassVar
 
 from .coefficients import NumericRing, SymbolicRing
 from .polynomial import Poly
@@ -46,6 +45,8 @@ EXTRA_CATALOGUE = {
 
 @dataclass(frozen=True)
 class Presentation:
+    DEFAULT: ClassVar["Presentation"]
+
     n: int
     untwist: str = "bigelow"
     framing_power: int = 1

@@ -12,7 +12,9 @@ import warnings
 
 from zipper_algebra import core
 from zipper_algebra.presentation import Presentation
-from zipper_algebra.coefficients import NumericRing
+from zipper_algebra.coefficients import Coef, NumericRing, QTCoef
+from zipper_algebra.cofactor.proof import Basis
+from zipper_algebra.cofactor.skeleton import reduce as reduce_skeleton
 from zipper_algebra.polynomial import Poly
 
 
@@ -115,6 +117,18 @@ class TestBasisReadersAndReduction:
         # A nonmonic relation must divide by its leading coefficient.
         assert core.lm_to_tail_Q([(x, [(F(2), x), (F(-3), ())])]) == {x: [(F(3, 2), ())]}
         assert core.lm_to_tail_Fp([(x, [(2, x), (-3, ())])], 5) == {x: [(4, ())]}
+
+    @pytest.mark.parametrize("symbolic_position", ["target", "basis"])
+    def test_numeric_skeleton_reduction_rejects_symbolic_coefficients(self, symbolic_position):
+        # Numeric reduction divides scalar leading coefficients. A symbolic q
+        # coefficient has the same characteristic zero but belongs to Q[q,t].
+        numeric = Poly.scalar(Coef.one(0))
+        symbolic = Poly.scalar(QTCoef({(1, 0): 1}))
+        target = symbolic if symbolic_position == "target" else numeric
+        divisor = symbolic if symbolic_position == "basis" else numeric
+        basis = Basis([divisor], 0, ["x"])
+        with pytest.raises(TypeError, match="numeric reduction requires"):
+            reduce_skeleton(target, basis)
 
     def test_noncommuting_contexts_and_incomplete_basis_diagnostics(self):
         # y(xy)=yx+2yy for the rule xy -> x+2y.

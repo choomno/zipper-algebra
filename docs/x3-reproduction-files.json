@@ -17,14 +17,14 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "bytes": 7207,
-      "sha256": "6e8d0d6cbd9897508601de759ade1f7643511515ec6005ce207000fefd5e5cf5",
+      "bytes": 7294,
+      "sha256": "83df88738d16335235bd532eac62eadfb2f19a4b181479af00432540a5ef8b80",
       "role": "Hosted software tests, small solver integration and documentation checks"
     },
     {
       "path": ".gitignore",
-      "bytes": 1207,
-      "sha256": "4bb4e771ca4b7a963c630810bbfa6efc02e6acac8f06927eba3c18132483e775",
+      "bytes": 1248,
+      "sha256": "698227f6d973d1e241a14f9051262167c1c7547ce52ded26dc9c74f7225d6106",
       "role": "Generated computation files and caches stay untracked"
     },
     {
@@ -131,8 +131,8 @@
     },
     {
       "path": "pyproject.toml",
-      "bytes": 1425,
-      "sha256": "e23efd2d51742b3f77e7c415244654547bd627a664c31c5534dec8818070e206",
+      "bytes": 1690,
+      "sha256": "f9ff345c80129925ba33753f2210333153b63a9a0df2b565b47c19b2d65d1083",
       "role": "Package dependencies and installed commands"
     },
     {
@@ -161,14 +161,14 @@
     },
     {
       "path": "src/zipper_algebra/cli.py",
-      "bytes": 10094,
-      "sha256": "65ec2accbd087a0ac041ec8eba51e61dfe00cc0fe45d2fff0f5041c2e8a9090b",
+      "bytes": 10152,
+      "sha256": "8d771f54c83191f99bf09343c5d043ae8cef9de306b0c24e7232937beae04b0c",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/coefficients.py",
-      "bytes": 7734,
-      "sha256": "03ee4362e7089f828c5e90bfbf81f71984db29b8c3ec3cb9587d56b5ac7804db",
+      "bytes": 7846,
+      "sha256": "6324d13510ce7514584418ae982731f5db7dcdec58884a6ecf83f91a17f0b383",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
@@ -191,26 +191,26 @@
     },
     {
       "path": "src/zipper_algebra/cofactor/cofactor_io.py",
-      "bytes": 25526,
-      "sha256": "5d4a24b016fae2ae3d6776ea7f8ad4427b7b9dabbc647c21d29c9c360d607519",
+      "bytes": 25675,
+      "sha256": "268e2091a7520c2f254b736f5bca27903c6c07676cc31f8ebea2b5c1846adb76",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/cofactor/compose.py",
-      "bytes": 23787,
-      "sha256": "62c2bf4a9045989ee55489cc86211d5b00811162a1873b2d1fe5d64723f2309f",
+      "bytes": 23823,
+      "sha256": "b7a303016fc3c29d09d18099399fbbf415f33bce92a2a3a9be51d0a6021ed72f",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/cofactor/inference.py",
-      "bytes": 16146,
-      "sha256": "c802de9b903c037bd108d838fd6fba829823e9daa5251c596532a91f20ab6fe3",
+      "bytes": 16672,
+      "sha256": "bd8a8c2787bde3be3580c51663e1339f893ff0658af4234b2e02be4153241387",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/cofactor/lift.py",
-      "bytes": 27248,
-      "sha256": "43c2d1e9e745c3989fa15af0dcbe7677eb8ef7d8219f417e80cde55285969579",
+      "bytes": 27707,
+      "sha256": "08b67fb056f3e2a41c948df23236eb53bb746c5f15d27576eca97370f29cbc85",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
@@ -221,32 +221,32 @@
     },
     {
       "path": "src/zipper_algebra/cofactor/proof.py",
-      "bytes": 16221,
-      "sha256": "1f4a93ca92b6ebbdceff94022a1579cf1c1cf597b933cee86dd5d6d3160f58c0",
+      "bytes": 16238,
+      "sha256": "a7f8b52a8a7ce1fc78f76dee313007e9b27be18305062cb9fbe51c5a3e9ad4cb",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/cofactor/skeleton.py",
-      "bytes": 12913,
-      "sha256": "99350024cfe32b4ad61272c17baf0d17edacb49073bd1ce35b023fd940e4d181",
+      "bytes": 13365,
+      "sha256": "f3e6e15c4850b09c77de3dfbcb367a9f11660f6f67d8575b9e8a33f4c4af5355",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/cofactor/univariate.py",
-      "bytes": 6312,
-      "sha256": "7d5cb98bf3686e693f4d242ffd69a10b7405911be282aeaf41af0de18f0f9d04",
+      "bytes": 6824,
+      "sha256": "f8ec2285d8c9a516418730cda954a4f345639100d63c45b3b1c6d7c3eccb6a64",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/cofactor/verify.py",
-      "bytes": 12535,
-      "sha256": "9a6c806db12dbd3f6fc69057b94dafdf3cbddef2973988b7e2e884ecd5e3353b",
+      "bytes": 12555,
+      "sha256": "4e1d30e2a658e8c2e29365f7e55e6e9d9cedac2edfa75555a1176662e4c3d20a",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/core.py",
-      "bytes": 14766,
-      "sha256": "25c441e25635b84fd32dc260064030e5fabaae2cb1d86e5519bebc9355328159",
+      "bytes": 14793,
+      "sha256": "b893389783a4d8f189c933ff89cc89406bacfec9761f275ab72745ec5376cb6d",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
@@ -275,8 +275,8 @@
     },
     {
       "path": "src/zipper_algebra/execution/pipeline.py",
-      "bytes": 10053,
-      "sha256": "6063619f2e48b4e3c9ae78edc76f259a4888a713a3f969c607d5a269bcaf5515",
+      "bytes": 10451,
+      "sha256": "7bb2f91f7f0f34fab15c22cffa7698521d0632be9ddaecb42023de4b785ce5d9",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
@@ -287,8 +287,8 @@
     },
     {
       "path": "src/zipper_algebra/execution/sampling.py",
-      "bytes": 5798,
-      "sha256": "944c32866e818139cad3aa9e65cf58bab7133e28d827d873e18e85a8f2e8f40d",
+      "bytes": 7259,
+      "sha256": "11fbde1a2e904751832408ec900c9335e78d7d2857db32781188f9dfbf9a6d96",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
@@ -311,20 +311,20 @@
     },
     {
       "path": "src/zipper_algebra/polynomial.py",
-      "bytes": 4748,
-      "sha256": "dbfe6d85dbce8f3ed4a769de0b215d4d96b47c5ce29e99f64ff3b9598f4bbdaf",
+      "bytes": 4799,
+      "sha256": "a63efce7e86f31a6cb7bd21030dbf5aa3879439d091caa8d995998e049462185",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/presentation.py",
-      "bytes": 10099,
-      "sha256": "8fbf481d45ef005022fd97f65c15eedddd6bc26c690f5aa30f72cf7bc62b775d",
+      "bytes": 10130,
+      "sha256": "f4c5553c2d2a85875c0b435630b2ce6f2f50a3d6cf22d9fb9d299c93e931c4c5",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/provenance.py",
-      "bytes": 16820,
-      "sha256": "59c7221437a0fd71ae33b621cb3a921f05f830bca5f76a1d66ffa10c75b0f08d",
+      "bytes": 16899,
+      "sha256": "8292bf708e0919b415ac091d4d1a8f3c8b5754356faf4e0f9b0accc7ee3a627e",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
@@ -551,8 +551,8 @@
     },
     {
       "path": "tests/unit/test_basis_and_presentations.py",
-      "bytes": 11706,
-      "sha256": "6e9ae05278451790658d618424992bfc05489552d2dd6269b815de5bf0c5a10d",
+      "bytes": 12563,
+      "sha256": "0f54d618f685a61adb27f92d009a05a468362dca5511d1cf25aa4d61be22c10b",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {

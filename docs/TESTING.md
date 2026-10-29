@@ -5,6 +5,7 @@ Use Linux with Python 3.11 or newer and install the package before running sourc
 ```sh
 python -m pip install -e '.[dev,inference]'
 python -m ruff check src tests experiments examples ci setup.py
+python -m mypy
 python -m pytest tests
 ```
 
@@ -15,6 +16,14 @@ The pinned Ruff version checks package code, tests, research recipes, examples, 
 scripts and the build script. The `F` and `E9` rule families detect unused imports
 and local variables, undefined names, repeated definitions and fatal syntax errors.
 The same command runs in the CI coverage job before the tests.
+
+Mypy checks every module under `src/zipper_algebra`, including the bodies of
+unannotated functions, and is pinned in the development extra. CI runs the same
+`python -m mypy` command. Collection and scalar annotations describe exact
+coefficients, parameter points, proof terms and stored artifacts. The optional
+Sympy dependency lacks type information and is treated as an external untyped
+boundary. Other unannotated interfaces can still carry `Any`, so this is gradual
+type checking; it complements the exact arithmetic and failure-path tests.
 
 The suite covers unit and integration tests, including installed interfaces,
 execution boundaries and the 129-term certificate under `examples/x3/`. It

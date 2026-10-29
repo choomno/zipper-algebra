@@ -14,8 +14,9 @@ def _validate_characteristic(char):
 class Coef:
     """Exact scalars over Q or Z/mZ; the latter is GF(m) when m is prime."""
     __slots__ = ("v", "char")
+    v: int | Fraction
 
-    def __init__(self, v, char: int):
+    def __init__(self, v: int | Fraction, char: int) -> None:
         _validate_characteristic(char)
         if isinstance(v, bool) or not isinstance(v, (int, Fraction)):
             raise TypeError("coefficients must be exact integers or Fractions")
@@ -89,6 +90,7 @@ class QTCoef:
     Q(q,t) was hand-copied in symbolic_identity_check.py and reconstructed by sampling in
     papers/generic/fit_symbolic.py, because this class did not."""
     __slots__ = ("v", "char")
+    v: dict[tuple[int, int], Fraction]
 
     def __init__(self, v):
         self.char = 0
@@ -150,7 +152,7 @@ class QTCoef:
         o = self._lift(other)
         if o is None:
             return NotImplemented
-        out: dict = {}
+        out: dict[tuple[int, int], Fraction] = {}
         for (a, b), c in self.v.items():
             for (i, j), d in o.v.items():
                 out[(a + i, b + j)] = out.get((a + i, b + j), Fraction(0)) + c * d

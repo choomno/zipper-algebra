@@ -71,3 +71,6 @@ grobner_zipper_*.gap
 
 # Local lint cache
 .ruff_cache/
+
+# Local type-checker cache
+.mypy_cache/

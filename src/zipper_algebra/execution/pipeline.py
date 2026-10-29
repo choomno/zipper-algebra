@@ -10,32 +10,36 @@ import time
 from ..cofactor.artifacts import (presentation_identity, save_artifact, target_identity,
                                  write_json_atomic)
 from ..cofactor import compose as composition
+from ..cofactor.atoms import AtomSet
 from ..cofactor.cofactor_io import resolve_target
 from ..cofactor.lift import NeedMoreSamples, lift
-from ..cofactor.skeleton import Skeleton, reduce
+from ..cofactor.skeleton import Anchor, Skeleton, reduce
 from ..cofactor.verify import check
 from ..coefficients import NumericRing
+from ..presentation import Presentation
 from .artifacts import ArtifactError, canonical_json, digest_bytes, file_identity, prepare_output_root
 from .runner import ExecutionError, validate_source_snapshot
-from .sampling import SampleSet
+from .sampling import Point, SampleSet
+from .config import RunConfig
 from ..provenance import capture_provenance, write_bundle_provenance
 
 
 REDUCTION_ORDER = "length-lex-index-v1"
 
 
-def _skeleton(pres, target, samples):
+def _skeleton(pres: Presentation, target: str, samples: SampleSet) -> Skeleton:
     basis, proof = samples.anchor_basis(), samples.anchor_proof()
     polynomial = resolve_target(pres, target, NumericRing(*samples.anchor))
     steps, remainder = reduce(polynomial, basis)
     return Skeleton.from_reduction(pres, target, samples.anchor, steps, remainder, basis, proof)
 
 
-def multiplier_samples(skeleton, samples, pres):
+def multiplier_samples(skeleton: Skeleton, samples: SampleSet,
+                       pres: Presentation) -> dict[Point, list[Fraction]]:
     """Exact multipliers for matching contextual occurrences, including repeated uses."""
     signatures = [(tuple(step["left"]), step["basis_key"], tuple(step["right"]))
                   for step in skeleton.steps]
-    result = {}
+    result: dict[Point, list[Fraction]] = {}
     for point in samples.stable(skeleton):
         basis = samples.basis(*point)
         target = resolve_target(pres, skeleton.target, NumericRing(*point, 0))
@@ -89,8 +93,9 @@ def _publish_verified(root, pres, target, skeleton, fitted, multipliers, certifi
             "certificate": str(final / "certificate.txt")}
 
 
-def run(pres, target, anchor, config, *, start=100, step=40, maxpts=260,
-        jobs=1, atoms=None, refresh=False, verbose=True):
+def run(pres: Presentation, target: str, anchor: Anchor, config: RunConfig, *,
+        start: int = 100, step: int = 40, maxpts: int = 260, jobs: int = 1,
+        atoms: AtomSet | None = None, refresh: bool = False, verbose: bool = True) -> dict:
     """Run bounded discovery; success means an exact identity, not a complete basis.
 
     Sampling and proof data are produced from the presentation. Saved lifts or

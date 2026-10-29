@@ -48,6 +48,7 @@ from io import StringIO
 import json
 import re
 from fractions import Fraction
+from typing import cast
 
 from .atoms import AtomSet
 from ..coefficients import Coef, NumericRing, SymbolicRing
@@ -287,7 +288,7 @@ class Cofactor:
         self.atoms.validate()
         if not isinstance(self.presentation_hash, str):
             raise ValueError("presentation hash must be a string")
-        labels = None
+        labels: set[str] = set()
         if pres is not None:
             if self.n != pres.n:
                 raise ValueError(f"cofactor is for n={self.n}, presentation is n={pres.n}")
@@ -303,7 +304,7 @@ class Cofactor:
             validate_word(right, self.n)
             if not isinstance(lab, str) or not lab:
                 raise ValueError("relation labels must be nonempty strings")
-            if labels is not None and lab not in labels:
+            if pres is not None and lab not in labels:
                 raise ValueError(f"unknown relation label {lab!r} for {pres.slug()}")
             validate_qt_polynomial(num)
             self.atoms.validate_exponents(den)
@@ -507,6 +508,8 @@ class Cofactor:
                 raise ValueError(f"cannot parse cofactor line: {ln!r}")
 
         if legacy:
+            # The headerless-input check above required a presentation.
+            pres = cast(Presentation, pres)
             producer = f"cofactor_io.load from legacy {os.path.basename(name)}"
             return cls(terms, n, atoms, pres.slug(), pres.content_hash(),
                        target if target is not None else "", producer, anchor, notes)

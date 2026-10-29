@@ -119,14 +119,15 @@ class Rat:
 # Expansion of the lifted proofs over the input relations
 # ---------------------------------------------------------------------------
 
-def _order(entries: dict) -> list:
+def _order(entries: dict) -> list[str]:
     """Keys in an order where every basis reference precedes its referrer.
 
     The legacy code relied on ascending integer index (proof entries referencing only smaller
     indices).  Keys are leading words, so the order has to be computed; a genuine cycle is an
     error, a forward reference is not.
     """
-    state, out = {}, []
+    state: dict[str, int] = {}
+    out: list[str] = []
 
     def visit(k):
         st = state.get(k)

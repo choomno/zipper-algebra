@@ -13,10 +13,10 @@ class Poly:
 
     def __init__(self, char: int):
         _validate_characteristic(char)
-        self.terms: dict[tuple[int, ...], Coef] = {}
+        self.terms: dict[tuple[int, ...], Coef | QTCoef] = {}
         self.char = char
 
-    def add_term(self, mon: tuple[int, ...], coef: Coef) -> None:
+    def add_term(self, mon: tuple[int, ...], coef: Coef | QTCoef) -> None:
         if not isinstance(coef, (Coef, QTCoef)) or coef.char != self.char:
             raise TypeError("a polynomial term must have the polynomial's coefficient characteristic")
         if not isinstance(mon, tuple) or any(type(i) is not int or i < 1 for i in mon):
@@ -74,7 +74,7 @@ class Poly:
                 result.add_term(m1 + m2, c1 * c2)
         return result
 
-    def scalar_mul(self, c: Coef) -> "Poly":
+    def scalar_mul(self, c: Coef | QTCoef) -> "Poly":
         if not isinstance(c, (Coef, QTCoef)) or c.char != self.char:
             raise TypeError("a scalar must have the polynomial's coefficient characteristic")
         result = Poly(self.char)
@@ -83,7 +83,7 @@ class Poly:
         return result
 
     @staticmethod
-    def scalar(c: Coef) -> "Poly":
+    def scalar(c: Coef | QTCoef) -> "Poly":
         p = Poly(c.char)
         p.add_term((), c)
         return p
@@ -95,7 +95,7 @@ class Poly:
         return p
 
     @staticmethod
-    def generator_over(idx: int, one) -> "Poly":
+    def generator_over(idx: int, one: Coef | QTCoef) -> "Poly":
         """The generator with the given multiplicative identity (Coef or QTCoef)."""
         p = Poly(one.char)
         p.add_term((idx,), one)
