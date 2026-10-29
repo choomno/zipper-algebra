@@ -189,19 +189,13 @@ checks, package checks and optional integrations.
 | `docs/` | Mathematical reference, reproduction guide and testing instructions. |
 | `experiments/` | Research recipes, specialized transformations and independent comparisons. |
 | `examples/` | Small executable examples and the curated X_3 certificate. |
-| `data/` | Pinned archive manifest and historical aliases. |
 | `gap_scripts/`, `singular_run/`, `archive/` | Source programs for independent and older computational paths. |
 
 Bulk historical datasets remain at their original checkout paths until the separate
 data-removal change is merged. Source distributions and wheels omit them.
 Regression tests use curated fixtures; fresh production uses `discover`.
 
-All historical scientific data remain available in pinned Git revision
-`d30b36aa2da0819dfa28954bd9223ef72163edf5`. Restore selected inputs, logs, saved
-bases and variant results on demand with
-`python -m experiments.restore_data --output .research-data`; see the
-[reproduction guide](docs/X3_REPRODUCTION.md). Default tests and fresh production
-use the curated checkout directly.
+Retired research material remains available in Git history.
 
 The installed wheel contains the maintained package. The execution layer
 validates solver proofs and exact certificate identities. Variant surveys, dimension and trace recipes

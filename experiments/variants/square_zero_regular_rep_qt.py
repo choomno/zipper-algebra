@@ -76,9 +76,7 @@ PIPELINE
    gives the lower bound dim A >= N. A matching generic upper bound is separate;
    specialization and matching sample words do not establish it.
 
-Historical results are optional external research data listed in
-data/research-archive.json. Restore them with experiments.restore_data or run
-this producer to regenerate its pickle payload for the symbolic trace-form
+Run this producer to generate its pickle payload for the symbolic trace-form
 recipe. The default output directory is runs/variants;
 ZIPPER_EXPERIMENT_OUTPUT overrides it.
 

@@ -19,7 +19,7 @@ from zipper_algebra import Presentation, core
 
 class TestExperimentalRecipeBoundaries(unittest.TestCase):
     @unittest.skipUnless(importlib.util.find_spec('sympy'), 'symbolic recipe needs the inference extra')
-    def test_fresh_variant_caches_are_separate_from_restored_historical_data(self):
+    def test_fresh_variant_caches_use_the_ignored_run_directory(self):
         root = Path(__file__).resolve().parents[1]
         environment = dict(os.environ)
         environment.pop('ZIPPER_EXPERIMENT_OUTPUT', None)
@@ -31,10 +31,8 @@ class TestExperimentalRecipeBoundaries(unittest.TestCase):
              'print(json.dumps([producer.OUT_PKL, trace.REGREP_PKL, trace.OUT_PKL]))'],
             cwd=root, env=environment, text=True, capture_output=True, check=True, timeout=20)
         fresh = {Path(name).resolve() for name in json.loads(result.stdout)}
-        catalog = json.loads((root / 'data/research-archive.json').read_text())
-        historical = {root / '.research-data' / entry['path'] for entry in catalog['files']}
         self.assertTrue(all(path.parent == root / 'runs/variants' for path in fresh))
-        self.assertTrue(fresh.isdisjoint(historical))
+        self.assertTrue(all(not path.is_relative_to(root / '.research-data') for path in fresh))
 
     def test_unit_ideal_has_no_standard_word_including_the_unit(self):
         delta, matches, _, count = core.build_aho_corasick([()], ['x1', 'y1'])

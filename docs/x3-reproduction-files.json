@@ -1,6 +1,6 @@
 {
   "schema": "zipper-x3-reproduction-files-v1",
-  "scope": "Curated X3 source and fixture inventory. Bulk historical data are optional and catalogued separately in data/research-archive.json. Fresh production uses the installed discovery command.",
+  "scope": "Curated X3 source and fixture inventory. Fresh production uses the installed discovery command.",
   "excluded": "This inventory, reader documentation, private working records, workspace configuration, caches and retired duplicate files.",
   "historical_sources": [
     {
@@ -73,14 +73,14 @@
     },
     {
       "path": ".gitignore",
-      "bytes": 1035,
-      "sha256": "e793e657550cbfcea29568bbec7fe85660c1307ab7c8264d65ea93a628089218",
+      "bytes": 1020,
+      "sha256": "d86a4df12821c951122f0f4c0f9ffc48b818411acec17b99da039caef1fd69ff",
       "role": "Generated runs, caches and historical datasets stay untracked"
     },
     {
       "path": "MANIFEST.in",
-      "bytes": 1479,
-      "sha256": "c438ec538ee264f827e57a4cbcdeb014505e6ea1fb03e1705a5bf3898ddb3fe1",
+      "bytes": 1444,
+      "sha256": "79ae8703f165b0824a3fc72c778e3f8e82d2687b509534917ffa24e9f26d4bf9",
       "role": "Source-distribution inclusion rules"
     },
     {
@@ -91,8 +91,8 @@
     },
     {
       "path": "ci/build_x3_manifest.py",
-      "bytes": 6754,
-      "sha256": "d9343b155040cbc3eec359847d04922ac301dfe64a232e5830ca309f8e227372",
+      "bytes": 5370,
+      "sha256": "738c1b9a2f42518ba8642ef62fd83d27c35768c3709ad813641f72c0fe7d3346",
       "role": "Installation, test, coverage, documentation or inventory support"
     },
     {
@@ -103,8 +103,8 @@
     },
     {
       "path": "ci/check_distribution.py",
-      "bytes": 6734,
-      "sha256": "c4ffc569c9f5473b90f0c39d3a97b1bcac96a9c8dbf5562faf61e903d46a89c6",
+      "bytes": 6047,
+      "sha256": "bf72eadd251f7d27eeb03efc6864838b4355c90e50defec8f4dc7a166b7aa859",
       "role": "Installation, test, coverage, documentation or inventory support"
     },
     {
@@ -150,12 +150,6 @@
       "role": "Installation, test, coverage, documentation or inventory support"
     },
     {
-      "path": "data/research-archive.json",
-      "bytes": 105122,
-      "sha256": "42808d8331623a98b961d921cf03a271f3cec537d2f013310198801b3bb1fd40",
-      "role": "Checksums and pinned source for optional historical research data"
-    },
-    {
       "path": "examples/x3/README.md",
       "bytes": 1846,
       "sha256": "a7704a2d8e4225a2dd1b7b1fc29cf826346ef7d6b2e1f24c9a831cbc0bf3762e",
@@ -178,12 +172,6 @@
       "bytes": 608,
       "sha256": "fc6f8c5d456c2835a59c95743d2b1dabc59a0ef9cf3370565649007ac51c2f9e",
       "role": "Ignore markers for generated research output directories"
-    },
-    {
-      "path": "experiments/restore_data.py",
-      "bytes": 11683,
-      "sha256": "a9a5803d151d644f955fc393d12f9f117a34e3a138a0c4271885e52eae6441dc",
-      "role": "Optional restoration of archived data outside the source tree"
     },
     {
       "path": "experiments/x3/__init__.py",
@@ -601,8 +589,8 @@
     },
     {
       "path": "tests/test_experiment_recipes.py",
-      "bytes": 7704,
-      "sha256": "b13bceaf04c24f1eb2f0ae9b72a5563018bb115ea606a779780e4ed95d264131",
+      "bytes": 7561,
+      "sha256": "f2251b526193e3a335be0bbd457a1727f7a777ab1856a9cfc74a7d211d1292d7",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
@@ -627,12 +615,6 @@
       "path": "tests/test_reconstruction_modules.py",
       "bytes": 1795,
       "sha256": "40bf2b67c2706ccbf91ba72809e5f070e42d01cd8073b20b8c4ec90fc1ab872f",
-      "role": "Mathematical regression, installation or independent implementation comparison"
-    },
-    {
-      "path": "tests/test_restore_data.py",
-      "bytes": 11595,
-      "sha256": "0c8f7b64db63f6001be1575a16f0a45f0cf2bf29fa8428e3ded7d825dab7afac",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {

@@ -20,7 +20,6 @@ recursive-include archive/gap *.gap *.sh
 recursive-include singular_run *.sing
 include singular_run/README.md
 recursive-include zipping_algorithm *.py
-include data/research-archive.json
 global-exclude *.py[cod]
 global-exclude __pycache__
 global-exclude AGENTS.md CLAUDE.md CONTRIBUTING.md CONTRIBUTING.MD

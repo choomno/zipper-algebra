@@ -47,16 +47,8 @@ available while shared arithmetic and presentation construction use the package.
 
 ## Scientific data and documentation
 
-`data/research-archive.json` records the pinned historical artifact paths and
-SHA-256 hashes. Restore the archive on demand with
-`python -m experiments.restore_data --output .research-data`, or select the
-`x3-history`, `variants` or `gap` group with `--group`.
-The manifest’s `previous_aliases` field records historical duplicate names. Default tests and fresh
-production need no restored bulk data.
-The [Singular producer](singular_run/README.md) and `archive/gap/` preserve
-source programs for independent specialized calculations; their saved logs and
-bases are in the optional archive. The reconstruction manuscript source remains
-at `reconstruction_theory.tex`.
+Current examples and regression tests accompany the maintained implementation.
+Retired experiments and datasets remain available in Git history.
 
 - [README](README.md): mathematical purpose, installation and principal commands.
 - [Mathematical reference](docs/mathematical-specification/main.tex): definitions, hypotheses and exact conclusions.

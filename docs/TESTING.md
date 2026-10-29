@@ -133,8 +133,6 @@ and its source are included in the source archive. CI also retains its newly
 compiled PDF as an artifact. PDF bytes can vary across compiler/font versions.
 
 The inventory covers the curated current source, example, fixtures and test/build
-support. The separate `data/research-archive.json` pins optional historical data
-by Git revision, path and SHA-256 hash. The
-[reproduction guide](X3_REPRODUCTION.md) gives restore commands and explains which
-data each route uses. Original sources for retired drivers are pinned to their
-historical Git revision.
+support. The [reproduction guide](X3_REPRODUCTION.md) identifies the inputs and
+implementation used by each current route. Retired material remains in Git history.
+

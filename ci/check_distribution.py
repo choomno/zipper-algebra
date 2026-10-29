@@ -61,7 +61,6 @@ def inspect(directory):
                        "tests/reference/legacy_x3.py", "examples/infer_denominators.py",
                        "examples/x3/certificate.txt", "examples/x3/README.md",
                        "tests/fixtures/legacy_x3/manifest.json",
-                       "data/research-archive.json", "experiments/restore_data.py",
                        "experiments/survey/pointalg.py",
                        "experiments/research/theta_min_poly.py",
                        "experiments/variants/square_zero_regular_rep_qt.py",
@@ -85,15 +84,6 @@ def inspect(directory):
             source_path = PurePosixPath(entry["source_path"])
             assert not source_path.is_absolute() and ".." not in source_path.parts
             assert "source_record" not in entry
-        catalog_file = archive.extractfile(f"{root}/data/research-archive.json")
-        assert catalog_file is not None
-        catalog = json.load(catalog_file)
-        assert catalog["schema"] == "zipper-research-archive-v1"
-        assert catalog["source_revision"] == manifest["source_commit"]
-        archived_paths = {entry["path"] for entry in catalog["files"]}
-        archived_paths.update(entry["path"] for entry in catalog["previous_aliases"])
-        assert not archived_paths.intersection(relative), archived_paths.intersection(relative)
-        assert "data/aliases.json" not in relative
     forbidden = {".git", ".cache", "__pycache__", "private-baselines", "research-records",
                  "recovery", "manuscripts", "historical-reconstruction", "logs_and_traces",
                  "logs", "ms_inputs",
