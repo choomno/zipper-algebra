@@ -134,3 +134,17 @@ def parse_cofactor_line(ln: str):
     num = parse_numerator(m.group("num"))
     den = parse_denominator(m.group("den"))
     return left, idx, right, num, den
+
+
+def parse_cofactor_lines(lines):
+    """Parse supplied text lines without reopening an input file."""
+    for line in lines:
+        if line.strip() and not line.lstrip().startswith("#"):
+            yield parse_cofactor_line(line)
+
+
+def read_cofactor_input(path):
+    """Parse and identify precisely the same input bytes."""
+    from experiments.output import read_input
+    content, identity = read_input(path)
+    return list(parse_cofactor_lines(content.decode("utf-8").splitlines())), identity

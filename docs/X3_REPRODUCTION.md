@@ -64,7 +64,7 @@ integration case, not a new structural theorem.
 ### Read the result
 
 A verified result has exit code `0` and `"status": "verified"` in
-`result.json`. The report names the certificate and all five immutable product
+`result.json`. The report names the certificate and the immutable product
 files, with their hashes. They are published together under
 `verified/<generation>/`:
 
@@ -73,10 +73,39 @@ files, with their hashes. They are published together under
 - `skeleton.json`: contextual reduction occurrences and proof closure.
 - `lift.json`: reconstructed basis-proof coefficients.
 - `multipliers.json`: reconstructed multipliers for those ordered occurrences.
+- `provenance.json`: source revision, local changes and hashes of the five products.
 
-`samples/` contains managed solver-run bundles: input, basis, nonexpanded proof,
-process output and a validation record. Their names are generated automatically.
-The cache reuses matching, validated records when the command is rerun.
+`samples.sqlite3` stores every sample's input, basis, nonexpanded proof, process
+output and validation record. Sample keys and generation identifiers in
+`result.json` locate these records. The cache uses the same database format and
+reuses matching, validated samples. The default `--solver-io files` uses
+temporary files only while a solver call is active. The
+[optional SQLite-enabled solver](../patches/f4ncgb/README.md#optional-direct-sqlite-io)
+supports `--solver-io sqlite`: input, basis and proof bytes pass directly through
+the database. Set `--solver-revision` to that executable's actual source revision.
+Both routes use the same proof validation and sample storage. SQLite may create
+transient journal files during transactions.
+
+To inspect one sample, take its key and optional generation from the result:
+
+```sh
+zipper-algebra export-sample --store runs/x3/samples.sqlite3 \
+  --key SAMPLE_KEY --generation GENERATION --output runs/sample-inspection --json
+```
+
+This restores the five original solver files and their record, retaining their
+original producer provenance. The [provenance guide](PROVENANCE.md) explains the
+revision, local-change and source-hash fields.
+
+With a single successful product generation, discovery keeps ten files:
+one database, six product files, the candidate skeleton, the result and the
+directory's ignore file. The sample count changes the database's contents,
+not the number of persistent sample files. A separate shared cache adds its own
+database and ignore file. Refreshed product generations remain available.
+The earlier directory layout used 607 pipeline files for a 100-sample run:
+600 sample files and seven products or reports. The previously reported total
+of 609 also included two reports added after that run; those were not pipeline
+outputs. The new database layout avoids that per-sample file growth.
 
 A result with exit code `3` is inconclusive. A nonzero remainder from an
 uncertified basis, an exhausted fit budget or unavailable compatible proof
@@ -90,7 +119,7 @@ All paths below are relative to `src/zipper_algebra/`.
 | Stage | Initial data and output | Principal source |
 | --- | --- | --- |
 | 1. Construct the presentation | Parameters become an ordered alphabet, relations, labels and symbolic identity. The target is not automatically adjoined. | `presentation.py`, `relations.py` |
-| 2. Emit and solve at an anchor | The defining polynomials become msolve input. f4ncgb emits basis polynomials and nonexpanded proofs. Every basis identity is reconstructed against the actual inputs before publication. | `execution/runner.py`, `execution/config.py`, `execution/artifacts.py` |
+| 2. Emit and solve at an anchor | The defining polynomials become msolve input. f4ncgb emits basis polynomials and nonexpanded proofs. Every basis identity is reconstructed against the actual inputs before publication. | `execution/runner.py`, `execution/config.py`, `execution/artifacts.py`, `execution/native_io.py`, `execution/store.py` |
 | 3. Record the target reduction | Ordered left/right contexts, basis keys and multipliers become a reduction skeleton with a dependency closure. | `cofactor/proof.py`, `cofactor/skeleton.py` |
 | 4. Obtain compatible samples | Fresh parameter points produce validated proofs; leading-word keys and contextual proof shapes align their coefficients. A nonmodal anchor may be replaced. | `execution/sampling.py` |
 | 5. Reconstruct and compose | Exact fitting proposes rational coefficients. Held-out values, rank and denominator checks constrain the candidate. Composition retains every contextual occurrence. | `cofactor/lift.py`, `univariate.py`, `inference.py`, `compose.py` under `cofactor/` |

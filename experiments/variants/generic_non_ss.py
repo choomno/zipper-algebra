@@ -15,7 +15,8 @@ this script does not produce a certified generic nonsemisimplicity theorem.
 from __future__ import annotations
 
 import argparse
-from experiments.output import prepare_output_dir
+from experiments.output import (prepare_output_dir, capture_experiment_provenance,
+                                tag_solver_input, tag_solver_basis)
 import os
 import random
 import subprocess
@@ -50,16 +51,19 @@ def build_basis_at(workdir: str, *, n: int, q: int, t: int,
                    maxiter: int = 500, verbose: bool = False) -> str:
     """Emit the square-zero-variant relations at (q, t) over Q, run f4ncgb,
     and return the path to the resulting .basis file."""
+    producer = capture_experiment_provenance(__file__)
     tag = f"square_zero_n{n}_q{q}_t{t}"
     ms = os.path.join(workdir, f"{tag}.ms")
     basis = os.path.join(workdir, f"{tag}.basis")
-    Presentation(n, untwist="square-zero").emit_ms(ms, q, t, 0)
+    Presentation(n, untwist="square-zero").emit_ms(ms, q, t, 0, provenance=False)
+    inputs = tag_solver_input(ms, producer=producer)
     f4 = find_f4ncgb()
     cmd_gb = [f4, "-m", str(maxiter), "-o", basis, "-i", ms]
     subprocess.check_call(
         cmd_gb, stdout=subprocess.DEVNULL,
         stderr=(None if verbose else subprocess.DEVNULL),
     )
+    tag_solver_basis(basis, producer=producer, inputs=inputs)
     return basis
 
 

@@ -19,7 +19,9 @@ All source below is under `src/zipper_algebra/`.
 | `cofactor/cofactor_io.py`, `cofactor/artifacts.py` | Historical readers and new presentation-bound artifact envelopes. |
 | `cofactor/verify.py`, `cofactor/ncpoly.py` | Exact symbolic and degree-bounded product-grid checks. |
 | `execution/` | Explicit configuration, validated solver runs, sampling and bounded discovery. |
+| `execution/store.py` | Transactional SQLite sample storage and byte-exact inspection exports. |
 | `linear.py` | Exact rational rank and validated prime-field rank. |
+| `provenance.py` | Source revisions, local changes, exact file hashes and output sidecars. |
 | `cli.py` | Installed describe, emit, verify, compose and discover commands. |
 
 `zipper_in_ms.py` retains the documented Python imports and module command as a
@@ -55,3 +57,4 @@ Retired experiments and datasets remain available in Git history.
 - [Reproduction guide](docs/X3_REPRODUCTION.md): fresh production, saved-data replay and historical provenance.
 - [Workflow](WORKFLOW.md): operations and result statuses.
 - [Testing](docs/TESTING.md): mathematical regressions, coverage and CI.
+- [Output provenance](docs/PROVENANCE.md): source revisions, dirty builds and byte-bound output records.

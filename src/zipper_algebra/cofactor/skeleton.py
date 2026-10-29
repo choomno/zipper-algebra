@@ -233,9 +233,14 @@ class Skeleton:
                    _json_text(d["target"], "target"), anchor, steps, keys,
                    _json_integer(d["remainder_terms"], "remainder term count", 0))
 
-    def save(self, path: str) -> None:
+    def save(self, path: str, *, provenance=True) -> None:
+        if provenance:
+            from ..provenance import capture_provenance, write_output_provenance
+            producer = capture_provenance()
         with open(path, "w") as f:
             json.dump(self.to_json(), f, indent=1)
+        if provenance:
+            write_output_provenance(path, producer=producer)
 
     @classmethod
     def load(cls, path: str) -> "Skeleton":

@@ -23,6 +23,30 @@ def single(directory, pattern):
     return found[0]
 
 
+def build_provenance(content, files, read, prefix):
+    """Check the packaged build origin against the packaged implementation bytes."""
+    metadata = json.loads(content)
+    assert set(metadata) == {"schema", "origin"}
+    assert metadata["schema"] == "zipper-build-provenance-v1"
+    origin = metadata["origin"]
+    assert origin["schema"] == "zipper-source-provenance-v1"
+    canonical_sources = json.dumps(origin["source_files"], sort_keys=True,
+                                   separators=(",", ":"), allow_nan=False).encode()
+    assert hashlib.sha256(canonical_sources).hexdigest() == origin["source_sha256"]
+    package_prefix = "src/zipper_algebra/"
+    sources = {name[len(prefix):] for name in files
+               if name.startswith(prefix) and name.endswith(".py")}
+    recorded = {name[len(package_prefix):] for name in origin["source_files"]
+                if name.startswith(package_prefix)}
+    assert sources == recorded, sources ^ recorded
+    for name in sources:
+        actual = read(prefix + name)
+        identity = origin["source_files"][package_prefix + name]
+        assert len(actual) == identity["bytes"], name
+        assert hashlib.sha256(actual).hexdigest() == identity["sha256"], name
+    return metadata
+
+
 def inspect(directory):
     wheel = single(directory, "*.whl")
     source = single(directory, "*.tar.gz")
@@ -34,7 +58,7 @@ def inspect(directory):
         if not all(name.startswith("zipper_algebra/") or name.startswith(metadata)
                    for name in names):
             raise AssertionError("the wheel contains material outside the public package")
-        for needed in ("__init__.py", "cli.py", "presentation.py", "core.py",
+        for needed in ("__init__.py", "cli.py", "presentation.py", "provenance.py", "core.py",
                        "coefficients.py", "polynomial.py", "relations.py", "msolve.py",
                        "linear.py", "cofactor/verify.py", "cofactor/lift.py",
                        "cofactor/inference.py", "cofactor/univariate.py",
@@ -44,15 +68,18 @@ def inspect(directory):
             assert f"zipper_algebra/{needed}" in names, needed
         assert metadata + "licenses/LICENSE" in names, "the wheel must include the license"
         assert b"License-Expression: MIT" in archive.read(metadata + "METADATA")
+        wheel_origin = build_provenance(
+            archive.read("zipper_algebra/_build_provenance.json"), names,
+            archive.read, "zipper_algebra/")
     with tarfile.open(source) as archive:
         names = archive.getnames()
         roots = {PurePosixPath(name).parts[0] for name in names}
         assert len(roots) == 1, "source distribution must have one enclosing directory"
         relative = {str(PurePosixPath(*PurePosixPath(name).parts[1:])) for name in names}
-        for needed in ("pyproject.toml", "README.md", "INDEX.md", "WORKFLOW.md",
+        for needed in ("pyproject.toml", "setup.py", "README.md", "INDEX.md", "WORKFLOW.md",
                        ".github/workflows/ci.yml", "singular_run/x3-membership-Q.sing",
                        "singular_run/README.md", "reconstruction_theory.tex", "docs/TESTING.md",
-                       "docs/X3_REPRODUCTION.md", "docs/x3-reproduction-files.json",
+                       "docs/X3_REPRODUCTION.md", "docs/PROVENANCE.md", "docs/x3-reproduction-files.json",
                        "patches/f4ncgb/msolve-parser-fix.patch", "patches/f4ncgb/LICENSE",
                        "docs/mathematical-specification/main.tex",
                        "docs/mathematical-specification/mathematical-specification.pdf",
@@ -71,6 +98,23 @@ def inspect(directory):
         actual_fixtures = {name for name in relative if name.startswith(fixture_prefix)}
         assert actual_fixtures == expected_fixtures, actual_fixtures ^ expected_fixtures
         root = next(iter(roots))
+        def read(name):
+            member = archive.extractfile(name)
+            assert member is not None, name
+            return member.read()
+        source_origin = build_provenance(
+            read(f"{root}/src/zipper_algebra/_build_provenance.json"), names,
+            read, f"{root}/src/zipper_algebra/")
+        assert source_origin == wheel_origin, "wheel and source archive build origins differ"
+        recorded = source_origin["origin"]["source_files"]
+        recipes = {name for name in relative if name.startswith("experiments/")
+                   and name.endswith(".py")}
+        recorded_recipes = {name for name in recorded if name.startswith("experiments/")}
+        assert recipes == recorded_recipes, recipes ^ recorded_recipes
+        for name in recipes | {"setup.py", "pyproject.toml", "MANIFEST.in"}:
+            payload = read(f"{root}/{name}")
+            assert {"bytes": len(payload), "sha256": hashlib.sha256(payload).hexdigest()} \
+                == recorded[name], name
         manifest_file = archive.extractfile(f"{root}/{fixture_prefix}manifest.json")
         assert manifest_file is not None
         manifest = json.load(manifest_file)

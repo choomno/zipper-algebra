@@ -19,9 +19,11 @@ from .atoms import AtomSet
 from .cofactor_io import Cofactor, symbolic_target, validate_word
 from .lift import Lift
 from .skeleton import Skeleton
+from ..provenance import capture_provenance, validate_provenance
 
 
-SCHEMA = "zipper-mathematical-artifact-v1"
+SCHEMA = "zipper-mathematical-artifact-v2"
+LEGACY_SCHEMA = "zipper-mathematical-artifact-v1"
 
 
 def _canonical(value) -> bytes:
@@ -164,14 +166,15 @@ def write_json_atomic(path, data) -> None:
         temporary.unlink(missing_ok=True)
 
 
-def save_artifact(path, value, pres, target, *, order=None) -> None:
+def save_artifact(path, value, pres, target, *, order=None, producer=None) -> None:
     """Write validated, bound data; no verification outcome is implied."""
     _validate(value, pres, target)
     kind = _kind(value)
     payload = _payload(value)
     data = {"schema": SCHEMA, "kind": kind, "presentation": presentation_identity(pres),
             "target": target_identity(pres, target), "order": _order_identity(kind, order),
-            "payload": payload, "payload_sha256": _digest(payload)}
+            "payload": payload, "payload_sha256": _digest(payload),
+            "provenance": capture_provenance() if producer is None else validate_provenance(producer)}
     write_json_atomic(path, data)
 
 
@@ -181,10 +184,21 @@ def load_artifact(path, pres, target, *, kind=None, order=None, atoms=None):
     Digests detect content changes, not authorship or mathematical correctness.
     Unknown or historical unbound schemas are rejected; use their explicit readers.
     """
-    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    data = json.loads(Path(path).read_bytes())
+    return artifact_from_json(data, pres, target, kind=kind, order=order, atoms=atoms)
+
+
+def artifact_from_json(data, pres, target, *, kind=None, order=None, atoms=None):
+    """Decode already-read bound data with the same checks as the file reader."""
     fields = {"schema", "kind", "presentation", "target", "order", "payload", "payload_sha256"}
-    if not isinstance(data, dict) or set(data) != fields or data["schema"] != SCHEMA:
+    if not isinstance(data, dict):
         raise ValueError("unknown or unbound mathematical artifact schema")
+    if data.get("schema") == SCHEMA:
+        fields = fields | {"provenance"}
+    if set(data) != fields or data.get("schema") not in (SCHEMA, LEGACY_SCHEMA):
+        raise ValueError("unknown or unbound mathematical artifact schema")
+    if data["schema"] == SCHEMA:
+        validate_provenance(data["provenance"])
     actual_kind = data["kind"]
     if kind is not None and actual_kind != kind:
         raise ValueError("mathematical artifact kind mismatch")

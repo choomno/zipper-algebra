@@ -5,10 +5,12 @@ records, not completion certificates or a reason to silently skip a new run.
 """
 from __future__ import annotations
 import argparse
-from experiments.output import prepare_output_dir
+from experiments.output import (prepare_output_dir, capture_experiment_provenance,
+                                save_pickle_output)
+from zipper_algebra.provenance import write_output_provenance
 import json
 import os
-import pickle
+from pathlib import Path
 import time
 from .spec import Spec, UNTWIST
 from . import semisimple as ss
@@ -19,6 +21,10 @@ SURVEY_SCHEMA = "zipper-experimental-survey-v2"
 def run_spec(spec: Spec, scratch: str, outdir: str, do_basis: bool = True,
              char: int = ss.DEFAULT_CHAR, grid=None, log=print):
     prepare_output_dir(outdir)
+    family = Path(__file__).resolve().parents[1]
+    producer = capture_experiment_provenance(
+        __file__, family / "research/theta_min_poly.py",
+        family / "variants/square_zero_regular_rep_qt.py")
     summary_path = os.path.join(outdir, f"{spec.name}.json")
     result = {"schema": SURVEY_SCHEMA, "status": "observed", "basis_complete": False,
               "spec": spec.name, "untwist": spec.untwist, "n": spec.n,
@@ -41,18 +47,20 @@ def run_spec(spec: Spec, scratch: str, outdir: str, do_basis: bool = True,
             "sample_check_passed": passed, "sample_check_message": message,
             "artifact": artifact,
         }
-        with open(artifact, "wb") as stream:
-            pickle.dump({"status": "candidate", "basis_complete": False,
-                         "spec": spec.name, "n": spec.n, "LMS": candidate["LMS"],
-                         "atoms": candidate["atoms"], "D": sp.srepr(candidate["D"]),
-                         "GEN": {"|".join(lm): {"*".join(mon): sp.srepr(c)
-                                                 for mon, c in terms.items()}
-                                 for lm, terms in candidate["GEN"].items()}}, stream)
+        save_pickle_output(artifact,
+                           {"status": "candidate", "basis_complete": False,
+                            "spec": spec.name, "n": spec.n, "LMS": candidate["LMS"],
+                            "atoms": candidate["atoms"], "D": sp.srepr(candidate["D"]),
+                            "GEN": {"|".join(lm): {"*".join(mon): sp.srepr(c)
+                                                    for mon, c in terms.items()}
+                                    for lm, terms in candidate["GEN"].items()}},
+                           producer=producer)
         log(f"[{spec.name}] candidate coefficient sample check={passed}")
 
     result["seconds"] = round(time.time() - started, 1)
     with open(summary_path, "w") as stream:
         json.dump(result, stream, indent=2)
+    write_output_provenance(summary_path, producer=producer)
     log(f"[{spec.name}] saved observations -> {summary_path}")
     return result
 

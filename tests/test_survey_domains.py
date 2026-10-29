@@ -127,15 +127,19 @@ class TestSurveyCoefficientDomains(unittest.TestCase):
             Spec('linear', 1)
 
     def test_solver_boundary_emits_recorded_characteristic(self):
+        real_run, solver_calls = pointalg.subprocess.run, []
         with tempfile.TemporaryDirectory() as directory:
             def produce(args, **kwargs):
+                if args[0] not in {pointalg.F4, theta.F4}:
+                    return real_run(args, **kwargs)
+                solver_calls.append(args)
                 output = args[args.index('-o') + 1]
                 Path(output).write_text('x1*x1+4\ny1-1\n')
-            with patch.object(pointalg.subprocess, 'run', side_effect=produce) as run:
+            with patch.object(pointalg.subprocess, 'run', side_effect=produce):
                 basis = pointalg.point_gb(Spec('linear', 2), 5, 7, directory, 5)
             self.assertEqual(basis, self.basis(5))
             self.assertIn('5\n', next(Path(directory).glob('*.ms')).read_text())
-            self.assertEqual(run.call_count, 1)
+            self.assertEqual(len(solver_calls), 1)
             with patch.object(theta.subprocess, 'run', side_effect=produce):
                 path = theta.build_basis('linear', 2, 5, 7, 5, directory)
                 self.assertTrue(Path(path).is_file())

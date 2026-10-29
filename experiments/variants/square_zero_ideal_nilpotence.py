@@ -22,6 +22,8 @@ from fractions import Fraction
 
 
 from zipper_algebra import core, Presentation
+from experiments.output import (capture_experiment_provenance, tag_solver_input,
+                                tag_solver_basis)
 
 
 # ---------------------------------------------------------------------------
@@ -221,9 +223,11 @@ def ensure_basis(n: int, q: int, t: int, basis_path: str | None) -> str:
         basis_path = f"/tmp/square-zero-n{n}-q{q}-t{t}-c0.basis"
     if os.path.exists(basis_path):
         return basis_path
+    producer = capture_experiment_provenance(__file__)
     ms_path = basis_path.replace(".basis", ".ms")
     print(f"[setup] generating {ms_path} (n={n}, q={q}, t={t}, square-zero)", flush=True)
-    Presentation(n, untwist="square-zero").emit_ms(ms_path, q, t, 0)
+    Presentation(n, untwist="square-zero").emit_ms(ms_path, q, t, 0, provenance=False)
+    inputs = tag_solver_input(ms_path, producer=producer)
     print(f"[setup] running f4ncgb -> {basis_path}", flush=True)
     subprocess.run(
         [
@@ -234,6 +238,7 @@ def ensure_basis(n: int, q: int, t: int, basis_path: str | None) -> str:
         ],
         check=True,
     )
+    tag_solver_basis(basis_path, producer=producer, inputs=inputs)
     return basis_path
 
 

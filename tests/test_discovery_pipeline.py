@@ -1,7 +1,7 @@
 """Portable discovery using exact, explicitly synthetic process outputs."""
 from __future__ import annotations
 
-from contextlib import redirect_stdout, redirect_stderr
+from contextlib import closing, redirect_stdout, redirect_stderr
 from dataclasses import replace
 from fractions import Fraction
 from itertools import islice
@@ -53,10 +53,10 @@ if a.mode=='reanchor-remainder':
         if coefficient:
             text=str(abs(coefficient))+('*'+word if word else '')
             pieces.append(('-' if coefficient<0 else '+' if pieces else '')+text)
-    Path(a.o).write_text(re.sub(r'(?<!^)([+-])',r' \1 ',''.join(pieces))+'\n')
+    Path(a.o).write_text(re.sub(r'(?<!^)([+-])',r' \1 ',''.join(pieces))+'\n', newline='\n')
     proof='[i%d]'%(len(relations)-1)
     if q!=5:proof+=' '+('+' if q>5 else '-')+str(abs(q-5))+'*[i0]'
-    Path(a.p).write_text(proof+'\n')
+    Path(a.p).write_text(proof+'\n', newline='\n')
     sys.exit(0)
 q=int(re.search(r'([+-]?\d+)\*y1',relations[-1]).group(1))
 index=0 if a.mode=='omit' or (a.mode=='vary' and q!=5) else len(relations)-1
@@ -74,14 +74,14 @@ if a.mode=='closure':
     h=re.sub(r'(?<!^)([+-])',r' \1 ',relations[0].rstrip(','))
     hproof='[i0] +[i1] -[i1]' if q==3 else '[i0]'
     gproof='[i3]' if q==5 else '[i3] +[0] -[i0]'
-    Path(a.o).write_text(h+'\n'+basis+'\n')
-    Path(a.p).write_text(hproof+'\n'+gproof+'\n')
+    Path(a.o).write_text(h+'\n'+basis+'\n', newline='\n')
+    Path(a.p).write_text(hproof+'\n'+gproof+'\n', newline='\n')
     sys.exit(0)
-Path(a.o).write_text(basis+'\n')
+Path(a.o).write_text(basis+'\n', newline='\n')
 proof=(str(scale)+'*' if scale!=1 else '')+'[i%d]'%index
 if a.mode=='bad-proof':proof='[i0]'
 if a.mode=='shape' and q!=5:proof+=' +[i0] -[i0]'
-Path(a.p).write_text(proof+'\n')
+Path(a.p).write_text(proof+'\n', newline='\n')
 '''
 
 
@@ -173,7 +173,8 @@ class TestFreshDiscovery(DiscoveryFixture):
         self.assertEqual(json.loads((self.config.output_root/'result.json').read_text())['status'], 'verified')
         self.assertEqual(len(report['runs']), 7)
         for run in report['runs']:
-            self.assertTrue(Path(run['record']).is_file())
+            self.assertTrue(Path(run['store']).is_file())
+        self.assertEqual(len({run['store'] for run in report['runs']}), 1)
         order = {'solver': 'degree-lex', 'reduction': pipeline.REDUCTION_ORDER}
         skeleton = load_artifact(output/'skeleton.json', self.pres, self.target,
                                  kind='skeleton', order=order)
@@ -300,17 +301,19 @@ class TestFreshDiscovery(DiscoveryFixture):
         self.assertEqual(Path(prior['certificate']).read_bytes(),old_bytes)
 
     def test_old_verified_result_binds_immutable_solver_generations_after_refresh(self):
-        from zipper_algebra.execution.artifacts import file_identity
+        from zipper_algebra.execution.store import read
+        from zipper_algebra.execution.artifacts import digest_bytes
         configuration = self.configuration('logged')
         prior = self.discover(config=configuration)
         refreshed = self.discover(config=configuration, refresh=True)
         self.assertEqual(prior['runs'][0]['key'], refreshed['runs'][0]['key'])
         self.assertNotEqual(prior['runs'][0]['generation'],refreshed['runs'][0]['generation'])
         for run in prior['runs']:
-            selected = json.loads(Path(run['record']).read_text())
+            _, selected = read(run['store'], run['key'])
             self.assertNotEqual(selected['generation'],run['generation'])
+            files, _ = read(run['store'], run['key'], generation=run['generation'])
             for name, identity in run['files'].items():
-                self.assertEqual(file_identity(Path(run['directory'])/name),identity)
+                self.assertEqual({'bytes':len(files[name]), 'sha256':digest_bytes(files[name])},identity)
             self.assertEqual(run['request'],selected['request'])
 
     def test_existing_verified_generation_is_checked_before_reuse(self):
@@ -399,16 +402,24 @@ class TestInstalledDiscoveryCommands(DiscoveryFixture):
                 self.assertTrue(prior['verified'])
                 prior_files = {Path(path): Path(path).read_bytes()
                                for path in prior['artifacts'].values()}
-                for run in prior['runs']:
-                    for name in run['files']:
-                        path = Path(run['directory'])/name
-                        prior_files[path] = path.read_bytes()
-                selected = Path(prior['runs'][0]['record'])
+                import sqlite3
+                databases = (output/'samples.sqlite3', cache/'samples.sqlite3')
+                def raw_samples(database):
+                    with closing(sqlite3.connect(database)) as connection, connection:
+                        return connection.execute(
+                            'SELECT key,generation,name,content FROM artifacts ORDER BY key,generation,name').fetchall()
+                before_samples = {database:raw_samples(database) for database in databases}
+                first = prior['runs'][0]
                 if failure == 'output-record':
-                    selected.write_text('{}')
+                    with closing(sqlite3.connect(databases[0])) as connection, connection:
+                        connection.execute('UPDATE generations SET record=? WHERE key=? AND generation=?',
+                                           (b'{}', first['key'], first['generation']))
                 elif failure == 'cache-record':
-                    selected.unlink()  # Force lookup of the configured shared cache.
-                    (cache/prior['runs'][0]['key']/'record.json').write_text('{}')
+                    with closing(sqlite3.connect(databases[0])) as connection, connection:
+                        connection.execute('DELETE FROM selections WHERE key=?', (first['key'],))
+                    with closing(sqlite3.connect(databases[1])) as connection, connection:
+                        connection.execute('UPDATE generations SET record=? WHERE key=? AND generation=?',
+                                           (b'{}', first['key'], first['generation']))
                 else:
                     script.write_text(PRODUCER.replace(
                         "default='plain'", "default='"+failure+"'"))
@@ -424,11 +435,13 @@ class TestInstalledDiscoveryCommands(DiscoveryFixture):
                 self.assertFalse(result['basis_complete'])
                 for field in ('certificate', 'artifacts', 'generation', 'files', 'exact'):
                     self.assertNotIn(field, result)
-                expected = ('invalid run record' if failure.endswith('record') else
+                expected = ('invalid stored sample' if failure.endswith('record') else
                             'input-ideal identity' if failure == 'bad-proof' else 'code 9')
                 self.assertIn(expected, result['reason'])
                 for path, contents in prior_files.items():
                     self.assertEqual(path.read_bytes(), contents)
+                for database, contents in before_samples.items():
+                    self.assertEqual(raw_samples(database), contents)
                 for directory in (output, cache):
                     self.assertEqual((directory/'.gitignore').read_text(), 'existing output policy\n')
 

@@ -21,7 +21,8 @@ checked by Garside-normalization mod B_3 of the residual against X_3.
 
 from __future__ import annotations
 import argparse
-from experiments.output import prepare_output_dir
+from experiments.output import prepare_output_dir, capture_experiment_provenance
+from zipper_algebra.provenance import write_output_provenance
 import os
 from pathlib import Path
 import sys
@@ -36,7 +37,7 @@ from .legacy_format import (
     qt_is_zero, qt_str,
     nc_zero, nc_add, nc_sub, nc_mul, nc_scalar, nc_is_zero, nc_size,
     build_inputs_and_X3,
-    parse_cofactor_line,
+    parse_cofactor_line, read_cofactor_input,
 )
 from .simplify_cofactor import (
     SIGMA1, SIGMA2, Y1, Y2,
@@ -65,6 +66,9 @@ def main(argv=None):
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
     prepare_output_dir(args.output.parent)
+    producer = capture_experiment_provenance(__file__)
+    tuples, input_record = read_cofactor_input(args.input)
+    inputs = [input_record]
     t_start = time.time()
     print("=" * 72)
     print("Reduction: eliminate R_26 via R_26 = (sigma_1 sigma_2) R_25 (sigma_1 sigma_2)^{-1}")
@@ -108,7 +112,6 @@ def main(argv=None):
     print("[check] PASS: w * R_25 * w^{-1} == R_26 in Q(q,t)[B_3].")
 
     # --- 1. Parse simplified cofactor --------------------------------------
-    tuples = list(parse_lines(args.input))
     print(f"[parse] {len(tuples)} input tuples from {os.path.basename(args.input)}.")
     src_hist = Counter(idx for (_, idx, _, _, _) in tuples)
     print(f"[hist]  src R_i histogram: {dict(sorted(src_hist.items()))}")
@@ -254,6 +257,7 @@ def main(argv=None):
             num_s = num_to_str(coef_poly)
             f.write(f"{L_s} * {label(idx)} * {R_s}  ::  {num_s} / ({den_str})\n")
 
+    write_output_provenance(args.output, producer=producer, inputs=inputs)
     print(f"[write] Wrote {args.output}")
     print(f"[stats] Total tuples:        {len(items)}")
     print(f"[stats] vs 166 (4-rel):      {len(items)/166:.2f}x")
