@@ -3,6 +3,7 @@ from contextlib import redirect_stdout, redirect_stderr
 from fractions import Fraction
 from copy import deepcopy
 import io
+import hashlib
 import json
 import shutil
 from pathlib import Path
@@ -14,6 +15,7 @@ import unittest
 from zipper_algebra import Cofactor, Presentation
 from zipper_algebra.cofactor.atoms import Atom, AtomSet
 from zipper_algebra.verification.gap import gap_script, main
+from zipper_algebra.provenance import validate_provenance
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -101,8 +103,11 @@ class TestGAPCertificateExport(unittest.TestCase):
         self.assertEqual(script.count('residual := residual -'), 129)
         producer_line = next(line for line in script.splitlines() if line.startswith('# producer: '))
         producer = json.loads(producer_line[len('# producer: '):])
-        self.assertEqual(producer['input_certificate']['bytes'],
-                         (ROOT / 'examples/x3/certificate.txt').stat().st_size)
+        self.assertEqual(validate_provenance(producer), producer)
+        input_line = next(line for line in script.splitlines() if line.startswith('# input-certificate: '))
+        identity = json.loads(input_line[len('# input-certificate: '):])
+        raw = (ROOT / 'examples/x3/certificate.txt').read_bytes()
+        self.assertEqual(identity, {'bytes': len(raw), 'sha256': hashlib.sha256(raw).hexdigest()})
         self.assertIn('src/zipper_algebra/verification/gap.py', producer['source_files'])
 
     def test_module_command_emits_an_executable_check_without_running_gap(self):

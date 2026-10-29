@@ -347,8 +347,8 @@
     },
     {
       "path": "src/zipper_algebra/verification/gap.py",
-      "bytes": 5696,
-      "sha256": "2d7f3ef3f4df4c222ce9f87e56c3574107a7e251c1ae82f4cb0d28b2072dbfd4",
+      "bytes": 5906,
+      "sha256": "36b1b8968aba487295b283df3f71421dde5580c1c82a11699fbcb5f45239cf56",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
@@ -449,8 +449,8 @@
     },
     {
       "path": "tests/test_gap_verification.py",
-      "bytes": 10926,
-      "sha256": "7b1e0797fcd273d0b483971c37367dfe26c437ef8f1026bd1d309c4cbe1149f8",
+      "bytes": 11266,
+      "sha256": "7074a5d37e298fe6c4da8dbe7279de193e40cfec93be790bd892985e125de770",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {

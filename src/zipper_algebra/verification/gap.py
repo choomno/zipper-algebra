@@ -33,7 +33,7 @@ def _polynomial(terms):
                       for word, value in sorted(terms.items()) if any(value.values())) or "Zero(A)"
 
 
-def gap_script(cofactor, presentation, target=None, *, producer=None):
+def gap_script(cofactor, presentation, target=None, *, producer=None, input_certificate=None):
     """Return GAP source that exits 0 exactly when the supplied identity holds.
 
     Rational-function denominators are constructed from atom coefficient data,
@@ -56,6 +56,8 @@ def gap_script(cofactor, presentation, target=None, *, producer=None):
              }, sort_keys=True, ensure_ascii=True)]
     if producer is not None:
         lines.append("# producer: " + json.dumps(producer, sort_keys=True, ensure_ascii=True))
+    if input_certificate is not None:
+        lines.append("# input-certificate: " + json.dumps(input_certificate, sort_keys=True, ensure_ascii=True))
     lines += ["OnBreak := function() QUIT_GAP(1); end;;", "CheckCertificate := function()", "  local K, q, t, A, g, r, residual;",
               '  K := FunctionField(Rationals, ["q", "t"]);;',
               "  q := IndeterminatesOfFunctionField(K)[1];;",
@@ -97,8 +99,9 @@ def main(argv=None):
         raw = args.certificate.read_bytes()
         cofactor = Cofactor.from_text(raw.decode("utf-8"), pres=presentation)
         producer = capture_provenance()
-        producer["input_certificate"] = {"bytes": len(raw), "sha256": hashlib.sha256(raw).hexdigest()}
-        script = gap_script(cofactor, presentation, args.target, producer=producer)
+        identity = {"bytes": len(raw), "sha256": hashlib.sha256(raw).hexdigest()}
+        script = gap_script(cofactor, presentation, args.target,
+                            producer=producer, input_certificate=identity)
     except (OSError, ValueError, TypeError, KeyError, UnicodeError) as error:
         parser.exit(2, f"Cannot export certificate: {error}\n")
     sys.stdout.write(script)
