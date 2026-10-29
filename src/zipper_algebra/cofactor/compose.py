@@ -36,6 +36,7 @@ import tempfile
 from collections import defaultdict
 from collections.abc import Mapping
 from fractions import Fraction
+from graphlib import CycleError, TopologicalSorter
 
 from .atoms import AtomSet
 from .cofactor_io import (Cofactor, resolve_target,
@@ -120,31 +121,21 @@ class Rat:
 # ---------------------------------------------------------------------------
 
 def _order(entries: dict) -> list[str]:
-    """Keys in an order where every basis reference precedes its referrer.
+    """Return a topological order of the lifted basis keys.
 
-    The legacy code relied on ascending integer index (proof entries referencing only smaller
-    indices).  Keys are leading words, so the order has to be computed; a genuine cycle is an
-    error, a forward reference is not.
+    Keys identify leading words, not positions in the dependency graph. Every
+    referenced key precedes its referrers; forward references are allowed and
+    cycles are rejected.
     """
-    state: dict[str, int] = {}
-    out: list[str] = []
-
-    def visit(k):
-        st = state.get(k)
-        if st == 2:
-            return
-        if st == 1:
-            raise ValueError(f"cycle in the proof DAG at {k!r}")
-        state[k] = 1
-        for _den, _num, _l, kind, ref, _r in entries.get(k, ()):
-            if kind == "basis" and ref in entries:
-                visit(ref)
-        state[k] = 2
-        out.append(k)
-
-    for k in entries:
-        visit(k)
-    return out
+    dependencies = {
+        key: [ref for _den, _num, _left, kind, ref, _right in terms
+              if kind == "basis" and ref in entries]
+        for key, terms in entries.items()
+    }
+    try:
+        return list(TopologicalSorter(dependencies).static_order())
+    except CycleError as error:
+        raise ValueError(f"cycle in the proof DAG at {error.args[1][0]!r}") from error
 
 
 def _validate_context(word, pres=None):
