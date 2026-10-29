@@ -12,18 +12,14 @@ from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass
 from fractions import Fraction
-from graphlib import CycleError, TopologicalSorter
 import re
 
 from ..algebra import AlgebraElement, AlgebraPresentation, FreeAlgebra, Word
 from ..fields import FieldElement
+from .derivations import DerivationGraph, DerivationTerm, VerificationLimit, _verify_graph
 
 __all__ = ["ProofTerm", "GroebnerCertificate", "VerifiedReduction",
            "VerificationLimit", "verify_groebner"]
-
-
-class VerificationLimit(RuntimeError):
-    """The verification budget ended before the requested computation finished."""
 
 
 def _word(value: object) -> None:
@@ -244,30 +240,14 @@ class _Reducer:
 
 def _check_derivations(presentation: AlgebraPresentation, certificate: GroebnerCertificate,
                        reducer: _Reducer) -> None:
-    inputs = [reducer.native(polynomial) for polynomial in presentation.relations]
-    basis = [reducer.native(polynomial) for polynomial in certificate.basis]
-    graph: dict[int, set[int]] = {}
-    for index, row in enumerate(certificate.derivations):
-        graph[index] = set()
-        for term in row:
-            bound = len(inputs) if term.kind == "input" else len(basis)
-            if term.index >= bound:
-                raise ValueError("a raw proof reference names no input or basis polynomial")
-            if term.kind == "basis":
-                graph[index].add(term.index)
-    try:
-        order = tuple(TopologicalSorter(graph).static_order())
-    except CycleError as error:
-        raise ValueError("cyclic Groebner derivation graph") from error
-    for index in order:
-        result: dict = {}
-        for term in certificate.derivations[index]:
-            referenced = inputs[term.index] if term.kind == "input" else basis[term.index]
-            coefficient = reducer.scalar(term.coefficient)
-            for word, value in referenced.items():
-                _accumulate(result, term.left + word + term.right, coefficient * value)
-        if result != basis[index]:
-            raise ValueError(f"basis entry {index} fails its local input-ideal derivation")
+    graph = DerivationGraph(certificate.presentation_hash, certificate.basis,
+                            tuple(tuple(DerivationTerm(term.coefficient, term.left,
+                                                      "input" if term.kind == "input" else "node",
+                                                      term.index, term.right) for term in row)
+                                  for row in certificate.derivations))
+    # Preserve the Groebner verifier's published budget: uncached word rewrites
+    # and ambiguity checks. The general graph entry point has its own budget.
+    _verify_graph(presentation, graph, reducer.scalar)
 
 
 def _ambiguity_checks(reducer: _Reducer) -> tuple[int, int]:
