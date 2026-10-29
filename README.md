@@ -22,9 +22,18 @@ identities.
 Read the [mathematical reference](docs/mathematical-specification/mathematical-specification.pdf) for the definitions,
 finite-generation theorem, connection with BMW algebras, and precise input requirements and verification guarantees. It distinguishes the general polynomial family from the selected presentations currently implemented.
 
-The [parameter-field examples](docs/PARAMETER_FIELDS.md) construct and verify
-small quotients with three independent parameters, repeated roots and dimension
-changes under specialization. They run with the Python package alone.
+The [parameter-field interface](docs/PARAMETER_FIELDS.md) supports exact
+free-algebra presentations and cofactor identities over arbitrary rational-function
+fields. The [completed-basis verifier](docs/GROEBNER_VERIFICATION.md) checks
+derivations and all critical ambiguities before providing certified normal forms
+and, when standard-word enumeration finishes, the exact quotient dimension.
+These interfaces run with the Python package alone; producing a candidate basis
+is a separate computation.
+
+The [four-strand square-zero computation](docs/FOUR_STRAND_SQUARE_ZERO.md)
+works over $\mathbb{Q}(q,t)$: the quotient has dimension 186 and contains a
+nonzero square-zero two-sided ideal. Its reproduction checks connect the
+original presentation to the completed basis and verify the ideal calculation.
 
 ## Install
 
@@ -115,7 +124,7 @@ means discovery was inconclusive within the chosen limits. The full four-strand
 search can be expensive; a small three-strand example and the exact source map
 are in the guide.
 
-A successful run with one product generation keeps ten files, including one
+A successful run with one product generation keeps eleven files, including one
 sample database, regardless of the number of samples. The guide explains the
 [stored products and sample export](docs/X3_REPRODUCTION.md#read-the-result).
 
@@ -217,7 +226,7 @@ GAP/Singular checks.
 | `tests/` | Algebraic regressions, constructed test inputs and installation checks. |
 | `docs/` | Mathematical reference, reproduction guide and testing instructions. |
 | `experiments/` | Quotient surveys, representations and structural research recipes. |
-| `examples/` | Small executable examples and the curated X_3 certificate. |
+| `examples/` | Executable exact computations and the curated X_3 certificate. |
 | `singular_run/` | Independent specialized membership check in Singular. |
 
 Retired research material remains available in Git history.
@@ -236,9 +245,8 @@ retain separate completion and exactness requirements. [INDEX](INDEX.md) maps th
    Mathematics **74** (2006), 285–299.
    [Author's copy][1]; [arXiv:math/0505064](https://arxiv.org/abs/math/0505064).
 2. Choomno Moos, *The Zipper Algebra*, M.A. thesis, University of California,
-   Santa Barbara, September 2026. Cited by section and theorem numbers in the
-   recovered manuscript. The [mathematical reference][2] supplies the relevant
-   definitions, theorem statement and version information.
+   Santa Barbara, September 2026. The [mathematical reference][2] supplies
+   the relevant definitions, theorem statement and section references.
 3. Joan S. Birman and Hans Wenzl, *Braids, link polynomials and a new algebra*,
    Transactions of the American Mathematical Society **313** (1989), 249–273.
    [DOI](https://doi.org/10.1090/S0002-9947-1989-0992598-X).
@@ -250,6 +258,18 @@ retain separate completion and exactness requirements. [INDEX](INDEX.md) maps th
    Scientific Computing (CASC 2025)*, Lecture Notes in Computer Science
    **16235**, Springer Nature Switzerland (2025), 79–97.
    [DOI](https://doi.org/10.1007/978-3-032-09645-6_5).
+
+6. George M. Bergman, *The diamond lemma for ring theory*, Advances in
+   Mathematics **29** (1978), 178–218.
+   [DOI](https://doi.org/10.1016/0001-8708(78)90010-5);
+   [author’s corrections](https://math.berkeley.edu/~gbergman/papers/updates/diamond.html).
+7. A. M. Cohen and J. W. Knopper, *GBNP*, version 1.1.0, GAP package.
+   [Function manual](https://gap-packages.github.io/gbnp/doc/chap3.html).
+
+8. Wolfram Decker, Gert-Martin Greuel, Gerhard Pfister and Hans Schönemann,
+   *Singular*, version 4.4.1, computer algebra system.
+   [Official project site](https://www.singular.uni-kl.de/);
+   [citation information](https://www.singular.uni-kl.de/index.php/how-to-cite-singular).
 
 ## License
 

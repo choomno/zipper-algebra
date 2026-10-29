@@ -264,11 +264,14 @@ free polynomials, and its relation references are zero-based indices. Both
 the parent and the full presentation hash are checked. A successful check
 establishes membership over that field; it does not establish membership over
 a smaller coefficient ring or at a pole. This JSON format is separate from
-the established symbolic $q,t$ text-certificate format described next. Solver
+the established symbolic $q,t$ text-certificate format described below. Solver
 production and reconstruction for arbitrary parameter fields remain further
 integration work.
 
-\subsection{Two-strand dimension witnesses}
+\subsection{Two-strand acceptance controls}
+The following calculations give independently known answers for testing exact
+cofactor and representation operations. They are small controls for the
+parameter-field interface; the generic families remain the research setting.
 Put $x=x_1$, $y=y_1$, $X=qy+(1-q)-x$, $r_0=xy-1$ and
 $r_2=p(x)X$. For any polynomial $p$ with central coefficients, set
 $F(x)=p(x)(x-1)(x+q)$. There is a literal free-algebra identity
@@ -304,6 +307,66 @@ only $(x-1)(x+2)$. The examples certify removal of these invertible factors
 using explicit inverse-relation cofactors. These conclusions use the exact
 two-strand calculation, rather than assuming the full untwisting theorem's
 hypotheses survive specialization.
+
+\section{Complete Gr\"obner bases and certified normal forms}
+Let $F=k\langle x_1,\ldots,x_m\rangle$, where $k$ is one of the exact fields
+above, and let $I=(r_1,\ldots,r_s)$. The explicit verifier in
+\path{verification/groebner.py} accepts a candidate family of nonzero
+polynomials $h_1,\ldots,h_N$, bound to the full presentation identity. Each
+$h_j$ carries a local identity of the form
+\[
+ h_j=\sum_\nu c_\nu u_\nu r_{i_\nu}v_\nu
+       +\sum_\mu d_\mu a_\mu h_{\ell_\mu}b_\mu,
+ \qquad c_\nu,d_\mu\in k,
+\]
+where all contexts are words. References to other candidate polynomials form
+a directed graph. All references, including zero-coefficient references, are
+validated, and the graph must be acyclic. Checking the displayed equalities
+and inducting in dependency order proves $h_j\in I$. Shared subproofs need
+not be expanded into cofactors of the original relations.
+
+The order is fixed degree-lexicographic order, with lexicographic comparison
+using the declared generator indices. Leading words are computed from the
+polynomials, and nonzero leading coefficients are inverted in $k$. Every
+resulting rewrite decreases this admissible order. The verifier checks that
+each original $r_i$ reduces to zero, proving $I\subseteq(h_1,\ldots,h_N)$;
+the derivations prove the reverse inclusion. It then reduces every inclusion
+ambiguity, including equal leading words, and every proper nonempty
+suffix-prefix overlap for all ordered pairs, including self-overlaps.
+When every remainder vanishes, Bergman's Diamond Lemma
+\cite[Theorem~1.2]{bergman} gives confluence. The irreducible words form a
+$k$-basis of $F/I$, and reduction gives a unique normal form. Consequently,
+a zero normal form proves membership in the original ideal and a nonzero
+normal form proves nonmembership over the stated field.
+
+Optional rule pruning uses leading-word divisibility to select reduction
+rules. It does not omit validation of the derivation graph, reduction of the
+original inputs or resolution of ambiguities for the retained rules.
+A candidate polynomial proved to be a nonzero constant gives $I=F$ and
+dimension zero.
+
+Only after completion is established does the verifier enumerate irreducible
+words. If this enumeration finishes, its length is $\dim_k(F/I)$. Exceeding
+the word-count limit returns an undetermined dimension, not an infinity
+verdict. Exceeding the rewrite/ambiguity work budget raises
+\texttt{VerificationLimit}, without reporting a completed verification.
+A returned \texttt{VerifiedReduction} retains immutable defining data;
+later normal-form calls use the remaining work budget and reject elements
+with a different parent, including zero elements.
+
+The JSON schema \texttt{zipper-groebner-certificate-v1} stores the candidate
+polynomials, local \texttt{ProofTerm} data and presentation hash. The numeric
+f4ncgb decoder \texttt{certificate\_from\_solver} in
+\path{verification/f4ncgb.py} supplies candidates, not a completion verdict.
+The established discovery records continue to report
+\texttt{basis\_complete=False}; their membership validation is separate from
+this explicit completion operation. The four-strand example below has a separate local Singular producer; this
+decoder does not integrate arbitrary parameter-field producers. GBNP's \texttt{IsGrobnerBasis} provides an
+independent completion check for its supported fields; its quotient basis
+and dimension functions require a genuine Gr\"obner basis \cite{gbnp}.
+A basis check alone does not identify its ideal with the original defining
+ideal. The API and resource limits are detailed in
+\path{docs/GROEBNER_VERIFICATION.md}.
 
 \section{Symbolic q,t certificate data and exact conclusion}
 Let $r_1,\ldots,r_s\in F_n$ be the ordered defining relations of a specified
@@ -379,7 +442,9 @@ shares the presentation builder, input validation and target resolution.
 A basis proof is an acyclic directed graph expressing each basis element as a
 sum of contextual multiples of input relations and other basis elements.
 Forward references are allowed; cycles and missing dependencies are errors.
-Substitution respects multiplication order. If
+Membership validation checks the local polynomial identities in dependency
+order, without expanding shared subproofs. Explicit cofactor composition may
+subsequently expand these derivations. Substitution respects multiplication order. If
 \[
  g_k=\sum_\nu c_{k\nu}L_{k\nu}r_{i_{k\nu}}R_{k\nu},
  \qquad f=\sum_s m_s u_sg_{k_s}v_s,
@@ -444,6 +509,56 @@ remainder against an uncertified basis establishes no nonmembership conclusion,
 even at that specialization. The exception \texttt{NeedMoreSamples} reports an
 inconclusive reconstruction. Candidate reconstruction is characteristic zero.
 
+\section{A four-strand square-zero quotient over $\Q(q,t)$}
+Let $A$ be the four-strand zipper quotient over $k=\Q(q,t)$ with polynomial
+untwistings
+\[
+ p_2(\lambda)=(\lambda-t)^2,\qquad
+ p_3(\lambda)=\lambda-q^2,\qquad
+ p_4(\lambda)=\lambda-q^3,
+\]
+at every valid shift. Thus the two-strand untwisting relation is
+$(x_j-t)^2X_{2,j}=0$, and the higher untwistings are canonical. The polynomials are monic with unit constant terms in $k$, so the
+finite-generation theorem above applies. The literal presentation contains
+31 ordered relations, including the canonical
+four-strand relation $T_4$ in its chosen free-algebra representative.
+The example constructs \texttt{Presentation(4, "square-zero")} and converts
+its coefficients to $k$. It therefore uses the canonical higher relations
+$T_3,T_4$, rather than the literal full-twist polynomial representatives
+emitted by \texttt{from\_untwistings}. Inverse relations identify the ideals
+of these representatives by invertible left factors, but the free polynomials
+and literal presentation identities differ.
+The following are generic conclusions over $k$:
+\[
+ \dim_k A=186,\qquad X_3=0,\qquad
+ w=(x_1-t)X_{2,1}\ne0,\qquad wAw=0.
+\]
+In particular, $J=AwA$ is a nonzero two-sided ideal with
+$J^2=A(wAw)A=0$. Hence $A$ is not semisimple: the nonzero square-zero ideal $J$ supplies
+the obstruction.
+
+The certificate records 299 auxiliary input-derived polynomials and
+148 candidate basis polynomials: 447 nodes with explicit local derivations.
+The GAP checker requires every input reference in the entire graph to lie
+among the first 30 relations, excluding $T_4$. The local identities therefore
+prove that the candidate ideal lies in the ideal of those 30 inputs.
+Independently, reduction of all 31 input relations to zero proves the
+reverse inclusion, and the critical-ambiguity checks establish completion of
+the 148-polynomial basis. Enumeration gives 186 irreducible words. The
+nonzero normal form of $w$ proves nonvanishing; the exact normal forms of
+$wbw$ vanish for all 186 basis words $b$, proving $wAw=0$ by linearity.
+The normal forms of $X_3$ and $T_4$ also vanish.
+
+Candidate production uses Singular's letterplace computations
+\cite{singular}; the derivation, completion, dimension and ideal checks use
+GAP 4.15.1 with GBNP 1.1.0 independently \cite{gbnp}. The input-reference
+bound and vanishing normal form of $T_4$ together prove its redundancy.
+The full 447-node Python verification did not finish in a 60-second local
+probe; the completed verification route for this example uses Singular and
+GAP. This result concerns the generic parameter field, with no
+specialization involved. Commands, source roles and generated proof data are
+described in \path{docs/FOUR_STRAND_SQUARE_ZERO.md}.
+
 \section{Research results and computational evidence}
 The linear untwisting case connects the family above to the BMW quotient.
 The thesis exhibits an explicit two-sided identity for $X_3$ using the zipper,
@@ -479,8 +594,8 @@ certify a completed generic Gr\"obner basis. Dimension and trace computations
 require basis-completion and exact-arithmetic evidence for their stated
 coefficient domain. Solver execution, generic basis certification and the
 experiment drivers retain separate completion requirements. The general
-finite-generation theorem gives mathematical context; the installed verifier
-checks the explicit algebraic identity submitted to it.
+finite-generation theorem gives mathematical context; the cofactor and
+completed-basis verifiers check their respective explicitly submitted data.
 
 The optional GAP exporter produces a standalone identity in the free associative
 algebra over $\Q(q,t)$. It shares the validated certificate parser and defining
@@ -502,6 +617,9 @@ The maintained implementation is under \path{src/zipper_algebra/}:
 \setlength{\parskip}{0pt}
 \setlength{\parsep}{0pt}
 \item Presentation and relation formulas: \path{presentation.py}, \path{relations.py}.
+\item Parameter fields and free algebras: \path{fields.py}, \path{algebra.py}.
+\item Complete bases and normal forms: \path{verification/groebner.py}.
+\item Numeric solver-certificate decoding: \path{verification/f4ncgb.py}.
 \item Certificate data: \path{cofactor/cofactor_io.py}, \path{cofactor/atoms.py}.
 \item Symbolic and grid checks: \path{cofactor/verify.py}.
 \item Independent GAP identity expansion: \path{verification/gap.py}.
@@ -522,10 +640,7 @@ pp.~285--299. In particular, \S8, Questions~6--8.
 \bibitem{thesis}
 Choomno Moos, \emph{The Zipper Algebra}, M.A. thesis,
 University of California, Santa Barbara, September 2026.
-References here use the recovered manuscript with source SHA-256 beginning
-\texttt{c6ff7e634baf86ee}, and its accompanying PDF.
-Section and theorem numbers identify that version; the thesis is cited for
-its definitions and research results.
+Cited by section and theorem number for its definitions and research results.
 
 \bibitem{birmanwenzl}
 Joan S. Birman and Hans Wenzl, \emph{Braids, link polynomials and a new algebra},
@@ -543,5 +658,21 @@ in \emph{Computer Algebra in Scientific Computing (CASC 2025)},
 Lecture Notes in Computer Science \textbf{16235},
 Springer Nature Switzerland, 2025, pp.~79--97.
 \href{https://doi.org/10.1007/978-3-032-09645-6_5}{doi:10.1007/978-3-032-09645-6\_5}.
+
+\bibitem{bergman}
+George M. Bergman, \emph{The diamond lemma for ring theory},
+Advances in Mathematics \textbf{29} (1978), no.~2, pp.~178--218.
+\href{https://doi.org/10.1016/0001-8708(78)90010-5}{doi:10.1016/0001-8708(78)90010-5};
+\href{https://math.berkeley.edu/~gbergman/papers/updates/diamond.html}{Author's corrections and updates}.
+
+\bibitem{gbnp}
+A.~M. Cohen and J.~W. Knopper, \emph{GBNP}, version 1.1.0, GAP package.
+\href{https://gap-packages.github.io/gbnp/doc/chap3.html}{Official function manual}.
+
+\bibitem{singular}
+Wolfram Decker, Gert-Martin Greuel, Gerhard Pfister and Hans Sch\"onemann,
+\emph{Singular}, version 4.4.1, computer algebra system.
+\href{https://www.singular.uni-kl.de/}{Official project site};
+\href{https://www.singular.uni-kl.de/index.php/how-to-cite-singular}{Citation information}.
 \end{thebibliography}
 \end{document}
