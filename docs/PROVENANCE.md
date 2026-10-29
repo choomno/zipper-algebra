@@ -10,7 +10,7 @@ revision and executable hash remain separate from the Python implementation.
 | --- | --- |
 | Discovery result | `result.json`, under `producer`. |
 | Numeric solver run | Its database record, under `request.producer`; the record also identifies every input/output file by hash. `export-sample` restores it as `record.json`. |
-| Final discovery bundle | `provenance.json`, covering the five mathematical products by filename, size and SHA-256. The result's generation hash includes this metadata file. |
+| Final discovery bundle | `provenance.json`, covering the five mathematical products and `solver-runs.json` by filename, size and SHA-256. The result's generation hash includes this metadata file. |
 | Bound skeleton, lift or certificate JSON | The `provenance` field in the version-2 envelope. Earlier JSON envelope versions are rejected. |
 | Standalone emitted solver input or saved certificate, atoms, lift or skeleton | An adjacent `<filename>.provenance.json` sidecar. |
 | Composition and verification JSON reports | `producer`, with hashes of the supplied input files. |
@@ -97,6 +97,24 @@ request identity. File-based and native SQLite runs therefore have distinct
 cache keys even when their mathematical outputs agree. Both routes retain the
 same input, basis, proof and process-output bytes for inspection with
 `export-sample`; see the [reproduction guide](X3_REPRODUCTION.md#read-the-result).
+
+The current `zipper-solver-request-v3` identifies the presentation calculation
+independently of any later target. Different targets share a cache entry when
+the full request agrees, including the source snapshot. Their reductions and
+certificates retain separate target identities and link to the solver key and
+immutable generation. Earlier target-bound v2 requests remain readable and
+exportable, but do not count as v3 cache hits. No existing record is silently
+relabelled.
+
+Each verified bundle retains its compact solver links in `solver-runs.json`,
+bound to its presentation and target. The links include the sample point,
+database location, solver key, immutable generation and artifact hashes. They
+remain with an older certificate after a later run replaces `result.json`.
+Database paths in this compact record are relative to the discovery output
+directory, so moving that directory together with its database preserves the
+links. Points are sorted, and publication checks each link against its stored
+generation. The `recorded` field distinguishes supplied solver links from an
+internal publication without solver-run data.
 
 Discovery captures one snapshot for its samples and final products. The package
 sources are rehashed before publication. A detected source-file change aborts
