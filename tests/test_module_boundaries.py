@@ -5,22 +5,10 @@ import sys
 import tempfile
 import unittest
 
-from zipper_algebra import coefficients, msolve, polynomial, relations, zipper_in_ms
+from zipper_algebra import coefficients, polynomial, relations
 
 
 class TestEmitterModuleBoundaries(unittest.TestCase):
-    def test_legacy_imports_refer_to_the_same_classes_and_functions(self):
-        for module, names in (
-            (coefficients, ("Coef", "QTCoef", "NumericRing", "SymbolicRing")),
-            (polynomial, ("Poly",)),
-            (relations, ("RelTag", "build_relations", "build_relations_ring",
-                         "append_zero_sliders", "append_target")),
-            (msolve, ("main",)),
-        ):
-            for name in names:
-                with self.subTest(name=name):
-                    self.assertIs(getattr(zipper_in_ms, name), getattr(module, name))
-
     def test_separated_arithmetic_and_relations_share_their_coefficient_parent(self):
         names, defining_relations, sliders, tags = relations.build_relations_ring(
             2, coefficients.NumericRing(5, 7, 0), "bigelow")

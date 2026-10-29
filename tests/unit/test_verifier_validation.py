@@ -10,12 +10,12 @@ import unittest
 from fractions import Fraction
 from pathlib import Path
 
-from tests.support import LEGACY_X3
 from zipper_algebra.cofactor.atoms import Atom, AtomSet
 from zipper_algebra.cofactor.cofactor_io import Cofactor, symbolic_target
 from zipper_algebra.presentation import Presentation
 from zipper_algebra.cofactor.verify import check, pit_check
-from zipper_algebra.zipper_in_ms import Coef, Poly, SymbolicRing
+from zipper_algebra.coefficients import Coef, SymbolicRing
+from zipper_algebra.polynomial import Poly
 
 
 class TestVerifierValidation(unittest.TestCase):
@@ -201,8 +201,8 @@ class TestVerifierValidation(unittest.TestCase):
             Cofactor._parse_extract_line("+1 * () * [999] * ()", {}, AtomSet([]),
                                          self.pres.labels())
 
-    def test_legacy_certificate_body_round_trips(self):
-        source = LEGACY_X3 / "cofactor-X3-n4-Qqt-symbolic.txt"
+    def test_current_example_certificate_body_round_trips(self):
+        source = Path(__file__).resolve().parents[2] / "examples/x3/certificate.txt"
         cof = Cofactor.load(str(source), pres=self.pres)
         self.assertTrue(check(cof, self.pres, "X_3", verbose=False)["pass"])
         with tempfile.TemporaryDirectory() as directory:

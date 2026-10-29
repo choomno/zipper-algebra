@@ -4,8 +4,7 @@ r"""Probe three-strand lasso-twist annihilators at specified parameter points.
 The historical candidate is the reflected two-strand polynomial p*. Agreement
 of Krylov calculations at finitely many points does not establish its generic
 validity or minimality. The supplied solver output has no basis-completeness
-certificate in this recipe. The independent exact route is retained as
- gap_scripts/theta3_exact.gap in the repository root.
+certificate in this recipe.
 
 Run as python -m experiments.research.theta3_min_poly after installing the package.
 The presentation is emitted by the maintained Presentation constructor.

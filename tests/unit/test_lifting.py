@@ -12,7 +12,7 @@ import unittest
 from zipper_algebra.cofactor import lift as L
 from zipper_algebra.cofactor.atoms import Atom, AtomSet
 from zipper_algebra.cofactor.proof import Basis, Proof
-from zipper_algebra.zipper_in_ms import Poly
+from zipper_algebra.polynomial import Poly
 
 
 class Samples:

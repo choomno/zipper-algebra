@@ -15,7 +15,8 @@ from zipper_algebra.cofactor.univariate import (_poly_eval, _reduce_univariate_f
                                                reconstruct_univariate)
 from zipper_algebra.cofactor.lift import (NeedMoreSamples, WrongClass, fit_poly_qt, fit_rational,
                    fit_rational_known, is_reduced, lift, line_denominator, poly_eval_qt)
-from zipper_algebra.zipper_in_ms import Poly, NumericRing
+from zipper_algebra.coefficients import NumericRing
+from zipper_algebra.polynomial import Poly
 from zipper_algebra.presentation import Presentation
 from zipper_algebra.cofactor.proof import Basis, Proof
 

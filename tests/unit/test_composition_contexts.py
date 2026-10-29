@@ -19,7 +19,8 @@ from zipper_algebra.cofactor.lift import Lift
 from zipper_algebra.presentation import Presentation
 from zipper_algebra.cofactor.proof import Basis
 from zipper_algebra.cofactor.skeleton import Skeleton
-from zipper_algebra.zipper_in_ms import Coef, NumericRing, Poly
+from zipper_algebra.coefficients import Coef, NumericRing
+from zipper_algebra.polynomial import Poly
 from zipper_algebra.execution import pipeline
 
 

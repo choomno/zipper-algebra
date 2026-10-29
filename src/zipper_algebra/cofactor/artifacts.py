@@ -23,7 +23,6 @@ from ..provenance import capture_provenance, validate_provenance
 
 
 SCHEMA = "zipper-mathematical-artifact-v2"
-LEGACY_SCHEMA = "zipper-mathematical-artifact-v1"
 
 
 def _canonical(value) -> bytes:
@@ -190,15 +189,11 @@ def load_artifact(path, pres, target, *, kind=None, order=None, atoms=None):
 
 def artifact_from_json(data, pres, target, *, kind=None, order=None, atoms=None):
     """Decode already-read bound data with the same checks as the file reader."""
-    fields = {"schema", "kind", "presentation", "target", "order", "payload", "payload_sha256"}
-    if not isinstance(data, dict):
+    fields = {"schema", "kind", "presentation", "target", "order", "payload",
+              "payload_sha256", "provenance"}
+    if not isinstance(data, dict) or data.get("schema") != SCHEMA or set(data) != fields:
         raise ValueError("unknown or unbound mathematical artifact schema")
-    if data.get("schema") == SCHEMA:
-        fields = fields | {"provenance"}
-    if set(data) != fields or data.get("schema") not in (SCHEMA, LEGACY_SCHEMA):
-        raise ValueError("unknown or unbound mathematical artifact schema")
-    if data["schema"] == SCHEMA:
-        validate_provenance(data["provenance"])
+    validate_provenance(data["provenance"])
     actual_kind = data["kind"]
     if kind is not None and actual_kind != kind:
         raise ValueError("mathematical artifact kind mismatch")

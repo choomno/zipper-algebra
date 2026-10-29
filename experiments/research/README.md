@@ -5,10 +5,12 @@ specified two-strand untwisting relation. They use specialized bases and Krylov
 calculations to propose annihilating or minimal polynomials. They are research
 sources outside the maintained installed package.
 
-- `theta3_min_poly.py` records the earlier three-strand search.
+- `theta3_min_poly.py` probes three-strand lasso-twist annihilators.
 - `theta_min_poly.py` extends the computational search to larger strand counts.
-- `gap_scripts/theta3_exact.gap` in the repository root is an independent exact
-  computational route retained with its historical evidence.
+
+Run either recipe as `python -m experiments.research.<module>` from the source
+checkout after installing the package. Use `--help` for solver and parameter
+options.
 
 Agreement of specialized dimensions supplies evidence for candidate generic
 patterns. Small finite-field coefficients do not establish exact rational

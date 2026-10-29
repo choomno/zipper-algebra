@@ -117,24 +117,29 @@ class TestSourceArchiveProvenance(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "classification failed"):
                 self.ignore_hook(["tests/private_scratch.py"])
 
-    def test_package_directory_alias_keeps_source_membership_and_symlink_names(self):
+    def test_package_module_discovery_omits_unrecorded_payload_symlinks(self):
         from setuptools import Distribution
-        with tempfile.TemporaryDirectory(prefix="zipper-build-alias-") as directory:
-            alias = Path(directory) / "project"
-            try:
-                alias.symlink_to(self.root, target_is_directory=True)
-                (self.package / "private_notes.py").symlink_to(self.package / "__init__.py")
-            except OSError as error:
-                self.skipTest(f"source alias symlinks unavailable: {error}")
-            distribution = Distribution({"packages": ["zipper_algebra"]})
-            distribution.script_name = str(self.root / "setup.py")
-            command = self.build_class(distribution)
-            command.ensure_finalized()
-            command._zipper_metadata = self.metadata
-            with patch.dict(self.metadata_hook.__globals__, ROOT=self.root, PACKAGE=self.package):
-                modules = command.find_package_modules(
-                    "zipper_algebra", str(alias / "src/zipper_algebra"))
-            self.assertEqual({name for _, name, _ in modules}, {"__init__", "provenance"})
+        (self.package / "private_notes.py").symlink_to(self.package / "__init__.py")
+        distribution = Distribution({"packages": ["zipper_algebra"]})
+        distribution.script_name = str(self.root / "setup.py")
+        command = self.build_class(distribution)
+        command.ensure_finalized()
+        command._zipper_metadata = self.metadata
+        with patch.dict(self.metadata_hook.__globals__, ROOT=self.root, PACKAGE=self.package):
+            modules = command.find_package_modules("zipper_algebra", str(self.package))
+        self.assertEqual({name for _, name, _ in modules}, {"__init__", "provenance"})
+
+    def test_release_paths_keep_payload_names_and_reject_source_tree_escape(self):
+        relative = self.metadata_hook.__globals__["project_relative"]
+        link = self.package / "private_notes.py"
+        link.symlink_to(self.package / "__init__.py")
+        with patch.dict(relative.__globals__, ROOT=self.root):
+            self.assertEqual(relative(link), "src/zipper_algebra/private_notes.py")
+            self.assertEqual(relative(self.package / "__init__.py"),
+                             "src/zipper_algebra/__init__.py")
+            for path in (self.root.parent / "external.py", self.root / ".." / "external.py"):
+                with self.subTest(path=path), self.assertRaisesRegex(ValueError, "leaves the project"):
+                    relative(path)
 
     def test_unversioned_source_export_reports_unknown_revision(self):
         (self.package / "_build_provenance.json").unlink()

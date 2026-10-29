@@ -1,9 +1,0 @@
-[loading verified regular representation]
-[building L_{m_l} for all 24 standard monomials]
-[computing tau_l]
-[loaded cached trace form T from pickle]
-[searching for a nonzero 15x15 minor]
-[building right-multiplication operators R_g]
-[closing w_1 under all L_g and R_g -> two-sided ideal]
-[applying T to each ideal basis vector]
-RC=0

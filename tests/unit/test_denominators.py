@@ -12,6 +12,7 @@ import unittest
 from unittest import mock
 
 from zipper_algebra.cofactor import atoms as a
+from zipper_algebra.cofactor.inference import infer
 from zipper_algebra.cofactor import inference as i
 from zipper_algebra.cofactor import univariate as u
 
@@ -217,32 +218,32 @@ class TestUnivariateDenominatorArithmetic(unittest.TestCase):
 class TestAtomInference(unittest.TestCase):
     def test_empty_and_unreconstructible_lines(self):
         with redirect_stdout(StringIO()) as output:
-            family, report = a.infer({}, max_bideg=(1, 0), coef_bound=1)
+            family, report = infer({}, max_bideg=(1, 0), coef_bound=1)
         self.assertEqual(family.names(), [])
         self.assertEqual(report["lines_tried"], 0)
         self.assertIn("every reconstructed denominator", output.getvalue())
         points = [((x, 1), int(x == 6)) for x in range(1, 7)]
-        family, report = a.infer({"bad": points}, max_bideg=(1, 0), coef_bound=1, verbose=False)
+        family, report = infer({"bad": points}, max_bideg=(1, 0), coef_bound=1, verbose=False)
         self.assertEqual(report["lines_tried"], 1)
         self.assertEqual(report["lines_reconstructed"], 0)
 
     def test_polynomial_coefficients_need_no_denominator_atoms(self):
         points = [((q, t), q + t) for q in range(2, 9) for t in range(11, 18)]
-        family, report = a.infer({0: points}, max_bideg=(1, 0), coef_bound=1,
+        family, report = infer({0: points}, max_bideg=(1, 0), coef_bound=1,
                                   verbose=False)
         self.assertEqual(family.names(), [])
         self.assertEqual(report["lines_reconstructed"], 14)
         self.assertEqual(report["unexplained"], 0)
 
     def test_quiet_search_has_the_same_exact_factor_result(self):
-        family, report = a.infer({0: grid_values(lambda q, t: q+t)},
+        family, report = infer({0: grid_values(lambda q, t: q+t)},
                                   max_bideg=(1, 1), coef_bound=1, verbose=False)
         self.assertEqual(family.atoms, [a.Atom("q+t", {(1, 0): 1, (0, 1): 1})])
         self.assertEqual(report["unexplained"], 0)
 
     def test_seed_divisibility_and_multiplicity(self):
         seed = a.AtomSet([a.Atom("q+t", {(1, 0): 1, (0, 1): 1})], [0])
-        family, report = a.infer({0: grid_values(lambda q, t: (q+t)**2)}, seed,
+        family, report = infer({0: grid_values(lambda q, t: (q+t)**2)}, seed,
                                   max_bideg=(1, 1), coef_bound=1, verbose=False)
         self.assertEqual(family.names(), ["q+t"])
         self.assertEqual(report["multiplicity"], {"q+t": 2})
@@ -251,7 +252,7 @@ class TestAtomInference(unittest.TestCase):
 
     def test_greedy_search_finds_independent_factors(self):
         with redirect_stdout(StringIO()) as output:
-            family, report = a.infer({0: grid_values(lambda q, t: (q+t)*(q-t))},
+            family, report = infer({0: grid_values(lambda q, t: (q+t)*(q-t))},
                                       max_bideg=(1, 1), coef_bound=1)
         self.assertEqual(set(family.atoms), {a.Atom("q+t", {(1, 0): 1, (0, 1): 1}),
                                             a.Atom("q-t", {(1, 0): 1, (0, 1): -1})})
@@ -260,7 +261,7 @@ class TestAtomInference(unittest.TestCase):
 
     def test_one_line_cannot_support_a_bivariate_factor(self):
         with mock.patch.dict(sys.modules, {"sympy": None}):
-            family, report = a.infer({0: grid_values(lambda q, t: q, range(1, 8), [0])},
+            family, report = infer({0: grid_values(lambda q, t: q, range(1, 8), [0])},
                                       max_bideg=(1, 1), coef_bound=1, min_lines=1, verbose=False)
         self.assertEqual(family.names(), [])
         self.assertEqual(report["unexplained"], 1)
@@ -269,7 +270,7 @@ class TestAtomInference(unittest.TestCase):
         points = grid_values(lambda q, t: q+t+5, range(1, 8), range(1, 4))
         with mock.patch.dict(sys.modules, {"sympy": None}):
             with redirect_stdout(StringIO()) as output:
-                family, report = a.infer({0: points}, max_bideg=(0, 0), coef_bound=1)
+                family, report = infer({0: points}, max_bideg=(0, 0), coef_bound=1)
         self.assertEqual(family.names(), [])
         self.assertEqual(report["unexplained"], 3)
         self.assertEqual(report["residual_factors"], [])
@@ -320,7 +321,7 @@ class TestAtomInference(unittest.TestCase):
     def test_missing_large_constant_is_identified_by_residual_lifting(self):
         points = grid_values(lambda q, t: q+t+5)
         with redirect_stdout(StringIO()):
-            family, report = a.infer({0: points}, max_bideg=(1, 1), coef_bound=1)
+            family, report = infer({0: points}, max_bideg=(1, 1), coef_bound=1)
         self.assertEqual(family.atoms, [a.Atom("q+t+5", {(1, 0): 1, (0, 1): 1, (0, 0): 5})])
         self.assertEqual(report["unexplained"], 0)
         self.assertTrue(report["residual_factors"])

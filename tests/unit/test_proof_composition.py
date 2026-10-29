@@ -14,7 +14,8 @@ import unittest
 
 from zipper_algebra import Presentation
 from tests.support import ROOT
-from zipper_algebra.zipper_in_ms import Coef, NumericRing, Poly
+from zipper_algebra.coefficients import Coef, NumericRing
+from zipper_algebra.polynomial import Poly
 from zipper_algebra.cofactor.atoms import Atom, AtomSet
 from zipper_algebra.cofactor import compose as composition
 from zipper_algebra.cofactor.lift import Lift, NeedMoreSamples
@@ -289,13 +290,6 @@ class TestRationalContextComposition(unittest.TestCase):
         with self.assertRaises(NeedMoreSamples):
             composition.lift_multipliers(skel, {(2, 3): [F(1)], (3, 5): [F(2)], (5, 7): [F(7)]},
                                          AtomSet([], []), max_pq=0, max_pt=0)
-
-    def test_zero_and_nonzero_anchor_multipliers(self):
-        skel = self.skel([{"basis_key": "g", "left": (), "right": (), "mult": F(0)},
-                          {"basis_key": "g", "left": (), "right": (), "mult": F(-2, 3)}])
-        self.assertEqual(composition.multipliers_at_anchor(skel, self.atoms),
-                         [({}, (0,)), ({(0, 0): F(-2, 3)}, (0,))])
-
 
 class TestCompositionCommandLine(unittest.TestCase):
     def run_command(self, target, entries):

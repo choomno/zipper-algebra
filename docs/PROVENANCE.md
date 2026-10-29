@@ -11,20 +11,18 @@ revision and executable hash remain separate from the Python implementation.
 | Discovery result | `result.json`, under `producer`. |
 | Numeric solver run | Its database record, under `request.producer`; the record also identifies every input/output file by hash. `export-sample` restores it as `record.json`. |
 | Final discovery bundle | `provenance.json`, covering the five mathematical products by filename, size and SHA-256. The result's generation hash includes this metadata file. |
-| Bound skeleton, lift or certificate JSON | The `provenance` field in the version-2 envelope. Version-1 files remain readable. |
+| Bound skeleton, lift or certificate JSON | The `provenance` field in the version-2 envelope. Earlier JSON envelope versions are rejected. |
 | Standalone emitted solver input or saved certificate, atoms, lift or skeleton | An adjacent `<filename>.provenance.json` sidecar. |
 | Composition and verification JSON reports | `producer`, with hashes of the supplied input files. |
+| Standalone GAP certificate script | A comment header records the producing source and input-certificate hash. |
 | Experimental Python file outputs | Adjacent sidecars, including source and parent-input hashes where the calculation reads saved data. |
 
-The solver-input, certificate-text and legacy pickle formats are unchanged.
+The solver-input, certificate-text and experimental pickle formats are unchanged.
 Keep a standalone file together with its sidecar. A managed bundle carries one
 shared record instead of a separate sidecar for every intermediate file.
 
 Description reports requested with `--json` also identify the implementation.
-Plain console output, arbitrary shell redirects, external GAP/Singular outputs
-and compiled documentation are outside these Python file-output hooks.
-Historical fixtures and archived data retain their documented historical
-provenance; they are not relabelled as newly produced results.
+Plain console output, arbitrary shell redirects and compiled documentation are outside these Python file-output hooks.
 
 ## What is captured
 

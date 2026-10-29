@@ -1,37 +1,27 @@
-# Independent Singular experiments
+# Independent Singular cross-check
 
-These scripts use Singular's `freegb.lib` for separate noncommutative calculations.
-The repository's [MIT license](../LICENSE) applies to the scripts; Singular and
-its libraries retain their own licenses.
+`x3-membership-Q.sing` performs a separate specialized calculation with
+[Singular](https://www.singular.uni-kl.de/)'s `freegb.lib` and Letterplace
+implementation. It uses the four-strand presentation with 31 defining relations
+in `x1,x2,x3,y1,y2,y3`, specialized to `q=5`, `t=7` over the rationals.
+The target `X_3` is not adjoined as a relation.
 
-## Specialized X3 membership
-
-`x3-membership-Q.sing` uses the original 31 defining relations at `q=5`, `t=7`
-over the rational numbers, with Letterplace degree bound 12. The six generators
-are `x1,x2,x3,y1,y2,y3`. It computes `J = twostd(I)` and prints
-`NF(X3, J)`. Run from this directory with Singular installed:
+From this directory, with Singular installed, run:
 
 ```sh
 Singular -q x3-membership-Q.sing
 ```
 
-The expected normal form is `0`. The saved degree-12 log at
-`logs_and_traces/f4ncgb/singular_X3_Q_d12.log` records that reduction, followed
-by an unsuccessful cofactor-extraction attempt. This
-producer preserves the reduction stage and ends before that later attempt.
-Its conclusion is specialized membership at `(5,7)`; the generic cofactor
-identity has a separate [verification route](../docs/X3_REPRODUCTION.md).
+The script computes `J = twostd(I)` with Letterplace degree bound 12, then prints
+`NF(X3, J)`. The expected remainder is `0`. The degree bound and specialization
+are explicit parts of this calculation; the script does not assert that an
+incomplete computation supplies a completed Gröbner basis.
 
-The source is `archive/singular-failed/zipper-n4-X3-Q-db12.sing` at commit
-`0db1dd9e2a33fb0e5d07e216c8a5354911446e97`. The presentation, target,
-`twostd` call and reduction are unchanged. The defining relations match the
-canonical specialized input at
-`logs_and_traces/f4ncgb/zipper-n4-Q-q5-t7.ms`.
-This extracted producer has been checked against those sources but has not
-been rerun during the present cleanup.
+This is a specialized membership cross-check. It does not read or verify a
+supplied cofactor representation, and it does not establish the generic identity
+over `Q(q,t)`. The [certificate reproduction guide](../docs/X3_REPRODUCTION.md)
+describes production and exact verification of that generic identity.
 
-The old directory also contained degree-bound 10 and 18 attempts and two
-variations of degree-14 cofactor extraction. Their original `.sing`, `.out`
-and `.err` files remain available in that commit's `archive/singular-failed/`
-directory. Successful reduction observations and failed cofactor extraction
-are distinct stages of those records.
+The script is covered by the repository's [MIT license](../LICENSE). Singular
+and its libraries retain their own licenses. This independent solver run is
+separate from the default Python test suite.

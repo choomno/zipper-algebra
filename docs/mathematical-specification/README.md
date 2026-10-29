@@ -12,6 +12,3 @@ untwisting family and finite-generation theorem, then specifies the implemented
 algebra and certificate operations. Numbered references are included in the PDF.
 Thesis citations identify the recovered manuscript version; the thesis itself
 is kept outside the software distribution.
-
-This is the maintained software reference; the root-level
-reconstruction manuscript is a separate historical document.

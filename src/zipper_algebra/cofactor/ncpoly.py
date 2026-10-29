@@ -4,10 +4,8 @@
     QTPoly = {(deg_q, deg_t): Fraction}                 an element of Q[q,t]
     NCPoly = {word: QTPoly}, word = tuple of 1-based variable indices
 
-Extracted VERBATIM from symbolic_identity_check.py, which is the pipeline's trusted verifier: the
-symbolic identity check is the only thing standing between a fitted cofactor and a false result, so
-its arithmetic is moved rather than rewritten.  Nothing here knows about n, a target, or an atom
-set; it is polynomial arithmetic.
+This independent sparse-polynomial implementation supplies the exact verifier's
+accumulation arithmetic. It does not construct presentations or choose targets.
 """
 from __future__ import annotations
 
@@ -221,9 +219,3 @@ def nc_is_zero(a: NCPoly) -> bool:
 
 def nc_size(a: NCPoly) -> int:
     return len(a)
-
-
-# ===========================================================================
-# Build the 31 input relations symbolically over Q[q,t]
-#   (mirrors zipper_in_ms.build_relations with n=4, untw='bigelow')
-# ===========================================================================

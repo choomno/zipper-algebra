@@ -6,8 +6,8 @@ import tempfile
 import unittest
 
 from zipper_algebra import core
-from tests.support import LEGACY_X3
-from zipper_algebra.zipper_in_ms import Coef, NumericRing, Poly, QTCoef
+from zipper_algebra.coefficients import Coef, NumericRing, QTCoef
+from zipper_algebra.polynomial import Poly
 
 
 class TestCoefficientArithmetic(unittest.TestCase):
@@ -132,11 +132,15 @@ class TestBasisGrammar(unittest.TestCase):
             with self.subTest(text=text), self.assertRaises(ValueError):
                 self.parse(text, core.parse_basis_Q)
 
-    def test_preserved_basis_and_leading_reader_agree(self):
-        path = LEGACY_X3 / "basis-n4-Q.txt"
-        parsed = core.parse_basis_Q(str(path))
-        self.assertEqual(len(parsed), 137)
-        self.assertEqual([leading for leading, _ in parsed], core.parse_leading_monomials(str(path)))
+    def test_basis_and_leading_reader_agree_on_exact_signed_terms(self):
+        text = "-2/3*x1*x2 + 5/7*y1 - 1/2,\nx2*x1 - y2,\ny1*y2 - 1\n"
+        parsed = self.parse(text, core.parse_basis_Q)
+        self.assertEqual([leading for leading, _ in parsed],
+                         [('x1', 'x2'), ('x2', 'x1'), ('y1', 'y2')])
+        self.assertEqual([leading for leading, _ in parsed],
+                         self.parse(text, core.parse_leading_monomials))
+        self.assertEqual(parsed[0][1], [(Fraction(-2, 3), ('x1', 'x2')),
+                                      (Fraction(5, 7), ('y1',)), (Fraction(-1, 2), ())])
         self.assertTrue(all(isinstance(coefficient, Fraction)
                             for _, terms in parsed for coefficient, _ in terms))
 

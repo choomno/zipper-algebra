@@ -32,7 +32,7 @@ compress/simplify/three-rels family) and none recorded the atoms or the presenta
 still reads all of them, given the presentation the caller knows they were written over.
 
 Words are tuples of 1-based variable indices in the presentation's variable order
-(x1..x_{n-1}, y1..y_{n-1}), as in zipper_in_ms.Poly.  Relation labels are the strings
+(x1..x_{n-1}, y1..y_{n-1}), as in polynomial.Poly.  Relation labels are the strings
 Presentation.labels() derives from the construction (INV_1_p, BR_1, Z_2, T_3, ...);
 `relation_indices(pres)` maps them back to positions in the relation list, and the legacy
 "R_<idx>" form is accepted too.

@@ -165,7 +165,7 @@ class Presentation:
 
     # --- views for the consumers ---------------------------------------------
     def emit_ms(self, path: str, q: int, t: int, char: int, *, provenance=True) -> int:
-        """Write the msolve input exactly as zipper_in_ms.py's CLI does (same bytes, so the
+        """Write the msolve input exactly as the msolve module command does (same bytes, so the
         driver's content-addressed cache keys are unchanged). Returns the relation count."""
         if provenance:
             from .provenance import capture_provenance, write_output_provenance

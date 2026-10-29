@@ -7,7 +7,6 @@ imported only by the residual-factor operation that needs it.
 from __future__ import annotations
 
 import math
-from fractions import Fraction
 from itertools import product
 
 from .atoms import Atom, AtomSet, poly_str

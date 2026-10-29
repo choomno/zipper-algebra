@@ -66,18 +66,14 @@ def write_metadata(directory, metadata):
 
 
 def project_relative(path):
-    """Normalize project-directory aliases while retaining payload symlink names."""
-    path = Path(path).absolute()
-    for parent in reversed((path, *path.parents)):
-        if parent.resolve() == ROOT:
-            relative = path.relative_to(parent)
-            partial = parent
-            for part in relative.parts:
-                partial /= part
-                if partial.is_symlink():
-                    return relative.as_posix()
-            return path.resolve().relative_to(ROOT).as_posix()
-    raise ValueError("release payload path leaves the project")
+    """Validate a lexical path in the source tree without following payload links."""
+    try:
+        relative = Path(path).absolute().relative_to(ROOT)
+    except ValueError as error:
+        raise ValueError("release payload path leaves the project") from error
+    if ".." in relative.parts:
+        raise ValueError("release payload path leaves the project")
+    return relative.as_posix()
 
 
 def ignored_release_payloads(names):
@@ -171,7 +167,7 @@ class ProvenanceSdist(sdist):
                 selected.append(name)
         super().make_release_tree(base_dir, selected)
         for name in selected:
-            if name.endswith(".egg-info/SOURCES.txt") or name.endswith(".egg-info\\SOURCES.txt"):
+            if name.endswith(".egg-info/SOURCES.txt"):
                 manifest = Path(base_dir) / name
                 manifest.unlink()
                 manifest.write_text("\n".join(selected) + "\n", encoding="utf-8")
