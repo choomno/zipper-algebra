@@ -12,8 +12,8 @@ family of such quotients, defined by polynomial untwisting relations on the
 sliders. Its main finiteness theorem follows from the zipper algorithm and
 provides the mathematical setting for this project (Moos, Theorem 3.41).
 
-This repository supports the study of that family. It's components compute: which defining relations are
-independent, when sliders vanish, and how the algebra changes with a choice of
+This repository supports the study of that family. Its components investigate
+dependencies among defining relations, slider vanishing, and how the algebra changes with a choice of
 untwisting polynomials. It constructs presentations, expands recorded proofs,
 composes explicit two-sided ideal-membership certificates via cofactor representations, reconstructs
 candidate rational coefficients from exact samples, and verifies the resulting
@@ -42,13 +42,26 @@ For development, use `python -m pip install -e .`. The installed package is name
 `zipper_algebra`; `python -m zipper_algebra` provides the same commands as
 `zipper-algebra`.
 
+For **fresh Gröbner-basis and cofactor discovery**, also build the external
+[f4ncgb solver](https://gitlab.sai.jku.at/f4ncgb/f4ncgb), by Maximilian Heisinger
+and Clemens Hofstadler. Follow the [solver installation instructions](patches/f4ncgb/README.md)
+for the pinned upstream revision, parser patch, C++ dependencies and build commands.
+Python package installation does not install this executable. The current
+experimental discovery driver additionally needs the workspace configuration
+described in the [reproduction guide](docs/X3_REPRODUCTION.md).
+
+Presentation construction, checking saved certificates, recomposition from saved
+proof data and the maintained tests run without the solver. Optional factor
+inference needs the Sympy extra above.
+
 ## Algebra solver and citation
 
 The original Gröbner-basis and cofactor-discovery computations used
 [f4ncgb](https://gitlab.sai.jku.at/f4ncgb/f4ncgb), developed by Maximilian
-Heisinger and Clemens Hofstadler. The implementation here uses a minimally
-modified fork of f4ncgb. Their project is the authoritative source for the
-solver and its documentation.
+Heisinger and Clemens Hofstadler. Solver-backed discovery uses a parser-patched
+build; the patch corrects line endings and identifier validation. Their project
+is the authoritative source for the solver and its documentation; their
+[CASC paper](https://doi.org/10.1007/978-3-032-09645-6_5) is listed below.
 
 The certificate audit below runs from saved data with the Python package.
 For fresh solver computations, the [setup guide](patches/f4ncgb/README.md)
@@ -56,8 +69,9 @@ records the upstream revision, parser fix, dependencies and maintained GitHub co
 
 ## X_3 cofactor computation
 
-Instructions to reproduce the $X_3$ certificate claimed in Moos' thesis is
-provided. The full process is as follows: input the defining relations,
+This repository documents the production and verification of a computational
+cofactor certificate for the $X_3$ identity discussed in Moos' thesis.
+The full process is as follows: input the defining relations,
 compute a basis with nonexpanded proofs using f4ncgb, reduce, repeat at
 parameter samples, reconstruct the relevant proof coefficients, compose the
 cofactor expression, and verify the resulting identity exactly. Note that 

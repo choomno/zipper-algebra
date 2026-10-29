@@ -27,8 +27,12 @@ in is supported for reproducing a legacy run.
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import os
+from pathlib import Path
 import sys
+import tempfile
 from collections import defaultdict
 from collections.abc import Mapping
 from fractions import Fraction
@@ -351,23 +355,110 @@ def numeric_check(cof: Cofactor, pres: Presentation, points=((5, 7), (3, 11), (7
     return ok_all
 
 
-if __name__ == "__main__":
+MULTIPLIER_SCHEMA = "zipper-cofactor-multipliers-v1"
+
+
+def multipliers_to_json(multipliers, skeleton, atoms, pres):
+    """Encode exact rational multipliers in contextual skeleton-occurrence order.
+
+    The full SHA-256 binds the current canonical presentation bytes without changing
+    its legacy display hash. Ordered atom definitions and contexts bind coefficient
+    interpretation and the particular reduction occurrences.
+    """
+    records = []
+    for (num, den), step in zip(multipliers, skeleton.steps, strict=True):
+        validate_qt_polynomial(num)
+        atoms.validate_exponents(den)
+        records.append({"basis_key": step["basis_key"], "left": list(step["left"]),
+                        "right": list(step["right"]), "denom": list(den),
+                        "num": [[list(m), str(c)] for m, c in sorted(num.items())]})
+    return {"schema": MULTIPLIER_SCHEMA,
+            "presentation_sha256": hashlib.sha256(pres.canonical_text().encode()).hexdigest(),
+            "target": skeleton.target, "atoms": atoms.to_json(), "steps": records}
+
+
+def load_multipliers(path, skeleton, atoms, pres):
+    """Read explicit symbolic multipliers, rejecting mismatched or ambiguous data."""
+    with open(path) as source:
+        data = json.load(source)
+    if not isinstance(data, dict) or data.get("schema") != MULTIPLIER_SCHEMA:
+        raise ValueError("unknown multiplier data schema")
+    digest = hashlib.sha256(pres.canonical_text().encode()).hexdigest()
+    if data.get("presentation_sha256") != digest or data.get("target") != skeleton.target:
+        raise ValueError("multipliers belong to a different presentation or target")
+    if data.get("atoms") != atoms.to_json():
+        raise ValueError("multiplier denominator atoms do not match the lift")
+    records = data["steps"]
+    if not isinstance(records, list) or len(records) != len(skeleton.steps):
+        raise ValueError("multipliers must match the number of contextual skeleton occurrences")
+    out = []
+    for record, step in zip(records, skeleton.steps):
+        expected = {"basis_key": step["basis_key"], "left": list(step["left"]),
+                    "right": list(step["right"])}
+        if not isinstance(record, dict) or any(record.get(k) != v for k, v in expected.items()):
+            raise ValueError("multiplier occurrence does not match the reduction skeleton")
+        num = {}
+        for monomial, coefficient in record["num"]:
+            monomial = tuple(monomial)
+            if not isinstance(coefficient, str) or monomial in num:
+                raise ValueError("multiplier numerators need unique powers and exact rational strings")
+            num[monomial] = Fraction(coefficient)
+        validate_qt_polynomial(num)
+        atoms.validate_exponents(record["denom"])
+        out.append((num, tuple(record["denom"])))
+    return out
+
+
+def _save_atomic(cofactor, output):
+    output = Path(output)
+    descriptor, temporary = tempfile.mkstemp(prefix="." + output.name + "-", suffix=".tmp",
+                                             dir=output.parent)
+    os.close(descriptor)
+    try:
+        cofactor.save(temporary)
+        os.replace(temporary, output)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+def main(argv=None):
+    """Compose from explicit symbolic multipliers and publish only an exact identity."""
     import argparse
+    from ..cli import _presentation_arguments, _presentation
     from .lift import Lift
     from .skeleton import Skeleton
+    from .verify import check
 
-    ap = argparse.ArgumentParser(description="compose a Q(q,t) cofactor from a lift + skeleton")
+    ap = argparse.ArgumentParser(description="compose and exactly verify a Q(q,t) cofactor")
     ap.add_argument("--lift", required=True)
     ap.add_argument("--skeleton", required=True)
+    ap.add_argument("--multipliers", required=True,
+                    help="versioned symbolic multiplier JSON in contextual occurrence order")
     ap.add_argument("--out", required=True)
-    ap.add_argument("--n", type=int, default=4)
-    ap.add_argument("--untwist", default="bigelow")
-    ap.add_argument("--max-untwist-level", type=int, default=None)
-    a = ap.parse_args()
+    _presentation_arguments(ap, require_n=False)
+    args = ap.parse_args(argv)
+    try:
+        pres = _presentation(args)
+        lift, skeleton = Lift.load(args.lift), Skeleton.load(args.skeleton)
+        multipliers = load_multipliers(args.multipliers, skeleton, lift.atoms, pres)
+        cofactor = compose(lift, skeleton, pres, multipliers=multipliers, verbose=not args.json)
+        report = check(cofactor, pres, verbose=not args.json)
+        if not report["pass"]:
+            result = {"pass": False, "status": "false-identity", "exact": report}
+            print(json.dumps(result) if args.json else "Exact identity verification failed; output was not written.")
+            return 1
+        _save_atomic(cofactor, args.out)
+        result = {"pass": True, "status": "verified", "exact": report, "output": args.out}
+        print(json.dumps(result) if args.json else "Verified exact identity; wrote " + args.out)
+        return 0
+    except (OSError, ValueError, TypeError, KeyError, ZeroDivisionError) as error:
+        if args.json:
+            print(json.dumps({"pass": False, "status": "invalid-input", "error": str(error)}))
+        else:
+            print(f"compose: {error}", file=sys.stderr)
+        return 2
 
-    pres = Presentation(a.n, a.untwist, max_untwist_level=a.max_untwist_level)
-    lf, sk = Lift.load(a.lift), Skeleton.load(a.skeleton)
-    cof = compose(lf, sk, pres, multipliers=multipliers_at_anchor(sk, lf.atoms))
-    cof.save(a.out)
-    print("wrote", a.out)
-    raise SystemExit(0 if numeric_check(cof, pres) else 1)
+
+if __name__ == "__main__":
+    raise SystemExit(main())
