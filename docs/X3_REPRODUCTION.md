@@ -1,12 +1,12 @@
 # Producing and checking the X_3 cofactor identity
 
-There are three useful routes:
+The main routes are:
 
 | Route | Starting data | What it establishes |
 | --- | --- | --- |
 | Fresh production | Presentation, target, solver executable and computation limits | A newly computed cofactor identity, if exact verification succeeds. |
-| Recomposition | Saved symbolic lift and contextual reduction skeleton | The retained certificate body can be reconstructed from those coefficients. |
-| Certificate check | Installed package and one certificate | The stated free-algebra identity holds exactly. |
+| Python certificate checks | Installed package and one certificate | The stated free-algebra identity holds, by symbolic accumulation and an exact product grid. |
+| Independent GAP check | Exported standalone script | GAP verifies the generic identity over `Q(q,t)` using its own arithmetic and noncommutative expansion. |
 
 The [mathematical reference](mathematical-specification/mathematical-specification.pdf)
 defines the algebras, coefficients, localization and verification conclusions.
@@ -164,59 +164,45 @@ the identity with separate arithmetic. Neither route needs the old solver,
 sample collection or thesis source. A false identity has code `1`; invalid data
 has code `2`.
 
-## Recompose the historical regression witness
+## Independent algebra-system checks
 
-The older 695-term witness is retained as
-`tests/fixtures/legacy_x3/cofactor-X3-n4-Qqt-symbolic.txt`, alongside its frozen
-symbolic lift, skeleton, anchor proof and numeric bases. This comparison starts
-from those lift and skeleton fixtures and recreates the historical certificate
-body byte for byte:
+[GAP](https://www.gap-system.org/) can independently expand the supplied generic identity over `Q(q,t)` in a
+free associative algebra. With GAP installed, run from the checkout:
 
 ```sh
-python -m unittest \
-  tests.reproduction.test_x3.TestCompose.test_composed_body_is_byte_identical_to_the_shipped_certificate \
-  -v
-python -m unittest tests.reproduction.test_legacy_proofs -v
+mkdir -p runs/x3 &&
+python -m zipper_algebra.verification.gap \
+  examples/x3/certificate.txt --n 4 --target X_3 > runs/x3/check.g &&
+gap -A -q -r -T --quitonbreak runs/x3/check.g
 ```
 
-Expect one passing recomposition test and 16 passing historical proof comparisons.
-The latter compare the retained 137-entry anchor with a frozen historical
-implementation under `tests/reference/`. That implementation shares coefficient
-machinery with the package; it is an implementation comparison rather than wholly
-independent arithmetic. Outputs are temporary.
+Expect `PASS: exact cofactor identity over Q(q,t)` and exit code `0`. A nonzero
+residual prints `FAIL` and exits `1`; GAP errors also cause a nonzero exit.
+This checks the full generic identity, without sampling or a Gröbner-basis
+computation. The generated script is standalone: running it requires GAP but
+no Python package or additional data files.
+
+The exporter shares zipper-algebra's input parser and defining presentation.
+GAP supplies separate rational-function arithmetic and noncommutative expansion.
+The script's comment header records the producing source revision, local changes,
+source hashes and input-certificate hash. Mathematical denominator hypotheses
+remain those stated in the specification.
+
+The [Singular calculation](../singular_run/README.md) independently tests X₃
+membership at `(q,t)=(5,7)` over the rationals with degree bound 12. It uses the
+canonical 31 defining relations. This is a specialized membership computation;
+the generic certificate is checked by the symbolic and product-grid routes above.
+
+## Composition records
 
 The installed `zipper-algebra compose` command accepts a lift, skeleton,
 symbolic multiplier file and explicit presentation/target. It checks the result
 exactly before replacing its output. New bound artifacts include the coefficient
 domain, ordered generators and relations, full presentation digest, target
-polynomial and applicable order. Historical readers remain explicit.
+polynomial and applicable order. Bound JSON records use version-2 envelopes;
+older envelope versions are rejected.
 
-## Historical calculations
-
-The following earlier compression sequence is recorded in Git history:
-
-| File formerly under `logs_and_traces/f4ncgb/` | Role |
-| --- | --- |
-| `cofactor-X3-n4-Qqt-symbolic.txt` | 695-term free-algebra witness, also retained as a regression fixture. |
-| `cofactor-X3-n4-Qqt-compressed.txt` | 1077-term substitution of dependent relations. |
-| `cofactor-X3-n4-Qqt-simplified.txt` | 166-term braid-normalized expression. |
-| `cofactor-X3-n4-Qqt-three-rels.txt` | 161-term expression over three relations. |
-
-The last two use equality in a braid group algebra. Their common denominator
-is `t^4*(q-1)*(t+q^2)`. They require the corresponding checker and cannot be
-passed unchanged to a literal free-word checker.
-[Compact-certificate commands](../experiments/x3/README.md) reproduce and check
-those transformations in separate output files. They retain a separately
-written parser/summation with its shared arithmetic and normalization dependencies
-identified.
-
-The [Singular producer](../singular_run/README.md) preserves the 31-relation
-specialized reduction at `(q,t)=(5,7)`. GAP/GBNP source programs remain under
-`archive/gap/`. Their specialized
-conclusions, degree bounds and old path/completion assumptions remain distinct
-from a generic rational-function certificate.
-
-## Historical provenance and file inventory
+## Source inventory
 
 The [inventory](x3-reproduction-files.json) records exact paths, sizes, SHA-256
 hashes and roles for retained source, data and test/build support. Regenerate or
@@ -227,22 +213,6 @@ python ci/build_x3_manifest.py --check
 python ci/check_x3_manifest.py
 ```
 
-The maintained reproduction path uses the curated example and regression fixtures.
-Retired datasets remain available in Git history.
-
-The `reproduce-` input/basis/proof triplet is a different experiment:
-it has **32 relations including the target itself**, and 131 basis/proof entries.
-Its proof uses the appended target. It is not the canonical 31-relation,
-137-entry computation and cannot establish membership in that original ideal.
-The canonical 137-entry proof remains under `tests/fixtures/legacy_x3/`.
-
-Old per-point nonexpanded proof logs were not recovered. Consequently the
-original numerical fitting cannot be replayed solely from retained samples;
-fresh production generates new proofs. The current symbolic JSON and historical
-text rendering also come from different revisions and are not interchangeable
-with the frozen old-schema lift.
-
-Retired extraction/grid/lifting drivers remain accessible at the
-[phase 1 source baseline](https://github.com/Choomno/zipper-algebra/tree/0db1dd9e2a33fb0e5d07e216c8a5354911446e97/archive/cofactor-pre-consolidation).
-The inventory records these pinned historical sources separately. Current
-production uses the installed implementation described above.
+The maintained reproduction path uses the curated example and newly generated
+solver inputs and outputs. Retired datasets and drivers remain in Git history.
+Current production uses the installed implementation described above.

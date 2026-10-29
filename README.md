@@ -24,7 +24,7 @@ finite-generation theorem, connection with BMW algebras, and precise input requi
 
 ## Install
 
-Python 3.11 or newer is required. From a checkout:
+Use Linux with Python 3.11 or newer. From a checkout:
 
 ```sh
 python -m pip install .
@@ -134,24 +134,13 @@ presentation options select the four-strand canonical untwisting presentation.
 The command checks a generic rational-function identity, with specialization
 conditions explained in the mathematical reference. It needs no algebra solver.
 
-The older 695-term witness, symbolic lift, reduction skeleton and numeric proof
-data are retained under `tests/fixtures/legacy_x3/` for regression comparisons.
-Recompose that witness and replay the historical proof expansion with:
-
-```sh
-python -m unittest \
-  tests.reproduction.test_x3.TestCompose.test_composed_body_is_byte_identical_to_the_shipped_certificate \
-  -v
-python -m unittest tests.reproduction.test_legacy_proofs -v
-```
-
-The first command must report one passing test and byte-for-byte agreement;
-the second must report 16 passing tests. These replay saved proof data; they do
-not rerun the original sampling and interpolation.
+For an independent generic identity check in GAP, export a standalone script
+with `python -m zipper_algebra.verification.gap`; the
+[reproduction guide](docs/X3_REPRODUCTION.md#independent-algebra-system-checks)
+gives the complete commands and expected result.
 
 The [reproduction guide](docs/X3_REPRODUCTION.md) maps every substantial source,
-input and output to its role, with links to the optional historical data and
-independent specialized calculations. Its [file inventory](docs/x3-reproduction-files.json)
+input and output to its role. Its [file inventory](docs/x3-reproduction-files.json)
 records exact paths, sizes and SHA-256 hashes. Check those against the checkout:
 
 ```sh
@@ -188,7 +177,7 @@ After an editable install:
 python -m unittest discover -s tests -v
 ```
 
-[TESTING](docs/TESTING.md) describes the CI suite, historical compatibility
+[TESTING](docs/TESTING.md) describes the CI suite, regression
 checks, package checks and optional integrations.
 
 ## Repository map
@@ -196,15 +185,11 @@ checks, package checks and optional integrations.
 | Location | Purpose |
 | --- | --- |
 | `src/zipper_algebra/` | Maintained Python implementation and command line interface. |
-| `tests/` | Regression tests, installation checks and immutable fixtures. |
+| `tests/` | Algebraic regressions, constructed test inputs and installation checks. |
 | `docs/` | Mathematical reference, reproduction guide and testing instructions. |
-| `experiments/` | Research recipes, specialized transformations and independent comparisons. |
+| `experiments/` | Quotient surveys, representations and structural research recipes. |
 | `examples/` | Small executable examples and the curated X_3 certificate. |
-| `gap_scripts/`, `singular_run/`, `archive/` | Source programs for independent and older computational paths. |
-
-Bulk historical datasets remain at their original checkout paths until the separate
-data-removal change is merged. Source distributions and wheels omit them.
-Regression tests use curated fixtures; fresh production uses `discover`.
+| `singular_run/` | Independent specialized membership check in Singular. |
 
 Retired research material remains available in Git history.
 

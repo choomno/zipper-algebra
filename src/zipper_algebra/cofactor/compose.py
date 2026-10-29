@@ -38,7 +38,7 @@ from collections.abc import Mapping
 from fractions import Fraction
 
 from .atoms import AtomSet
-from .cofactor_io import (Cofactor, resolve_target, target_name,
+from .cofactor_io import (Cofactor, resolve_target,
                          validate_word, validate_qt_polynomial)
 from .lift import NeedMoreSamples, fit_rational
 from ..presentation import Presentation
@@ -255,13 +255,6 @@ def lift_multipliers(skeleton, samples, atoms: AtomSet, max_pq=5, max_pt=5) -> l
         den, num = res
         out.append((dict(num), tuple(den)))
     return out
-
-
-def multipliers_at_anchor(skeleton, atoms: AtomSet) -> list:
-    """The anchor values as constants -- correct only when a multiplier is constant in (q,t).
-    Used for a numeric cross-check, never for a shipped certificate."""
-    return [({(0, 0): Fraction(s["mult"])} if Fraction(s["mult"]) else {}, atoms.zero())
-            for s in skeleton.steps]
 
 
 # ---------------------------------------------------------------------------

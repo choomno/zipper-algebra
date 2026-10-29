@@ -13,7 +13,7 @@ import unittest
 from unittest.mock import patch
 
 from zipper_algebra import Presentation
-from zipper_algebra import zipper_in_ms as emitter
+from zipper_algebra import msolve as emitter
 from zipper_algebra.cofactor.atoms import Atom, AtomSet
 from zipper_algebra.cofactor import compose as composition
 from zipper_algebra.cofactor.lift import Lift
@@ -24,7 +24,7 @@ class TestExplicitAugmentedPresentation(unittest.TestCase):
     @staticmethod
     def invoke(arguments):
         output, errors = io.StringIO(), io.StringIO()
-        with patch.object(sys, "argv", ["zipper_in_ms", *arguments]):
+        with patch.object(sys, "argv", ["msolve", *arguments]):
             with redirect_stdout(output), redirect_stderr(errors):
                 code = emitter.main()
         return code, output.getvalue(), errors.getvalue()
@@ -56,7 +56,7 @@ class TestExplicitAugmentedPresentation(unittest.TestCase):
             output = Path(directory) / "existing.ms"
             output.write_text("keep the existing input\n")
             errors = io.StringIO()
-            with patch.object(sys, "argv", ["zipper_in_ms", "--n", "3", "--target", "3",
+            with patch.object(sys, "argv", ["msolve", "--n", "3", "--target", "3",
                                             "--out", str(output)]):
                 with redirect_stderr(errors), self.assertRaises(SystemExit) as raised:
                     emitter.main()
@@ -66,7 +66,7 @@ class TestExplicitAugmentedPresentation(unittest.TestCase):
             self.assertEqual(output.read_text(), "keep the existing input\n")
 
     def test_module_help_describes_actual_relations_and_no_structural_claim(self):
-        process = subprocess.run([sys.executable, "-m", "zipper_algebra.zipper_in_ms", "--help"],
+        process = subprocess.run([sys.executable, "-m", "zipper_algebra.msolve", "--help"],
                                  capture_output=True, text=True, timeout=20)
         self.assertEqual(process.returncode, 0, process.stderr)
         self.assertIn("--append-target", process.stdout)

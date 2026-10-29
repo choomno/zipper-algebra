@@ -1,8 +1,6 @@
 """Source and input identities accompany experimental files without changing them."""
-from contextlib import redirect_stdout
 import hashlib
 import importlib.util
-import io
 import json
 from pathlib import Path
 import pickle
@@ -14,7 +12,7 @@ from unittest.mock import patch
 from experiments.output import (capture_experiment_provenance, input_identity,
                                 prepare_output_dir, read_input, save_pickle_output,
                                 tag_solver_input, tag_solver_basis)
-from experiments.x3 import compress_cofactor
+from experiments.survey import run as survey_run
 from zipper_algebra.provenance import validate_provenance
 
 
@@ -31,15 +29,15 @@ def sidecar(path):
 
 class TestExperimentProvenance(unittest.TestCase):
     def test_recipe_snapshot_includes_family_and_shared_sources(self):
-        producer = capture_experiment_provenance(compress_cofactor.__file__)
+        producer = capture_experiment_provenance(survey_run.__file__)
         self.assertIs(validate_provenance(producer), producer)
-        for name in ("experiments/x3/compress_cofactor.py", "experiments/x3/legacy_format.py",
-                     "experiments/x3/relations_naming.py", "experiments/output.py",
+        for name in ("experiments/survey/run.py", "experiments/survey/pointalg.py",
+                     "experiments/survey/spec.py", "experiments/output.py",
                      "src/zipper_algebra/presentation.py"):
             self.assertEqual(producer["source_files"][name], identity((ROOT / name).read_bytes()))
 
     def test_pickle_format_and_prehashed_input_survive_in_place_changes(self):
-        producer = capture_experiment_provenance(compress_cofactor.__file__)
+        producer = capture_experiment_provenance(survey_run.__file__)
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "candidate.pkl"
             path.write_bytes(b"original input")
@@ -52,54 +50,8 @@ class TestExperimentProvenance(unittest.TestCase):
             self.assertEqual(record["inputs"], [{"name": "candidate.pkl", **identity(b"original input")}])
             self.assertEqual(record["outputs"], {path.name: identity(pickle.dumps(payload))})
 
-    def test_real_compact_transform_records_input_before_overwriting_it(self):
-        original = (ROOT / "examples/x3/certificate.txt").read_bytes()
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "certificate.txt"
-            path.write_bytes(original)
-            with redirect_stdout(io.StringIO()):
-                result = compress_cofactor.main(["--input", str(path), "--output", str(path)])
-            self.assertEqual(result, 0)
-            self.assertNotEqual(path.read_bytes(), original)
-            record = sidecar(path)
-            self.assertEqual(record["inputs"], [{"name": path.name, **identity(original)}])
-            self.assertEqual(record["outputs"], {path.name: identity(path.read_bytes())})
-            source = "experiments/x3/compress_cofactor.py"
-            self.assertEqual(record["producer"]["source_files"][source], identity((ROOT / source).read_bytes()))
-
-    def test_false_compact_identity_does_not_create_output_or_sidecar(self):
-        with tempfile.TemporaryDirectory() as directory:
-            source, output = Path(directory) / "false.txt", Path(directory) / "result.txt"
-            source.write_text("() * Z_2 * () :: (1*q^0*t^0) / (q)\n")
-            with redirect_stdout(io.StringIO()):
-                self.assertEqual(compress_cofactor.main(["--input", str(source), "--output", str(output)]), 1)
-            self.assertFalse(output.exists())
-            self.assertFalse(output.with_name(output.name + ".provenance.json").exists())
-
-    def test_all_compact_transforms_parse_the_same_bytes_they_hash(self):
-        from experiments.x3 import simplify_cofactor, reduce_to_three_rels, cancel_qm1
-        original = (ROOT / "tests/fixtures/legacy_x3/cofactor-X3-n4-Qqt-symbolic.txt").read_bytes()
-        real_read = Path.read_bytes
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "certificate.txt"
-            path.write_bytes(original)
-            for module in (compress_cofactor, simplify_cofactor, reduce_to_three_rels, cancel_qm1):
-                before, reads = path.read_bytes(), []
-                def replace_after_read(source):
-                    content = real_read(source)
-                    if source == path and not reads:
-                        reads.append(source)
-                        source.write_bytes(b"replacement that is not a certificate\n")
-                    return content
-                with self.subTest(module=module.__name__), \
-                     patch.object(Path, "read_bytes", replace_after_read), \
-                     redirect_stdout(io.StringIO()):
-                    self.assertEqual(module.main(["--input", str(path), "--output", str(path)]), 0)
-                self.assertEqual(reads, [path])
-                self.assertEqual(sidecar(path)["inputs"], [{"name": path.name, **identity(before)}])
-
     def test_failed_pickle_serialization_preserves_previous_output_and_sidecar(self):
-        producer = capture_experiment_provenance(compress_cofactor.__file__)
+        producer = capture_experiment_provenance(survey_run.__file__)
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "candidate.pkl"
             save_pickle_output(path, {"old": True}, producer=producer)
@@ -116,7 +68,7 @@ class TestExperimentProvenance(unittest.TestCase):
                              ["candidate.pkl", "candidate.pkl.provenance.json"])
 
     def test_failed_pickle_replacement_preserves_previous_output_and_sidecar(self):
-        producer = capture_experiment_provenance(compress_cofactor.__file__)
+        producer = capture_experiment_provenance(survey_run.__file__)
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "candidate.pkl"
             save_pickle_output(path, {"old": True}, producer=producer)
@@ -154,7 +106,7 @@ class TestExperimentProvenance(unittest.TestCase):
     def test_trace_cache_is_bound_to_representation_and_exact_consumed_bytes(self):
         import sympy as sp
         from experiments.variants.square_zero_traceform_qt import load_trace_cache
-        producer = capture_experiment_provenance(compress_cofactor.__file__)
+        producer = capture_experiment_provenance(survey_run.__file__)
         with tempfile.TemporaryDirectory() as directory:
             representation, cache = Path(directory) / "representation.pkl", Path(directory) / "trace.pkl"
             representation.write_bytes(b"current representation bytes")
@@ -180,7 +132,7 @@ class TestExperimentProvenance(unittest.TestCase):
             self.assertEqual(load_trace_cache(cache, [()], changed_parent), (None, None))
 
     def test_solver_sidecars_preserve_raw_grammar_and_bind_preexecution_input(self):
-        producer = capture_experiment_provenance(compress_cofactor.__file__)
+        producer = capture_experiment_provenance(survey_run.__file__)
         with tempfile.TemporaryDirectory() as directory:
             source, basis = Path(directory) / "input.ms", Path(directory) / "basis.txt"
             content = b"x1,y1\n0\nx1*y1-1\n"

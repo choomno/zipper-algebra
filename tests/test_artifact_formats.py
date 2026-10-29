@@ -294,22 +294,14 @@ class MathematicalArtifacts(unittest.TestCase):
     def test_failed_temporary_write_is_cleaned(self):
         opened = []
         make_temporary = A.tempfile.NamedTemporaryFile
-        unlink = Path.unlink
 
         def remember_stream(*args, **kwargs):
             stream = make_temporary(*args, **kwargs)
             opened.append(stream)
             return stream
 
-        def unlink_closed(path, *args, **kwargs):
-            # Windows cannot unlink an open temporary file. Exercise that ordering
-            # on every platform rather than relying on POSIX cleanup succeeding.
-            self.assertTrue(opened[0].closed)
-            return unlink(path, *args, **kwargs)
-
         with patch.object(A.os, "fsync", side_effect=OSError("disk error")), \
-                patch.object(A.tempfile, "NamedTemporaryFile", side_effect=remember_stream), \
-                patch.object(Path, "unlink", new=unlink_closed):
+                patch.object(A.tempfile, "NamedTemporaryFile", side_effect=remember_stream):
             with self.assertRaises(OSError):
                 self.save()
         self.assertTrue(opened[0].closed)

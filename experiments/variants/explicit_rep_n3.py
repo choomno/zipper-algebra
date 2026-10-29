@@ -9,7 +9,7 @@ quotient C_lambda = Z_3 / (canonical tower at framing lambda):
   * sigma_1 has eigenvalues exactly {1, -q, lambda}.
 
 Relation set (cross-checked against build_relations in
-zipper_algebra.relations and singular_run/square-zero-n3-symbolic.sing;
+zipper_algebra.relations;
 notation x_j = sigma_j, y_j = sigma_j^{-1}, S2_j = q*y_j + (1-q) - x_j):
 
   R1 : x_j y_j = y_j x_j = 1                          (j = 1, 2)

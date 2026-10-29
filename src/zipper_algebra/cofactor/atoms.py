@@ -312,11 +312,3 @@ AtomSet.DEFAULT = AtomSet(
      Atom("q+1",   {(1, 0): 1, (0, 0): 1})],
     max_exp=[5, 4, 2, 1, 2, 1],
     provenance="historical six (prop:atoms, X_3 at n=4)")
-
-
-def infer(values_by_slot: dict, seed: AtomSet | None = None, max_bideg=(2, 1), coef_bound=2,
-          min_lines=3, verbose=True):
-    """Propose denominator factors; compatibility entry point for inference.infer."""
-    from .inference import infer as infer_denominators
-    return infer_denominators(values_by_slot, seed=seed, max_bideg=max_bideg,
-                              coef_bound=coef_bound, min_lines=min_lines, verbose=verbose)

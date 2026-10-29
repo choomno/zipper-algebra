@@ -129,16 +129,16 @@ class TestProducedProvenance(DiscoveryFixture):
         self.assertFalse(any(path.name == 'provenance.json'
                              for path in (self.root / 'other').rglob('*')))
 
-    def test_bound_v1_remains_readable_and_v2_rejects_invalid_source_metadata(self):
+    def test_retired_schema_and_invalid_current_source_metadata_are_rejected(self):
         result = self.discover()
         document = json.loads(Path(result['artifacts']['certificate.json']).read_text())
         old = self.root / 'old.json'
         legacy = deepcopy(document)
-        legacy['schema'] = mathematical.LEGACY_SCHEMA
+        legacy['schema'] = 'zipper-mathematical-artifact-v1'
         del legacy['provenance']
         old.write_text(json.dumps(legacy))
-        value = mathematical.load_artifact(old, self.pres, self.target)
-        self.assertEqual(len(value.terms), result['tuples'])
+        with self.assertRaisesRegex(ValueError, 'schema'):
+            mathematical.load_artifact(old, self.pres, self.target)
         document['provenance']['source_sha256'] = '0' * 64
         old.write_text(json.dumps(document))
         with self.assertRaisesRegex(ValueError, 'digest'):

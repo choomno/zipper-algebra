@@ -99,13 +99,11 @@ A nonzero remainder from an uncertified basis establishes no nonmembership
 conclusion. Process success does not prove a completed basis. Sample agreement
 does not prove a rational-function identity.
 
-## Historical comparisons and development
+## Development and verification
 
-[TESTING](docs/TESTING.md) describes the unit, integration and reproduction suites,
+[TESTING](docs/TESTING.md) describes the unit and integration tests,
 coverage gate, isolated distributions and native solver integration.
 [INDEX](INDEX.md) maps the source and experimental recipes.
-The curated example is a 129-term free-algebra certificate. The older 695-term
-witness and its recomposition inputs are regression fixtures under
-`tests/fixtures/legacy_x3/`. Retired datasets remain available in Git history.
-The compact braid-algebra transformations retain their own explicit equality
-conventions under [experiments/x3](experiments/x3/README.md).
+The curated example is a 129-term free-algebra certificate. Unit and integration
+tests use explicit algebraic identities, constructed proof graphs and temporary
+solver records. Retired experiments and datasets remain in Git history.

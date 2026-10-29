@@ -2,7 +2,7 @@
 import unittest
 
 from zipper_algebra import Presentation
-from zipper_algebra.zipper_in_ms import SymbolicRing
+from zipper_algebra.coefficients import SymbolicRing
 
 
 class TestPresentationRequirements(unittest.TestCase):

@@ -51,23 +51,25 @@ class TestInputSnapshots(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "<memory> has no presentation"):
             Cofactor.from_text(texts[1])
 
-    def test_bound_json_decoder_preserves_v1_v2_checks_without_reopening(self):
+    def test_bound_json_decoder_checks_current_schema_without_reopening(self):
         path = self.root / "artifact.json"
         artifacts.save_artifact(path, self.cofactor, self.pres, "X_2")
         document = json.loads(path.read_bytes())
-        for legacy in (False, True):
-            data = deepcopy(document)
-            if legacy:
-                data["schema"] = artifacts.LEGACY_SCHEMA
-                del data["provenance"]
-            path.write_text(json.dumps(data))
-            loaded = artifacts.load_artifact(path, self.pres, "X_2", kind="cofactor", atoms=self.atoms)
-            path.write_text("not the original artifact")
-            with patch.object(Path, "read_bytes", side_effect=AssertionError("decoder reopened its source")):
-                decoded = artifacts.artifact_from_json(data, self.pres, "X_2",
-                                                       kind="cofactor", atoms=self.atoms)
-            self.assertEqual(decoded.terms, loaded.terms)
-            self.assertEqual(decoded.header, loaded.header)
+        loaded = artifacts.load_artifact(path, self.pres, "X_2", kind="cofactor", atoms=self.atoms)
+        path.write_text("not the original artifact")
+        with patch.object(Path, "read_bytes", side_effect=AssertionError("decoder reopened its source")):
+            decoded = artifacts.artifact_from_json(document, self.pres, "X_2",
+                                                   kind="cofactor", atoms=self.atoms)
+        self.assertEqual(decoded.terms, loaded.terms)
+        self.assertEqual(decoded.header, loaded.header)
+        retired = deepcopy(document)
+        retired["schema"] = "zipper-mathematical-artifact-v1"
+        del retired["provenance"]
+        path.write_text(json.dumps(retired))
+        with self.assertRaisesRegex(ValueError, "schema"):
+            artifacts.load_artifact(path, self.pres, "X_2")
+        with self.assertRaisesRegex(ValueError, "schema"):
+            artifacts.artifact_from_json(retired, self.pres, "X_2")
         document["payload"]["terms"][0]["num"] = [[[0, 0], "2"]]
         with self.assertRaisesRegex(ValueError, "digest"):
             artifacts.artifact_from_json(document, self.pres, "X_2")

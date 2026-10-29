@@ -362,11 +362,10 @@ units; then
 \]
 This scalar extension is part of that parameter comparison.
 
-The maintained historical free-algebra fixture and the thesis's compact
+The current free-algebra certificate example and the thesis's compact
 braid-group-algebra representation use different ambient equalities. Checking
 the latter requires braid normal forms or explicit braid/inverse relation
-terms; it cannot be passed unchanged to the free-algebra checker. The large
-fixture is retained for reproducible regression checks.
+terms; it cannot be passed unchanged to the free-algebra checker.
 
 The thesis also discusses dimension, module structure and possible
 semisimplicity patterns. These questions motivate experiments, but are separate
@@ -384,10 +383,17 @@ experiment drivers retain separate completion requirements. The general
 finite-generation theorem gives mathematical context; the installed verifier
 checks the explicit algebraic identity submitted to it.
 
+The optional GAP exporter produces a standalone identity in the free associative
+algebra over $\Q(q,t)$. It shares the validated certificate parser and defining
+presentation with the Python implementation; GAP separately performs the
+rational-function arithmetic and noncommutative expansion. A zero residual
+checks the generic identity, subject to the denominator hypotheses above,
+without a Gr\"obner-basis computation.
+
 \section{Verification commands and source map}
 The solver-free regressions and distribution checks cover strict certificate validation,
 noncommuting contexts, repeated basis occurrences, schedule alignment, poles,
-target degrees and historical certificate compatibility. See
+target degrees and current certificate interchange formats. See
 \path{docs/TESTING.md} for the maintained commands and optional integrations.
 
 The maintained implementation is under \path{src/zipper_algebra/}:
@@ -399,6 +405,7 @@ The maintained implementation is under \path{src/zipper_algebra/}:
 \item Presentation and relation formulas: \path{presentation.py}, \path{relations.py}.
 \item Certificate data: \path{cofactor/cofactor_io.py}, \path{cofactor/atoms.py}.
 \item Symbolic and grid checks: \path{cofactor/verify.py}.
+\item Independent GAP identity expansion: \path{verification/gap.py}.
 \item Proof graph and reduction: \path{cofactor/proof.py}, \path{cofactor/skeleton.py}.
 \item Symbolic composition: \path{cofactor/compose.py}.
 \item Coefficient reconstruction: \path{cofactor/lift.py}.

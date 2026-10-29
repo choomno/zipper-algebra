@@ -23,18 +23,16 @@ print(json.dumps({"value": family.eval_denom((2,), 2, 3),
 ''')
         self.assertEqual(report, {"value": 25, "inference": False, "sympy": False})
 
-    def test_inference_can_be_imported_first_and_compatibility_entry_agrees(self):
+    def test_inference_can_be_imported_before_the_factor_data(self):
         report = self.run_python('''
 import json, sys
 from zipper_algebra.cofactor.inference import infer
-from zipper_algebra.cofactor.atoms import AtomSet, infer as compatibility_infer
-direct, report = infer({}, verbose=False)
-compatibility, other_report = compatibility_infer({}, verbose=False)
-print(json.dumps({"direct": direct.to_json(), "compatibility": compatibility.to_json(),
-                  "same_report": report == other_report,
+from zipper_algebra.cofactor.atoms import AtomSet
+family, report = infer({}, verbose=False)
+print(json.dumps({"family": family.to_json(),
+                  "is_atom_set": isinstance(family, AtomSet),
                   "sympy": "sympy" in sys.modules}))
 ''')
-        self.assertEqual(report["direct"], report["compatibility"])
-        self.assertEqual(report["direct"]["atoms"], [])
-        self.assertTrue(report["same_report"])
+        self.assertEqual(report["family"]["atoms"], [])
+        self.assertTrue(report["is_atom_set"])
         self.assertFalse(report["sympy"])

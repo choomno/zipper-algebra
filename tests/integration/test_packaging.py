@@ -1,4 +1,4 @@
-"""Exercise the installed public interface, CLI and legacy import aliases."""
+"""Exercise the installed public interface and CLI."""
 from __future__ import annotations
 
 import importlib

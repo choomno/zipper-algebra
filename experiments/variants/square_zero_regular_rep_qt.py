@@ -18,8 +18,8 @@ THE ALGEBRA
 Generators x1, x2 (= sigma_1, sigma_2) and their inverses y1, y2.
 Sliders   S2_j = q*y_j + (1-q) - x_j,   X_2 = S2_1.
 
-Relations (square-zero variant; mirrors zipper_in_ms.build_relations(n=3,'square-zero')
-and singular_run/square-zero-n3-symbolic.sing):
+Relations (square-zero variant; constructed by
+Presentation(3, untwist="square-zero")):
 
   R1: x_j y_j = y_j x_j = 1                       (j = 1, 2)
   R2: x1 x2 x1 = x2 x1 x2 ;  y1 y2 y1 = y2 y1 y2

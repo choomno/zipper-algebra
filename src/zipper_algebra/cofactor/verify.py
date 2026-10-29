@@ -18,7 +18,7 @@ import time
 from fractions import Fraction
 
 from .cofactor_io import Cofactor, symbolic_target
-from .ncpoly import (NCPoly, qt_add, qt_const, qt_mul, qt_pow, nc_add, nc_is_zero,
+from .ncpoly import (NCPoly, qt_const, qt_mul, nc_add, nc_is_zero,
                      nc_mul, nc_scalar, nc_size, nc_sub, nc_zero)
 from ..presentation import Presentation
 from ..coefficients import NumericRing, SymbolicRing
@@ -132,11 +132,6 @@ def check(cof: Cofactor, pres: Presentation | None = None, target=None, verbose=
                 print(f"   {mstr}: {len(coef)} q,t-terms")
         print("=" * 72)
     return report
-
-
-def _symbolic_target(pres: Presentation, sliders: dict, name) -> NCPoly:
-    """Compatibility wrapper around the shared target resolver."""
-    return symbolic_target(pres, name)
 
 
 # ---------------------------------------------------------------------------

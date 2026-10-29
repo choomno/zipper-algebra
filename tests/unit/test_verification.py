@@ -12,7 +12,7 @@ import warnings
 
 from zipper_algebra import Presentation
 from zipper_algebra.cofactor.atoms import Atom, AtomSet
-from zipper_algebra.cofactor.cofactor_io import Cofactor
+from zipper_algebra.cofactor.cofactor_io import Cofactor, symbolic_target
 from zipper_algebra.cofactor import verify
 
 
@@ -115,8 +115,8 @@ class TestVerifierExactExamples(unittest.TestCase):
         self.assertEqual(result["failures"][-1], (11, 2, 1))
         self.assertIn("FAIL at 12 point(s)", output.getvalue())
 
-    def test_compatibility_target_resolver_retains_word_order(self):
-        result = verify._symbolic_target(Presentation(2), {}, "X_2")
+    def test_target_resolver_retains_word_order(self):
+        result = symbolic_target(Presentation(2), "X_2")
         self.assertEqual(result, {(2,): {(1, 0): Fraction(1)},
                                   (): {(0, 0): Fraction(1), (1, 0): Fraction(-1)},
                                   (1,): {(0, 0): Fraction(-1)}})

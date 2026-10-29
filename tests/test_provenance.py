@@ -5,7 +5,6 @@ import json
 import os
 from pathlib import Path
 import shutil
-import stat
 import subprocess
 import tempfile
 import unittest
@@ -49,13 +48,7 @@ class ProvenanceFixture(unittest.TestCase):
             return self.git(root, 'rev-parse', 'HEAD')
 
     def remove_git(self):
-        def retry_readonly(function, path, error_info):
-            error = error_info[1]
-            if not isinstance(error, PermissionError):
-                raise error
-            os.chmod(path, os.stat(path).st_mode | stat.S_IWRITE)
-            function(path)
-        shutil.rmtree(self.root / '.git', onerror=retry_readonly)
+        shutil.rmtree(self.root / '.git')
 
     def capture(self, package=None, **kwargs):
         with patch.object(source, '__file__', str((package or self.package) / 'provenance.py')):
