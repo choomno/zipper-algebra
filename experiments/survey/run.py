@@ -30,7 +30,7 @@ def run_spec(spec: Spec, scratch: str, outdir: str, do_basis: bool = True,
               "spec": spec.name, "untwist": spec.untwist, "n": spec.n,
               "max_untwist_level": spec.max_untwist_level}
     started = time.time()
-    trace = ss.semisimplicity(spec, scratch, char=char)
+    trace = ss.trace_observations(spec, scratch, char=char)
     result["trace_observations"] = trace
     log(f"[{spec.name}] observed {len(trace['points'])} trace matrices over "
         f"{trace['coefficient_domain']}")

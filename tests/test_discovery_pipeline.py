@@ -496,8 +496,11 @@ class TestCompositionArtifactBoundaries(DiscoveryFixture):
         left = SampleSet(self.pres,self.target,(5,7,0),self.config)
         right = SampleSet(self.pres,self.target,(5,7,0),self.config)
         assert (left.atoms) is not (right.atoms)
+        assert (left.atoms.names()) == ([])
+        assert (right.atoms.names()) == ([])
         old = right.atoms.to_json()
-        left.atoms.max_exp = tuple(0 for _ in left.atoms.max_exp)
+        left.atoms.atoms.append(Atom("q+5", {(1, 0): 1, (0, 0): 5}))
+        left.atoms.max_exp.append(2)
         assert (right.atoms.to_json()) == (old)
 
     def test_bound_composition_requires_explicit_target_and_rejects_bad_documents(self):

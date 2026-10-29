@@ -205,7 +205,7 @@ def resolve_target(pres: Presentation, target, ring) -> Poly:
     name = s[6:-1] if s.startswith("EXTRA[") and s.endswith("]") else target
     if name in EXTRA_CATALOGUE:
         _, _, S, _ = pres.build(ring)
-        return EXTRA_CATALOGUE[name](S, ring, lambda i, j: _theta_word(i, j, ring, pres.n))
+        return EXTRA_CATALOGUE[name](S, ring, lambda i, j: _theta_word(i, j, ring))
     raise ValueError(f"cannot resolve target {target!r}: not S[i][j], X_k or an EXTRA name "
                      f"{sorted(EXTRA_CATALOGUE)}")
 
@@ -442,8 +442,9 @@ class Cofactor:
                   *, name: str = "<memory>") -> "Cofactor":
         """Decode a text snapshot without reopening its original file.
 
-        Legacy data require an explicit presentation and otherwise retain the
-        historical default atoms. ``name`` identifies their source in metadata
+        Headerless data require an explicit presentation. Denominator factors must
+        be declared in the atoms header or supplied with atoms=; without either,
+        only polynomial coefficients (denominator one) can be read. ``name`` identifies their source in metadata
         and error messages; it is never read as a filesystem path.
         """
         header: dict = {}
@@ -474,7 +475,7 @@ class Cofactor:
         if "atoms" in header:
             atoms = AtomSet.from_json(json.loads(header["atoms"]))
         elif atoms is None:
-            atoms = AtomSet.DEFAULT
+            atoms = AtomSet([], [])
         if pres is not None:
             n = pres.n
         else:

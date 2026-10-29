@@ -16,10 +16,9 @@ Exact univariate reconstruction is implemented in univariate.py; optional sample
 factor inference is isolated in inference.py. Both preserve exact sample validation
 and supply candidates for a separate final identity check.
 
-AtomSet.DEFAULT retains the historical six factors, positional order and search bounds,
-so preserved certificate exponent vectors keep their interpretation. AtomSet.UNITS is the
-historical q,t seed for Laurent coefficient presentations, rather than a universal required
-factor set. Arbitrary nonzero polynomial factors are accepted by certificate verification.
+No universal denominator family is assumed. Inference starts without factors unless
+its caller supplies a seed. Arbitrary nonzero polynomial factors are accepted by
+certificate verification, including families outside an inference search budget.
 """
 from __future__ import annotations
 
@@ -173,21 +172,15 @@ class AtomSet:
     def denom_polynomial_str(self, exps) -> str:
         """Display the actual polynomial factors, independently of their formal names.
 
-        Retain the historical order of terms in t-q and t+q^2 when their coefficient
-        dictionaries agree exactly. All other factors use the canonical formatter.
-        Unlike denom_str, this display is not a serialization of exponent vectors.
+        Every factor uses the canonical polynomial formatter. Unlike denom_str,
+        this display is not a serialization of exponent vectors.
         """
         self.validate_exponents(exps)
         parts = []
         for atom, exponent in zip(self.atoms, exps):
             if not exponent:
                 continue
-            if atom.coefs == {(0, 1): 1, (1, 0): -1}:
-                polynomial = "t-q"
-            elif atom.coefs == {(0, 1): 1, (2, 0): 1}:
-                polynomial = "t+q^2"
-            else:
-                polynomial = poly_str(atom.coefs)
+            polynomial = poly_str(atom.coefs)
             base = polynomial if polynomial in ("q", "t") else f"({polynomial})"
             parts.append(base if exponent == 1 else f"{base}^{exponent}")
         return "*".join(parts) if parts else "1"
@@ -252,8 +245,7 @@ class AtomSet:
         return tuple(exps)
 
     def candidates(self):
-        """All exponent tuples inside the box, ascending total degree -- the search order of
-        fit_rational.  For the DEFAULT set this reproduces the historical enumeration exactly."""
+        """All exponent tuples inside the declared box, by ascending total degree."""
         out = [(exps, sum(exps)) for exps in product(*(range(m + 1) for m in self.max_exp))]
         out.sort(key=lambda x: x[1])
         return [e for e, _ in out]
@@ -294,21 +286,3 @@ class AtomSet:
 
     def __repr__(self):
         return f"AtomSet({self.names()}, box={self.max_exp})"
-
-
-# Historical seed for presentations over a Laurent base where q and t are units.
-# The general AtomSet API also accepts other factor families, including the empty family.
-AtomSet.UNITS = AtomSet([Atom("q", {(1, 0): 1}), Atom("t", {(0, 1): 1})], max_exp=[5, 4],
-                        provenance="units of Z[q^,t^]")
-
-# The six atoms the X_3 pipeline has always used, in the positional order every existing
-# lift/cofactor file encodes, with the historical exponent box of gen_denoms_sorted().
-AtomSet.DEFAULT = AtomSet(
-    [Atom("q",     {(1, 0): 1}),
-     Atom("t",     {(0, 1): 1}),
-     Atom("q-1",   {(1, 0): 1, (0, 0): -1}),
-     Atom("t-q",   {(0, 1): 1, (1, 0): -1}),
-     Atom("t+q^2", {(0, 1): 1, (2, 0): 1}),
-     Atom("q+1",   {(1, 0): 1, (0, 0): 1})],
-    max_exp=[5, 4, 2, 1, 2, 1],
-    provenance="historical six (prop:atoms, X_3 at n=4)")

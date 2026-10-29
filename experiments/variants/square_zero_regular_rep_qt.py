@@ -656,20 +656,19 @@ def build_symbolic_matrices(ref_standard, samples, log):
         log(f"  L_{g}: grown common denominator D_{g} = {D}  "
             f"({n_heal} self-heal steps)")
         # EXACT validation of the whole matrix on every sample point
-        _validate_matrix(g, Mexpr, samples, log)
+        _validate_matrix(g, Mexpr, samples)
         L[g] = Mexpr
         log(f"  L_{g}: reconstructed and validated "
             f"({n_const} constant, {n_rat} rational entries)")
     return L
 
 
-def _validate_matrix(g, Mexpr, samples, log):
+def _validate_matrix(g, Mexpr, samples):
     """Re-evaluate the symbolic matrix at every sample point and confirm it
     equals the directly computed Fraction matrix.  Raises on mismatch."""
     N = Mexpr.shape[0]
     # cache per-entry sympy lambda-free eval via subs (entries are simple)
     for (q0, t0, mats) in samples:
-        sub = {q: sp.Integer(q0), t: sp.Integer(t0)}
         for k in range(N):
             for l in range(N):
                 e = Mexpr[k, l]

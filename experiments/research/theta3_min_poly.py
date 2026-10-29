@@ -10,7 +10,7 @@ Run as python -m experiments.research.theta3_min_poly after installing the packa
 The presentation is emitted by the maintained Presentation constructor.
 """
 from __future__ import annotations
-import argparse, os, subprocess, sys
+import argparse, os, subprocess
 
 from zipper_algebra import core, Presentation
 from zipper_algebra.linear import validate_field_characteristic

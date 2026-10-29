@@ -21,13 +21,12 @@ Consolidates the fitting half of symbolic_lift_x3.py (SPEC.md, lift.py).  The pi
                                the element's proof has the anchor's term structure
                                (left, kind, key-or-input-index, right).  Indices are never
                                compared, so a renumbered basis is still stable.
-  lift                         the held-out protocol of symbolic_lift_x3.main: HOLDOUT =
+  lift                         the held-out protocol: HOLDOUT =
                                max(4, n // 10) points are never fitted and every fit must predict
-                               them; rejected fits raise NeedMoreSamples, with WrongClass
-                               retained as a compatibility subtype for held-out rejection.
+                               them; rejected fits raise NeedMoreSamples.
 
-Words are whatever the Proof carries (tuples of 1-based variable indices per SPEC; the legacy
-parser's variable-name lists are converted by the caller); lift never interprets them, nor
+Words are whatever the Proof carries (tuples of 1-based variable indices;
+variable-name lists are converted by the caller); lift never interprets them, nor
 the key text, which is owned by proof.Basis.
 
 The denominator candidate count grows as the product of the exponent-box widths.
@@ -47,11 +46,8 @@ from .univariate import (_poly_divmod, _specialise, exact_fraction,
                          normalise_points, reconstruct_univariate)
 
 
-Anchor = tuple  # (q, t, char); char 0 = Q
-
-
 # ----------------------------------------------------------------------------
-# result types (were exit codes 3 / 4 of symbolic_lift_x3.py)
+# Reconstruction results
 # ----------------------------------------------------------------------------
 
 class NeedMoreSamples(Exception):
@@ -65,17 +61,6 @@ class NeedMoreSamples(Exception):
         super().__init__(msg)
         self.slots = list(slots)
 
-
-class WrongClass(NeedMoreSamples):
-    """Compatibility name for a rejected held-out fit, an inconclusive reconstruction.
-
-    More independent data or a revised search class can help. This exception does not
-    establish that the entire hypothesis class is wrong. New callers catch NeedMoreSamples.
-    """
-
-    def __init__(self, msg, slots=()):
-        super().__init__(msg)
-        self.slots = list(slots)
 
 
 # ----------------------------------------------------------------------------
@@ -471,18 +456,17 @@ def lift(skeleton, samples, atoms: AtomSet | None = None, holdout: int | None = 
                .basis_keys (the closure; checked against the anchor proof if present).
     samples  : has .points [(q,t)], .proof(q,t), .basis(q,t); the anchor point must be one
                of them.  Order matters: the stable points keep samples.points order and the
-               LAST `holdout` of them are held out (symbolic_lift_x3: glob order, last
-               HOLDOUT).
-    atoms    : the hypothesis class.  None = atoms.infer over the stable samples' values,
-               seeded with AtomSet.DEFAULT, exactly as symbolic_lift_x3.main does; the
-               report is kept in Lift.atom_report.
+               last `holdout` of them are held out.
+    atoms    : an explicitly supplied denominator family. None infers factors from
+               the stable sampled coefficient values, without a seed family;
+               the inference report is kept in Lift.atom_report.
     known    : the SPEC optimisation.  "lines" computes each slot's denominator by
                line_denominator() and tries it before the enumeration; a dict
                {(key, i): exps} supplies denominators from elsewhere; None (default)
                enumerates only. The shortcut can select a different valid candidate; it
                must pass the same held-out and final identity checks.
 
-    Raises NeedMoreSamples (including its legacy WrongClass subtype) with rejected
+    Raises NeedMoreSamples with rejected
     slots. Held-out rejection is inconclusive; more data or a revised class may help.
     """
     if holdout is not None and (type(holdout) is not int or holdout < 1):
@@ -541,14 +525,13 @@ def lift(skeleton, samples, atoms: AtomSet | None = None, holdout: int | None = 
         if verbose:
             print("Inferring the atom set from the sampled denominators...")
         atoms, atom_report = infer_atoms(
-            {slot: points[:n - h] for slot, points in values.items()},
-            seed=AtomSet.DEFAULT, verbose=verbose)
+            {slot: points[:n - h] for slot, points in values.items()}, verbose=verbose)
         if verbose:
             print(f"  atoms: {atoms.names()}  box {atoms.max_exp}")
             if atom_report["unexplained"]:
                 print(f"  WARNING: {atom_report['unexplained']} reconstructed denominators have "
-                      f"a factor outside the search box {atom_report['search']}; the lift below "
-                      f"may need more data or a revised search class in atoms.infer().")
+                      f"unresolved line factors; the lift below "
+                      f"may need more data or a revised inference search.")
 
     n_fit = n - h
     if verbose:
@@ -604,7 +587,7 @@ def lift(skeleton, samples, atoms: AtomSet | None = None, holdout: int | None = 
         held = [f for f in failed if len(f) > 2]
         nofit = [f for f in failed if len(f) == 2]
         if held:
-            raise WrongClass(f"{len(held)} coefficient(s) failed held-out validation; "
+            raise NeedMoreSamples(f"{len(held)} coefficient(s) failed held-out validation; "
                              f"reconstruction is inconclusive and needs more independent "
                              f"data or a revised search class", held)
         raise NeedMoreSamples(f"{len(nofit)} coefficient(s) had no model in the current class "

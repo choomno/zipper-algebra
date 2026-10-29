@@ -41,7 +41,7 @@ class SampleSet:
 
     def __init__(self, pres, target, anchor, config, atoms=None, *, producer=None):
         self.pres, self.target, self.anchor, self.config = pres, target, tuple(anchor), config
-        self.atoms = AtomSet.from_json(AtomSet.DEFAULT.to_json()) if atoms is None else atoms
+        self.atoms = AtomSet([]) if atoms is None else atoms
         self.atoms.validate()
         self._runs, self._bases, self._proofs = {}, {}, {}
         self.producer = producer
