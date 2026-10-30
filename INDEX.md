@@ -7,6 +7,7 @@ The maintained implementation is installed from `src/zipper_algebra/`.
 | `presentation.py`, `relations.py`, `untwisting.py` | Algebra presentations, ordered generators, relations and targets. |
 | `coefficients.py`, `polynomial.py`, `msolve.py` | Coefficient domains, free polynomials and solver-input emission. |
 | `fields.py`, `algebra.py` | Arbitrary parameter fields, domain-bound free algebras, literal presentations and exact cofactor identities. |
+| `matrices.py`, `reconstruction.py`, `verification/linear.py` | Exact sparse matrices, FiniteFlow kernel reconstruction, and independent generic rank/kernel certificates. |
 | `core.py`, `linear.py` | Basis parsing, standard-word automata, reduction and exact linear algebra. |
 | `cofactor/proof.py`, `cofactor/skeleton.py` | Proof graphs, contextual reductions and dependency closure. |
 | `cofactor/inference.py`, `cofactor/univariate.py`, `cofactor/lift.py` | Denominator inference and exact coefficient reconstruction. |
@@ -40,7 +41,7 @@ and publication outcomes. Test data are constructed locally by those tests.
 and expected results in its adjacent README.
 `examples/polynomial_quotients.py` supplies small acceptance controls with
 independently known answers: companion representations, cofactor identities and
-exceptional fibres. These exercise the parameter-field interface.
+exceptional fibers. These exercise the parameter-field interface.
 
 The [four-strand square-zero example](docs/FOUR_STRAND_SQUARE_ZERO.md) produces
 a candidate generic basis and local derivations using Singular; the adjacent GAP
@@ -65,6 +66,7 @@ datasets and interfaces remain available in Git history.
 - [README](README.md): mathematical purpose, installation and principal commands.
 - [Mathematical reference](docs/mathematical-specification/mathematical-specification.pdf): definitions, hypotheses and verification conclusions.
 - [Four-strand square-zero computation](docs/FOUR_STRAND_SQUARE_ZERO.md): generic dimension, certified basis and a nonzero square-zero ideal.
+- [Certified reconstruction](docs/RECONSTRUCTION.md): native setup, exact matrix/kernel schemas, sampling controls and verification.
 - [Finite algebras](docs/FINITE_ALGEBRAS.md): word-basis witnesses, sparse actions, coordinates and exact products.
 - [Completed-basis verification](docs/GROEBNER_VERIFICATION.md): derivations, ideal equality, critical ambiguities and normal forms.
 - [Reproduction guide](docs/X3_REPRODUCTION.md): fresh production and certificate checks.
