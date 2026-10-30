@@ -174,3 +174,48 @@ jobs:
           path: ${{ runner.temp }}/math-specification/mathematical-specification.pdf
           if-no-files-found: error
           retention-days: 14
+
+  finiteflow-integration:
+    name: Certified FiniteFlow matrix integration
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      FINITEFLOW_REVISION: c0db1ed610b2f3a341ec0b247ec06067516ea575
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONNOUSERSITE: '1'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake libgmp-dev libflint-dev
+          python -m pip install build cffi==2.1.1 'pytest>=9,<10' 'pytest-timeout>=2.4,<3'
+      - name: Fetch the pinned reconstruction engine
+        run: |
+          git init "$RUNNER_TEMP/finiteflow-source"
+          git -C "$RUNNER_TEMP/finiteflow-source" remote add origin https://github.com/Choomno/finiteflow.git
+          git -C "$RUNNER_TEMP/finiteflow-source" fetch --depth 1 origin "$FINITEFLOW_REVISION"
+          git -C "$RUNNER_TEMP/finiteflow-source" checkout --detach FETCH_HEAD
+          test "$(git -C "$RUNNER_TEMP/finiteflow-source" rev-parse HEAD)" = "$FINITEFLOW_REVISION"
+      - name: Build and install native Python bindings
+        run: |
+          cmake -S "$RUNNER_TEMP/finiteflow-source" -B "$RUNNER_TEMP/finiteflow-build" \
+            -DCMAKE_BUILD_TYPE=Release -DFFLOW_MATHEMATICA=OFF -DFFLOW_PYTHON=ON \
+            -DPython3_EXECUTABLE="$(command -v python)" \
+            -DCMAKE_INSTALL_PREFIX="$RUNNER_TEMP/finiteflow-install" \
+            -DFFLOW_PYTHON_INSTALL="$(python -c 'import sysconfig; print(sysconfig.get_paths()["platlib"])')"
+          cmake --build "$RUNNER_TEMP/finiteflow-build" --parallel 2
+          cmake --install "$RUNNER_TEMP/finiteflow-build"
+      - name: Install the zipper-algebra wheel
+        run: |
+          python -m build --wheel
+          python -c "import glob, subprocess, sys; subprocess.check_call([sys.executable, '-m', 'pip', 'install', glob.glob('dist/*.whl')[0] + '[symbolic]'])"
+      - name: Check installed native reconstruction and exact acceptance
+        run: |
+          cd "$RUNNER_TEMP"
+          python -I -m pytest "$GITHUB_WORKSPACE/tests/integration/test_finiteflow.py" --import-mode=importlib -q
