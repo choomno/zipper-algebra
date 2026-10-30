@@ -198,6 +198,22 @@ the curated 129-term certificate from 100 fresh parameter points, with both exac
 checks passing; see the [reproduction guide](X3_REPRODUCTION.md). The workflow
 and `ci/check_solver.py` record the pinned source and commands.
 
+The FiniteFlow integration job builds the exact maintained-fork revision pinned
+in the workflow, installs the zipper-algebra wheel, and runs the small matrix
+reconstruction tests outside the checkout. They check parameterized and rational
+systems, prime and shift recovery, repeated calls and serialized native sessions,
+then independently check the complete kernel identities. The native dependency
+must be published before this job can fetch its pinned commit; its current
+publication status is recorded in the [reconstruction guide](RECONSTRUCTION.md).
+The fork also tests modular failures, strict original-system validation and
+relearning through its C API, with and without FLINT.
+
+Unit tests separately reject malformed matrix/witness data, false rank bounds,
+nonzero generic residuals, undefined specializations, failed native statuses,
+incomplete outputs, and incorrect learned metadata. Controlled native faults
+exercise these rejection paths; the installed-binding tests exercise the actual
+solver. The larger X3 and 186-dimensional matrix checks remain local computations.
+
 The documentation job validates local links, deterministic inventory
 regeneration and recorded hashes, then compiles the mathematical reference.
 Workflow run pages record actual hosted results; configured jobs and local
