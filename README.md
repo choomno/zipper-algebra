@@ -33,6 +33,13 @@ also give certified coordinates and products from sparse generator actions and
 explicit spanning and independence proofs. Parameter-field verification on this
 route uses the optional symbolic arithmetic dependency.
 
+The [FiniteFlow reconstruction interface](docs/RECONSTRUCTION.md) constructs
+right kernels over rational-function fields and independently verifies both
+rank bounds and the complete generic kernel identity. Its native dependency
+and the maintained fork's reliability controls have separate installation
+instructions; checking supplied parameter-field kernel certificates uses the symbolic
+extra and does not load FiniteFlow.
+
 The [four-strand square-zero computation](docs/FOUR_STRAND_SQUARE_ZERO.md)
 works over $\mathbb{Q}(q,t)$: the quotient has dimension 186 and contains a
 nonzero square-zero two-sided ideal. Its reproduction checks connect the
@@ -285,6 +292,12 @@ retain separate completion and exactness requirements. [INDEX](INDEX.md) maps th
    Science **3** (2017), e103.
    [DOI](https://doi.org/10.7717/peerj-cs.103);
    [official citation metadata](https://docs.sympy.org/latest/citing.html).
+
+10. Tiziano Peraro, *FiniteFlow: multivariate functional reconstruction using
+    finite fields and dataflow graphs*, Journal of High Energy Physics
+    **2019** (2019), no. 7, article 031.
+    [DOI](https://doi.org/10.1007/JHEP07(2019)031);
+    [arXiv:1905.08019](https://arxiv.org/abs/1905.08019).
 
 ## License
 

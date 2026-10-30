@@ -17,8 +17,8 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "bytes": 7294,
-      "sha256": "83df88738d16335235bd532eac62eadfb2f19a4b181479af00432540a5ef8b80",
+      "bytes": 9674,
+      "sha256": "28c0cf5b76a4ac728b7fc98bfa335967a73177c9469ff7dac0601d6565dad11f",
       "role": "Hosted software tests, small solver integration and documentation checks"
     },
     {
@@ -29,8 +29,8 @@
     },
     {
       "path": "MANIFEST.in",
-      "bytes": 1364,
-      "sha256": "93cecad74dee2a00afe18fe949260217071b98abf8c304054f4aa1d58656f312",
+      "bytes": 1395,
+      "sha256": "eff9daf0779a7514a12e6ae87cb2725236a405479926be86da04ca80f6d8a915",
       "role": "Source-distribution inclusion rules"
     },
     {
@@ -131,8 +131,8 @@
     },
     {
       "path": "pyproject.toml",
-      "bytes": 1717,
-      "sha256": "5f4a6a5b6387b14cf42330ecfbc8268ea2b55f3274a0500ff242bc98db759591",
+      "bytes": 1728,
+      "sha256": "31595563b70ecb08c2db1039321bcd26bd3e2b17017e575a35c9db3be57d7ee4",
       "role": "Package dependencies and installed commands"
     },
     {
@@ -316,6 +316,12 @@
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
+      "path": "src/zipper_algebra/matrices.py",
+      "bytes": 3622,
+      "sha256": "b7b49261dc81cc439769cf9e1e1ada3830e32f84373b2ce94953806098a4c375",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
       "path": "src/zipper_algebra/msolve.py",
       "bytes": 5375,
       "sha256": "d94b5a7fb0c006baa7c50427137558f21b4ccc63f202774bfc552dbb9c7be339",
@@ -337,6 +343,12 @@
       "path": "src/zipper_algebra/provenance.py",
       "bytes": 16899,
       "sha256": "8292bf708e0919b415ac091d4d1a8f3c8b5754356faf4e0f9b0accc7ee3a627e",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
+      "path": "src/zipper_algebra/reconstruction.py",
+      "bytes": 10642,
+      "sha256": "6bedc9f9809065e69da782d016ef95820940705f3516a3d3e2808b43b2ae9c6a",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
@@ -388,6 +400,12 @@
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
+      "path": "src/zipper_algebra/verification/linear.py",
+      "bytes": 9784,
+      "sha256": "ccca0fac784a47f78a3edc337fd4414c0e5e5f2319d0848925f7d7b7cb21c0c8",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
       "path": "src/zipper_algebra/verification/working_field.py",
       "bytes": 5075,
       "sha256": "74afc1855facb52ec13d9e5ea34991724bbb634b8205589d407808385186798d",
@@ -433,6 +451,12 @@
       "path": "tests/integration/test_example_output.py",
       "bytes": 798,
       "sha256": "382ad00d9c01285f5472714075231eda9f40235dee695851a84705cee7171886",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/integration/test_finiteflow.py",
+      "bytes": 7371,
+      "sha256": "094740a92c91b44c1496a13844b37d8bee19c77d1279c5fc5b677c78ff309a72",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
@@ -721,6 +745,12 @@
       "path": "tests/unit/test_proof_composition.py",
       "bytes": 17005,
       "sha256": "30abed0180fb05c1c820774a7553756a659a39f4d8f1fdef116891cf50ddc1e1",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/unit/test_reconstruction.py",
+      "bytes": 37330,
+      "sha256": "6196cf1e3c29e5d337dec6617a6b4ecdf323418fa67a1b635b0ab9dfe36b3fa5",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
