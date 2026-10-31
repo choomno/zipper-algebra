@@ -28,12 +28,18 @@ fields. The [completed-basis verifier](docs/GROEBNER_VERIFICATION.md) checks
 derivations and all critical ambiguities before providing certified normal forms
 and, when standard-word enumeration finishes, the exact quotient dimension.
 These interfaces run with the Python package alone; producing a candidate basis
-is a separate computation.
+is a separate computation. [Finite word-basis certificates](docs/FINITE_ALGEBRAS.md)
+also give certified coordinates and products from sparse generator actions and
+explicit spanning and independence proofs. Parameter-field verification on this
+route uses the optional symbolic arithmetic dependency.
 
 The [four-strand square-zero computation](docs/FOUR_STRAND_SQUARE_ZERO.md)
 works over $\mathbb{Q}(q,t)$: the quotient has dimension 186 and contains a
 nonzero square-zero two-sided ideal. Its reproduction checks connect the
 original presentation to the completed basis and verify the ideal calculation.
+The [finite word-basis route](docs/FINITE_ALGEBRAS.md#reproducing-the-four-strand-finite-algebra)
+additionally verifies its 186-word basis and sparse regular actions with the
+maintained Python API, providing exact coordinates and products.
 
 ## Install
 
@@ -44,12 +50,16 @@ python -m pip install .
 zipper-algebra describe --n 4
 ```
 
-The maintained algebra and certificate code uses Python's standard library.
-Optional denominator-factor inference uses Sympy:
+Presentation construction and the existing cofactor and Gröbner checks use
+Python's standard library. Finite word-basis verification over parameter fields
+uses SymPy's exact fraction fields:
 
 ```sh
-python -m pip install '.[inference]'
+python -m pip install '.[symbolic]'
 ```
+
+Optional denominator-factor inference also uses SymPy, through
+`python -m pip install '.[inference]'`.
 
 For development, install the tools under [Tests and development](#tests-and-development).
 The installed package is named `zipper_algebra`; `python -m zipper_algebra`
@@ -199,7 +209,7 @@ Install the development tools and optional inference dependency, then run the
 same static checks and test suite used in CI:
 
 ```sh
-python -m pip install -e '.[dev,inference]'
+python -m pip install -e '.[dev,inference,symbolic]'
 python -m ruff check src tests experiments examples ci setup.py
 python -m mypy
 python -m pytest tests -q --durations=15
@@ -270,6 +280,11 @@ retain separate completion and exactness requirements. [INDEX](INDEX.md) maps th
    *Singular*, version 4.4.1, computer algebra system.
    [Official project site](https://www.singular.uni-kl.de/);
    [citation information](https://www.singular.uni-kl.de/index.php/how-to-cite-singular).
+
+9. Aaron Meurer et al., *SymPy: symbolic computing in Python*, PeerJ Computer
+   Science **3** (2017), e103.
+   [DOI](https://doi.org/10.7717/peerj-cs.103);
+   [official citation metadata](https://docs.sympy.org/latest/citing.html).
 
 ## License
 

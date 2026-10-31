@@ -368,6 +368,97 @@ A basis check alone does not identify its ideal with the original defining
 ideal. The API and resource limits are detailed in
 \path{docs/GROEBNER_VERIFICATION.md}.
 
+\section{Finite word-basis certificates and regular actions}
+Let $A=F/I$, where $F=K\langle g_1,\ldots,g_m\rangle$ and
+$I=(r_1,\ldots,r_s)$ over one of the declared exact fields. A finite word-basis
+certificate supplies distinct words $B=(b_0=1,b_1,\ldots,b_{d-1})$ and sparse
+matrices $M_1,\ldots,M_m\in\operatorname{Mat}_d(K)$. The column convention is
+that column $j$ of $M_a$ gives the proposed coordinates of $g_ab_j$.
+
+\begin{proposition}
+Suppose explicit ideal-membership identities prove
+\[
+ g_ab_j-\sum_{k=0}^{d-1}(M_a)_{kj}b_k\in I
+ \quad(1\le a\le m,\ 0\le j<d),
+\]
+and suppose that
+\[
+ r_i(M_1,\ldots,M_m)=0\quad(1\le i\le s),\qquad
+ b_j(M_1,\ldots,M_m)e_0=e_j\quad(0\le j<d).
+\]
+Then the images of $B$ are a basis of $A$, $\dim_K A=d$, and the $M_a$ are
+its left regular generator actions in this basis.
+\end{proposition}
+\begin{proof}
+The span of the images of $B$ contains the unit and, by the ideal identities,
+is stable under left multiplication by every generator. Induction on word
+length proves spanning. The matrix relations give a representation
+$\rho:A\to\operatorname{End}_K(K^d)$. If $\sum_jc_jb_j=0$ in $A$, applying
+$\rho$ and evaluating on $e_0$ gives $\sum_jc_je_j=0$, so all $c_j=0$.
+This proves independence. The certified column identities then identify the
+matrices with the regular actions.
+\end{proof}
+
+A cyclic representation alone can describe a proper quotient; the spanning
+identities supply the upper dimension bound. Spanning identities alone can
+describe dependent words; the cyclic representation supplies independence.
+Every defining matrix relation is checked on every coordinate vector, not only
+on $e_0$. In dimension zero the separate requirement is an exact identity
+$1\in I$; empty matrices give no such evidence by themselves.
+
+The immutable \texttt{WordBasisCertificate} records the words, sparse generator
+actions, action-node references and a shared \texttt{DerivationGraph}.
+Local graph identities are checked on the full acyclic graph, including raw
+references with zero coefficients; zero polynomial nodes are allowed.
+The JSON schemas are
+\begin{itemize}
+\item \path{zipper-word-basis-certificate-v1};
+\item \path{zipper-generator-action-v1};
+\item \path{zipper-derivation-graph-v1}.
+\end{itemize}
+Existing literal presentation hashes and Gr\"obner-certificate encodings are
+preserved. A completed basis can help produce these witnesses, but completeness
+is not a hypothesis of this finite-basis verification theorem.
+
+The verifier \texttt{verify\_word\_basis} returns an immutable
+\texttt{VerifiedFiniteAlgebra} with exact coordinates and products.
+Generator actions remain sparse. Products are evaluated on demand from the
+named basis words, without constructing a cubic-size multiplication table.
+Matrix relation evaluation shares a noncommutative Horner graph so that
+cancellation can occur before further matrix applications.
+For a parameter field $K=\operatorname{Frac}(R)$ with polynomial ring
+$R=k_0[z_1,\ldots,z_r]$, the working evaluation writes each generator matrix
+as $M_a=A_a/d_a$, where $A_a$ has polynomial entries and $d_a\in R$ is nonzero.
+A Horner node representing $P_n(M)$ is assigned a common denominator $D_n$.
+For a seed vector $U/S$, it evaluates the polynomial vector
+\[
+ V_n=D_nP_n(M)U,
+ \qquad P_n(M)(U/S)=V_n/(D_nS).
+\]
+The $D_n$ clear the node's constant coefficient and the coefficients multiplying
+$A_aV_{\mathrm{child}}/(d_aD_{\mathrm{child}})$. Their construction uses common
+denominators and exact polynomial quotients before repeated matrix-vector
+arithmetic. The inner evaluation then uses polynomial addition and
+multiplication, avoiding a fraction gcd at each accumulation. Arbitrary
+polynomial denominators are supported. All conclusions remain over $K$;
+this computational clearing does not assert an $R$-basis or specialize at
+zeros of the denominators.
+
+Explicit operation, dimension and proof-node limits raise
+\texttt{VerificationLimit} on exhaustion. Subsequent coordinate and product
+calculations each have their own operation budget. The default finite-algebra
+operation budget is $10^7$; the separate derivation-only checker retains its
+$2\cdot10^6$ default.
+
+Parameter-field computations use an internal normalized working representation
+based on SymPy's sparse rational-function fields \cite{sympy}, installed through
+the optional \texttt{symbolic} extra. Ground-field arithmetic needs no optional
+dependency. This working arithmetic does not rewrite the literal input
+coefficients or their presentation hash. A converted output coefficient may
+have cancelled denominator factors and therefore its own conditions for any
+specified specialization. The original literal denominator data remain part
+of the input. API details and limits are in \path{docs/FINITE_ALGEBRAS.md}.
+
 \section{Symbolic q,t certificate data and exact conclusion}
 Let $r_1,\ldots,r_s\in F_n$ be the ordered defining relations of a specified
 presentation. A certificate for $f\in F_n$ is a finite list of terms
@@ -509,7 +600,7 @@ remainder against an uncertified basis establishes no nonmembership conclusion,
 even at that specialization. The exception \texttt{NeedMoreSamples} reports an
 inconclusive reconstruction. Candidate reconstruction is characteristic zero.
 
-\section{A four-strand square-zero quotient over $\Q(q,t)$}
+\section{A four-strand square-zero quotient over \texorpdfstring{$\Q(q,t)$}{Q(q,t)}}
 Let $A$ be the four-strand zipper quotient over $k=\Q(q,t)$ with polynomial
 untwistings
 \[
@@ -553,9 +644,15 @@ Candidate production uses Singular's letterplace computations
 \cite{singular}; the derivation, completion, dimension and ideal checks use
 GAP 4.15.1 with GBNP 1.1.0 independently \cite{gbnp}. The input-reference
 bound and vanishing normal form of $T_4$ together prove its redundancy.
-The full 447-node Python verification did not finish in a 60-second local
-probe; the completed verification route for this example uses Singular and
-GAP. This result concerns the generic parameter field, with no
+The full 447-node Python Gr\"obner verification did not finish in a
+60-second local probe; that completion route uses Singular and GAP.
+A separate finite word-basis certificate extends those 447 nodes with
+1,116 generator-column identities. The maintained Python finite-basis verifier
+checked all 1,563 nodes, the 5,766 original matrix-relation columns and
+186 cyclic-coordinate identities, independently certifying dimension 186
+and the sparse regular generator actions without a completion hypothesis.
+Its six generator matrices have 14,511 nonzero entries. Commands and the
+recorded verification counts are in \path{docs/FINITE_ALGEBRAS.md}. This result concerns the generic parameter field, with no
 specialization involved. Commands, source roles and generated proof data are
 described in \path{docs/FOUR_STRAND_SQUARE_ZERO.md}.
 
@@ -618,6 +715,9 @@ The maintained implementation is under \path{src/zipper_algebra/}:
 \setlength{\parsep}{0pt}
 \item Presentation and relation formulas: \path{presentation.py}, \path{relations.py}.
 \item Parameter fields and free algebras: \path{fields.py}, \path{algebra.py}.
+\item Finite word bases and regular actions: \path{verification/finite.py}.
+\item Shared ideal derivations: \path{verification/derivations.py}.
+\item Internal working arithmetic: \path{verification/working_field.py}.
 \item Complete bases and normal forms: \path{verification/groebner.py}.
 \item Numeric solver-certificate decoding: \path{verification/f4ncgb.py}.
 \item Certificate data: \path{cofactor/cofactor_io.py}, \path{cofactor/atoms.py}.
@@ -674,5 +774,12 @@ Wolfram Decker, Gert-Martin Greuel, Gerhard Pfister and Hans Sch\"onemann,
 \emph{Singular}, version 4.4.1, computer algebra system.
 \href{https://www.singular.uni-kl.de/}{Official project site};
 \href{https://www.singular.uni-kl.de/index.php/how-to-cite-singular}{Citation information}.
+
+\bibitem{sympy}
+Aaron Meurer et al., \emph{SymPy: symbolic computing in Python},
+PeerJ Computer Science \textbf{3} (2017), e103.
+\href{https://doi.org/10.7717/peerj-cs.103}{doi:10.7717/peerj-cs.103};
+\href{https://docs.sympy.org/latest/citing.html}{Official citation metadata};
+\href{https://docs.sympy.org/latest/modules/polys/domainsintro.html\#rational-function-fields}{Rational-function domain documentation}.
 \end{thebibliography}
 \end{document}

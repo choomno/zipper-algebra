@@ -3,7 +3,7 @@
 Use Linux with Python 3.11 or newer and install the package before running source tests:
 
 ```sh
-python -m pip install -e '.[dev,inference]'
+python -m pip install -e '.[dev,inference,symbolic]'
 python -m ruff check src tests experiments examples ci setup.py
 python -m mypy
 python -m pytest tests
@@ -87,6 +87,19 @@ standard-word enumeration have distinct expected outcomes. Numeric solver-text
 decoding is tested separately from the completion verdict. See the
 [completed-basis guide](GROEBNER_VERIFICATION.md).
 
+Finite word-basis tests specify matrix-unit and parameter-field controls
+independently of a Gröbner producer. They reject a cyclic representation of a
+proper quotient, dependent proposed words with honest spanning proofs, corrupted
+action columns, and defining relations that fail away from the cyclic vector.
+Zero-algebra tests require an explicit unit-ideal proof. Further checks cover
+noncommuting products, sparse action orientation, strict graph and JSON data,
+mixed parents including zero, immutable coordinates, and independent operation
+limits. Working-field tests compare exact fraction arithmetic, cancellation,
+parameter order and prime-field conversions while checking that literal
+coefficient data are preserved. Presentation identity remains bound to those
+original literal records. See
+[finite word-basis verification](FINITE_ALGEBRAS.md).
+
 Degree-bound regressions include false identities with target, numerator and common
 denominator factors vanishing on an undersized grid. A mixed-denominator identity
 and its perturbed version test the clearing complements. These guard the reason
@@ -96,6 +109,13 @@ Controlled local fault checks have exercised wrong inverses, commuted words, ign
 held-out values, bypassed proof checks, altered metadata and stale storage selections.
 They found three missing degree-bound adversaries, now covered by explicit regressions.
 This is evidence for those selected faults, not an exhaustive correctness argument.
+
+The local four-strand finite-basis reproduction also exercises the maintained
+verifier on freshly generated generic data: 1,116 action identities, 1,563
+proof nodes, 5,766 original matrix-relation columns and 186 cyclic words.
+It remains a local research check, outside CI; the
+[finite-algebra guide](FINITE_ALGEBRAS.md) gives the full commands and recorded
+counts. Small independent controls supply the routine regressions.
 
 ## Runtime bounds
 
@@ -119,7 +139,7 @@ are excluded. Research recipes have their own regression checks and are not
 part of the maintained package measurement.
 
 ```sh
-python -m pip install -e '.[dev,inference]' coverage==7.17.0
+python -m pip install -e '.[dev,inference,symbolic]' coverage==7.17.0
 python -m coverage erase
 python -m coverage run -m pytest tests
 python -m coverage combine
