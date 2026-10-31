@@ -9,9 +9,9 @@ original-system checks and reconstruction-state controls required here.
 
 The interface accepts a sparse `ExactMatrix`, reconstructs its kernel, and
 returns a `KernelCertificate` only after independent exact verification. It accepts matrices arising from
-action, trace-form, and contextual cofactor systems once those matrices are formed. Matrix formation from
-a presentation is a separate operation. This first interface does not replace
-the existing proof-sampling and coefficient-fitting discovery command.
+action, trace-form, and contextual cofactor systems once those matrices are formed. The installed `discover` command forms a contextual cofactor matrix from a fresh
+f4ncgb proof graph and uses this interface for its scalar reconstruction stage.
+The [reproduction guide](X3_REPRODUCTION.md) describes that complete route.
 
 ## Installation
 
@@ -25,9 +25,8 @@ For example, the Python headers are provided by `python3-devel` on Fedora or
 for system dependencies.
 
 The required native revision is `c0db1ed610b2f3a341ec0b247ec06067516ea575` from the
-fork's `fix/reconstruction-reliability` branch. These native changes are
-currently local; use the matching local checkout until that revision is
-published. Publish that dependency before distributing this integration.
+fork's `fix/reconstruction-reliability` branch. This revision is not yet publicly
+fetchable; the build commands below require a checkout at that revision.
 
 From a directory containing the two matching checkouts, with the intended Python
 environment active:
@@ -42,7 +41,7 @@ cmake -S finiteflow -B finiteflow/build \
   -DFFLOW_PYTHON_INSTALL="$(python -c 'import sysconfig; print(sysconfig.get_paths()["platlib"])')"
 cmake --build finiteflow/build --parallel 4
 cmake --install finiteflow/build
-python -c 'import fflow; assert hasattr(fflow, "LSolveValidateFullSystem")'
+python -c 'from zipper_algebra.execution.dependencies import reconstruction_provenance; print(reconstruction_provenance()["implementation"])'
 ```
 
 The producer rejects an `fflow` module without `LSolveValidateFullSystem`. Checking an already supplied matrix/kernel certificate does not
@@ -111,3 +110,35 @@ parallel evaluations within one native call. Raw `fflow` calls must not
 interleave with an active reconstruction. Strict original-system validation
 retains a scratch matrix in each native solver-data clone; account for that
 per-thread storage when choosing worker and thread counts.
+
+## Discovery from a proof graph
+
+`discover` uses the chosen anchor only to obtain candidate word contexts. It
+expands the proof graph to triples `(left, relation index, right)`, retaining
+contextual occurrences before deduplication and ignoring their numerical
+coefficients. For each distinct triple it expands the original symbolic
+relation between those words. The resulting columns form `A`; the generic target
+is the last column of the augmented matrix `[A|-h]`.
+
+The complete reconstructed kernel is checked independently against that matrix.
+A kernel column with nonzero last coordinate provides a cofactor representation
+after division by that coordinate. A separate free-algebra checker then expands
+the original relations with those coefficients and compares the result with the
+target. Both checks are required before a verified bundle is published.
+
+A sampled proof graph can omit contexts needed generically. Failure to find a
+kernel vector with nonzero target coordinate is inconclusive for membership;
+changing the anchor can supply a different support. The command does not claim a
+complete method for finding supports or a completed Gröbner basis. Native prime,
+degree and thread controls govern the scalar computation; `--max-contexts`
+bounds proof expansion. `--max-products` separately bounds support construction
+(context substitutions and matrix placements) and scalar products in exact
+kernel verification. It does not bound native FiniteFlow work or the final
+free-algebra check. These are separate from the f4ncgb process timeout and
+iteration limits.
+
+The published bundle contains the context/word lists, the augmented matrix,
+the complete kernel witness, and the independently checked cofactor. It also
+hashes the actual loaded FiniteFlow Python module, CFFI extension and shared
+library. These byte identities describe the installed dependencies; they do not
+assert that an arbitrary local build corresponds to a claimed source revision.

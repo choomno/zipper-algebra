@@ -32,6 +32,11 @@ collections.
 
 ## What the tests establish
 
+Discovery tests check fresh proof expansion, generic matrix formation,
+normalization of kernel vectors, rejection of insufficient supports and false
+coefficients, and immutable output publication. The production route uses one
+anchor proof rather than sample-by-sample coefficient fitting.
+
 Small tests check independently specified identities, coefficient domains,
 parsing, invalid data, noncommuting contexts, repeated occurrences, interpolation
 rank and held-out checks.
@@ -187,20 +192,19 @@ The platform matrix checks Linux on Python 3.11, 3.12, 3.13 and 3.14. It runs th
 job also rebuilds the source archive. The full suite, including integration
 comparisons, runs in the coverage job with the real optional Sympy dependency.
 
-The native solver job builds the pinned f4ncgb source with SQLite enabled on Ubuntu,
-installs the zipper-algebra wheel, and exercises a small two-generator test
+The native solver job is configured to build the pinned f4ncgb source with SQLite
+enabled on Ubuntu, install the zipper-algebra wheel, and exercise a small two-generator test
 presentation with `X_2=0` explicitly imposed through both file and native SQLite
-interfaces. It checks native input/output,
-proof identities, coefficient reconstruction, the result bundle and both
-certificate checks outside this workspace. Full four-strand discovery and
-other research computations run locally. A local full four-strand run produced
-the curated 129-term certificate from 100 fresh parameter points, with both exact
-checks passing; see the [reproduction guide](X3_REPRODUCTION.md). The workflow
+interfaces. Its checks cover native input/output,
+proof identities, FiniteFlow reconstruction, saved kernel witnesses, immutable
+result bundles and both certificate checks outside this workspace. Full four-strand discovery and
+other research computations run locally. The curated 129-term certificate was produced by the earlier sampled fitting
+route, with both exact checks passing; see the [reproduction guide](X3_REPRODUCTION.md). The workflow
 and `ci/check_solver.py` record the pinned source and commands.
 
-The FiniteFlow integration job builds the exact maintained-fork revision pinned
-in the workflow, installs the zipper-algebra wheel, and runs the small matrix
-reconstruction tests outside the checkout. They check parameterized and rational
+The combined native solver/reconstruction job is also configured to build the exact
+maintained FiniteFlow revision pinned in the workflow and run the small installed
+matrix reconstruction tests and both discovery I/O modes outside the checkout. These tests check parameterized and rational
 systems, prime and shift recovery, repeated calls and serialized native sessions,
 then independently check the complete kernel identities. The native dependency
 must be published before this job can fetch its pinned commit; its current

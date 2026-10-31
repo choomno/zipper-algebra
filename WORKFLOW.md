@@ -21,15 +21,16 @@ presentation.
 
 ## Produce a certificate
 
-Install the inference extra and build the external solver using the
-[solver setup](patches/f4ncgb/README.md). Then:
+Install the symbolic extra, build f4ncgb using the
+[solver setup](patches/f4ncgb/README.md), and install the
+[FiniteFlow dependency](docs/RECONSTRUCTION.md#installation). Then:
 
 ```sh
 zipper-algebra discover --n 4 --target X_3 \
   --solver /absolute/path/to/f4ncgb \
   --solver-revision 789504d7c7da6af6946faecb73421b037766a5b8 \
   --output runs/x3 --cache runs/solver-cache \
-  --start 100 --step 40 --max 260 --jobs 1 --json
+  --anchor 41,43 --max-primes 5 --reconstruction-degree 24 --threads 1 --json
 ```
 
 The [reproduction guide](docs/X3_REPRODUCTION.md) explains the stages and
@@ -49,8 +50,8 @@ targets can reuse the same presentation calculation. The Python function
 `zipper_algebra.execution.run_basis_point` runs the presentation without selecting
 a target; `run_point` additionally validates a named target before using the same
 solver cache. Each discovery result retains its own target identity and links to
-the shared solver key and immutable generation. Reconstruction schedules and
-candidate coefficients are still specific to each target.
+the shared solver key and immutable generation. Context supports, augmented
+matrices, kernels and cofactors are specific to each target.
 Its outputs are parsed and every numeric proof identity is checked before the
 run is published. Atomic records distinguish usable proof data from a claim
 of basis completeness.
@@ -59,10 +60,13 @@ New solver requests use `zipper-solver-request-v3`. Earlier target-bound v2
 records remain readable and exportable. They are separate cache entries and
 are not relabelled as new requests.
 
-Reconstruction uses exact samples, full-rank fits, nonzero denominators and
-held-out checks. It produces candidates. Composition preserves both word contexts
-and repeated occurrences. Exact verification of the complete identity is the
-success condition.
+Reconstruction expands one fresh proof graph into contextual occurrences of the
+original relations. Their generic coefficients form an augmented linear system
+whose kernel is produced by FiniteFlow. The complete exact kernel identity,
+independence and opposite rank bound are checked before extracting a cofactor.
+The separate free-algebra check of the complete cofactor identity is required
+before publication. No fitted denominator family or repeated solver samples
+are required.
 
 A successful result atomically selects an immutable product bundle with its hashes.
 `result.json` reports the presentation/target, anchor, sampled runs and certificate
@@ -88,25 +92,23 @@ and denominator data before arithmetic. It compares the cleared identity exactly
 The optional product-grid check derives sufficient degree bounds. A rational
 identity specializes wherever its displayed denominators remain nonzero.
 
-For a newly produced bundle, replace the three input paths below with those in
-the result's artifact map:
+New discovery bundles retain their augmented matrix and complete kernel witness,
+so they can also be checked independently with `ExactMatrix.from_json`,
+`KernelCertificate.from_json` and `verify_kernel`; see the
+[reconstruction interface](docs/RECONSTRUCTION.md). Run `verify` on the bundle's
+`certificate.txt` to check the cofactor independently of FiniteFlow.
 
-```sh
-zipper-algebra compose --n 4 --target X_3 \
-  --lift /bundle/lift.json --skeleton /bundle/skeleton.json \
-  --multipliers /bundle/multipliers.json --out recomposed.txt --json
-```
-
-Symbolic multipliers must match the presentation, denominator factors and ordered
-contextual occurrences. The command performs exact verification before replacing
-the output. Anchor values alone are not symbolic multipliers.
+The separate `compose` command remains available for explicitly supplied
+skeleton/lift/multiplier records from the coefficient-fitting API. Those records
+are no longer products of `discover`. Composition checks the full identity
+before replacing its output.
 
 | Exit code | Meaning |
 | --- | --- |
 | `0` | Requested exact checks passed, or discovery produced a verified identity. |
 | `1` | A well-formed certificate or composed candidate is false. |
 | `2` | Input, presentation, target, configuration or file is invalid. |
-| `3` | Discovery is inconclusive within its sampling or execution limits. |
+| `3` | Discovery is inconclusive within its support, reconstruction or execution limits. |
 
 A nonzero remainder from an uncertified basis establishes no nonmembership
 conclusion. Process success does not prove a completed basis. Sample agreement
