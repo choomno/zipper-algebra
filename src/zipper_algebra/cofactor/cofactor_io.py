@@ -22,7 +22,7 @@ the exponent tuple.  The header is '#' comment lines, one key per line:
     # atoms: {"atoms": [...], ...}             AtomSet.to_json(), on one line
     # n_terms: 695
     # producer: tools/cofactor/compose.py
-    # anchor: 5,7,0                            only for a cofactor specialised at a point
+    # anchor: 5,7,0                            optional point used to construct the candidate
     # note: ...                                free text carried over from a legacy file
 
 so a cofactor file says which algebra it is over, what it proves, and over which atoms its
@@ -37,6 +37,8 @@ Presentation.labels() derives from the construction (INV_1_p, BR_1, Z_2, T_3, ..
 `relation_indices(pres)` maps them back to positions in the relation list, and the legacy
 "R_<idx>" form is accepted too.
 
+The optional anchor records a construction point; it does not specialize the
+coefficient field of a generic certificate or change the identity checked.
 A cofactor specialised at a point (the extract format) is stored with constant numerators
 and a trivial denominator; it is an interior node of the reconstruction, never a result.
 """

@@ -85,11 +85,17 @@ def parser():
     discover.add_argument("--output", type=Path, required=True)
     discover.add_argument("--cache", type=Path)
     discover.add_argument("--anchor", type=_parameter_pair, default=(5, 7), metavar="Q,T")
-    discover.add_argument("--start", type=_integer_at_least(1), default=100)
-    discover.add_argument("--step", type=_integer_at_least(1), default=40)
-    discover.add_argument("--max", dest="maxpts", type=_integer_at_least(1), default=260)
-    discover.add_argument("--jobs", type=_integer_at_least(1), default=1)
-    discover.add_argument("--atoms", type=Path)
+    discover.add_argument("--threads", type=_integer_at_least(1), default=1,
+                          help="FiniteFlow evaluation threads")
+    discover.add_argument("--max-primes", type=_integer_at_least(1), default=5)
+    discover.add_argument("--reconstruction-degree", type=_integer_at_least(1), default=24,
+                          help="FiniteFlow degree bound; independent of the solver degree limit")
+    discover.add_argument("--max-contexts", type=_integer_at_least(1), default=100000)
+    discover.add_argument("--max-products", type=_integer_at_least(1), default=10000000)
+    discover.add_argument("--start-prime", type=_integer_at_least(0), default=0,
+                          help="first FiniteFlow prime-table index")
+    discover.add_argument("--shift", type=_parameter_pair, metavar="Q,T",
+                          help="explicit nonnegative reconstruction shift")
     discover.add_argument("--timeout", type=float, default=1800)
     discover.add_argument("--max-iterations", type=_integer_at_least(1), default=100000)
     discover.add_argument("--max-degree", type=_integer_at_least(1))
@@ -149,16 +155,17 @@ def main(argv=None):
                   else f"Wrote {count} defining relations to {args.out}")
             return 0
         if args.command == "discover":
-            from .cofactor.atoms import AtomSet
             from .execution.config import RunConfig
             from .execution.pipeline import run as run_discovery
             config = RunConfig(args.solver, args.output, args.cache, args.timeout,
                                args.max_iterations, args.max_degree,
                                solver_revision=args.solver_revision, solver_io=args.solver_io)
-            atoms = None if args.atoms is None else AtomSet.load(args.atoms)
             report = run_discovery(presentation, args.target, (*args.anchor, 0), config,
-                         start=args.start, step=args.step, maxpts=args.maxpts,
-                         jobs=args.jobs, atoms=atoms, refresh=args.refresh, verbose=not args.json)
+                         threads=args.threads, max_primes=args.max_primes,
+                         reconstruction_degree=args.reconstruction_degree,
+                         max_contexts=args.max_contexts, max_products=args.max_products,
+                         start_prime=args.start_prime, shift=args.shift,
+                         refresh=args.refresh, verbose=not args.json)
             print(json.dumps(report, sort_keys=True) if args.json else report["status"])
             return 0 if report["verified"] else 3
 

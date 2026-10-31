@@ -18,7 +18,7 @@ from zipper_algebra.cofactor.proof import Basis
 from zipper_algebra.cofactor.skeleton import Skeleton
 from zipper_algebra.coefficients import Coef, NumericRing
 from zipper_algebra.polynomial import Poly
-from zipper_algebra.execution import pipeline
+from zipper_algebra.cofactor import compose as pipeline
 
 
 def polynomial(terms):

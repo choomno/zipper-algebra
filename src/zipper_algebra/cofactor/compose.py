@@ -44,6 +44,8 @@ from .cofactor_io import (Cofactor, resolve_target,
 from .lift import NeedMoreSamples, fit_rational
 from ..presentation import Presentation
 from ..coefficients import NumericRing
+from .skeleton import Skeleton, reduce
+from ..execution.sampling import Point, SampleSet
 
 
 # ---------------------------------------------------------------------------
@@ -505,3 +507,20 @@ def main(argv=None):
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+def multiplier_samples(skeleton: Skeleton, samples: SampleSet,
+                       pres: Presentation) -> dict[Point, list[Fraction]]:
+    """Exact multipliers for matching contextual occurrences, including repeated uses."""
+    signatures = [(tuple(step["left"]), step["basis_key"], tuple(step["right"]))
+                  for step in skeleton.steps]
+    result: dict[Point, list[Fraction]] = {}
+    for point in samples.stable(skeleton):
+        basis = samples.basis(*point)
+        target = resolve_target(pres, skeleton.target, NumericRing(*point, 0))
+        steps, remainder = reduce(target, basis)
+        observed = [(tuple(left), basis.key[index], tuple(right))
+                    for left, index, right, _ in steps]
+        if not remainder.terms and observed == signatures:
+            result[point] = [Fraction(coef.v) for _, _, _, coef in steps]
+    return result
