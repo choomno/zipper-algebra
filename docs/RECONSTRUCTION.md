@@ -111,8 +111,10 @@ For census concurrency, use independent worker processes created with the
 callers because FiniteFlow uses a process-global session. `threads` controls
 parallel evaluations within one native call. Raw `fflow` calls must not
 interleave with an active reconstruction. Strict original-system validation
-retains a scratch matrix in each native solver-data clone; account for that
-per-thread storage when choosing worker and thread counts.
+materializes dense original-system and dependent-column buffers and performs a
+dense rank calculation at each modular evaluation, including for sparse input.
+Each native evaluator clone retains its own checking buffers. Account for this
+per-thread memory and computation when choosing worker and thread counts.
 
 ## Discovery from a proof graph
 
