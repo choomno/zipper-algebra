@@ -12,7 +12,6 @@ from zipper_algebra import Presentation
 from zipper_algebra.execution import ArtifactError, ExecutionError, RunConfig, run_point
 from zipper_algebra.execution import native_io, pipeline, store
 from zipper_algebra.execution.config import DEFAULT_FLAGS
-from zipper_algebra.cofactor.atoms import AtomSet
 
 
 PRODUCER = r'''
@@ -217,13 +216,18 @@ class TestNativeSQLite:
         with closing(sqlite3.connect(self.root / 'output/samples.sqlite3')) as connection, connection:
             assert (connection.execute('SELECT count(*) FROM selections').fetchone()[0]) == (0)
 
-    def test_full_discovery_and_export_use_the_same_native_byte_validation(self):
+    def test_full_discovery_and_export_use_the_same_native_byte_validation(self, monkeypatch):
+        pytest.importorskip("sympy", reason="generic discovery requires the symbolic extra")
+        from tests.test_discovery_pipeline import TEST_RECONSTRUCTION, exact_kernel
+        from zipper_algebra.cofactor import discovery
+        monkeypatch.setattr(discovery, "reconstruct_kernel", exact_kernel)
+        monkeypatch.setattr(pipeline, "reconstruction_provenance", lambda: TEST_RECONSTRUCTION)
         pres = Presentation(2, zero_from=2)
         report = pipeline.run(pres, 'X_2', self.point, self.configuration('all'),
-                              start=7, step=2, maxpts=9, atoms=AtomSet([]), verbose=False)
+                              verbose=False)
         assert (report['status']) == ('verified')
         self.assert_no_pending_jobs()
-        assert (len(report['runs'])) == (7)
+        assert (len(report['runs'])) == (1)
         sample = report['runs'][0]
         files, record = store.read(sample['store'], sample['key'], sample['generation'])
         output = self.root / 'export'

@@ -18,7 +18,9 @@ class TestProducedProvenance(DiscoveryFixture):
         assert result['status'] == 'verified'
         producer = validate_provenance(result['producer'])
         assert 'src/zipper_algebra/provenance.py' in producer['source_files']
-        assert len(result['files']) == 7
+        assert set(result['files']) == {'skeleton.json', 'support.json', 'matrix.json',
+                                        'kernel.json', 'reconstruction.json', 'certificate.json',
+                                        'certificate.txt', 'solver-runs.json', 'provenance.json'}
         directory = Path(result['certificate']).parent
         assert set((path.name for path in directory.iterdir())) == set(result['files'])
         assert not list(directory.glob('*.provenance.json'))
@@ -38,10 +40,18 @@ class TestProducedProvenance(DiscoveryFixture):
              'store': 'samples.sqlite3'}
             for run in sorted(result['runs'], key=lambda run: run['point'])]
         assert all('request' not in run for run in links['runs'])
-        for name in ('lift.json', 'skeleton.json', 'certificate.json'):
+        for name in ('skeleton.json', 'certificate.json'):
             document = json.loads((directory / name).read_text())
             assert document['schema'] == mathematical.SCHEMA
             assert document['provenance'] == producer
+        dependency_record = json.loads((directory / 'reconstruction.json').read_text())
+        assert dependency_record == result['reconstruction']
+        support = json.loads((directory / 'support.json').read_text())
+        from zipper_algebra.matrices import ExactMatrix
+        matrix = ExactMatrix.from_json(json.loads((directory / 'matrix.json').read_text()))
+        assert support['matrix_hash'] == matrix.content_hash()
+        assert support['presentation_hash'] == self.pres.content_hash()
+        assert support['target'] == self.target
         for run in result['runs']:
             _, record = store.read(run['store'], run['key'], generation=run['generation'])
             assert record['request']['schema'] == 'zipper-solver-request-v3'
@@ -129,22 +139,31 @@ class TestProducedProvenance(DiscoveryFixture):
         order = {'solver': 'degree-lex', 'reduction': pipeline.REDUCTION_ORDER}
         skeleton = mathematical.load_artifact(directory / 'skeleton.json', self.pres, self.target,
                                               kind='skeleton', order=order)
-        fitted = mathematical.load_artifact(directory / 'lift.json', self.pres, self.target,
-                                            kind='lift', order=order)
+        from zipper_algebra.cofactor.discovery import ContextSystem, Discovery
+        from zipper_algebra.matrices import ExactMatrix
+        from zipper_algebra.verification.linear import KernelCertificate, verify_kernel
+        support = json.loads((directory / 'support.json').read_text())
+        matrix = ExactMatrix.from_json(json.loads((directory / 'matrix.json').read_text()))
+        kernel = KernelCertificate.from_json(json.loads((directory / 'kernel.json').read_text()))
+        verify_kernel(matrix, kernel)
+        system = ContextSystem(support['presentation_hash'], support['target'],
+                               tuple((tuple(left), relation, tuple(right))
+                                     for left, relation, right in support['contexts']),
+                               tuple(tuple(word) for word in support['word_rows']),
+                               matrix, support['statistics'])
         certificate = mathematical.load_artifact(directory / 'certificate.json', self.pres, self.target,
                                                  kind='cofactor')
-        from zipper_algebra.cofactor.compose import load_multipliers
-        multipliers = load_multipliers(directory / 'multipliers.json', skeleton, fitted.atoms, self.pres)
+        discovery = Discovery(system, kernel, certificate, result['exact'])
         rejected = self.root / 'foreign-output'
         with pytest.raises(artifacts.ArtifactError, match='invalid solver links'):
             pipeline._publish_verified(rejected, self.pres, self.target, skeleton,
-                                       fitted, multipliers, certificate, order,
+                                       discovery, order,
                                        solver_runs=result['runs'])
         assert not rejected.exists()
         with patch.object(artifacts, 'current_source_files', return_value={}):
             with pytest.raises(artifacts.ArtifactError, match='source files changed'):
                 pipeline._publish_verified(self.root / 'other', self.pres, self.target, skeleton,
-                                           fitted, multipliers, certificate, order)
+                                           discovery, order)
         assert not any((path.name == 'provenance.json' for path in (self.root / 'other').rglob('*')))
 
     def test_solver_link_metadata_are_checked_against_retained_generations(self, subtests):

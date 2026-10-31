@@ -44,8 +44,8 @@ def check(binary, revision, directory, solver_io="files"):
     # both certificate checks; it is not a research computation.
     text = isolated("-m", "zipper_algebra", "discover", *PRESENTATION,
                     "--target", TARGET, "--solver", str(binary), "--output", str(output),
-                    "--cache", str(cache), "--anchor", "5,7", "--start", "48",
-                    "--step", "12", "--max", "96", "--jobs", "1",
+                    "--cache", str(cache), "--anchor", "5,7",
+                    "--max-primes", "3", "--reconstruction-degree", "8", "--threads", "1",
                     "--timeout", "180", "--max-iterations", "100000",
                     "--solver-revision", revision, "--solver-io", solver_io, "--json",
                     directory=directory, timeout=900)
@@ -56,8 +56,18 @@ def check(binary, revision, directory, solver_io="files"):
     assert report['producer']['origin'] == 'build'
     assert report['producer']['changes_since_build'] == []
     assert report["exact"]["pass"] is True
-    assert report["target_name"] == TARGET and report["runs"]
+    assert report["target_name"] == TARGET and len(report["runs"]) == 1
     assert len(report["presentation"]["relation_labels"]) == relation_count
+    assert report["points"] == 1
+    # Reload the published mathematical witness through the installed package.
+    # This checks the original matrix and all generic kernel identities again,
+    # independently of discovery's in-memory native result.
+    isolated("-c", "import json,sys; from zipper_algebra.matrices import ExactMatrix; "
+             "from zipper_algebra.verification.linear import KernelCertificate,verify_kernel; "
+             "matrix=ExactMatrix.from_json(json.load(open(sys.argv[1]))); "
+             "kernel=KernelCertificate.from_json(json.load(open(sys.argv[2]))); "
+             "verify_kernel(matrix,kernel)", report["artifacts"]["matrix.json"],
+             report["artifacts"]["kernel.json"], directory=directory)
     certificate = Path(report["certificate"])
     verified = json.loads(isolated("-m", "zipper_algebra", "verify", str(certificate),
                                     *PRESENTATION, "--target", TARGET, "--pit", "--json",

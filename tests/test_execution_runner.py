@@ -255,7 +255,7 @@ class TestOutputRootProtection(RunnerFixture):
     def test_pipeline_prepares_root_and_sample_markers_before_execution(self):
         config = self.config("exit", output_root=self.root / "custom-pipeline")
         result = pipeline.run(self.pres, "X_2", self.point, config,
-                              start=1, step=1, maxpts=1, verbose=False)
+                              verbose=False)
         assert (result["execution_status"]) == ("failed")
         for root in (config.output_root,):
             assert ((root / ".gitignore").read_text()) == ("*\n!.gitignore\n")
