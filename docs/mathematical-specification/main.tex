@@ -557,7 +557,7 @@ excluded. A successful fit is a candidate; the resulting identity still needs
 exact verification.
 
 \section{Exact reconstruction of candidates}
-\subsection{The coefficient-fitting discovery route}
+\subsection{Standalone coefficient fitting}
 A sample consists of a distinct parameter point in $\Q^2$ and an exact rational
 value. Repeated locations count once; conflicting values and floating-point
 coefficients are rejected. For a fixed nonzero denominator proposal and a
@@ -572,7 +572,7 @@ result. The reduced denominator must be nonzero at every supplied point, and the
 candidate must match every fitting and held-out value. This prevents a spurious
 cross-multiplied equation $0=0$ from concealing an incorrect sample at a pole.
 
-By default the factor family is proposed from fitting data, starting without
+In the standalone fitting API the factor family is proposed from fitting data, starting without
 predeclared denominator factors. Exact univariate factorization and lifting
 across parameter lines are tried before bounded polynomial enumeration.
 The current line-lifting budget allows degree at most four in the other
@@ -594,12 +594,50 @@ does not imply coprimality of the numerator and denominator; stronger assertions
 require irreducible, pairwise nonassociate factors.
 
 Failed predictions, an unavailable common reduction shape and exhaustion of the
-chosen degree or factor bounds do not show that more data cannot help. The
-experimental driver retries within its sampling cap and reports an inconclusive
-outcome when it lacks an exact certificate. In particular, reducing to a nonzero
+chosen degree or factor bounds do not show that more data cannot help. The standalone fitting routine reports an inconclusive
+outcome when it lacks a candidate in its search class. In particular, reducing to a nonzero
 remainder against an uncertified basis establishes no nonmembership conclusion,
 even at that specialization. The exception \texttt{NeedMoreSamples} reports an
 inconclusive reconstruction. Candidate reconstruction is characteristic zero.
+
+\subsection{Discovery from contextual input relations}
+The installed discovery command obtains a candidate basis and a nonexpanded
+proof graph at a rational anchor. Every numerical basis identity is checked
+against the actual specialized defining relations. Reducing the target records
+its ordered contextual uses of the candidate basis. Expanding the relevant
+proof graph propagates left and right word contexts to the original input
+relations. Numerical proof coefficients are discarded in this step: they
+supply neither the generic coefficients nor denominator proposals.
+
+Let the resulting distinct triples be $(u_j,i_j,v_j)$, for $1\le j\le c$,
+where $r_{i_j}$ is an original defining relation over $K=\Q(q,t)$. Take the
+union of all words occurring in $u_jr_{i_j}v_j$ and the target $h$, and fix an
+order on that finite set. Relative to that free-word basis, let $A$ have
+columns $u_jr_{i_j}v_j$, let $b$ be the coordinate column of $h$, and put
+\[
+ M=[A\mid -b].
+\]
+FiniteFlow reconstructs a complete right kernel $N$ of $M$, which is then
+verified independently as described below. If a column $(z,s)$ of $N$ has
+$s\ne0$, then $Az=bs$, hence
+\[
+ h=\sum_{j=1}^{c}\frac{z_j}{s}\,u_jr_{i_j}v_j
+ \quad\text{in }K\langle\mathcal G\rangle.
+\]
+A separate free-algebra checker expands the original relations with these
+coefficients and checks the complete identity before publication. Thus even
+an error in support construction or matrix assembly cannot be accepted solely
+because the matrix calculation succeeds.
+
+The anchor graph proposes a finite support; it does not prove that this support
+suffices generically. A coefficient that vanishes at the anchor can hide a
+needed context. If every kernel vector has final coordinate zero, this support
+cannot represent the target, but membership in the full defining ideal remains
+unresolved. A nonzero target remainder against an uncertified basis likewise
+establishes no nonmembership result. Support-size, exact-product, reconstruction
+degree and prime budgets yield an inconclusive outcome upon exhaustion; they
+are computational limits rather than hypotheses of an accepted identity.
+The command continues to report \texttt{basis\_complete=False}.
 
 \subsection{Finite-field reconstruction of matrix kernels}
 Let $K=\Q(t_1,\ldots,t_s)$, let $M\in K^{m\times n}$, and fix the ordered

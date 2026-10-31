@@ -10,7 +10,8 @@ The maintained implementation is installed from `src/zipper_algebra/`.
 | `matrices.py`, `reconstruction.py`, `verification/linear.py` | Exact sparse matrices, FiniteFlow kernel reconstruction, and independent generic rank/kernel certificates. |
 | `core.py`, `linear.py` | Basis parsing, standard-word automata, reduction and exact linear algebra. |
 | `cofactor/proof.py`, `cofactor/skeleton.py` | Proof graphs, contextual reductions and dependency closure. |
-| `cofactor/inference.py`, `cofactor/univariate.py`, `cofactor/lift.py` | Denominator inference and exact coefficient reconstruction. |
+| `cofactor/discovery.py` | Proof-graph word contexts, generic cofactor matrices and exactly checked FiniteFlow solutions. |
+| `cofactor/inference.py`, `cofactor/univariate.py`, `cofactor/lift.py` | Standalone sampled denominator inference and coefficient fitting; separate from current discovery. |
 | `cofactor/compose.py`, `cofactor/cofactor_io.py`, `cofactor/artifacts.py` | Certificate composition, text interchange and validated mathematical records. |
 | `cofactor/ncpoly.py`, `cofactor/verify.py` | Symbolic and degree-bounded grid checks of free-algebra identities. |
 | `verification/finite.py` | Finite word-basis certificates, verified sparse regular actions, coordinates and products. |
@@ -19,7 +20,7 @@ The maintained implementation is installed from `src/zipper_algebra/`.
 | `verification/groebner.py` | Exact derivation checks, both ideal inclusions, complete critical-ambiguity checks and certified normal forms. |
 | `verification/f4ncgb.py` | Decode numeric solver basis/proof text into a candidate domain-bound certificate. |
 | `verification/gap.py` | Export standalone generic cofactor identities for independent expansion in GAP. |
-| `execution/` | Solver configuration, execution, sampling, SQLite storage and verified publication. |
+| `execution/` | Solver configuration, execution, SQLite storage, native dependency identities and verified publication. |
 | `provenance.py` | Source revisions, local changes and input/source hashes for outputs. |
 | `cli.py` | Installed commands and their exit statuses. |
 
