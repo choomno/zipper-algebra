@@ -16,7 +16,7 @@ This repository supports the study of that family. Its components investigate
 dependencies among defining relations, slider vanishing, and how the algebra changes with a choice of
 untwisting polynomials. It constructs presentations, expands recorded proofs,
 composes explicit two-sided ideal-membership certificates via cofactor representations, reconstructs
-candidate rational coefficients from exact samples, and verifies the resulting
+candidate rational coefficients with FiniteFlow, and verifies the resulting
 identities.
 
 Read the [mathematical reference](docs/mathematical-specification/mathematical-specification.pdf) for the definitions,
@@ -32,6 +32,13 @@ is a separate computation. [Finite word-basis certificates](docs/FINITE_ALGEBRAS
 also give certified coordinates and products from sparse generator actions and
 explicit spanning and independence proofs. Parameter-field verification on this
 route uses the optional symbolic arithmetic dependency.
+
+The [FiniteFlow reconstruction interface](docs/RECONSTRUCTION.md) constructs
+right kernels over rational-function fields and independently verifies both
+rank bounds and the complete generic kernel identity. Its native dependency
+and the maintained fork's reliability controls have separate installation
+instructions; checking supplied parameter-field kernel certificates uses the symbolic
+extra and does not load FiniteFlow.
 
 The [four-strand square-zero computation](docs/FOUR_STRAND_SQUARE_ZERO.md)
 works over $\mathbb{Q}(q,t)$: the quotient has dimension 186 and contains a
@@ -75,6 +82,9 @@ stored in SQLite. The default solver interface uses temporary files; an
 accepts `--solver-io sqlite` for direct database input and output. The discovery
 command takes the solver, output directory, cache and limits explicitly;
 the [reproduction guide](docs/X3_REPRODUCTION.md) explains its stages and outputs.
+Fresh cofactor discovery additionally requires the symbolic extra and the
+[maintained FiniteFlow build](docs/RECONSTRUCTION.md#installation). It obtains
+word contexts from f4ncgb proofs and reconstructs their coefficients with FiniteFlow.
 
 Presentation construction, checking saved certificates, recomposition from saved
 proof data and the maintained tests run without the solver. Optional factor
@@ -98,19 +108,21 @@ records the upstream revision, parser fix, dependencies and maintained GitHub co
 This repository documents the production and verification of a computational
 cofactor certificate for the $X_3$ identity discussed in Moos' thesis.
 The full process is as follows: input the defining relations,
-compute a basis with nonexpanded proofs using f4ncgb, reduce, repeat at
-parameter samples, reconstruct the relevant proof coefficients, compose the
-cofactor expression, and verify the resulting identity exactly. Note that 
+compute a basis with nonexpanded proofs using f4ncgb at one anchor, reduce the
+target, expand the proof graph into word contexts, form the generic linear
+system, reconstruct its kernel with FiniteFlow, and verify the resulting
+cofactor identity exactly. Note that
 cofactor representations are not unique in their term count or coefficients.
 
 The [reproduction guide](docs/X3_REPRODUCTION.md) identifies the
 input, program and output at every stage, including the original presentation
 input and the files needed for reconstruction. Fresh production generates its own
-samples and proofs; checking the curated certificate is a separate route.
+anchor proof and word contexts; checking the curated certificate is a separate route.
 
 ### Produce a new certificate
 
-Install the inference extra and build the solver using the instructions above.
+Install the symbolic extra, build f4ncgb, and install the
+[FiniteFlow dependency](docs/RECONSTRUCTION.md#installation) using the instructions above.
 Then run from any working directory:
 
 ```sh
@@ -118,24 +130,25 @@ zipper-algebra discover --n 4 --target X_3 \
   --solver /absolute/path/to/f4ncgb \
   --solver-revision 789504d7c7da6af6946faecb73421b037766a5b8 \
   --output runs/x3 --cache runs/solver-cache \
-  --anchor 5,7 --start 100 --step 40 --max 260 --jobs 1 --json
+  --anchor 41,43 --max-primes 5 --reconstruction-degree 24 --threads 1 --json
 ```
 
-The command emits the defining presentation, obtains and validates solver proofs,
-samples parameters, reconstructs coefficients, composes the certificate, and
-checks the identity exactly. It reads no saved certificate or symbolic lift.
-Denominator factors are inferred from fitting samples, starting without a preset
-factor family. The bounded reconstruction is checked against held-out samples,
-and the complete free-algebra identity is verified before publication.
+The command emits the defining presentation and validates every numeric solver
+proof. It expands the relevant proof graph into contextual occurrences of the
+original relations, then forms a matrix over $\mathbb{Q}(q,t)$. FiniteFlow
+reconstructs a complete kernel of that matrix. Independent exact checks prove
+the kernel identity and rank, then verify the full free-algebra cofactor identity.
+Saved cofactors, lifts and denominator guesses are not inputs.
 
 The result is recorded in `runs/x3/result.json`. Success has `"status": "verified"`;
 the report names an immutable certificate bundle and its hashes. Exit code `3`
-means discovery was inconclusive within the chosen limits. The full four-strand
+means discovery was inconclusive, for example because contextual support was
+insufficient or a computation limit was exhausted. The full four-strand
 search can be expensive; a small three-strand example and the exact source map
 are in the guide.
 
-A successful run with one product generation keeps eleven files, including one
-sample database, regardless of the number of samples. The guide explains the
+A successful run stores its anchor proof in one database and retains a compact
+bundle of support, matrix, kernel and certificate records. The guide explains the
 [stored products and sample export](docs/X3_REPRODUCTION.md#read-the-result).
 
 Generated computation files also identify their source commit, local changes
@@ -175,11 +188,11 @@ python ci/check_x3_manifest.py
 ```
 
 The [f4ncgb parser patch and build instructions](patches/f4ncgb/README.md)
-provide the external dependency for fresh discovery. A local fresh four-strand
-run produced the curated example from 100 fresh parameter points, with 99
-compatible samples and 107 reconstructed coefficient slots. Exact symbolic and
-product-grid checks passed. This full computation is separate from the smaller
-native solver integration run in CI.
+provide the external Gröbner dependency for fresh discovery. FiniteFlow supplies
+the scalar reconstruction stage. The curated 129-term certificate was produced
+by the earlier sampled fitting route. Fresh production can yield a different
+valid cofactor representation; see the reproduction guide for the current run.
+Full four-strand computations remain outside CI.
 
 The same operation is available in Python:
 
@@ -220,9 +233,9 @@ including unannotated function bodies. CI requires at least **99.5% line coverag
 and 99.5% branch coverage**, measured separately with no exclusions. Each test
 has a 60-second hang guard.
 
-CI also checks wheel and source-package installation, compiles the mathematical
-reference, and exercises both solver I/O modes on a small native integration
-case. Full X₃ discovery and larger research computations run locally.
+CI also checks wheel and source-package installation and compiles the mathematical
+reference. Its combined native integration job is configured to exercise both
+solver I/O modes on a small case once the pinned FiniteFlow revision is published. Full X₃ discovery and larger research computations run locally.
 
 [TESTING](docs/TESTING.md) explains the exact algebraic and failure-path
 regressions, coverage commands, gradual type-checking limits and optional
@@ -285,6 +298,12 @@ retain separate completion and exactness requirements. [INDEX](INDEX.md) maps th
    Science **3** (2017), e103.
    [DOI](https://doi.org/10.7717/peerj-cs.103);
    [official citation metadata](https://docs.sympy.org/latest/citing.html).
+
+10. Tiziano Peraro, *FiniteFlow: multivariate functional reconstruction using
+    finite fields and dataflow graphs*, Journal of High Energy Physics
+    **2019** (2019), no. 7, article 031.
+    [DOI](https://doi.org/10.1007/JHEP07(2019)031);
+    [arXiv:1905.08019](https://arxiv.org/abs/1905.08019).
 
 ## License
 

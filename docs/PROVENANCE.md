@@ -10,7 +10,7 @@ revision and executable hash remain separate from the Python implementation.
 | --- | --- |
 | Discovery result | `result.json`, under `producer`. |
 | Numeric solver run | Its database record, under `request.producer`; the record also identifies every input/output file by hash. `export-sample` restores it as `record.json`. |
-| Final discovery bundle | `provenance.json`, covering the five mathematical products and `solver-runs.json` by filename, size and SHA-256. The result's generation hash includes this metadata file. |
+| Final discovery bundle | `provenance.json`, covering the skeleton, support, matrix, kernel, certificate, solver links and reconstruction metadata by filename, size and SHA-256. The result's generation hash includes this metadata file. |
 | Bound skeleton, lift or certificate JSON | The `provenance` field in the version-2 envelope. Earlier JSON envelope versions are rejected. |
 | Standalone emitted solver input or saved certificate, atoms, lift or skeleton | An adjacent `<filename>.provenance.json` sidecar. |
 | Composition and verification JSON reports | `producer`, with hashes of the supplied input files. |
@@ -141,3 +141,16 @@ for name, expected in record["outputs"].items():
 The hashes detect mismatched bytes. Provenance is a process's record of what it
 observed, not a signature or a mathematical verification result. Certificate
 verification still checks the complete algebraic identity separately.
+
+## FiniteFlow dependency identities
+
+Discovery stores `reconstruction.json` with its scalar reconstruction settings
+and hashes of the loaded `fflow` Python module, CFFI extension and native shared
+library. Names in that record are basenames rather than absolute machine paths.
+The same dependency bytes are checked again before publication; a detected
+change yields an inconclusive result. The native version and maintained-fork API
+identifier describe the binding's declared interface. A binary hash is evidence
+of the bytes used, not a claim that they were built from an independently
+verified source revision. The build instructions pin the required source
+revision separately. Files observed on disk do not introspect code already
+loaded into a long-lived interpreter.
