@@ -24,14 +24,17 @@ For example, the Python headers are provided by `python3-devel` on Fedora or
 [upstream build instructions](https://github.com/peraro/finiteflow#installation)
 for system dependencies.
 
-The required native revision is `c0db1ed610b2f3a341ec0b247ec06067516ea575` from the
-fork's `fix/reconstruction-reliability` branch. This revision is not yet publicly
-fetchable; the build commands below require a checkout at that revision.
+The required native revision is `a2a5abb9bf90d15416116c0a36a8821e04cbdb7b` from the
+fork's `build/python-module-integration` branch, developed in
+[draft PR #5](https://github.com/choomno/finiteflow/pull/5). Check out this exact
+revision so the installed APIs match the integration tests.
 
-From a directory containing the two matching checkouts, with the intended Python
-environment active:
+From the directory containing your zipper-algebra checkout, with the intended
+Python environment active:
 
 ```sh
+git clone https://github.com/choomno/finiteflow.git
+git -C finiteflow checkout --detach a2a5abb9bf90d15416116c0a36a8821e04cbdb7b
 python -m pip install cffi
 python -m pip install -e './zipper-algebra[symbolic]'
 cmake -S finiteflow -B finiteflow/build \

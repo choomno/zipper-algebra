@@ -93,7 +93,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
-      FINITEFLOW_REVISION: c0db1ed610b2f3a341ec0b247ec06067516ea575
+      FINITEFLOW_REVISION: a2a5abb9bf90d15416116c0a36a8821e04cbdb7b
       PYTHONDONTWRITEBYTECODE: '1'
       PYTHONNOUSERSITE: '1'
     steps:
