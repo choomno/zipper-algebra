@@ -203,8 +203,8 @@
     },
     {
       "path": "src/zipper_algebra/cofactor/compose.py",
-      "bytes": 23823,
-      "sha256": "b7a303016fc3c29d09d18099399fbbf415f33bce92a2a3a9be51d0a6021ed72f",
+      "bytes": 23713,
+      "sha256": "55ed0149d721c1a8355675f7e356d560c4b047a2da230ca4020b69f352e56e36",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
@@ -649,6 +649,12 @@
       "path": "tests/unit/test_dag_validation.py",
       "bytes": 2596,
       "sha256": "0bead60fcae3913fd69346fc470bfe2422662400e50f384898cf0b3503f129cd",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/unit/test_deep_composition_graph.py",
+      "bytes": 3781,
+      "sha256": "832704566b825c8d1ec244352ebbd5244093dc4014bc7aaf1423611b897b4d19",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
