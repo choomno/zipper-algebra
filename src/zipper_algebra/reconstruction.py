@@ -6,6 +6,7 @@ The external FiniteFlow Python bindings are optional and loaded only on use.
 """
 from __future__ import annotations
 
+from contextlib import contextmanager
 from fractions import Fraction
 import importlib
 import random
@@ -19,6 +20,18 @@ _PRIMES = (2147483647, 2147483629, 2147483587)
 # FiniteFlow graphs share a native global Session. Internal native probe threads
 # are supported, but separate Python callers must not mutate that Session at once.
 _NATIVE_LOCK = threading.Lock()
+
+
+@contextmanager
+def _native_errors(ff):
+    """Normalize native status and decoded-coefficient failures."""
+    failures = tuple(getattr(ff, name) for name in
+                     ("FFlowError", "Failed", "MissingPoints", "MissingPrimes")
+                     if hasattr(ff, name))
+    try:
+        yield
+    except failures + (ValueError, ZeroDivisionError) as error:
+        raise RuntimeError(f"FiniteFlow reconstruction failed: {error}") from error
 
 
 def _lower_inverse(matrix, rows, columns):
@@ -106,7 +119,7 @@ def reconstruct_kernel(matrix: ExactMatrix, *, max_primes=5, max_degree=24,
             raise ImportError("the FiniteFlow fork needs SetReconstructionShift for a custom shift")
         if any(x >= ff.PrimeNo(ff.NAvailablePrimes() - 1) for x in shift):
             raise ValueError("shift values must be below the smallest FiniteFlow prime")
-    with _NATIVE_LOCK:
+    with _NATIVE_LOCK, _native_errors(ff):
         graph, input_node = ff.NewGraphWithInput(len(field.parameters))
         try:
             if shift is not None:
@@ -168,4 +181,7 @@ def reconstruct_kernel(matrix: ExactMatrix, *, max_primes=5, max_degree=24,
     prime, point, inverse = _lower_inverse(matrix, rows, dependent)
     certificate = KernelCertificate(matrix.content_hash(), kernel, free, rows, dependent,
                                     prime, point, inverse)
-    return verify_kernel(matrix, certificate, max_products=max_products)
+    try:
+        return verify_kernel(matrix, certificate, max_products=max_products)
+    except (ValueError, ZeroDivisionError) as error:
+        raise RuntimeError(f"FiniteFlow candidate failed independent exact verification: {error}") from error

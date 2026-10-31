@@ -546,7 +546,7 @@ def test_native_failure_propagates_and_releases_graph(monkeypatch):
 def test_false_reconstructed_formula_is_rejected_by_independent_exact_verifier(monkeypatch):
     pytest.importorskip('sympy')
     native = NativeProtocol(output=NativeOutput(terms=([('-2', (1,))], [('1', (0,))])))
-    with pytest.raises(ValueError, match=r'A\*N'):
+    with pytest.raises(RuntimeError, match=r'independent exact verification:.*A\*N'):
         invoke_protocol(monkeypatch, native)
     assert native.deleted == [17]
 
@@ -554,7 +554,7 @@ def test_false_reconstructed_formula_is_rejected_by_independent_exact_verifier(m
 def test_native_rank_zero_claim_on_nonzero_system_is_rejected(monkeypatch):
     pytest.importorskip('sympy')
     native = NativeProtocol(dependent=(), free=(0, 1), rows=())
-    with pytest.raises(ValueError, match=r'A\*N'):
+    with pytest.raises(RuntimeError, match=r'independent exact verification:.*A\*N'):
         invoke_protocol(monkeypatch, native)
     assert native.deleted == [17]
 
@@ -628,7 +628,7 @@ def test_numeric_native_output_wrong_type_or_cardinality_is_rejected_with_cleanu
 def test_numeric_native_malformed_rational_is_rejected_with_cleanup(monkeypatch, output):
     native = NativeProtocol()
     native.ReconstructNumeric = lambda *args, **kwargs: output
-    with pytest.raises((ValueError, ZeroDivisionError)):
+    with pytest.raises(RuntimeError, match='FiniteFlow reconstruction failed'):
         invoke_protocol(monkeypatch, native, matrix(RationalFunctionField(), [[1, 2]]))
     assert native.deleted == [17]
 
@@ -647,7 +647,7 @@ def test_numeric_native_false_rational_formula_is_exactly_rejected(monkeypatch):
     pytest.importorskip('sympy')
     native = NativeProtocol()
     native.ReconstructNumeric = lambda *args, **kwargs: ['-3']
-    with pytest.raises(ValueError, match=r'A\*N'):
+    with pytest.raises(RuntimeError, match=r'independent exact verification:.*A\*N'):
         invoke_protocol(monkeypatch, native, matrix(RationalFunctionField(), [[1, 2]]))
     assert native.deleted == [17]
 
@@ -699,7 +699,7 @@ def test_custom_shift_and_start_prime_are_forwarded_before_parameter_learning(mo
     shift = [3]
     # A deliberately false output keeps this a fault-injection/configuration test;
     # actual successful reconstruction is covered by the native integration tests.
-    with pytest.raises(ValueError, match=r'A\*N'):
+    with pytest.raises(RuntimeError, match=r'independent exact verification:.*A\*N'):
         invoke_protocol(monkeypatch, native, start_prime=2, max_primes=3, shift=shift)
     shift[0] = 4
     assert native.calls[:3] == [('graph', 1), ('shift', (3,)), ('learn', 2)]
@@ -716,7 +716,7 @@ def test_start_prime_is_also_forwarded_to_numeric_reconstruction(monkeypatch):
         native.calls.append(('numeric', kwargs))
         return ['-3']
     native.ReconstructNumeric = numeric
-    with pytest.raises(ValueError, match=r'A\*N'):
+    with pytest.raises(RuntimeError, match=r'independent exact verification:.*A\*N'):
         invoke_protocol(monkeypatch, native, matrix(RationalFunctionField(), [[1, 2]]),
                         start_prime=1, max_primes=3)
     assert native.calls[1] == ('learn', 1)
@@ -842,7 +842,7 @@ def test_ground_coefficients_reach_dedicated_numeric_constructor_as_exact_ration
     native = NativeProtocol()
     native.ReconstructNumeric = lambda *args, **kwargs: ['-1']
     original = matrix(RationalFunctionField(), [[Fraction(2, 3), 1]])
-    with pytest.raises(ValueError, match=r'A\*N'):
+    with pytest.raises(RuntimeError, match=r'independent exact verification:.*A\*N'):
         invoke_protocol(monkeypatch, native, original)
     assert native.numeric_constructor == (2, [[0, 1]], ['2/3', '1'])
     assert native.deleted == [17]
@@ -877,3 +877,18 @@ def test_characteristic_mismatch_precedes_optional_large_prime_dependency(monkey
     monkeypatch.setattr(builtins, '__import__', without_sympy)
     with pytest.raises(ValueError, match='characteristic'):
         verify_kernel(original, proof)
+
+
+@pytest.mark.parametrize('status', ['FFlowError', 'Failed', 'MissingPoints', 'MissingPrimes'])
+def test_documented_native_failures_are_normalized_and_graph_released(monkeypatch, status):
+    native = NativeProtocol()
+    class NativeFailure(Exception):
+        pass
+    setattr(native, status, NativeFailure)
+    def failure(*args, **kwargs):
+        raise NativeFailure('bounded native failure')
+    native.LearnEx = failure
+    with pytest.raises(RuntimeError, match='FiniteFlow reconstruction failed') as caught:
+        invoke_protocol(monkeypatch, native)
+    assert isinstance(caught.value.__cause__, NativeFailure)
+    assert native.deleted == [17]

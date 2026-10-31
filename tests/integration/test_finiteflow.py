@@ -90,7 +90,7 @@ def test_native_explicit_start_prime_avoids_rank_drop_at_first_learning_prime(na
 def test_native_coefficient_denominator_bad_prime_then_numeric_recovery(native_finiteflow):
     first_prime = native_finiteflow.PrimeNo(0)
     original = ExactMatrix.from_rows(RationalFunctionField(), [[Fraction(1, first_prime), 1]])
-    with pytest.raises((native_finiteflow.FFlowError, native_finiteflow.Failed)):
+    with pytest.raises(RuntimeError, match="FiniteFlow reconstruction failed"):
         reconstruct_kernel(original, start_prime=0, max_primes=3, max_degree=4)
     proof = reconstruct_kernel(original, start_prime=1, max_primes=3, max_degree=4)
     assert_exact_nullspace(original, proof, 1)
@@ -107,7 +107,8 @@ def test_native_shift_at_parameter_pole_and_alternate_shift(native_finiteflow, r
     except failures as error:
         record_property('pole_shift_outcome', type(error).__name__)
     except RuntimeError as error:
-        if str(error) != 'FiniteFlow did not reconstruct the complete kernel coefficients':
+        if (str(error) != 'FiniteFlow did not reconstruct the complete kernel coefficients'
+                and not str(error).startswith('FiniteFlow reconstruction failed:')):
             raise
         record_property('pole_shift_outcome', str(error))
     else:
