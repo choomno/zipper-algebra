@@ -206,9 +206,8 @@ The combined native solver/reconstruction job is also configured to build the ex
 maintained FiniteFlow revision pinned in the workflow and run the small installed
 matrix reconstruction tests and both discovery I/O modes outside the checkout. These tests check parameterized and rational
 systems, prime and shift recovery, repeated calls and serialized native sessions,
-then independently check the complete kernel identities. The native dependency
-must be published before this job can fetch its pinned commit; its current
-publication status is recorded in the [reconstruction guide](RECONSTRUCTION.md).
+then independently check the complete kernel identities. The workflow fetches the published native revision identified in the
+[reconstruction guide](RECONSTRUCTION.md).
 The fork also tests modular failures, strict original-system validation and
 relearning through its C API, with and without FLINT.
 
