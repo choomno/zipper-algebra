@@ -8,6 +8,7 @@ The maintained implementation is installed from `src/zipper_algebra/`.
 | `coefficients.py`, `polynomial.py`, `msolve.py` | Coefficient domains, free polynomials and solver-input emission. |
 | `fields.py`, `algebra.py` | Arbitrary parameter fields, domain-bound free algebras, literal presentations and exact cofactor identities. |
 | `matrices.py`, `reconstruction.py`, `verification/linear.py` | Exact sparse matrices, FiniteFlow kernel reconstruction, and independent generic rank/kernel certificates. |
+| `invariants.py`, `verification/krylov.py` | Certified element and relative-orbit minimal polynomials, with independent Krylov/rank verification. |
 | `core.py`, `linear.py` | Basis parsing, standard-word automata, reduction and exact linear algebra. |
 | `cofactor/proof.py`, `cofactor/skeleton.py` | Proof graphs, contextual reductions and dependency closure. |
 | `cofactor/discovery.py` | Proof-graph word contexts, generic cofactor matrices and exactly checked FiniteFlow solutions. |
@@ -67,6 +68,7 @@ datasets and interfaces remain available in Git history.
 - [README](README.md): mathematical purpose, installation and principal commands.
 - [Mathematical reference](docs/mathematical-specification/mathematical-specification.pdf): definitions, hypotheses and verification conclusions.
 - [Four-strand square-zero computation](docs/FOUR_STRAND_SQUARE_ZERO.md): generic dimension, certified basis and a nonzero square-zero ideal.
+- [Minimal polynomials](docs/MINIMAL_POLYNOMIALS.md): exact element and orbit relations with minimality witnesses.
 - [Certified reconstruction](docs/RECONSTRUCTION.md): native setup, exact matrix/kernel schemas, sampling controls and verification.
 - [Finite algebras](docs/FINITE_ALGEBRAS.md): word-basis witnesses, sparse actions, coordinates and exact products.
 - [Completed-basis verification](docs/GROEBNER_VERIFICATION.md): derivations, ideal equality, critical ambiguities and normal forms.

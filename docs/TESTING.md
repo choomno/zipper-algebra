@@ -122,6 +122,17 @@ It remains a local research check, outside CI; the
 [finite-algebra guide](FINITE_ALGEBRAS.md) gives the full commands and recorded
 counts. Small independent controls supply the routine regressions.
 
+Minimal-polynomial tests use independently specified Krylov columns and modular
+minor inverses for matrix algebras, upper triangular matrices, nilpotent and
+quadratic algebras, and generic and prime coefficient fields. They reject a
+nonminimal annihilator even when its supplied kernel is valid, distinguish a
+relative orbit from the full element, and check scaled alternative kernel layouts,
+zero algebras, sparse JSON, field/basis binding and budgets. Separate producer tests
+exercise exact prefix growth, truncation, native options and stale-answer controls.
+Small actual native tests check generic parameter fields, relative nilpotence and
+bad-prime recovery. The 186-dimensional four-strand example remains local; see the
+[minimal-polynomial guide](MINIMAL_POLYNOMIALS.md).
+
 ## Runtime bounds
 
 Use `python -m pytest tests/unit -q --durations=10` for quick algebraic checks.

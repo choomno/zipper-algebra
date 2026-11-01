@@ -16,6 +16,9 @@ class ExactMatrix:
     repeated coordinates are rejected before zero coefficients are removed.
     """
 
+    # Coefficient equality is algebraic; literal encodings are not equality hashes.
+    __hash__ = None  # type: ignore[assignment]
+
     field: RationalFunctionField
     nrows: int
     ncols: int

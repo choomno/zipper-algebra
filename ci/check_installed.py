@@ -23,7 +23,10 @@ def check():
     with tempfile.TemporaryDirectory(prefix="zipper-installed-") as directory:
         probe = subprocess.run(
             [sys.executable, "-I", "-c",
-             "import pathlib, zipper_algebra; print(pathlib.Path(zipper_algebra.__file__).resolve())"],
+             "import pathlib, zipper_algebra; "
+             "from zipper_algebra.invariants import minimal_polynomial; "
+             "from zipper_algebra.verification.krylov import MinimalPolynomialCertificate; "
+             "print(pathlib.Path(zipper_algebra.__file__).resolve())"],
             cwd=directory, text=True, capture_output=True, check=True,
         )
         package = Path(probe.stdout.strip())
