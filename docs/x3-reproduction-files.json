@@ -41,8 +41,8 @@
     },
     {
       "path": "ci/build_x3_manifest.py",
-      "bytes": 4323,
-      "sha256": "e0acd43afd6590b7a025324718df00dd2dbdfdeb5864fd60583b722d8ac61e5e",
+      "bytes": 4674,
+      "sha256": "d52ff665acbd58bca04c6b8a45f6e7d99935bb6b809de39fc57e31dfc78f759f",
       "role": "Installation, test, coverage, documentation or inventory support"
     },
     {
@@ -53,8 +53,8 @@
     },
     {
       "path": "ci/check_distribution.py",
-      "bytes": 8450,
-      "sha256": "0e83c21134c881bb57c8c463b340552b5ca022ca1287327e55fc8b0f17de41a9",
+      "bytes": 8564,
+      "sha256": "64b57664b1560bbb0f754087d58f88c152fa4cdd35d2181a839c7025729ac6f0",
       "role": "Installation, test, coverage, documentation or inventory support"
     },
     {
@@ -65,8 +65,8 @@
     },
     {
       "path": "ci/check_installed.py",
-      "bytes": 2860,
-      "sha256": "21c7418f54dad254b3c3a2d52b364181bbcafa5c4310569e44b914d12d6c7fd6",
+      "bytes": 2997,
+      "sha256": "976f98abccb081426504bfa9598f600a19dfcc7d6bde87e83148cf9e2d38c020",
       "role": "Installation, test, coverage, documentation or inventory support"
     },
     {
@@ -94,6 +94,18 @@
       "role": "Installation, test, coverage, documentation or inventory support"
     },
     {
+      "path": "examples/four_strand_square_zero.py",
+      "bytes": 22042,
+      "sha256": "e3b1820e763ae3ccb88acc27e8beb7f459f01670efa9814427c6d5792b5dc360",
+      "role": "Shared Singular serialization, trace parsing and native resource limits"
+    },
+    {
+      "path": "examples/four_strand_square_zero.sing",
+      "bytes": 5193,
+      "sha256": "c20894d181714b1da8d8ba448e7f577b473b69fd2e4ca72c3822a7d129e272b1",
+      "role": "Shared native noncommutative proof tracing engine"
+    },
+    {
       "path": "examples/x3/README.md",
       "bytes": 1846,
       "sha256": "a7704a2d8e4225a2dd1b7b1fc29cf826346ef7d6b2e1f24c9a831cbc0bf3762e",
@@ -104,6 +116,12 @@
       "bytes": 11006,
       "sha256": "f110a1aee32f8dde234bdc65fa0f57221d287655aaa930e50cc24ad6f20af071",
       "role": "Sparse current X3 output example and its reproduction instructions"
+    },
+    {
+      "path": "examples/x3_singular_cofactor.py",
+      "bytes": 12308,
+      "sha256": "4035e7b0fa17836c96a21608ab82dc8bd8c87b6c44ddea933a9c94441ed72517",
+      "role": "Generic original X3 cofactor discovery, explicit expansion and exact checking with Singular"
     },
     {
       "path": "experiments/__init__.py",
@@ -217,6 +235,12 @@
       "path": "src/zipper_algebra/cofactor/discovery.py",
       "bytes": 10782,
       "sha256": "735fec9c0e4b6d5aec0a8fd00ed8a265a6bb9f3ed85946a5510bf57b6c91e6ba",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
+      "path": "src/zipper_algebra/cofactor/general.py",
+      "bytes": 14620,
+      "sha256": "da3ef2a5192443ef369cd6e8b74e79ecd72afd2b38947e67fe4578137fb545fd",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
@@ -520,6 +544,12 @@
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
+      "path": "tests/integration/test_general_cofactor_example.py",
+      "bytes": 7355,
+      "sha256": "c7fa85a670e86c5cce925cc5579b2600d91ccd0ab0f5d2c16b079f7e882e528a",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
       "path": "tests/integration/test_general_solver_native.py",
       "bytes": 2606,
       "sha256": "130931c3fb39a7bb2b8c525147776e890cd99fe6341eea08ab72a949be374a0e",
@@ -559,6 +589,12 @@
       "path": "tests/integration/test_polynomial_presentations.py",
       "bytes": 2104,
       "sha256": "67634aee076f7cfa4236ca289b2c09885f21ee5677de0b489057352897acdb8f",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/integration/test_x3_singular_cofactor_example.py",
+      "bytes": 12321,
+      "sha256": "5e4906d1e164dd958dc4e55f2a3d3fc3c75ff02c0a2f0e3d8b9b455e42bc5249",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
@@ -787,6 +823,12 @@
       "path": "tests/unit/test_finite_algebra.py",
       "bytes": 41797,
       "sha256": "6f4bee04c4ae52a617a5357775cd5697ef921dd625c7111f43cdaa4e966548c9",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/unit/test_general_cofactor.py",
+      "bytes": 16359,
+      "sha256": "f8f0915f54aff887b991a73647c9e197703e2549c774062b1bea081867b06e93",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {

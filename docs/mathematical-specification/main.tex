@@ -540,6 +540,51 @@ inconsistent reduction proposal cannot establish a dimension. The zero algebra
 instead retains a shared proof that $1\in I$. No cubic multiplication table or
 separate completion check is required.
 
+\subsection{Explicit cofactors from certified actions}
+Let $h\in F$ and let $B$ be a certified finite word basis of $F/I$.
+The general cofactor interface returns a representative $r\in\operatorname{span}_K B$
+and an explicit identity
+\[
+ h-r=\sum_\nu c_\nu u_\nu r_{i_\nu}v_\nu
+ \quad\hbox{in }F,
+ \qquad c_\nu\in K,
+\]
+where every $r_{i_\nu}$ is an original ordered defining relation.
+Thus $r=0$ gives an explicit ideal-membership cofactor for $h$; if $r\ne0$,
+independence of $B$ proves that the class of $h$ is nonzero. The cofactor
+concerns the difference $h-r$, not a nonzero quotient element itself.
+
+The construction reduces suffixes through left generator actions. If
+$w-\rho(w)\in I$ already has a recorded proof and
+$\rho(w)=\sum_j a_jb_j$, then
+\[
+ gw-\sum_{i,j}a_j(M_g)_{ij}b_i
+ =g\bigl(w-\rho(w)\bigr)
+   +\sum_j a_j\left(gb_j-\sum_i(M_g)_{ij}b_i\right).
+\]
+Every summand uses an already retained ideal identity. This formula preserves
+both noncommuting contexts and gives a shared proof of $h-r$ by induction.
+In the zero algebra, the retained proof that $1\in I$ supplies a proof for every
+$h$ by left multiplication.
+
+Expansion of a selected acyclic proof node substitutes its references until
+only original inputs remain, concatenating left contexts in outer-to-inner
+order and right contexts in inner-to-outer order. Equal original-input contexts
+are collected using exact coefficient arithmetic. The final explicit identity
+is checked directly in the free algebra. This also applies to target-specific
+proof graphs without acquiring a finite basis. Unrelated node polynomials need
+no arithmetic truth claim for this selected-node conclusion, but all raw
+references, parents and cycles are validated structurally.
+
+The APIs \texttt{cofactor\_representation}, \texttt{expand\_derivation} and
+\texttt{verify\_cofactor} in \path{cofactor/general.py} use the declared exact
+field, including arbitrary parameter names and supported prime characteristics.
+An expanded cofactor can be much larger than its shared graph. Bounds on
+operations, graph nodes and retained context entries may therefore make
+production inconclusive; no support-completeness or nonmembership claim follows.
+The file-based example and precise bounds are documented in
+\path{docs/GENERIC_PRODUCTION.md}.
+
 \section{Symbolic q,t certificate data and exact conclusion}
 Let $r_1,\ldots,r_s\in F_n$ be the ordered defining relations of a specified
 presentation. A certificate for $f\in F_n$ is a finite list of terms
