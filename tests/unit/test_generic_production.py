@@ -9,7 +9,7 @@ from zipper_algebra import production
 from zipper_algebra.algebra import AlgebraPresentation, FreeAlgebra
 from zipper_algebra.fields import RationalFunctionField
 from zipper_algebra.matrices import ExactMatrix
-from zipper_algebra.production import SupportFailure, reconstruct_groebner
+from zipper_algebra.production import SupportFailure, reconstruct_basis, reconstruct_groebner
 from zipper_algebra.verification.groebner import GroebnerCertificate, ProofTerm, VerificationLimit, verify_groebner
 from tests.unit.test_minimal_polynomial_producer import exact_kernel
 
@@ -43,8 +43,8 @@ def oracle(monkeypatch):
     calls = []
     def solve(matrix, **options):
         calls.append((matrix, options))
-        return exact_kernel(matrix, **options)
-    monkeypatch.setattr(production, 'reconstruct_kernel', solve)
+        return exact_kernel(matrix, **options).kernel
+    monkeypatch.setattr(production, 'reconstruct_kernel_candidate', solve)
     return calls
 
 
@@ -73,12 +73,12 @@ def test_nonmonic_numerical_node_reconstructs_rational_parameter_coefficients(or
     point = {'scale': 2, 'tail': Fraction(5, 3)}
     sample = input_sample(pres, point)
     result = reconstruct_groebner(pres, sample, point=point,
-        max_primes=3, max_degree=8, threads=2, start_prime=1, shift=[7, 9], max_products=4567)
+        max_primes=3, max_degree=8, threads=2, start_prime=1, shift=[7, 9])
     assert result.reduction.normal_form(x*x) == parent.scalar(tail/scale)
     assert result.certificate.basis[0] == x*x-tail/scale
     assert result.certificate.derivations[0][0].coefficient == field.one/scale
     assert all(options == {'max_primes': 3, 'max_degree': 8, 'threads': 2,
-                           'start_prime': 1, 'shift': (7, 9), 'max_products': 4567}
+                           'start_prime': 1, 'shift': (7, 9)}
                for _, options in oracle)
 
 
@@ -234,7 +234,7 @@ def test_false_numeric_proofs_fail_before_reconstruction(monkeypatch, kind):
     else:
         cert = replace(cert, derivations=((ProofTerm(parent.field.one, (), 'input', 0, ()),
                                           ProofTerm(parent.field.zero, (), 'input', 1, ())),))
-    monkeypatch.setattr(production, 'reconstruct_kernel', lambda *a, **kw: pytest.fail('backend'))
+    monkeypatch.setattr(production, 'reconstruct_kernel_candidate', lambda *a, **kw: pytest.fail('backend'))
     with pytest.raises(ValueError):
         reconstruct_groebner(pres, cert, point={})
 
@@ -243,7 +243,7 @@ def test_sample_is_bound_to_exact_named_specialization_before_native_work(monkey
     pres, *_ = clifford()
     point = {'alpha': 2, 'beta': 3, 'gamma': 5}
     sample = input_sample(pres, point)
-    monkeypatch.setattr(production, 'reconstruct_kernel', lambda *a, **kw: pytest.fail('backend'))
+    monkeypatch.setattr(production, 'reconstruct_kernel_candidate', lambda *a, **kw: pytest.fail('backend'))
     with pytest.raises(ValueError):
         reconstruct_groebner(pres, sample, point={**point, 'alpha': 7})
     foreign_parent = FreeAlgebra(RationalFunctionField(), ('u', 'other'))
@@ -255,7 +255,7 @@ def test_sample_is_bound_to_exact_named_specialization_before_native_work(monkey
 def test_positive_characteristic_is_explicitly_unsupported(monkeypatch):
     parent = FreeAlgebra(RationalFunctionField((), 7), ('x',))
     pres = presentation(parent, (parent.generator('x')**2,))
-    monkeypatch.setattr(production, 'reconstruct_kernel', lambda *a, **kw: pytest.fail('backend'))
+    monkeypatch.setattr(production, 'reconstruct_kernel_candidate', lambda *a, **kw: pytest.fail('backend'))
     with pytest.raises(ValueError, match='characteristic zero'):
         reconstruct_groebner(pres, input_sample(pres, {}), point={})
 
@@ -267,7 +267,7 @@ def test_positive_characteristic_is_explicitly_unsupported(monkeypatch):
 def test_invalid_limits_fail_before_native_work(monkeypatch, limit, value):
     parent = FreeAlgebra(RationalFunctionField(), ('x',))
     pres = presentation(parent, (parent.generator('x')**2,))
-    monkeypatch.setattr(production, 'reconstruct_kernel', lambda *a, **kw: pytest.fail('backend'))
+    monkeypatch.setattr(production, 'reconstruct_kernel_candidate', lambda *a, **kw: pytest.fail('backend'))
     with pytest.raises((ValueError, TypeError)):
         reconstruct_groebner(pres, input_sample(pres, {}), point={}, **{limit: value})
 
@@ -285,7 +285,7 @@ def test_backend_failure_is_not_reported_as_nonmembership(monkeypatch):
     pres = presentation(parent, (parent.generator('x')**2,))
     def fail(*args, **kwargs):
         raise RuntimeError('bounded native search exhausted')
-    monkeypatch.setattr(production, 'reconstruct_kernel', fail)
+    monkeypatch.setattr(production, 'reconstruct_kernel_candidate', fail)
     with pytest.raises(RuntimeError, match='bounded native'):
         reconstruct_groebner(pres, input_sample(pres, {}), point={})
 
@@ -296,8 +296,8 @@ def test_stale_valid_kernel_cannot_certify_a_different_local_system(oracle, monk
     def stale(matrix, **options):
         # An honestly certified zero-system kernel, returned for a different
         # nonzero local identity system, models incorrect cache reuse.
-        return exact_kernel(ExactMatrix(matrix.field, matrix.nrows, matrix.ncols))
-    monkeypatch.setattr(production, 'reconstruct_kernel', stale)
+        return exact_kernel(ExactMatrix(matrix.field, matrix.nrows, matrix.ncols)).kernel
+    monkeypatch.setattr(production, 'reconstruct_kernel_candidate', stale)
     with pytest.raises((ValueError, RuntimeError)):
         reconstruct_groebner(pres, input_sample(pres, {}), point={})
 
@@ -309,14 +309,14 @@ def test_stale_valid_kernel_cannot_certify_a_different_local_system(oracle, monk
 def test_parameter_assignment_requires_every_named_exact_rational(monkeypatch, point):
     pres, *_ = clifford()
     sample = input_sample(pres, {'alpha': 2, 'beta': 3, 'gamma': 5})
-    monkeypatch.setattr(production, 'reconstruct_kernel', lambda *a, **kw: pytest.fail('backend'))
+    monkeypatch.setattr(production, 'reconstruct_kernel_candidate', lambda *a, **kw: pytest.fail('backend'))
     with pytest.raises((TypeError, ValueError)):
         reconstruct_groebner(pres, sample, point=point)
 
 
 @pytest.mark.parametrize('bad_pres,bad_sample', [(None, None), (None, 'bad'), ('bad', None)])
 def test_untyped_input_is_rejected_before_any_native_work(monkeypatch, bad_pres, bad_sample):
-    monkeypatch.setattr(production, 'reconstruct_kernel', lambda *a, **kw: pytest.fail('backend'))
+    monkeypatch.setattr(production, 'reconstruct_kernel_candidate', lambda *a, **kw: pytest.fail('backend'))
     with pytest.raises(TypeError):
         reconstruct_groebner(bad_pres, bad_sample, point={})
 
@@ -326,7 +326,7 @@ def test_literal_coefficient_poles_are_not_silently_canceled(monkeypatch):
     a, x = parent.field.parameter('a'), parent.generator('x')
     pres = presentation(parent, (x*x-parent.scalar(parent.field.one/a),))
     safe = input_sample(pres, {'a': 2})
-    monkeypatch.setattr(production, 'reconstruct_kernel', lambda *a, **kw: pytest.fail('backend'))
+    monkeypatch.setattr(production, 'reconstruct_kernel_candidate', lambda *a, **kw: pytest.fail('backend'))
     with pytest.raises(ZeroDivisionError):
         reconstruct_groebner(pres, safe, point={'a': 0})
 
@@ -341,7 +341,7 @@ def test_native_options_are_validated_even_for_an_empty_proof_graph(monkeypatch,
     parent = FreeAlgebra(RationalFunctionField(('a',)), ())
     pres = presentation(parent, ())
     sample = input_sample(pres, {'a': 2})
-    monkeypatch.setattr(production, 'reconstruct_kernel', lambda *a, **kw: pytest.fail('backend'))
+    monkeypatch.setattr(production, 'reconstruct_kernel_candidate', lambda *a, **kw: pytest.fail('backend'))
     with pytest.raises((ValueError, TypeError)):
         reconstruct_groebner(pres, sample, point={'a': 2}, **options)
 
@@ -380,7 +380,7 @@ def test_underdetermined_node_uses_an_exact_constant_combination_to_preserve_the
     assert len(ground_solves) == 1
     matrix, options = ground_solves[0]
     assert (matrix.nrows, matrix.ncols) == (2, 3)
-    assert options == {'max_products': 10000000, 'max_primes': 3, 'max_degree': 8,
+    assert options == {'max_primes': 3, 'max_degree': 8,
                        'threads': 2, 'start_prime': 1}
     assert all(options.get('shift') == (7,) for matrix, options in oracle if matrix.field.parameters)
 
@@ -402,9 +402,9 @@ def test_a_valid_kernel_basis_with_an_anchor_pole_fails_without_a_generic_verdic
             certificate = KernelCertificate(matrix.content_hash(), kernel, (1,), (0, 1),
                 (0, 2), 101, (2,), ((51, 0), (51, 100)))
             alternate.append(verify_kernel(matrix, certificate))
-            return certificate
-        return exact_kernel(matrix, **options)
-    monkeypatch.setattr(production, 'reconstruct_kernel', different_kernel_basis)
+            return certificate.kernel
+        return exact_kernel(matrix, **options).kernel
+    monkeypatch.setattr(production, 'reconstruct_kernel_candidate', different_kernel_basis)
     with pytest.raises(SupportFailure, match='regular'):
         reconstruct_groebner(pres, input_sample(pres, {'a': 0}), point={'a': 0})
     assert len(alternate) == 1
@@ -434,9 +434,9 @@ def test_one_pole_column_does_not_hide_another_regular_generic_proof(oracle, mon
             certificate = KernelCertificate(matrix.content_hash(), kernel, (1, 2),
                 (0, 1), (0, 3), 101, (2,), ((51, 0), (51, 100)))
             alternate.append(verify_kernel(matrix, certificate))
-            return certificate
-        return exact_kernel(matrix, **options)
-    monkeypatch.setattr(production, 'reconstruct_kernel', mixed_kernel)
+            return certificate.kernel
+        return exact_kernel(matrix, **options).kernel
+    monkeypatch.setattr(production, 'reconstruct_kernel_candidate', mixed_kernel)
     result = reconstruct_groebner(pres, sample, point={'a': 0})
     assert result.certificate.basis[0] == x
     assert result.reduction.dimension == 1
@@ -458,3 +458,47 @@ def test_context_syzygies_cannot_replace_a_missing_generic_leading_relation(orac
     # existence cannot certify x in the generic ideal (a*x*x+x).
     with pytest.raises(SupportFailure, match='no anchor-compatible generic proof'):
         reconstruct_groebner(pres, sample, point={'a': 0})
+
+
+def test_basis_reconstruction_returns_a_proposal_without_a_completion_claim(oracle, monkeypatch):
+    parent = FreeAlgebra(RationalFunctionField(), ('a', 'b'))
+    a, b = (parent.generator(name) for name in parent.generators)
+    pres = presentation(parent, (a*b*a-b,))
+    with monkeypatch.context() as boundary:
+        boundary.setattr(production, 'verify_groebner',
+                         lambda *args, **kwargs: pytest.fail('proposal does not request completion'))
+        proposal = reconstruct_basis(pres, input_sample(pres, {}), point={})
+    assert proposal.certificate.basis == pres.relations
+    assert not hasattr(proposal, 'reduction')
+    with pytest.raises(ValueError):
+        verify_groebner(pres, proposal.certificate, max_words=8)
+
+
+def test_explicit_groebner_operation_checks_completion_once(oracle, monkeypatch):
+    pres, *_ = clifford()
+    point = {'alpha': 2, 'beta': 3, 'gamma': 5}
+    checked = []
+    actual = production.verify_groebner
+    def verify(presentation, candidate, **limits):
+        result = actual(presentation, candidate, **limits)
+        checked.append(result)
+        return result
+    monkeypatch.setattr(production, 'verify_groebner', verify)
+    result = reconstruct_groebner(pres, input_sample(pres, point), point=point)
+    assert result.reduction.dimension == 4
+    assert checked == [result.reduction]
+
+
+def test_unverified_reconstruction_does_not_recheck_generic_graph(oracle, monkeypatch):
+    pres, *_ = clifford()
+    point = {'alpha': 2, 'beta': 3, 'gamma': 5}
+    actual = production.verify_derivations
+    checked_fields = []
+    def verify(presentation, graph, **limits):
+        result = actual(presentation, graph, **limits)
+        checked_fields.append(presentation.algebra.field)
+        return result
+    monkeypatch.setattr(production, 'verify_derivations', verify)
+    proposal = reconstruct_basis(pres, input_sample(pres, point), point=point)
+    assert len(proposal.certificate.basis) == 3
+    assert checked_fields == [RationalFunctionField()]

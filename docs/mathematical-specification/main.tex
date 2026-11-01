@@ -385,7 +385,7 @@ set $W$, form the matrix whose columns are the word-coefficient vectors of
 \[
                   C_1,\ldots,C_s,\quad (-w)_{w\in W}.
 \]
-An exact kernel vector $(u,v)$ gives the local identity
+A vector $(u,v)$ belongs to this matrix kernel exactly when it gives the local identity
 \[
                g=\sum_{w\in W}v_w w=\sum_{j=1}^s u_j C_j.
 \]
@@ -394,18 +394,34 @@ normalize it to one. Numerical tails are tried first; a failed support proposal
 may be enlarged by contextual source words no larger than that leading word.
 Larger words remain cancellation equations. If the kernel is underdetermined,
 the observed monic node coefficients select a constant combination of generic
-kernel vectors whose evaluation agrees at the anchor. This finite selection
-problem is itself solved and checked exactly over $\Q$.
+vector proposals whose evaluation agrees at the anchor. Candidate constant
+combinations for this finite selection problem are reconstructed over $\Q$.
 
-The scalar functions are reconstructed by FiniteFlow \cite{finiteflow}
-and checked by the independent kernel verifier. Every generic local derivation
-is checked again, followed by both ideal inclusions and all completion
-ambiguities. Thus acceptance proves a statement over $K$, irrespective of how
-the numerical proposal was selected. A failed proposal, pole, unsupported
-leading word or exhausted bound gives no dimension verdict. There is no claim
-that one numerical proof shape always lifts, or that the search is complete.
-The interface and retained evidence are described in
-\path{docs/GENERIC_PRODUCTION.md}.
+The scalar functions are reconstructed by FiniteFlow \cite{finiteflow}. Local
+production uses candidate vectors without separately certifying their kernel
+identity, rank or completeness. Only the resulting ideal identities are needed,
+and they are checked exactly at the final algebra boundary. Reconstruction
+returns a rewrite proposal with shared ideal derivations, not a dimension or
+completion verdict. The separate certified matrix-kernel interface used for
+invariants, minimal polynomials and cofactor discovery is unchanged.
+The default production route constructs finite generator actions from this
+proposal and runs the independent finite word-basis checker described below.
+That checker validates the entire generic proof graph once, all spanning
+identities, all original relations on the full representation, and cyclic
+independence. Its acceptance therefore proves a statement about the actual
+presented algebra over $K$, irrespective of how the numerical proposal was
+selected. No separate Gr\"obner ambiguity check is needed for this conclusion.
+
+An optional completion operation additionally checks both ideal inclusions and
+all inclusion and overlap ambiguities. This establishes complete Gr\"obner
+reduction, a distinct result. Production reports record
+\path{word_basis_verified=True} after finite-basis certification and
+\path{groebner_complete=None} when completion was not separately checked;
+explicit completion instead records \path{groebner_complete=True}.
+A failed proposal, pole, unsupported leading word or exhausted bound gives no
+dimension verdict. There is no claim that one numerical proof shape always
+lifts, or that the search is complete. The interface and retained evidence are
+described in \path{docs/GENERIC_PRODUCTION.md}.
 
 \section{Finite word-basis certificates and regular actions}
 Let $A=F/I$, where $F=K\langle g_1,\ldots,g_m\rangle$ and
@@ -500,23 +516,29 @@ does not justify specialization of a quotient identity: its derivation may
 invert further factors. The original literal denominator data remain part
 of the input. API details and limits are in \path{docs/FINITE_ALGEBRAS.md}.
 
-\subsection{Producing action certificates from a complete basis}
-The action producer keeps the complete basis's ideal derivations as shared
-nodes and records a shared identity for each rewritten word minus its normal
-form. If a basis polynomial is
-$g=\lambda(\ell-\sum_u c_u u)$ and $w=L\ell R$, then
+\subsection{Producing action certificates from terminating rewrite proposals}
+A proposal orients each nonzero polynomial by its degree-lex leading word.
+The producer enumerates every word irreducible under these leading words;
+bounded enumeration must finish before a finite word basis is proposed.
+Confluence is not assumed. Let $\rho(w)$ denote the result of the chosen
+terminating reduction schedule, extended linearly to polynomials. If a proposed
+rule is $g=\lambda(\ell-\sum_u c_u u)$ and $w=L\ell R$, then
 \[
- w-\operatorname{NF}(w)
+ w-\rho(w)
  =\lambda^{-1}LgR+
-   \sum_u c_u\bigl(LuR-\operatorname{NF}(LuR)\bigr).
+   \sum_u c_u\bigl(LuR-\rho(LuR)\bigr).
 \]
 Every child word is strictly smaller in degree-lex order. Memoizing these
 identities gives an acyclic spanning proof without expanding shared ideal
 proofs into original cofactor contexts. Applying this construction to each
-$g_ab_j$ supplies the generator columns and their ideal identities. The
-independent word-basis verifier then checks all original matrix relations and
-cyclic independence. The zero algebra instead retains a shared proof that
-$1\in I$. No cubic multiplication table is required.
+$g_ab_j$ supplies generator columns and their proposed ideal identities.
+The independent word-basis verifier checks the complete shared proof graph,
+all generator-column identities, all original matrix relations, and cyclic
+independence exactly once. The proposition above then proves that the proposed
+words are a basis of the presented algebra. A false derivation or an
+inconsistent reduction proposal cannot establish a dimension. The zero algebra
+instead retains a shared proof that $1\in I$. No cubic multiplication table or
+separate completion check is required.
 
 \section{Symbolic q,t certificate data and exact conclusion}
 Let $r_1,\ldots,r_s\in F_n$ be the ordered defining relations of a specified

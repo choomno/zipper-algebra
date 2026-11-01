@@ -31,10 +31,13 @@ def test_native_literal_generic_family_reloads_both_certificates(tmp_path, io_mo
     report = produce_algebra(pres, {'gamma': 5, 'beta': 3, 'alpha': 2}, config)
     assert report['verified'], report
     assert report['dimension'] == 4
+    assert report['word_basis_verified'] is True
+    assert report['groebner_complete'] is None
+    assert 'basis_complete' not in report
     assert report['solver']['request']['input_relation_indices'] == [1, 2, 3]
     artifacts = report['artifacts']
     saved = AlgebraPresentation.from_json(json.loads(Path(artifacts['presentation.json']).read_text()))
-    generic = GroebnerCertificate.from_json(json.loads(Path(artifacts['groebner-certificate.json']).read_text()))
+    generic = GroebnerCertificate.from_json(json.loads(Path(artifacts['rewrite-candidate.json']).read_text()))
     certificate = WordBasisCertificate.from_json(json.loads(Path(artifacts['word-basis-certificate.json']).read_text()))
     assert saved.content_hash() == pres.content_hash()
     assert verify_groebner(saved, generic).dimension == 4

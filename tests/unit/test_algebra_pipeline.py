@@ -11,7 +11,7 @@ from zipper_algebra.execution import production as pipeline
 from zipper_algebra.execution.artifacts import ArtifactError, canonical_json, digest_bytes, file_identity
 from zipper_algebra.execution.config import RunConfig
 from zipper_algebra.fields import RationalFunctionField
-from zipper_algebra.production import GroebnerProduction
+from zipper_algebra.production import BasisReconstruction
 from zipper_algebra.verification.finite import WordBasisCertificate, verify_word_basis
 from zipper_algebra.verification.groebner import GroebnerCertificate, ProofTerm, verify_groebner
 
@@ -43,10 +43,9 @@ def setup(tmp_path, monkeypatch):
         tuple((ProofTerm(field.one, (), 'input', i, ()),) for i in range(3)))
     # Reconstruction itself is tested separately. This boundary supplies an
     # honest complete generic candidate whose source identities are literal.
-    result = GroebnerProduction(certificate, verify_groebner(presentation, certificate),
-                               {'systems': 3})
+    result = BasisReconstruction(certificate, {'systems': 3})
     monkeypatch.setattr(pipeline, 'reconstruction_provenance', lambda: {'engine': 'test-boundary'})
-    monkeypatch.setattr(pipeline, 'reconstruct_groebner', lambda *a, **k: result)
+    monkeypatch.setattr(pipeline, 'reconstruct_basis', lambda *a, **k: result)
     return presentation, config, result
 
 
@@ -57,7 +56,8 @@ def read(path):
 def assert_inconclusive(report, stage):
     assert report['status'] == 'inconclusive'
     assert not report['verified'] and report['dimension'] is None
-    assert not report['basis_complete'] and report['stage'] == stage
+    assert not report['word_basis_verified'] and report['stage'] == stage
+    assert report['groebner_complete'] is None
     assert 'generation' not in report and 'artifacts' not in report
 
 
@@ -65,24 +65,30 @@ def test_production_publishes_only_byte_bound_certified_algebra(setup):
     presentation, config, _ = setup
     report = pipeline.produce_algebra(presentation, {}, config, refresh=True, shift=())
     assert report['status'] == 'verified' and report['verified']
-    assert report['basis_complete'] and report['dimension'] == 4
+    assert report['word_basis_verified'] and report['dimension'] == 4
+    assert report['groebner_complete'] is None
+    assert 'basis_complete' not in report
     assert read(config.output_root/'result.json') == report
     assert (config.output_root/'samples.sqlite3').is_file()
     assert (config.output_root/'.gitignore').read_text() == '*\n!.gitignore\n'
     artifacts = report['artifacts']
-    assert set(artifacts) == {'presentation.json', 'groebner-certificate.json',
+    assert set(artifacts) == {'presentation.json', 'rewrite-candidate.json',
                              'word-basis-certificate.json', 'production.json', 'provenance.json'}
     restored_presentation = AlgebraPresentation.from_json(read(artifacts['presentation.json']))
     assert restored_presentation.content_hash() == presentation.content_hash()
-    restored_groebner = GroebnerCertificate.from_json(read(artifacts['groebner-certificate.json']))
+    restored_groebner = GroebnerCertificate.from_json(read(artifacts['rewrite-candidate.json']))
     assert verify_groebner(presentation, restored_groebner).dimension == 4
     restored_basis = WordBasisCertificate.from_json(read(artifacts['word-basis-certificate.json']))
     algebra = verify_word_basis(presentation, restored_basis)
     assert algebra.dimension == 4
     assert restored_basis.basis_words == ((), (1,), (2,), (1, 2))
     metadata = read(artifacts['production.json'])
-    assert metadata['completion']['basis_complete']
+    assert metadata['completion'] is None
     assert metadata['dimension'] == 4
+    assert metadata['verification_limits'] == {
+        'max_operations': 10000000, 'max_nodes': 100000, 'max_dimension': 100000}
+    assert metadata['completion_options'] == {
+        'requested': False, 'max_reductions': 2000000, 'max_words': 100000}
     assert metadata['reconstruction']['options']['shift'] == []
     assert metadata['solver']['store'] == 'samples.sqlite3'
     assert not metadata['solver']['hit']
@@ -101,10 +107,10 @@ def test_cache_reuse_and_reconstruction_control_forwarding(setup, monkeypatch):
         assert sample.presentation_hash == presentation.content_hash()
         calls.append(options)
         return result
-    monkeypatch.setattr(pipeline, 'reconstruct_groebner', reconstruct)
+    monkeypatch.setattr(pipeline, 'reconstruct_basis', reconstruct)
     first = pipeline.produce_algebra(presentation, {}, config)
     second = pipeline.produce_algebra(presentation, {}, config, max_primes=3, max_degree=9,
-                                     threads=2, start_prime=1, max_products=12345,
+                                     threads=2, start_prime=1,
                                      max_operations=12345, max_reductions=12345,
                                      max_words=30, max_nodes=100)
     assert first['verified'] and second['verified']
@@ -112,7 +118,6 @@ def test_cache_reuse_and_reconstruction_control_forwarding(setup, monkeypatch):
     third = pipeline.produce_algebra(presentation, {}, config)
     assert third['verified'] and third['solver']['hit']
     assert calls[1] == {'point': {}, 'max_nodes': 100, 'max_operations': 12345,
-                       'max_products': 12345, 'max_reductions': 12345, 'max_words': 30,
                        'max_primes': 3, 'max_degree': 9, 'threads': 2, 'start_prime': 1,
                        'shift': None}
 
@@ -120,9 +125,9 @@ def test_cache_reuse_and_reconstruction_control_forwarding(setup, monkeypatch):
 @pytest.mark.parametrize(('name', 'failure', 'stage'), [
     ('run_algebra_point', pipeline.ExecutionError('solver timed out'), 'solver'),
     ('solver_certificate', ArtifactError('retained proof changed'), 'reconstruction'),
-    ('reconstruct_groebner', RuntimeError('support cannot lift'), 'reconstruction'),
+    ('reconstruct_basis', RuntimeError('support cannot lift'), 'reconstruction'),
     ('reconstruction_provenance', ImportError('native dependency unavailable'), 'reconstruction'),
-    ('word_basis_from_groebner', RuntimeError('word bound exhausted'), 'actions'),
+    ('word_basis_from_rewrites', RuntimeError('word bound exhausted'), 'actions'),
     ('_publish', OSError('output is full'), 'publication'),
 ])
 def test_failed_stages_retain_an_inconclusive_result(setup, monkeypatch, name, failure, stage):
@@ -215,7 +220,7 @@ def test_interrupted_attempt_cannot_leave_an_old_verified_verdict(setup, monkeyp
     assert completed['verified']
     def interrupt(*args, **kwargs):
         raise KeyboardInterrupt
-    monkeypatch.setattr(pipeline, 'reconstruct_groebner', interrupt)
+    monkeypatch.setattr(pipeline, 'reconstruct_basis', interrupt)
     with pytest.raises(KeyboardInterrupt):
         pipeline.produce_algebra(presentation, {}, config)
     unfinished = read(config.output_root/'result.json')
@@ -249,3 +254,116 @@ def test_literal_parameter_pole_is_reported_as_inconclusive(setup):
     assert_inconclusive(report, 'solver')
     assert 'division by zero' in report['reason']
     assert read(config.output_root/'result.json') == report
+
+
+def test_default_pipeline_certifies_finite_basis_once_without_completion(setup, monkeypatch):
+    from zipper_algebra import action_production
+    presentation, config, _ = setup
+    actual = action_production.verify_word_basis
+    verified = []
+    def check(pres, certificate, **options):
+        algebra = actual(pres, certificate, **options)
+        verified.append(algebra)
+        return algebra
+    monkeypatch.setattr(action_production, 'verify_word_basis', check)
+    monkeypatch.setattr(pipeline, 'verify_groebner',
+                        lambda *args, **kwargs: pytest.fail('unrequested completion check'))
+    report = pipeline.produce_algebra(presentation, {}, config)
+    assert report['verified'] and report['dimension'] == 4
+    assert len(verified) == 1 and verified[0].dimension == 4
+    assert report['groebner_complete'] is None
+    assert read(report['artifacts']['production.json'])['completion'] is None
+
+
+def test_requested_completion_is_checked_once_and_recorded(setup, monkeypatch):
+    presentation, config, _ = setup
+    checks = []
+    actual = pipeline.verify_groebner
+    def check(pres, certificate, **options):
+        result = actual(pres, certificate, **options)
+        checks.append(result)
+        return result
+    monkeypatch.setattr(pipeline, 'verify_groebner', check)
+    report = pipeline.produce_algebra(presentation, {}, config, verify_completion=True,
+                                      max_reductions=12345, max_words=30)
+    assert report['verified'] and report['groebner_complete'] is True
+    assert report['word_basis_verified'] is True
+    assert len(checks) == 1 and checks[0].dimension == 4
+    metadata = read(report['artifacts']['production.json'])
+    assert metadata['completion'] == checks[0].report
+    assert metadata['completion_options'] == {
+        'requested': True, 'max_reductions': 12345, 'max_words': 30}
+
+
+def test_requested_completion_failure_prevents_verified_publication(setup, monkeypatch):
+    presentation, config, _ = setup
+    def incomplete(*args, **kwargs):
+        raise ValueError('candidate has an unresolved ambiguity')
+    monkeypatch.setattr(pipeline, 'verify_groebner', incomplete)
+    report = pipeline.produce_algebra(presentation, {}, config, verify_completion=True)
+    assert_inconclusive(report, 'completion')
+    assert 'unresolved ambiguity' in report['reason']
+
+
+@pytest.mark.parametrize('bad', [None, 0, 1, 'yes', [], {}])
+def test_completion_selection_requires_a_boolean_before_output(setup, bad):
+    presentation, config, _ = setup
+    with pytest.raises((TypeError, ValueError), match='verify_completion'):
+        pipeline.produce_algebra(presentation, {}, config, verify_completion=bad)
+    assert not config.output_root.exists()
+
+
+def test_forged_generic_derivation_is_rejected_by_final_finite_basis_check(setup, monkeypatch):
+    presentation, config, result = setup
+    u = presentation.algebra.generator('u')
+    bad = GroebnerCertificate(presentation.content_hash(),
+                              (u, *result.certificate.basis[1:]), result.certificate.derivations)
+    monkeypatch.setattr(pipeline, 'reconstruct_basis',
+                        lambda *args, **kwargs: BasisReconstruction(bad, {}))
+    report = pipeline.produce_algebra(presentation, {}, config)
+    assert_inconclusive(report, 'actions')
+    assert 'identity' in report['reason']
+
+
+def test_false_native_vectors_cannot_bypass_final_exact_ideal_proofs(setup, monkeypatch):
+    from zipper_algebra import production
+    from zipper_algebra.matrices import ExactMatrix
+    presentation, config, _ = setup
+    # These vectors reproduce the three literal node polynomials but attach
+    # zero coefficients to their defining-relation columns. They are not local
+    # kernel vectors, and the final ideal-identity check must detect that.
+    vectors = iter(((0, 1), (0, 1), (0, -1, 1, 1)))
+    def false_vectors(matrix, **options):
+        coefficients = next(vectors)
+        assert len(coefficients) == matrix.ncols
+        return ExactMatrix(matrix.field, matrix.ncols, 1,
+                           tuple((row, 0, matrix.field.scalar(value))
+                                 for row, value in enumerate(coefficients)))
+    monkeypatch.setattr(production, 'reconstruct_kernel_candidate', false_vectors)
+    monkeypatch.setattr(pipeline, 'reconstruct_basis', production.reconstruct_basis)
+    report = pipeline.produce_algebra(presentation, {}, config)
+    assert_inconclusive(report, 'actions')
+    assert 'identity' in report['reason']
+
+
+def test_optional_completion_budget_does_not_revoke_a_certified_finite_algebra(setup):
+    presentation, config, _ = setup
+    # One rewrite cannot even reduce both u*u and v*v in the complete-basis
+    # checker. The independently certified four-dimensional algebra remains
+    # valid when this additional check exhausts its separate budget.
+    report = pipeline.produce_algebra(presentation, {}, config, verify_completion=True,
+                                      max_reductions=1, max_operations=12345,
+                                      max_nodes=100, max_words=30)
+    assert report['status'] == 'verified' and report['verified']
+    assert report['word_basis_verified'] and report['dimension'] == 4
+    assert report['groebner_complete'] is None
+    metadata = read(report['artifacts']['production.json'])
+    assert metadata['completion']['status'] == 'inconclusive'
+    assert 'budget' in metadata['completion']['reason']
+    assert metadata['verification_limits'] == {
+        'max_operations': 12345, 'max_nodes': 100, 'max_dimension': 30}
+    assert metadata['completion_options'] == {
+        'requested': True, 'max_reductions': 1, 'max_words': 30}
+    certificate = WordBasisCertificate.from_json(read(report['artifacts']['word-basis-certificate.json']))
+    assert verify_word_basis(presentation, certificate, max_operations=12345,
+                             max_nodes=100, max_dimension=30).dimension == 4

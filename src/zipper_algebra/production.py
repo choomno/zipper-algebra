@@ -1,10 +1,10 @@
 """Reconstruct shared generic Gröbner derivations from numerical support proposals.
 
 Numerical words propose supports; scalar values select compatible nodes at the
-anchor. Local generic kernel solves recover a polynomial
+anchor. Local kernel candidates propose a polynomial
 and its derivation together over the original field, retaining references to
-previously reconstructed nodes. Only independent exact completion checking can
-turn this finite support search into a certified generic reduction.
+previously reconstructed nodes. Independent finite-basis or completion checking
+supplies the mathematical acceptance criterion for this finite support search.
 """
 from __future__ import annotations
 
@@ -16,19 +16,31 @@ from graphlib import TopologicalSorter
 from .algebra import AlgebraPresentation, AlgebraElement
 from .matrices import ExactMatrix
 from .fields import RationalFunctionField
-from .reconstruction import reconstruct_kernel
+from .reconstruction import reconstruct_kernel_candidate
 from .verification.derivations import (DerivationGraph, DerivationTerm,
                                        _Budget, _positive_limit, verify_derivations)
 from .verification.groebner import (GroebnerCertificate, ProofTerm, VerifiedReduction,
                                    verify_groebner)
-from .verification.linear import verify_kernel
 from .verification.working_field import WorkingField
 
-__all__ = ["GroebnerProduction", "SupportFailure", "reconstruct_groebner"]
+__all__ = ["BasisReconstruction", "GroebnerProduction", "SupportFailure",
+           "reconstruct_basis", "reconstruct_groebner"]
 
 
 class SupportFailure(RuntimeError):
     """A numerical proof proposal cannot be lifted with the supplied supports."""
+
+
+@dataclass(frozen=True, slots=True)
+class BasisReconstruction:
+    """A generic rewrite proposal awaiting independent algebra certification.
+
+    The candidate includes local ideal derivations. This record alone establishes
+    neither completion nor dimension; pass it to a finite-basis or Gröbner checker.
+    """
+
+    certificate: GroebnerCertificate
+    statistics: dict
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,7 +60,7 @@ def _graph(certificate):
                                  for row in certificate.derivations))
 
 
-def _select_node(matrix, kernel, support, contexts, numeric, point, options, max_products):
+def _select_node(matrix, kernel, support, contexts, numeric, point, options):
     """Select a generic identity compatible with the observed monic node.
 
     A local kernel may be underdetermined. Choosing an arbitrary vector can
@@ -59,7 +71,7 @@ def _select_node(matrix, kernel, support, contexts, numeric, point, options, max
     field = matrix.field
     arithmetic = WorkingField(field)
     entries = {(row, column): arithmetic.from_element(value)
-               for row, column, value in kernel.kernel.entries}
+               for row, column, value in kernel.entries}
     leading = max(support, key=lambda word: (len(word), word))
     anchor = len(contexts) + support.index(leading)
     observed = dict(numeric.terms)
@@ -72,10 +84,10 @@ def _select_node(matrix, kernel, support, contexts, numeric, point, options, max
               for word in support]
     evaluated = {}
     available = []
-    for column in range(kernel.kernel.ncols):
+    for column in range(kernel.ncols):
         try:
             values = {(row, column): rational(value.specialize(point))
-                      for row, col, value in kernel.kernel.entries
+                      for row, col, value in kernel.entries
                       if col == column and row >= len(contexts)}
         except ZeroDivisionError:
             continue
@@ -97,9 +109,8 @@ def _select_node(matrix, kernel, support, contexts, numeric, point, options, max
                              for (row, column), value in evaluated.items())
                        + tuple((row, len(available), ground.scalar(-value))
                                for row, value in enumerate(target)))
-    solution = reconstruct_kernel(combination, max_products=max_products, **options)
-    verify_kernel(combination, solution, max_products=max_products)
-    weights = {(row, column): rational(value) for row, column, value in solution.kernel.entries}
+    solution = reconstruct_kernel_candidate(combination, **options)
+    weights = {(row, column): rational(value) for row, column, value in solution.entries}
     choices = [(column, value) for (row, column), value in weights.items()
                if row == len(available)]
     if not choices:
@@ -113,12 +124,11 @@ def _select_node(matrix, kernel, support, contexts, numeric, point, options, max
     return [arithmetic.to_element(value / coefficients[anchor]) for value in coefficients]
 
 
-def reconstruct_groebner(presentation: AlgebraPresentation, sample: GroebnerCertificate, *,
+def reconstruct_basis(presentation: AlgebraPresentation, sample: GroebnerCertificate, *,
                          point: Mapping[str, int | Fraction], max_nodes=100000,
-                         max_operations=10000000, max_products=10000000,
-                         max_reductions=2000000, max_words=100000,
+                         max_operations=10000000,
                          max_primes=5, max_degree=24, threads=1, start_prime=0,
-                         shift=None) -> GroebnerProduction:
+                         shift=None) -> BasisReconstruction:
     """Lift a numerical proof shape using exact generic equations.
 
     ``sample`` must be bound to the full literal specialization at ``point``;
@@ -133,15 +143,14 @@ def reconstruct_groebner(presentation: AlgebraPresentation, sample: GroebnerCert
     coordinate is normalized to produce a monic generic node. Numerical node
     coefficients select an anchor-compatible combination when a kernel is
     underdetermined; generic coefficients come from exact generic equations.
-    Inadequate support,
-    exhausted bounds and failed completion checks give no dimension verdict.
+    Native kernel vectors are untrusted candidates; no local rank or kernel
+    completeness certificate is needed to propose an ideal identity.
+    The returned proposal is not an acceptance verdict. Its complete generic
+    graph is checked once by the downstream finite-basis or completion verifier.
 
     ``max_operations`` separately caps numerical graph verification, aggregate
-    generic matrix placements, and final generic graph verification. Kernel
-    product/reconstruction bounds apply per local solve; ``max_reductions`` and
-    ``max_words`` bound the final completion checker. These are not process RAM
-    or wall-clock limits. A completed reduction can have dimension=None when
-    finite standard-word enumeration exceeds its bound.
+    generic matrix placements. Native reconstruction bounds apply per local solve. These are not process RAM or wall-clock limits. The proposal
+    contains no dimension or completion assertion.
     """
     if not isinstance(presentation, AlgebraPresentation) or not isinstance(sample, GroebnerCertificate):
         raise TypeError("generic production requires an AlgebraPresentation and GroebnerCertificate")
@@ -153,9 +162,6 @@ def reconstruct_groebner(presentation: AlgebraPresentation, sample: GroebnerCert
         raise ValueError("point must assign every declared parameter an exact rational value")
     _positive_limit(max_nodes, "max_nodes")
     budget = _Budget(max_operations)
-    for name, value in (("max_products", max_products), ("max_reductions", max_reductions),
-                        ("max_words", max_words)):
-        _positive_limit(value, name)
     for name, value, minimum in (("max_primes", max_primes, 1), ("max_degree", max_degree, 1),
                                  ("threads", threads, 1), ("start_prime", start_prime, 0)):
         if type(value) is not int or value < minimum:
@@ -207,10 +213,8 @@ def reconstruct_groebner(presentation: AlgebraPresentation, sample: GroebnerCert
                                  tuple((rows[word], column, coefficient)
                                        for column, vector in enumerate(columns)
                                        for word, coefficient in vector.items()))
-            kernel = reconstruct_kernel(matrix, max_primes=max_primes, max_degree=max_degree,
-                                         threads=threads, start_prime=start_prime, shift=shift,
-                                         max_products=max_products)
-            verify_kernel(matrix, kernel, max_products=max_products)
+            kernel = reconstruct_kernel_candidate(matrix, max_primes=max_primes, max_degree=max_degree,
+                                         threads=threads, start_prime=start_prime, shift=shift)
             selection_options = {"max_primes": max_primes, "max_degree": max_degree,
                                  "threads": threads, "start_prime": start_prime}
             counts["systems"] += 1
@@ -218,7 +222,7 @@ def reconstruct_groebner(presentation: AlgebraPresentation, sample: GroebnerCert
             counts["matrix_columns"] += matrix.ncols
             counts["matrix_entries"] += len(matrix.entries)
             return _select_node(matrix, kernel, support, contexts, sample.basis[index],
-                                point, selection_options, max_products)
+                                point, selection_options)
 
         support = sampled_support
         try:
@@ -235,9 +239,28 @@ def reconstruct_groebner(presentation: AlgebraPresentation, sample: GroebnerCert
     certificate = GroebnerCertificate(presentation.content_hash(),
                                       tuple(nodes[i] for i in range(len(nodes))),
                                       tuple(derivations[i] for i in range(len(nodes))))
-    verify_derivations(presentation, _graph(certificate), max_nodes=max_nodes,
-                       max_operations=max_operations)
-    reduction = verify_groebner(presentation, certificate, max_reductions=max_reductions,
-                                max_words=max_words, prune=True)
     counts["matrix_placements"] = budget.used
-    return GroebnerProduction(certificate, reduction, counts)
+    return BasisReconstruction(certificate, counts)
+
+
+def reconstruct_groebner(presentation: AlgebraPresentation, sample: GroebnerCertificate, *,
+                         point: Mapping[str, int | Fraction], max_nodes=100000,
+                         max_operations=10000000,
+                         max_reductions=2000000, max_words=100000,
+                         max_primes=5, max_degree=24, threads=1, start_prime=0,
+                         shift=None) -> GroebnerProduction:
+    """Reconstruct a candidate and explicitly certify its Gröbner completion.
+
+    Use ``reconstruct_basis`` followed by finite-basis certification when only
+    a certified finite algebra is needed. This operation additionally establishes
+    complete degree-lex reduction, using one independent completion check.
+    """
+    _positive_limit(max_reductions, "max_reductions")
+    _positive_limit(max_words, "max_words")
+    candidate = reconstruct_basis(presentation, sample, point=point, max_nodes=max_nodes,
+                    max_operations=max_operations,
+                    max_primes=max_primes, max_degree=max_degree, threads=threads,
+                    start_prime=start_prime, shift=shift)
+    reduction = verify_groebner(presentation, candidate.certificate,
+                                max_reductions=max_reductions, max_words=max_words, prune=True)
+    return GroebnerProduction(candidate.certificate, reduction, candidate.statistics)

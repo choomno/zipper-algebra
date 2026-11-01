@@ -1,4 +1,4 @@
-"""Produce independently checked regular actions from complete Gröbner data.
+"""Produce certified regular actions from ideal-derived rewrite proposals.
 
 Each word rewrite records a shared local identity for w minus its normal form.
 Existing Gröbner derivations remain shared graph nodes; no original-input
@@ -6,34 +6,47 @@ cofactor expansion or full multiplication table is constructed.
 """
 from __future__ import annotations
 
+from collections import deque
+from typing import Any
+
 from .algebra import AlgebraPresentation
 from .verification.derivations import (DerivationGraph, DerivationTerm, VerificationLimit,
                                       _Budget, _positive_limit)
 from .verification.finite import GeneratorAction, WordBasisCertificate, verify_word_basis
-from .verification.groebner import GroebnerCertificate, verify_groebner
+from .verification.groebner import GroebnerCertificate
 from .verification.working_field import WorkingField
 
-__all__ = ["word_basis_from_groebner"]
+__all__ = ["word_basis_from_rewrites"]
 
 
-def word_basis_from_groebner(presentation: AlgebraPresentation, certificate: GroebnerCertificate, *,
+def word_basis_from_rewrites(presentation: AlgebraPresentation, certificate: GroebnerCertificate, *,
                              max_operations=10000000, max_nodes=100000,
-                             max_reductions=2000000, max_words=100000) -> WordBasisCertificate:
-    """Return exact regular generator actions with shared spanning proofs.
+                             max_words=100000) -> WordBasisCertificate:
+    """Construct a finite word-basis witness and check it exactly once.
 
-    Completion is verified afresh. Failure to finish standard-word enumeration
-    is inconclusive and raises VerificationLimit. ``max_nodes`` bounds the
-    retained proof graph; ``max_operations`` separately bounds construction and
-    independent word-basis verification. ``max_reductions`` bounds the initial
-    completion check. These bounds are not process time or RAM limits.
+    The proposal need not have passed a Gröbner-completion check. Degree-lex
+    orientation guarantees terminating reductions. Every irreducible word is
+    enumerated, with finite enumeration and construction sharing the operation
+    budget. Missing closure or a nonconfluent proposal cannot establish a
+    dimension: the final independent checker requires all local ideal proofs,
+    original relations on every matrix column, and cyclic independence.
+
+    ``max_nodes`` bounds the retained proof graph. ``max_operations`` separately
+    bounds construction and the independent finite-basis verification. Stored
+    word lengths consume construction budget; ``max_words`` bounds their count.
+    These bounds are not process time or RAM limits.
     """
+    if not isinstance(presentation, AlgebraPresentation) or not isinstance(certificate, GroebnerCertificate):
+        raise TypeError("action production requires an AlgebraPresentation and GroebnerCertificate")
+    if certificate.presentation_hash != presentation.content_hash():
+        raise ValueError("rewrite proposal presentation hash mismatch")
+    if any(polynomial.algebra != presentation.algebra for polynomial in certificate.basis):
+        raise TypeError("rewrite proposal and presentation have different free algebras")
     _positive_limit(max_nodes, "max_nodes")
+    _positive_limit(max_words, "max_words")
     budget = _Budget(max_operations)
-    reduction = verify_groebner(presentation, certificate, max_reductions=max_reductions,
-                                max_words=max_words, prune=True)
-    words = reduction.standard_words
-    if words is None:
-        raise VerificationLimit("finite standard-word enumeration did not finish")
+    if len(certificate.basis) > max_nodes:
+        raise VerificationLimit("action production exceeds its proof-node bound")
     algebra, field = presentation.algebra, presentation.algebra.field
     arithmetic = WorkingField(field)
     nodes = list(certificate.basis)
@@ -41,8 +54,43 @@ def word_basis_from_groebner(presentation: AlgebraPresentation, certificate: Gro
                                        "input" if term.kind == "input" else "node",
                                        term.index, term.right) for term in row)
                    for row in certificate.derivations]
-    if len(nodes) > max_nodes:
-        raise VerificationLimit("action production exceeds its proof-node bound")
+    leading = [max((word for word, _ in polynomial.terms), key=lambda word: (len(word), word))
+               for polynomial in certificate.basis]
+    selected = sorted(range(len(leading)), key=lambda index: (len(leading[index]), leading[index], index))
+    rules: list[tuple[int, tuple[int, ...], Any, tuple]] = []
+    for index in selected:
+        word = leading[index]
+        budget.consume(len(word) + 1)
+        if any(any(word[position:position + len(divisor)] == divisor
+                   for position in range(len(word) - len(divisor) + 1))
+               for _, divisor, _, _ in rules):
+            continue
+        polynomial = certificate.basis[index]
+        budget.consume(len(polynomial.terms))
+        native = {monomial: arithmetic.from_element(coefficient)
+                  for monomial, coefficient in polynomial.terms}
+        inverse = arithmetic.one / native[word]
+        tail = tuple((monomial, -coefficient * inverse) for monomial, coefficient in native.items()
+                     if monomial != word)
+        rules.append((index, word, inverse, tail))
+    enumerated: list[tuple[int, ...]] = [] if rules and not rules[0][1] else [()]
+    frontier = deque(enumerated)
+    while frontier:
+        word = frontier.popleft()
+        for generator in range(1, len(algebra.generators) + 1):
+            # Charge before allocation so a one-generator free algebra cannot
+            # retain a quadratic number of word entries before max_words fires.
+            budget.consume(len(word) + 1)
+            candidate = word + (generator,)
+            if any(any(candidate[position:position + len(divisor)] == divisor
+                       for position in range(len(candidate) - len(divisor) + 1))
+                   for _, divisor, _, _ in rules):
+                continue
+            enumerated.append(candidate)
+            if len(enumerated) > max_words:
+                raise VerificationLimit("finite irreducible-word enumeration did not finish")
+            frontier.append(candidate)
+    words = tuple(enumerated)
 
     def append(polynomial, terms):
         if len(nodes) >= max_nodes:
@@ -57,23 +105,13 @@ def word_basis_from_groebner(presentation: AlgebraPresentation, certificate: Gro
         return DerivationGraph(presentation.content_hash(), tuple(nodes), tuple(derivations))
 
     if not words:
-        index, scalar = next((index, polynomial.terms[0][1])
-                             for index, polynomial in enumerate(certificate.basis)
-                             if len(polynomial.terms) == 1 and polynomial.terms[0][0] == ())
-        unit = append(algebra.one, (DerivationTerm(field.one / scalar, (), "node", index, ()),))
+        index, _, inverse, _ = rules[0]
+        unit = append(algebra.one, (DerivationTerm(arithmetic.to_element(inverse), (), "node", index, ()),))
         result = WordBasisCertificate(presentation.content_hash(), (),
                                       tuple(GeneratorAction(field, ()) for _ in algebra.generators),
                                       graph(), tuple(() for _ in algebra.generators), unit)
     else:
         zero = append(algebra.zero, ())
-        rules = []
-        for index, polynomial in enumerate(certificate.basis):
-            native = {word: arithmetic.from_element(coefficient) for word, coefficient in polynomial.terms}
-            leading = max(native, key=lambda word: (len(word), word))
-            inverse = arithmetic.one / native[leading]
-            tail = tuple((word, -coefficient * inverse) for word, coefficient in native.items()
-                         if word != leading)
-            rules.append((index, leading, inverse, tail))
         memo: dict = {}
         pending: dict = {}
 
