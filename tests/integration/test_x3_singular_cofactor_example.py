@@ -79,6 +79,8 @@ def test_literal_original_input_and_fresh_target_search():
     assert 'poly Target='+helper.polynomial_source(dict(target.terms))+';' in source
     assert 'targetDone=checkTarget();' in source
     assert 'freeAlgebra(r,24)' in source
+    assert 'if(res[1]!=0){return(0);}' in source
+    assert module.load_helper() is module.load_helper()
 
 
 def test_publish_reload_and_exactly_verify_original_relation_identity(tmp_path, monkeypatch):
@@ -111,6 +113,56 @@ def test_native_success_and_target_marker_cannot_substitute_for_exact_proof(tmp_
         module.produce(Path(sys.executable), tmp_path/'run')
     assert not (tmp_path/'run'/'report.json').exists()
     assert not (tmp_path/'run'/'provenance.json').exists()
+
+
+def test_changed_package_source_cannot_receive_a_verified_report(tmp_path, monkeypatch):
+    module = load_example()
+    fake_native(module, tmp_path, monkeypatch)
+
+    def changed(producer):
+        raise ValueError('package source changed during computation')
+
+    monkeypatch.setattr(module, 'validate_source_snapshot', changed)
+    with pytest.raises(ValueError, match='package source changed'):
+        module.produce(Path(sys.executable), tmp_path/'run')
+    assert not (tmp_path/'run'/'report.json').exists()
+    assert not (tmp_path/'run'/'provenance.json').exists()
+    assert not (tmp_path/'run'/'cofactor.json').exists()
+
+
+def test_shared_node_contexts_are_expanded_in_order():
+    module = load_example()
+    full, _ = module.presentation()
+    target = full.algebra.generator('x2')*full.relations[0]*full.algebra.generator('y3')
+    first = framed(full.relations[0], marker='').split('D|')[0]
+    second = ''.join(f'G|2|{c}|'+''.join(f'{i},' for i in w)+'|0|\n' for w, c in target.terms)
+    text = first+'D|1|1||0|1|\n'+second+'D|2|1|2,|1|1|6,\nTARGET_DONE|2\n'
+    graph, node = module.parse_target(full, target, text, max_nodes=1000)
+    identity = module.expand_derivation(full, graph, node)
+    assert verify_cofactor(full, identity)
+    left, index, right = identity.terms[0]
+    assert index == 0 and left == full.algebra.generator('x2') and right == full.algebra.generator('y3')
+
+
+@pytest.mark.parametrize('document', ['target.json', 'presentation.json'])
+def test_modified_serialized_input_cannot_be_published(tmp_path, monkeypatch, document):
+    module = load_example()
+    fake_native(module, tmp_path, monkeypatch)
+    helper = module.load_helper()
+    native = helper.run_singular
+
+    def changed(binary, source, output, stage, **limits):
+        text, elapsed = native(binary, source, output, stage, **limits)
+        full, _ = module.presentation()
+        value = (full.algebra.zero.to_json() if document == 'target.json' else
+                 AlgebraPresentation(full.algebra, full.relations[:-1], full.labels[:-1]).to_json())
+        (output/document).write_text(json.dumps(value))
+        return text, elapsed
+
+    monkeypatch.setattr(helper, 'run_singular', changed)
+    with pytest.raises(ValueError, match='published original-input cofactor'):
+        module.produce(Path(sys.executable), tmp_path/'run')
+    assert not (tmp_path/'run'/'cofactor.json').exists()
 
 
 @pytest.mark.parametrize('marker', ['', 'TARGET_DONE|0\n', 'TARGET_DONE|2\n',
@@ -184,3 +236,19 @@ def test_cli_reports_missing_executable(monkeypatch, capsys):
         module.main(['--singular', 'absent'])
     assert caught.value.code == 2
     assert 'executable not found' in capsys.readouterr().err
+
+
+@pytest.mark.parametrize('error', [ZeroDivisionError('invalid exact scalar'),
+                                 subprocess.SubprocessError('native resource setup failed')])
+def test_cli_reports_exact_arithmetic_and_native_setup_failures(monkeypatch, capsys, error):
+    module = load_example()
+    monkeypatch.setattr(module.shutil, 'which', lambda name: sys.executable)
+
+    def failed(*args, **kwargs):
+        raise error
+
+    monkeypatch.setattr(module, 'produce', failed)
+    with pytest.raises(SystemExit) as caught:
+        module.main([])
+    assert caught.value.code == 1
+    assert capsys.readouterr().err == f'{error}\n'

@@ -4,9 +4,10 @@ Run locally with Singular 4.4 and freegb.lib installed::
 
     python examples/x3_singular_cofactor.py --singular Singular
 
-All 31 original Bigelow presentation relations are used. Target-directed
-completion retains local proofs, stops when X_3 reduces to zero, and expands
-that proof into an explicit sum of multiples of the original relations.
+All 31 original Bigelow presentation relations are used. An interpreted
+completion and tracing script uses Singular's free-polynomial arithmetic,
+stops when X_3 reduces to zero, and expands that proof into an explicit sum
+of multiples of the original relations.
 The saved cofactor is reloaded and checked in the untruncated free algebra.
 No existing basis, cofactor, or support is an input. A resource-limit failure
 is inconclusive. This research computation is deliberately excluded from CI.
@@ -14,18 +15,20 @@ is inconclusive. This research computation is deliberately excluded from CI.
 from __future__ import annotations
 
 import argparse
+from functools import lru_cache
 import importlib.util
 import json
 from pathlib import Path
 import re
 import shutil
+import subprocess
 import time
 
 from zipper_algebra import Presentation
-from zipper_algebra.algebra import AlgebraPresentation, CofactorIdentity, FreeAlgebra
+from zipper_algebra.algebra import AlgebraElement, AlgebraPresentation, CofactorIdentity, FreeAlgebra
 from zipper_algebra.coefficients import SymbolicRing
 from zipper_algebra.cofactor.general import expand_derivation, verify_cofactor
-from zipper_algebra.execution.artifacts import prepare_output_root
+from zipper_algebra.execution.artifacts import prepare_output_root, validate_source_snapshot
 from zipper_algebra.provenance import capture_provenance, file_identity, write_bundle_provenance
 from zipper_algebra.verification.derivations import DerivationGraph, DerivationTerm
 
@@ -34,6 +37,7 @@ HELPER = Path(__file__).with_name('four_strand_square_zero.py')
 ENGINE = HELPER.with_suffix('.sing')
 
 
+@lru_cache(maxsize=1)
 def load_helper():
     spec = importlib.util.spec_from_file_location('x3_singular_trace_helper', HELPER)
     module = importlib.util.module_from_spec(spec)
@@ -60,7 +64,7 @@ def presentation():
 
 
 def target_engine():
-    """Adapt the shared local-proof tracer to stop at a proved target node."""
+    """Adapt the interpreted completion/tracer to stop at a proved target node."""
     source = ENGINE.read_text(encoding='utf-8')
     check = '''
 int targetDone=0;
@@ -68,7 +72,7 @@ proc checkTarget()
 {
  if(reduce(Target,B)!=0){return(0);}
  list terms;list res=traceNF(Target,terms);
- if(res[1]!=0){print("TARGET_TRACE_DISAGREES");quit;}
+ if(res[1]!=0){return(0);}
  emitDerived(Target,res[2],nodeCount+1);
  print("TARGET_DONE|"+string(nodeCount+1));
  return(1);
@@ -162,20 +166,25 @@ def produce(binary, output, *, timeout=120, memory_mib=4096, max_nodes=1000,
     identity = expand_derivation(full, graph, node, max_operations=max_operations,
                                   max_contexts=max_contexts, max_nodes=max_nodes+1)
     expansion_seconds = time.monotonic()-before
-    (output/'cofactor.json').write_text(json.dumps(identity.to_json(), separators=(',', ':'))+'\n',
-                                       encoding='utf-8')
+    candidate = output/'.cofactor-candidate.json'
+    candidate.write_text(json.dumps(identity.to_json(), separators=(',', ':'))+'\n', encoding='utf-8')
     before = time.monotonic()
-    reloaded = CofactorIdentity.from_json(json.loads((output/'cofactor.json').read_text(encoding='utf-8')))
-    if reloaded.target != target or not verify_cofactor(full, reloaded, max_operations=max_operations):
+    reloaded = CofactorIdentity.from_json(json.loads(candidate.read_text(encoding='utf-8')))
+    saved_presentation = AlgebraPresentation.from_json(json.loads((output/'presentation.json').read_text()))
+    saved_target = AlgebraElement.from_json(json.loads((output/'target.json').read_text()))
+    if (saved_presentation != full or saved_target != target or reloaded.target != saved_target
+            or not verify_cofactor(saved_presentation, reloaded, max_operations=max_operations)):
         raise ValueError('published original-input cofactor failed exact verification')
     verification_seconds = time.monotonic()-before
+    validate_source_snapshot(producer)
     if any(file_identity(path) != snapshot for path, snapshot in snapshots.items()):
         raise RuntimeError('producer source, solver, or library changed during the run')
+    candidate.replace(output/'cofactor.json')
     report = {
         'schema': 'zipper-x3-singular-cofactor-run-v1', 'presentation_hash': full.content_hash(),
         'target': 'X_3', 'field': full.algebra.field.to_json(), 'runtime': runtime,
         'input_relations': len(full.relations), 'input_relation_labels': list(full.labels),
-        'method': 'target-directed generic Singular completion with original-input proof expansion',
+        'method': 'interpreted completion in Singular stopping at target reducibility, with original-input proof expansion',
         'proof_nodes': len(graph.nodes), 'target_node': node,
         'local_proof_terms': sum(map(len, graph.derivations)), 'cofactor_terms': len(reloaded.terms),
         'verification': 'saved cofactor reloaded and checked exactly against all original inputs',
@@ -211,7 +220,7 @@ def main(argv=None):
         report = produce(Path(executable), args.output, timeout=args.timeout, memory_mib=args.memory_mib,
                          max_nodes=args.max_nodes, degree=args.degree,
                          max_operations=args.max_operations, max_contexts=args.max_contexts)
-    except (OSError, ValueError, RuntimeError) as error:
+    except (OSError, ValueError, TypeError, RuntimeError, ArithmeticError, subprocess.SubprocessError) as error:
         parser.exit(1, f'{error}\n')
     print(json.dumps(report, indent=2))
 
