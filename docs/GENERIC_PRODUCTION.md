@@ -209,8 +209,8 @@ proof graph. For presentations over `Q` or `Q(parameters)`, the optional
 `backend="finiteflow"` instead uses the graph to generate contextual multiples
 of the original defining relations and reconstructs one cofactor on that
 support. This works with arbitrary presentations; it does not require a zipper
-presentation or an f4ncgb producer. Prime-field presentations use the literal
-backend.
+presentation or an f4ncgb producer. For prime-field presentations, select
+`backend="literal"`; an explicit `backend="finiteflow"` request is rejected.
 
 ```python
 reduction = cofactor_representation(P, W, h, backend="finiteflow", threads=2,
@@ -238,7 +238,8 @@ The common `statistics["contexts"]` count is the final number of nonzero
 cofactor terms; reconstruction's `candidate_contexts` counts its proposed
 structural contexts. Remaining statistics are specific to the selected backend.
 
-For file-based use, encode `h` with `AlgebraElement.to_json` and run:
+For file-based use from a source checkout or extracted source archive, encode
+`h` with `AlgebraElement.to_json` and run:
 
 ```sh
 python examples/general_cofactor.py \
@@ -264,8 +265,10 @@ The output folder must be empty. A successful run writes `presentation.json`,
 `provenance.json`, with an ignore policy for
 generated files. The report identifies membership and the literal presentation;
 provenance records the exact consumed input hashes, computation source, package
-revision and output hashes, plus loaded dependency hashes for the optional
-native backend. The example reloads the saved presentation, target,
+revision and output hashes. For the optional native backend, `report.json`
+records loaded dependency hashes under `reconstruction.dependencies`; the
+report's output hash binds those records into `provenance.json`.
+The example reloads the saved presentation, target,
 representative and cofactor, checks the presentation and target against the
 consumed input and the representative against the certified reduction, binds
 the cofactor target to the input minus the saved representative, and checks the serialized

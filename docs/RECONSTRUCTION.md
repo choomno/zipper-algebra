@@ -182,8 +182,9 @@ the resulting `CofactorIdentity`. `cofactor_representation(...,
 backend="finiteflow")` first verifies the finite word basis and reduces the
 input to a representative, then reconstructs the identity for their difference.
 Both APIs default to `backend="literal"`, which propagates the recorded path
-coefficients without loading FiniteFlow. Prime-field presentations retain that
-literal route.
+coefficients without loading FiniteFlow. Prime-field presentations require
+`backend="literal"`; an explicit `backend="finiteflow"` request rejects positive
+characteristic rather than switching backends automatically.
 
 `max_contexts` bounds the sum of live intermediate context sets, including the
 current output before its last-used parents are released. `max_nodes` bounds
