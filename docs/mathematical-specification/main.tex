@@ -608,6 +608,32 @@ production inconclusive; no support-completeness or nonmembership claim follows.
 The file-based example and precise bounds are documented in
 \path{docs/GENERIC_PRODUCTION.md}.
 
+Literal propagation of the recorded coefficients is the default. Over $\Q$
+or $\Q(a_1,\ldots,a_e)$, an optional FiniteFlow backend~\cite{finiteflow}
+uses the proof graph to supply contextual multiples of the original input
+relations, then reconstructs coefficients for one explicit identity. It solves
+the nonhomogeneous system whose columns are those contextual relations and
+whose right side is the selected node polynomial, or $h-r$ for a finite-basis
+query. The path coefficients are not prescribed answers. The public interface
+\texttt{reconstruct\_derivation} returns this checked identity and computation
+statistics; \texttt{backend="finiteflow"} selects it in the two cofactor
+interfaces above. The default \texttt{backend="literal"} also supports the
+declared prime fields.
+
+This sparse affine solve proposes a single witness, without the native dense
+full-system validation or rank and complete-kernel certification used by the
+separate matrix-kernel interface. Acceptance still requires the full exact
+identity in $F$ against the original ordered relations. It does not assert
+a minimum number of cofactor terms or adequacy of the support for other
+targets. The construction applies to arbitrary associative presentations
+and shared derivations, independently of the zipper family or a particular
+external producer. Its context, matrix-entry, node and operation bounds can
+make reconstruction inconclusive and impose no process memory or time cap.
+Related work on sparse cofactor representations by Hofstadler and
+Verron~\cite{hofstadlerverron} uses signature-based syzygies and $\ell_1$ linear
+programming; the backend here reconstructs a particular witness with FiniteFlow
+and does not implement that optimization algorithm.
+
 \section{Symbolic q,t certificate data and exact conclusion}
 Let $r_1,\ldots,r_s\in F_n$ be the ordered defining relations of a specified
 presentation. A certificate for $f\in F_n$ is a finite list of terms
@@ -1052,6 +1078,12 @@ finite fields and dataflow graphs}, Journal of High Energy Physics
 The maintained reconstruction interface uses the
 \href{https://github.com/Choomno/finiteflow}{FiniteFlow fork}; the original
 framework is \href{https://github.com/peraro/finiteflow}{upstream FiniteFlow}.
+
+\bibitem{hofstadlerverron}
+Clemens Hofstadler and Thibaut Verron, \emph{Short proofs of ideal membership},
+Journal of Symbolic Computation \textbf{125} (2024), article~102325.
+\href{https://doi.org/10.1016/j.jsc.2024.102325}{doi:10.1016/j.jsc.2024.102325};
+\href{https://arxiv.org/abs/2302.02832}{arXiv:2302.02832}.
 
 \bibitem{sympy}
 Aaron Meurer et al., \emph{SymPy: symbolic computing in Python},

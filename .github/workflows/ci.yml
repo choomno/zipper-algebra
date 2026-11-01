@@ -153,7 +153,7 @@ jobs:
         run: |
           cd "$RUNNER_TEMP"
           python -I -c 'import fflow; assert fflow.__fork__ == "choomno/finiteflow"; assert hasattr(fflow, "LSolveValidateFullSystem")'
-          python -I -m pytest "$GITHUB_WORKSPACE/tests/integration/test_finiteflow.py" "$GITHUB_WORKSPACE/tests/integration/test_minimal_polynomial_native.py" "$GITHUB_WORKSPACE/tests/integration/test_generic_production_native.py" --import-mode=importlib -q
+          python -I -m pytest "$GITHUB_WORKSPACE/tests/integration/test_finiteflow.py" "$GITHUB_WORKSPACE/tests/integration/test_minimal_polynomial_native.py" "$GITHUB_WORKSPACE/tests/integration/test_generic_production_native.py" "$GITHUB_WORKSPACE/tests/integration/test_cofactor_reconstruction_native.py" "$GITHUB_WORKSPACE/tests/integration/test_cofactor_backend_native.py" --import-mode=importlib -q
           F4NCGB_BINARY="$RUNNER_TEMP/f4ncgb-source/build/f4ncgb" python -I -m pytest "$GITHUB_WORKSPACE/tests/integration/test_general_solver_native.py" --import-mode=importlib -q
       - name: Check native execution and certificate reconstruction
         shell: bash

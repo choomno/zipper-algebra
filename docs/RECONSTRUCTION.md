@@ -147,3 +147,63 @@ the complete kernel witness, and the independently checked cofactor. It also
 hashes the actual loaded FiniteFlow Python module, CFFI extension and shared
 library. These byte identities describe the installed dependencies; they do not
 assert that an arbitrary local build corresponds to a claimed source revision.
+
+## Original-input cofactor reconstruction
+
+`cofactor.reconstruction.reconstruct_derivation(P, graph, node)` reconstructs
+one explicit cofactor for a selected derivation node over `Q` or
+`Q(parameters)`. Its `CofactorReconstruction` result contains the checked
+`identity` and computation `statistics`. The input is a literal presentation
+and a shared proof graph; no particular family of algebras or external proof
+producer is required. The [general cofactor guide](GENERIC_PRODUCTION.md#optional-reconstruction-on-original-input-contexts)
+shows its use with a certified finite algebra and from saved files.
+
+All raw graph references and cycles are checked first, including zero-coefficient
+edges and unrelated nodes. Context generation follows nonzero edges and omits
+zero input relations. It supplies triples `(left, original relation index, right)`.
+The scalar system expands the original relations in those contexts and asks for
+coefficients whose linear combination is the selected target. The graph's path
+coefficients are not prescribed scalar answers. The optional backend uses
+FiniteFlow's sparse nonhomogeneous solver to propose one solution, rather than
+reconstructing a complete homogeneous kernel. It avoids the native strict
+dense full-system validation used by the certified-kernel route. Instead,
+acceptance requires the resulting explicit cofactor to pass the independent
+exact free-algebra checker against all original input data. A native success
+status alone establishes no identity.
+
+The pinned fork's `LSolveOnlyNonHomogeneous` mode returns one value for every
+requested context variable, including variables forced to zero. Native variable
+identifiers can be unsorted, so the adapter maps values by those identifiers
+and validates coverage of every output slot. These variable counts are not
+rank or nullity certificates.
+
+`expand_derivation(..., backend="finiteflow")` selects this route and returns
+the resulting `CofactorIdentity`. `cofactor_representation(...,
+backend="finiteflow")` first verifies the finite word basis and reduces the
+input to a representative, then reconstructs the identity for their difference.
+Both APIs default to `backend="literal"`, which propagates the recorded path
+coefficients without loading FiniteFlow. Prime-field presentations require
+`backend="literal"`; an explicit `backend="finiteflow"` request rejects positive
+characteristic rather than switching backends automatically.
+
+`max_contexts` bounds the sum of live intermediate context sets, including the
+current output before its last-used parents are released. `max_nodes` bounds
+the input graph. `max_matrix_entries` bounds actual sparse nonzero coefficient
+entries, including the right-hand side; it is checked before matrix and word-row
+allocation. `max_operations` bounds construction and the separate final exact
+check. These are entry and work bounds, rather than byte counts. Native
+controls are `max_primes=5`, `max_degree=24`, `threads=1`, `start_prime=0` and an
+optional `shift`. An insufficient structural support, reconstruction failure,
+false candidate or exhausted bound is inconclusive. These limits impose no
+process RAM or wall-time cap. Context generation or explicit output can itself
+be large even when the proof graph is compact.
+
+This API certifies an identity, not a complete kernel, a rank, or a globally
+smallest cofactor. It may return a different valid representation from literal
+expansion. The separate `reconstruct_kernel` interface and the installed
+`discover` route described above retain their complete-kernel certification.
+
+In reconstruction statistics, `candidate_contexts` counts the selected target's
+structural contexts before solving, while `contexts` counts final nonzero
+cofactor terms. Other statistics depend on the backend; callers should not
+assume one fixed set of keys.

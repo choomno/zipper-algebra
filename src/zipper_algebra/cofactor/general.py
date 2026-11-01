@@ -8,7 +8,6 @@ or anticipated coefficient support is required.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from graphlib import CycleError, TopologicalSorter
 from typing import Any, cast
 
 from ..algebra import AlgebraElement, AlgebraPresentation, CofactorIdentity
@@ -16,6 +15,7 @@ from ..verification.derivations import (DerivationGraph, DerivationTerm, Verific
                                        _Budget, _positive_limit)
 from ..verification.finite import WordBasisCertificate, verify_word_basis
 from ..verification.working_field import WorkingField
+from ._contexts import _validate_graph
 
 __all__ = ["CofactorReduction", "expand_derivation", "cofactor_representation", "verify_cofactor"]
 
@@ -74,36 +74,11 @@ def verify_cofactor(presentation: AlgebraPresentation, identity: CofactorIdentit
 
 class _Expansion:
     def __init__(self, presentation, graph, max_operations, max_contexts, max_nodes):
-        if not isinstance(presentation, AlgebraPresentation) or not isinstance(graph, DerivationGraph):
-            raise TypeError("cofactor expansion requires an AlgebraPresentation and DerivationGraph")
-        _positive_limit(max_nodes, "max_nodes")
         self.maximum = _positive_limit(max_contexts, "max_contexts")
         self.budget = _Budget(max_operations)
-        if len(graph.nodes) > max_nodes:
-            raise VerificationLimit("cofactor expansion exceeds its proof-node bound")
-        if graph.presentation_hash != presentation.content_hash():
-            raise ValueError("derivation graph presentation hash mismatch")
-        if any(node.algebra != presentation.algebra for node in graph.nodes):
-            raise TypeError("derivation graph and presentation have different free algebras")
+        self.order = _validate_graph(presentation, graph, self.budget, max_nodes)
         self.presentation, self.graph = presentation, graph
         self.arithmetic = WorkingField(presentation.algebra.field)
-        dependencies = {}
-        for index, row in enumerate(graph.derivations):
-            self.budget.consume()
-            references = set()
-            for term in row:
-                self.budget.consume()
-                bound = len(presentation.relations) if term.kind == "input" else len(graph.nodes)
-                if term.index >= bound:
-                    raise ValueError("a raw derivation reference names no input or node polynomial")
-                if term.kind == "node":
-                    references.add(term.index)
-            dependencies[index] = references
-        try:
-            # Raw zero references participate in structural validation too.
-            self.order = tuple(TopologicalSorter(dependencies).static_order())
-        except CycleError as error:
-            raise ValueError("cyclic derivation graph") from error
         self.peak = self.expanded_nodes = 0
 
     def expand(self, root):
@@ -167,18 +142,51 @@ class _Expansion:
 
 
 def expand_derivation(presentation: AlgebraPresentation, graph: DerivationGraph, node: int, *,
-                      max_operations=10000000, max_contexts=100000, max_nodes=100000) -> CofactorIdentity:
+                      backend="literal", max_operations=10000000, max_contexts=100000,
+                      max_nodes=100000, max_matrix_entries=100000, max_primes=5,
+                      max_degree=24, threads=1, start_prime=0, shift=None) -> CofactorIdentity:
     """Expand one graph node into a checked explicit original-input cofactor.
 
     All raw graph references and cycles are checked, including zero-coefficient
     and unrelated references. Only dependencies needed by the selected node are
     expanded. The final explicit identity is checked directly against the original
     presentation; no truth claim is made about unrelated node polynomials.
-    ``max_contexts`` bounds peak retained intermediate context entries. Expansion
+    ``backend="literal"`` propagates the existing path coefficients.
+    ``backend="finiteflow"`` reconstructs one witness from structural input
+    contexts over Q or a rational-function field. Both check the complete exact
+    original-input identity. Native reconstruction options apply to FiniteFlow
+    only; its matrix-entry bound does not bound native fill, time or RAM.
+
+    ``max_contexts`` bounds peak retained intermediate context entries. Production
     and final identity verification each use their own operation budget.
     """
-    expansion = _Expansion(presentation, graph, max_operations, max_contexts, max_nodes)
-    return expansion.identity(node, max_operations)
+    _validate_backend(backend)
+    identity, _ = _produce_identity(presentation, graph, node, backend=backend,
+        max_operations=max_operations, max_contexts=max_contexts, max_nodes=max_nodes,
+        native_options={"max_matrix_entries": max_matrix_entries, "max_primes": max_primes,
+                        "max_degree": max_degree, "threads": threads,
+                        "start_prime": start_prime, "shift": shift})
+    return identity
+
+
+def _validate_backend(backend):
+    if backend not in ("literal", "finiteflow"):
+        raise ValueError("cofactor backend must be 'literal' or 'finiteflow'")
+
+
+def _produce_identity(presentation, graph, node, *, backend, max_operations,
+                      max_contexts, max_nodes, native_options):
+    if backend == "literal":
+        expansion = _Expansion(presentation, graph, max_operations, max_contexts, max_nodes)
+        identity = expansion.identity(node, max_operations)
+        return identity, {"expanded_nodes": expansion.expanded_nodes,
+                          "contexts": len(identity.terms), "peak_contexts": expansion.peak,
+                          "expansion_operations": expansion.budget.used}
+    from .reconstruction import reconstruct_derivation
+
+    result = reconstruct_derivation(presentation, graph, node, max_operations=max_operations,
+        max_contexts=max_contexts, max_nodes=max_nodes, **native_options)
+    return result.identity, result.statistics
 
 
 @dataclass(frozen=True, slots=True)
@@ -195,21 +203,31 @@ class CofactorReduction:
 
 
 def cofactor_representation(presentation: AlgebraPresentation, certificate: WordBasisCertificate,
-                            target: AlgebraElement, *, max_operations=10000000,
-                            max_contexts=100000, max_nodes=100000, max_dimension=10000) -> CofactorReduction:
+                            target: AlgebraElement, *, backend="literal", max_operations=10000000,
+                            max_contexts=100000, max_nodes=100000, max_dimension=10000,
+                            max_matrix_entries=100000, max_primes=5, max_degree=24,
+                            threads=1, start_prime=0, shift=None) -> CofactorReduction:
     """Reduce an element and explicitly prove its difference from its representative.
 
     The finite-basis certificate is independently verified first. A zero remainder
     gives an explicit ideal-membership cofactor; a nonzero remainder represents a
     nonzero element of the certified quotient. Left generator closure identities
     recursively reduce suffixes, retaining word order on both sides of each input.
-    Verification, reduction construction, expansion and final explicit checking
+    ``backend="literal"`` expands coefficients along the graph. The optional
+    ``"finiteflow"`` backend reconstructs a particular solution on its structural
+    original-input contexts. Both produce the same kind of exactly checked
+    identity; they may produce different witnesses. FiniteFlow supports Q and
+    rational-function fields and requires the reconstruction dependencies.
+    Its additional options bound matrix entries, degree/primes and worker count.
+
+    Verification, reduction construction, cofactor production and final explicit checking
     have separate operation budgets. Limits do not bound process RAM or time.
     """
     if not isinstance(presentation, AlgebraPresentation) or not isinstance(target, AlgebraElement):
         raise TypeError("cofactor reduction requires a presentation and free-polynomial target")
     if target.algebra != presentation.algebra:
         raise TypeError("target and presentation have different free algebras")
+    _validate_backend(backend)
     _positive_limit(max_contexts, "max_contexts")
     algebra = verify_word_basis(presentation, certificate, max_operations=max_operations,
                                 max_nodes=max_nodes, max_dimension=max_dimension)
@@ -274,10 +292,11 @@ def cofactor_representation(presentation: AlgebraPresentation, certificate: Word
     difference = target - representative
     root = append(difference, terms)
     graph = DerivationGraph(presentation.content_hash(), tuple(nodes), tuple(rows))
-    expansion = _Expansion(presentation, graph, max_operations, max_contexts, max_nodes)
-    identity = expansion.identity(root, max_operations)
+    identity, counts = _produce_identity(presentation, graph, root, backend=backend,
+        max_operations=max_operations, max_contexts=max_contexts, max_nodes=max_nodes,
+        native_options={"max_matrix_entries": max_matrix_entries, "max_primes": max_primes,
+                        "max_degree": max_degree, "threads": threads,
+                        "start_prime": start_prime, "shift": shift})
     statistics = {"basis_dimension": algebra.dimension, "graph_nodes": len(nodes),
-                  "expanded_nodes": expansion.expanded_nodes, "contexts": len(identity.terms),
-                  "peak_contexts": expansion.peak, "construction_operations": budget.used,
-                  "expansion_operations": expansion.budget.used}
+                  "construction_operations": budget.used, **counts}
     return CofactorReduction(representative, identity, tuple(sorted(statistics.items())))
