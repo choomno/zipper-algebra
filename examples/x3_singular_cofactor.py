@@ -93,7 +93,7 @@ proc checkTarget()
 
 
 def source_for(full, target, library, *, degree, max_nodes):
-    """Supply every original relation, keeping the target outside the input ideal."""
+    """Supply every original relation, keeping the target separate from the input list."""
     helper = load_helper()
     library_name = str(library)
     if any(character in library_name for character in ('\\', '"', '\n', '\r')):
