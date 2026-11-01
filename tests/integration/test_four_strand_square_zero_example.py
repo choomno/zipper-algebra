@@ -76,6 +76,7 @@ def test_malformed_solver_records_cannot_become_certificates(text):
 
 
 def test_runner_exports_replayable_dag_and_provenance_without_claiming_completeness(tmp_path, monkeypatch):
+    pytest.importorskip('sympy', reason='exact parameter-field arithmetic needs the symbolic extra')
     subprocess.run(['git', 'init', '-q', str(tmp_path)], check=True)
     module = load_example()
     # A tiny true identity is enough to exercise orchestration. It deliberately

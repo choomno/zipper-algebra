@@ -1,7 +1,9 @@
 """FiniteFlow reconstruction of exact right kernels over rational function fields.
 
-FiniteFlow learns and reconstructs a candidate. Independent verification checks
-its full generic identity and a lower rank witness before this API returns it.
+FiniteFlow learns and reconstructs a candidate. ``reconstruct_kernel`` checks
+its full generic identity and a lower rank witness before returning a certificate.
+``reconstruct_kernel_candidate`` returns unverified vectors for producers whose
+final mathematical certificate is checked independently.
 The external FiniteFlow Python bindings are optional and loaded only on use.
 """
 from __future__ import annotations
@@ -59,21 +61,9 @@ def _lower_inverse(matrix, rows, columns):
 
 
 
-def reconstruct_kernel(matrix: ExactMatrix, *, max_primes=5, max_degree=24,
-                       threads=1, max_products=10000000, start_prime=0, shift=None) -> KernelCertificate:
-    """Reconstruct and certify the entire right kernel of ``matrix``.
-
-    The producer currently supports Q and Q(parameters). Parameters and entries
-    are passed as exact monomial arrays, without parsing strings as expressions.
-    Parameter-field arithmetic requires the symbolic extra, including zero
-    systems; nonzero ground systems also need it to produce the minor witness.
-    Ground-field certificate checks with small primes are dependency-free.
-    ``max_primes`` (1..2047) and ``max_degree`` (1..65535) bound searches; they are
-    not wall-clock or memory limits. No partial or merely sampled answer is
-    returned when reconstruction or independent verification fails. ``start_prime``
-    selects the first FiniteFlow prime-table index for learning and reconstruction;
-    ``shift`` optionally supplies an exact coordinate vector for degree learning.
-    """
+def _reconstruct_kernel_data(matrix: ExactMatrix, *, max_primes=5, max_degree=24,
+                             threads=1, max_products=10000000, start_prime=0, shift=None):
+    """Run the shared native producer; returned vectors and indices are proposals."""
     if not isinstance(matrix, ExactMatrix):
         raise TypeError("kernel reconstruction requires an exact matrix")
     if matrix.field.characteristic:
@@ -98,9 +88,7 @@ def reconstruct_kernel(matrix: ExactMatrix, *, max_primes=5, max_degree=24,
     if not matrix.entries:
         kernel = ExactMatrix(field, matrix.ncols, matrix.ncols,
                              tuple((i, i, field.one) for i in range(matrix.ncols)))
-        certificate = KernelCertificate(matrix.content_hash(), kernel, tuple(range(matrix.ncols)),
-                                        (), (), _PRIMES[0], (2,) * len(field.parameters), ())
-        return verify_kernel(matrix, certificate, max_products=max_products)
+        return kernel, tuple(range(matrix.ncols)), (), ()
     if any(power >= 2**16 for _, _, c in matrix.entries
            for terms in (c.numerator, c.denominator) for exponents, _ in terms for power in exponents):
         raise ValueError("FiniteFlow monomial exponents must be below 2**16")
@@ -178,6 +166,55 @@ def reconstruct_kernel(matrix: ExactMatrix, *, max_primes=5, max_degree=24,
             kernel = ExactMatrix(field, matrix.ncols, len(free), tuple(entries))
         finally:
             ff.DeleteGraph(graph)
+    return kernel, free, rows, dependent
+
+
+def reconstruct_kernel_candidate(matrix: ExactMatrix, *, max_primes=5, max_degree=24,
+                                 threads=1, start_prime=0, shift=None) -> ExactMatrix:
+    """Return unverified right-kernel vectors proposed by FiniteFlow.
+
+    No rank, completeness or exact-kernel assertion is established here. Native
+    full-system probe checks and wire validation remain enabled, but candidates
+    can still be wrong or incomplete. A downstream checker must establish the
+    actual identity or algebraic statement before accepting a result. In
+    particular, a returned zero-column matrix does not prove full rank.
+
+    This route skips modular-minor construction and independent kernel checking.
+    It is intended for ideal-identity producers whose final exact certificate
+    checks all local identities. Use ``reconstruct_kernel`` for a complete-kernel
+    certificate, as needed by rank and minimal-polynomial computations.
+
+    Native prime, degree, thread and shift controls match the certified route.
+    There is no independent verification or product-check budget on this path.
+    Neither route imposes process RAM or wall-clock limits.
+    """
+    kernel, _, _, _ = _reconstruct_kernel_data(matrix, max_primes=max_primes,
+                    max_degree=max_degree, threads=threads, start_prime=start_prime, shift=shift)
+    return kernel
+
+
+def reconstruct_kernel(matrix: ExactMatrix, *, max_primes=5, max_degree=24,
+                       threads=1, max_products=10000000, start_prime=0, shift=None) -> KernelCertificate:
+    """Reconstruct and certify the entire right kernel of ``matrix``.
+
+    The producer currently supports Q and Q(parameters). Parameters and entries
+    are passed as exact monomial arrays, without parsing strings as expressions.
+    Parameter-field arithmetic requires the symbolic extra, including zero
+    systems; nonzero ground systems also need it to produce the minor witness.
+    Ground-field certificate checks with small primes are dependency-free.
+    ``max_primes`` (1..2047) and ``max_degree`` (1..65535) bound searches; they are
+    not wall-clock or memory limits. No partial or merely sampled answer is
+    returned when reconstruction or independent verification fails. ``start_prime``
+    selects the first FiniteFlow prime-table index for learning and reconstruction;
+    ``shift`` optionally supplies an exact coordinate vector for degree learning.
+    """
+    kernel, free, rows, dependent = _reconstruct_kernel_data(matrix, max_primes=max_primes,
+                    max_degree=max_degree, threads=threads, max_products=max_products,
+                    start_prime=start_prime, shift=shift)
+    if not matrix.entries:
+        certificate = KernelCertificate(matrix.content_hash(), kernel, free,
+                                        (), (), _PRIMES[0], (2,) * len(matrix.field.parameters), ())
+        return verify_kernel(matrix, certificate, max_products=max_products)
     prime, point, inverse = _lower_inverse(matrix, rows, dependent)
     certificate = KernelCertificate(matrix.content_hash(), kernel, free, rows, dependent,
                                     prime, point, inverse)

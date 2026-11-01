@@ -56,6 +56,7 @@ def test_commutative_truncated_polynomial_algebra_and_nonnormal_input():
 
 @pytest.mark.parametrize('characteristic', [0, 3])
 def test_symbolic_quadratic_relation_over_an_explicit_parameter_field(characteristic):
+    pytest.importorskip('sympy')
     parent = algebra(('x',), ('s',), characteristic)
     x, s = parent.generator('x'), parent.field.parameter('s')
     pres = presentation(parent, [x*x-s])
@@ -250,6 +251,7 @@ def test_certificate_is_bound_to_the_literal_presentation_and_full_parent():
 
 
 def test_certificate_json_round_trip_keeps_parameter_coefficients_and_derivations():
+    pytest.importorskip('sympy')
     parent = algebra(('x',), ('s',))
     x, s = parent.generator('x'), parent.field.parameter('s')
     pres = presentation(parent, [x*x-s])
@@ -437,3 +439,22 @@ def test_branching_rewrites_share_normal_forms_of_repeated_descendants():
     # Fibonacci recurrence x^n=F_n*x+F_{n-1} in Q[x]/(x²-x-1).
     assert result.normal_form(x**8) == 21*x+13
     assert result.normal_form(x**10) == 55*x+34
+
+
+def test_working_reduction_cancels_factors_without_changing_literal_input():
+    pytest.importorskip('sympy')
+    parent = algebra(('x',), ('a',))
+    a = parent.field.parameter('a')
+    x = parent.generator('x')
+    coefficient = (a*a-1)/(a-1)
+    pres = presentation(parent, [x*x-coefficient*x])
+    original = pres.to_json()
+    result = verify_groebner(pres, input_certificate(pres))
+    normal = result.normal_form(x**9)
+    assert normal == (a+1)**8*x
+    # Intermediate working arithmetic cancels common factors rather than
+    # multiplying the original literal denominator through every rewrite.
+    value = dict(normal.terms)[(1,)]
+    assert value.denominator == parent.field.one.denominator
+    assert len(value.numerator) == 9
+    assert pres.to_json() == original

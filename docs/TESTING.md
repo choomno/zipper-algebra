@@ -133,6 +133,24 @@ Small actual native tests check generic parameter fields, relative nilpotence an
 bad-prime recovery. The 186-dimensional four-strand example remains local; see the
 [minimal-polynomial guide](MINIMAL_POLYNOMIALS.md).
 
+Generic-production tests use literal noncommutative algebra presentations,
+independent small exact kernel oracles, shared and forward derivations, and
+separate native reconstruction controls. They check rational parameter points,
+compacted zero-input mappings, canceled generic tails, lost leading words,
+anchor-compatible kernel combinations, poles, incomplete bases, false proofs,
+and independent action certificates. Candidate-only reconstruction is tested
+separately from complete-kernel certification; false native vector proposals must
+fail the final algebra checker. Direct finite-basis controls reject
+nonconfluent proposals and a zero-algebra adversary whose original relations
+hold on the cyclic vector but fail on other columns. Pipeline tests require one
+final finite-basis check by default, and one additional completion check only
+when requested. Reports distinguish finite-basis verification from optional
+Gröbner completion. Publication tests corrupt saved data and
+exercise interrupted attempts and concurrent immutable generations. Tiny native
+controls check both file and SQLite transport through an installed package;
+three-strand research examples stay outside CI. See the
+[generic production guide](GENERIC_PRODUCTION.md).
+
 ## Runtime bounds
 
 Use `python -m pytest tests/unit -q --durations=10` for quick algebraic checks.

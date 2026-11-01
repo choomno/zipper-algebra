@@ -25,6 +25,10 @@ def check():
             [sys.executable, "-I", "-c",
              "import pathlib, zipper_algebra; "
              "from zipper_algebra.invariants import minimal_polynomial; "
+             "from zipper_algebra.production import reconstruct_basis, reconstruct_groebner; "
+             "from zipper_algebra.reconstruction import reconstruct_kernel_candidate; "
+             "from zipper_algebra.action_production import word_basis_from_rewrites; "
+             "from zipper_algebra.execution.production import produce_algebra; "
              "from zipper_algebra.verification.krylov import MinimalPolynomialCertificate; "
              "print(pathlib.Path(zipper_algebra.__file__).resolve())"],
             cwd=directory, text=True, capture_output=True, check=True,

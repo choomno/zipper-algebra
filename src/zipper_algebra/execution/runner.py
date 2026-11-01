@@ -30,8 +30,8 @@ class SolverRun:
     hit: bool
     seconds: float
 
-def _validate_cached(files, record, inputs, names):
-    count = validate_proofs(files, inputs, names)
+def _validate_cached(files, record, validate):
+    count = validate(files)
     if count != record["basis_entries"]:
         raise ArtifactError("saved basis entry count differs from validated proof data")
 
@@ -117,6 +117,13 @@ def run_basis_point(pres, point: tuple[int, int, int], config: RunConfig,
                               for path in config.command_prefix],
                    "flags": list(config.arguments()), "timeout_seconds": config.timeout_seconds},
     }
+    return _run_request(config, input_bytes, request,
+                        lambda files: validate_proofs(files, inputs, names), refresh=refresh)
+
+
+def _run_request(config, input_bytes, request, validate, *, refresh=False):
+    """Execute or load exact artifacts, independently validating every reuse."""
+    producer = request["producer"]
     key = digest_bytes(canonical_json(request))
     prepare_output_root(config.output_root)
     output_store = config.output_root / "samples.sqlite3"
@@ -126,14 +133,14 @@ def run_basis_point(pres, point: tuple[int, int, int], config: RunConfig,
         loaded = load(output_store, key, request)
         if loaded is not None:
             files, record = loaded
-            _validate_cached(files, record, inputs, names)
+            _validate_cached(files, record, validate)
             validate_source_snapshot(producer)
             return SolverRun(key, output_store, files, record, True, 0)
         if config.cache_root is not None:
             loaded = load(config.cache_root / "samples.sqlite3", key, request)
             if loaded is not None:
                 files, record = loaded
-                _validate_cached(files, record, inputs, names)
+                _validate_cached(files, record, validate)
                 validate_source_snapshot(producer)
                 record = publish(output_store, key, files, request, record["basis_entries"])
                 return SolverRun(key, output_store, files, record, True, 0)
@@ -147,7 +154,7 @@ def run_basis_point(pres, point: tuple[int, int, int], config: RunConfig,
         files, seconds = _run_file_solver(config, input_bytes)
     if files.get("input.ms") != input_bytes:
         raise ArtifactError("solver changed the requested presentation input")
-    count = validate_proofs(files, inputs, names)
+    count = validate(files)
     validate_source_snapshot(producer)
     if config.cache_root is not None:
         publish(config.cache_root / "samples.sqlite3", key, files, request, count)

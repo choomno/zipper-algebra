@@ -53,6 +53,10 @@ The [finite word-basis route](docs/FINITE_ALGEBRAS.md#reproducing-the-four-stran
 additionally verifies its 186-word basis and sparse regular actions with the
 maintained Python API, providing exact coordinates and products.
 
+The [generic production guide](docs/GENERIC_PRODUCTION.md) describes the route
+from arbitrary parameter-field presentations through fresh f4ncgb proofs to
+certified generic bases and finite generator actions.
+
 ## Install
 
 Use Linux with Python 3.11 or newer. From a checkout:

@@ -132,3 +132,8 @@ existing GAP exporter, which checks a generic cofactor identity by expansion.
    [author’s corrections and updates](https://math.berkeley.edu/~gbergman/papers/updates/diamond.html).
 2. A. M. Cohen and J. W. Knopper, *GBNP*, version 1.1.0, GAP package.
    [Official function manual](https://gap-packages.github.io/gbnp/doc/chap3.html).
+
+Parameter-field reduction uses normalized SymPy fraction-field arithmetic; install
+`zipper-algebra[symbolic]` to check these certificates. Ground-field verification
+remains dependency-free. Literal input coefficients and hashes are preserved;
+normal-form output can have canceled denominator factors.
