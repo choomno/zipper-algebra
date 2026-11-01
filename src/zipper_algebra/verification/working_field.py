@@ -66,6 +66,7 @@ class WorkingField:
         if self._native is None:
             if self.field.characteristic:
                 return value
+            # FieldElement normalizes constant denominators to one at construction.
             return Fraction(value.numerator[0][1]) if value.numerator else Fraction(0)
         key = (value.numerator, value.denominator)
         if key in self._cache:
