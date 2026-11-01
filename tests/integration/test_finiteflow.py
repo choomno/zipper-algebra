@@ -139,3 +139,24 @@ def test_native_signed_ground_rationals_with_explicit_empty_shift(native_finitef
                                       [-1, Fraction(6, 7)]])
     proof = reconstruct_kernel(original, shift=(), max_primes=3, max_degree=4)
     assert_exact_nullspace(original, proof, 1)
+
+
+def test_native_candidate_vectors_are_checked_as_literal_identities(native_finiteflow, monkeypatch):
+    from zipper_algebra import reconstruction
+    field = RationalFunctionField(('q', 't'))
+    q, t = field.parameter('q'), field.parameter('t')
+    original = ExactMatrix.from_rows(field, [[1, q/(t+1), t], [2, 2*q/(t+1), 2*t]])
+    def unexpected(*args, **kwargs):
+        raise AssertionError('candidate route must not build an independent rank witness')
+    monkeypatch.setattr(reconstruction, '_lower_inverse', unexpected)
+    monkeypatch.setattr(reconstruction, 'verify_kernel', unexpected)
+    candidate = reconstruction.reconstruct_kernel_candidate(original, max_primes=3,
+                    max_degree=8, threads=2, shift=(2, 3), start_prime=1)
+    assert candidate.nrows == 3 and candidate.ncols == 2
+    # This check establishes these returned vectors are null vectors on this
+    # control. It deliberately makes no general completeness claim for the API.
+    coefficients = {(i, j): value for i, j, value in candidate.entries}
+    for column in range(candidate.ncols):
+        assert (coefficients.get((0, column), field.zero)
+                + q/(t+1)*coefficients.get((1, column), field.zero)
+                + t*coefficients.get((2, column), field.zero)).is_zero()

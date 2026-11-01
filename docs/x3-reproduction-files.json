@@ -389,8 +389,8 @@
     },
     {
       "path": "src/zipper_algebra/reconstruction.py",
-      "bytes": 11331,
-      "sha256": "2349b264d920947689e698aacc2a1d6b6a56251810e07ce9a909007351b5afa8",
+      "bytes": 13443,
+      "sha256": "6fea388d23a3c79367dcb0f9b4e32185138e348bf9eb11c81acae88b4ef7198b",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
@@ -503,8 +503,8 @@
     },
     {
       "path": "tests/integration/test_finiteflow.py",
-      "bytes": 7454,
-      "sha256": "994e86905f4fb5ef5c456fa669f647ec37b4f4ed9143c65f46289a85b2ecb5aa",
+      "bytes": 8739,
+      "sha256": "8d073d26f917f263e31cc2ca5f76f3777241d7bfb155b7344f389ffdde00fb7c",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
@@ -857,8 +857,8 @@
     },
     {
       "path": "tests/unit/test_reconstruction.py",
-      "bytes": 39185,
-      "sha256": "b26e0893c6e8e4cd830b04a739ffa4bd36275fa8698550cc850a2580dce6749c",
+      "bytes": 44643,
+      "sha256": "18fe982f18527044e1a0ccdd87c17549f49bee4de1ad305393cc7828e85d20e0",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
