@@ -32,6 +32,8 @@ def check():
              "from zipper_algebra.action_production import word_basis_from_rewrites; "
              "from zipper_algebra.execution.production import produce_algebra; "
              "from zipper_algebra.verification.krylov import MinimalPolynomialCertificate; "
+             "import sys; "
+             "assert not {'sympy', 'fflow', 'sage'}.intersection(sys.modules); "
              "print(pathlib.Path(zipper_algebra.__file__).resolve())"],
             cwd=directory, text=True, capture_output=True, check=True,
         )

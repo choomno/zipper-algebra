@@ -19,6 +19,76 @@ from .verification.working_field import WorkingField
 __all__ = ["word_basis_from_rewrites"]
 
 
+def _prune_certificate(presentation, certificate, budget):
+    """Keep the raw dependency closure of the finite certificate's proof roots.
+
+    Every original raw reference and cycle is checked before removing nodes,
+    including unused and zero-coefficient references. Arithmetic of discarded
+    proposal nodes is not asserted. The caller independently checks every
+    retained identity and the complete finite-algebra statement afterward.
+    """
+    graph = certificate.proof
+    size = len(graph.nodes)
+    for row in graph.derivations:
+        budget.consume()
+        for term in row:
+            budget.consume()
+            bound = len(presentation.relations) if term.kind == "input" else size
+            if term.index >= bound:
+                raise ValueError("a raw derivation reference names no input or node polynomial")
+    # A byte per node and a depth-first stack avoid a second full adjacency map.
+    state = bytearray(size)
+    for root in range(size):
+        if state[root]:
+            continue
+        state[root] = 1
+        stack = [(root, iter(graph.derivations[root]))]
+        while stack:
+            index, children = stack[-1]
+            term = next(children, None)
+            if term is None:
+                state[index] = 2
+                stack.pop()
+                continue
+            budget.consume()
+            if term.kind == "node":
+                if state[term.index] == 1:
+                    raise ValueError("cyclic derivation graph")
+                if not state[term.index]:
+                    state[term.index] = 1
+                    stack.append((term.index, iter(graph.derivations[term.index])))
+    roots = ([certificate.unit_node] if not certificate.basis_words
+             else [index for row in certificate.action_nodes for index in row])
+    needed = bytearray(size)
+    pending = []
+    for root in roots:
+        budget.consume()
+        if root >= size:
+            raise ValueError("a finite proof root references a missing derivation node")
+        if not needed[root]:
+            needed[root] = 1
+            pending.append(root)
+    while pending:
+        for term in graph.derivations[pending.pop()]:
+            budget.consume()
+            if term.kind == "node" and not needed[term.index]:
+                needed[term.index] = 1
+                pending.append(term.index)
+    if all(needed):
+        return certificate
+    selected = tuple(index for index, keep in enumerate(needed) if keep)
+    remap = {index: position for position, index in enumerate(selected)}
+    rows = tuple(tuple(DerivationTerm(term.coefficient, term.left, term.kind,
+                                     remap[term.index], term.right)
+                       if term.kind == "node" and remap[term.index] != term.index else term
+                       for term in graph.derivations[index]) for index in selected)
+    proof = DerivationGraph(graph.presentation_hash, tuple(graph.nodes[index] for index in selected), rows)
+    return WordBasisCertificate(certificate.presentation_hash, certificate.basis_words,
+                                certificate.actions, proof,
+                                tuple(tuple(remap[index] for index in row) for row in certificate.action_nodes),
+                                remap[certificate.unit_node] if certificate.unit_node is not None else None)
+
+
 def word_basis_from_rewrites(presentation: AlgebraPresentation, certificate: GroebnerCertificate, *,
                              max_operations=10000000, max_nodes=100000,
                              max_words=100000) -> WordBasisCertificate:
@@ -28,10 +98,17 @@ def word_basis_from_rewrites(presentation: AlgebraPresentation, certificate: Gro
     orientation guarantees terminating reductions. Every irreducible word is
     enumerated, with finite enumeration and construction sharing the operation
     budget. Missing closure or a nonconfluent proposal cannot establish a
-    dimension: the final independent checker requires all local ideal proofs,
+    dimension: the final independent checker requires all retained local ideal proofs,
     original relations on every matrix column, and cyclic independence.
 
-    ``max_nodes`` bounds the retained proof graph. ``max_operations`` separately
+    The finite proof retains only the raw dependency closure of the action
+    identities (or the unit identity for the zero algebra). All proposal graph
+    references and cycles are validated before pruning; no arithmetic assertion
+    is made about discarded unused proposal nodes. The separate rewrite
+    certificate is unchanged.
+
+    ``max_nodes`` bounds the full temporary graph before pruning as well as
+    the final retained graph. ``max_operations`` separately
     bounds construction and the independent finite-basis verification. Stored
     word lengths consume construction budget; ``max_words`` bounds their count.
     These bounds are not process time or RAM limits.
@@ -50,10 +127,17 @@ def word_basis_from_rewrites(presentation: AlgebraPresentation, certificate: Gro
     algebra, field = presentation.algebra, presentation.algebra.field
     arithmetic = WorkingField(field)
     nodes = list(certificate.basis)
-    derivations = [tuple(DerivationTerm(term.coefficient, term.left,
-                                       "input" if term.kind == "input" else "node",
-                                       term.index, term.right) for term in row)
-                   for row in certificate.derivations]
+    derivations = []
+    for row in certificate.derivations:
+        converted = []
+        for term in row:
+            budget.consume()
+            bound = len(presentation.relations) if term.kind == "input" else len(nodes)
+            if term.index >= bound:
+                raise ValueError("a raw rewrite reference names no original input or proposal node")
+            converted.append(DerivationTerm(term.coefficient, term.left,
+                              "input" if term.kind == "input" else "node", term.index, term.right))
+        derivations.append(tuple(converted))
     leading = [max((word for word, _ in polynomial.terms), key=lambda word: (len(word), word))
                for polynomial in certificate.basis]
     selected = sorted(range(len(leading)), key=lambda index: (len(leading[index]), leading[index], index))
@@ -179,6 +263,7 @@ def word_basis_from_rewrites(presentation: AlgebraPresentation, certificate: Gro
             action_nodes.append(tuple(identities))
         result = WordBasisCertificate(presentation.content_hash(), words, tuple(actions), graph(),
                                       tuple(action_nodes))
+    result = _prune_certificate(presentation, result, budget)
     verify_word_basis(presentation, result, max_operations=max_operations,
                       max_nodes=max_nodes, max_dimension=max_words)
     return result

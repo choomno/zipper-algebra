@@ -149,7 +149,6 @@ def _order_identity(kind, order):
 
 def write_json_atomic(path, data) -> None:
     """Replace one JSON artifact atomically; failed writes preserve the old file."""
-    content = json.dumps(data, sort_keys=True, indent=2, allow_nan=False) + "\n"
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     stream = tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent,
@@ -157,7 +156,8 @@ def write_json_atomic(path, data) -> None:
     temporary = Path(stream.name)
     try:
         with stream:
-            stream.write(content)
+            json.dump(data, stream, sort_keys=True, indent=2, allow_nan=False)
+            stream.write("\n")
             stream.flush()
             os.fsync(stream.fileno())
         os.replace(temporary, path)

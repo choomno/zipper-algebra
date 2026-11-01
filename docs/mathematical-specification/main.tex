@@ -399,18 +399,25 @@ combinations for this finite selection problem are reconstructed over $\Q$.
 
 The scalar functions are reconstructed by FiniteFlow \cite{finiteflow}. Local
 production uses candidate vectors without separately certifying their kernel
-identity, rank or completeness. Only the resulting ideal identities are needed,
-and they are checked exactly at the final algebra boundary. Reconstruction
+identity, rank or completeness. Only the ideal identities retained in the
+finite-basis certificate are needed, and they are checked exactly at the final
+algebra boundary. Reconstruction
 returns a rewrite proposal with shared ideal derivations, not a dimension or
 completion verdict. The separate certified matrix-kernel interface used for
 invariants, minimal polynomials and cofactor discovery is unchanged.
 The default production route constructs finite generator actions from this
 proposal and runs the independent finite word-basis checker described below.
-That checker validates the entire generic proof graph once, all spanning
+All raw proposal references and cycles are validated structurally before proof
+pruning, including unused nodes and zero-coefficient edges. The finite
+certificate retains the raw dependency closure of its action identities, or
+of its unit identity in dimension zero. The unchanged checker validates every
+retained local identity once, all spanning
 identities, all original relations on the full representation, and cyclic
 independence. Its acceptance therefore proves a statement about the actual
 presented algebra over $K$, irrespective of how the numerical proposal was
 selected. No separate Gr\"obner ambiguity check is needed for this conclusion.
+Discarded unused proposal nodes carry no arithmetic correctness claim; the
+separate rewrite proposal is unchanged.
 
 An optional completion operation additionally checks both ideal inclusions and
 all inclusion and overlap ambiguities. This establishes complete Gr\"obner
@@ -422,6 +429,14 @@ A failed proposal, pole, unsupported leading word or exhausted bound gives no
 dimension verdict. There is no claim that one numerical proof shape always
 lifts, or that the search is complete. The interface and retained evidence are
 described in \path{docs/GENERIC_PRODUCTION.md}.
+
+Publication exports and checks one saved JSON document and its decoded object
+at a time. Its expected canonical-content hash is computed before a streamed
+atomic write; the saved content must match that hash, and certificate parents
+must match the saved presentation. This binds the saved data to the checked
+objects while avoiding simultaneous serialized copies of the whole bundle.
+The mathematical objects themselves remain in memory. Immutable output
+generations, output byte hashes and source provenance are retained.
 
 \section{Finite word-basis certificates and regular actions}
 Let $A=F/I$, where $F=K\langle g_1,\ldots,g_m\rangle$ and
@@ -463,7 +478,7 @@ $1\in I$; empty matrices give no such evidence by themselves.
 
 The immutable \texttt{WordBasisCertificate} records the words, sparse generator
 actions, action-node references and a shared \texttt{DerivationGraph}.
-Local graph identities are checked on the full acyclic graph, including raw
+Local graph identities are checked on the full supplied acyclic graph, including raw
 references with zero coefficients; zero polynomial nodes are allowed.
 The JSON schemas are
 \begin{itemize}
@@ -532,12 +547,20 @@ Every child word is strictly smaller in degree-lex order. Memoizing these
 identities gives an acyclic spanning proof without expanding shared ideal
 proofs into original cofactor contexts. Applying this construction to each
 $g_ab_j$ supplies generator columns and their proposed ideal identities.
-The independent word-basis verifier checks the complete shared proof graph,
+Before removing unused nodes, the producer validates every raw reference and
+cycle in the full proposal graph. It then retains exactly the raw dependency
+closure of the generator-action proof roots, including zero-coefficient edges.
+The independent word-basis verifier checks every retained shared proof identity,
 all generator-column identities, all original matrix relations, and cyclic
 independence exactly once. The proposition above then proves that the proposed
-words are a basis of the presented algebra. A false derivation or an
+words are a basis of the presented algebra. A false retained derivation or an
 inconsistent reduction proposal cannot establish a dimension. The zero algebra
-instead retains a shared proof that $1\in I$. No cubic multiplication table or
+instead retains the raw closure of a shared proof that $1\in I$.
+The construction limit \texttt{max\_nodes} still bounds the full temporary
+working graph before pruning. Removing unused derivations changes neither
+the certified word basis nor its dimension. It makes no claim of shortest
+basis words or a smallest or sparsest retained proof.
+No cubic multiplication table or
 separate completion check is required.
 
 \subsection{Explicit cofactors from certified actions}

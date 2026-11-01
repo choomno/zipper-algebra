@@ -145,8 +145,20 @@ nonconfluent proposals and a zero-algebra adversary whose original relations
 hold on the cyclic vector but fail on other columns. Pipeline tests require one
 final finite-basis check by default, and one additional completion check only
 when requested. Reports distinguish finite-basis verification from optional
-Gröbner completion. Publication tests corrupt saved data and
-exercise interrupted attempts and concurrent immutable generations. Tiny native
+Gröbner completion. Proof-pruning tests retain the raw dependency closure of
+action or unit roots, including forward, shared and zero-coefficient references.
+They reject invalid raw references and cycles even in unused proposal nodes;
+an unused arithmetic claim can be discarded, but every retained identity must
+still pass the unchanged exact finite-basis checker. Independent controls check
+the original relations on the full action space and cyclic independence after
+pruning. The construction node bound still applies before pruning.
+
+Publication tests corrupt saved data and mutate documents inside a writer to
+check their pre-write canonical-content hashes. They check lazy one-document
+export and release, streamed encoding with unchanged bytes, saved presentation
+binding, interrupted writes and concurrent immutable generations. Partial
+serialization or replacement failures must preserve an earlier artifact and
+remove temporary files. Tiny native
 controls check both file and SQLite transport through an installed package;
 three-strand research examples stay outside CI. See the
 [generic production guide](GENERIC_PRODUCTION.md).
