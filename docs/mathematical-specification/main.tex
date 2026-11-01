@@ -673,6 +673,52 @@ cause failure or an incorrect candidate; a candidate is accepted only after
 all exact checks pass. Coefficient bounds, prime budgets and thread counts are
 computation settings rather than hypotheses of the conclusion.
 
+\subsection{Minimal polynomials on cyclic algebra orbits}
+Let $A$ be a verified finite-dimensional unital associative algebra over $K$,
+of dimension $D$, with its certified ordered word basis. For $a,v\in A$,
+consider the cyclic sequence
+\[
+ v,\ av,\ a^2v,\ldots.
+\]
+Its annihilator in $K[z]$ has a unique monic generator $m_{a,v}$.
+The default $v=1$ gives the minimal polynomial of $a$, equivalently that of
+left multiplication by $a$ on the whole algebra. A general seed concerns only
+its cyclic orbit; $m_{a,v}(a)v=0$ need not imply $m_{a,v}(a)=0$.
+For $v=0$, including the zero algebra, the generator is $1$, of degree zero.
+
+For a claimed monic polynomial $c_0+c_1z+\cdots+z^d$, form the actual
+coordinate matrix
+\[
+ C_d=[\,v\mid av\mid\cdots\mid a^dv\,]\in K^{D\times(d+1)}.
+\]
+The checker recomputes these columns from the verified algebra. It verifies
+a complete kernel certificate of rank $d$ and nullity one, and compares
+the supplied monic coefficient vector with that kernel vector after
+normalization. Thus it proves
+\[
+ \sum_{j=0}^d c_j a^jv=0,\qquad c_d=1,\qquad
+ \operatorname{rank}_K C_d=d.
+\]
+The relation puts the last column in the span of the preceding $d$ columns.
+Consequently those columns are independent, and no lower-degree polynomial
+annihilates $v$. The polynomial is therefore the exact relative minimal
+polynomial, not merely an annihilator.
+
+The producer uses the maintained FiniteFlow kernel interface~\cite{finiteflow}.
+Prefix lengths grow geometrically. If the first dependent vector has index
+$d$, applying left multiplication by $a$ to its relation shows that the span
+of the preceding vectors is invariant. Every longer prefix has rank $d$.
+An exact rank from a dependent prefix therefore determines the smaller
+prefix to certify. The calculation uses generator actions on vectors and
+does not materialize every basis multiplication matrix.
+
+Production of nonzero orbits currently uses characteristic-zero coefficient
+fields. The independent verifier accepts the supported exact fields and
+minor witnesses of the kernel interface. Degree bounds are capped by $D$.
+An exhausted search returns no polynomial. Operation limits apply per
+multiplication and product limits per kernel verification; they do not bound
+process memory or elapsed time.
+
 \section{A four-strand square-zero quotient over \texorpdfstring{$\Q(q,t)$}{Q(q,t)}}
 Let $A$ be the four-strand zipper quotient over $k=\Q(q,t)$ with polynomial
 untwistings
