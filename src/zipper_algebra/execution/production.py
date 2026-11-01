@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from fractions import Fraction
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -28,23 +29,58 @@ from .runner import ExecutionError
 __all__ = ["produce_algebra"]
 
 
+def _document_hash(document):
+    """Hash canonical JSON without retaining a second encoded document."""
+    digest = hashlib.sha256()
+    encoder = json.JSONEncoder(sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    for chunk in encoder.iterencode(document):
+        digest.update(chunk.encode())
+    return digest.hexdigest()
+
+
+def _check_saved_document(path, expected, presentation_hash):
+    """Check and decode one saved document, releasing its copies on return."""
+    with path.open(encoding="utf-8") as stream:
+        saved = json.load(stream)
+    if _document_hash(saved) != expected:
+        raise ArtifactError("serialized algebra production differs from verified data")
+    if path.name == "presentation.json":
+        return AlgebraPresentation.from_json(saved).content_hash()
+    if path.name == "rewrite-candidate.json":
+        parent = GroebnerCertificate.from_json(saved).presentation_hash
+    elif path.name == "word-basis-certificate.json":
+        parent = WordBasisCertificate.from_json(saved).presentation_hash
+    else:
+        return presentation_hash
+    if parent != presentation_hash:
+        raise ArtifactError("serialized certificates differ from the saved presentation")
+    return presentation_hash
+
+
 def _publish(root, documents, producer):
+    """Publish byte-bound documents; values may be zero-argument JSON exporters.
+
+    Only one exported JSON tree and one decoded certificate are needed at a
+    time. Original mathematical objects remain owned by the producer.
+    """
     destination = root / "algebras"
     destination.mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=".publish-", dir=destination) as temporary:
         stage = Path(temporary) / "generation"
         stage.mkdir()
-        for name, document in documents.items():
+        names = ("presentation.json", "rewrite-candidate.json", "word-basis-certificate.json",
+                 *(name for name in documents if name not in {
+                     "presentation.json", "rewrite-candidate.json", "word-basis-certificate.json"}))
+        presentation_hash = None
+        for name in names:
+            source = documents[name]
+            document = source() if callable(source) else source
+            expected = _document_hash(document)
             write_json_atomic(stage / name, document)
-        loaded = {name: json.loads((stage / name).read_text()) for name in documents}
-        if canonical_json(loaded) != canonical_json(documents):
-            raise ArtifactError("serialized algebra production differs from verified data")
-        # Exercise the public decoders on the exact saved certificate encodings.
-        presentation = AlgebraPresentation.from_json(loaded["presentation.json"])
-        generic = GroebnerCertificate.from_json(loaded["rewrite-candidate.json"])
-        finite = WordBasisCertificate.from_json(loaded["word-basis-certificate.json"])
-        if {generic.presentation_hash, finite.presentation_hash} != {presentation.content_hash()}:
-            raise ArtifactError("serialized certificates differ from the saved presentation")
+            # A lazy exporter owns this temporary tree exclusively. Release it
+            # before loading; raw mapping callers may retain their own data.
+            del document
+            presentation_hash = _check_saved_document(stage / name, expected, presentation_hash)
         write_bundle_provenance(stage, documents, producer=producer)
         validate_source_snapshot(producer)
         files = {path.name: file_identity(path) for path in stage.iterdir()}
@@ -147,9 +183,9 @@ def produce_algebra(presentation: AlgebraPresentation, point: Mapping[str, int |
                     "timings": dict(timings),
                     "dimension": len(word_basis.basis_words)}
         before = time.monotonic()
-        products = _publish(root, {"presentation.json": presentation.to_json(),
-                    "rewrite-candidate.json": reconstructed.certificate.to_json(),
-                    "word-basis-certificate.json": word_basis.to_json(),
+        products = _publish(root, {"presentation.json": presentation.to_json,
+                    "rewrite-candidate.json": reconstructed.certificate.to_json,
+                    "word-basis-certificate.json": word_basis.to_json,
                     "production.json": metadata}, producer)
         timings["publication"] = time.monotonic() - before
         report.update(status="verified", verified=True, word_basis_verified=True,

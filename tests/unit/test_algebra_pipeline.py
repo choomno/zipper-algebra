@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import shutil
 import sys
+import weakref
 
 import pytest
 
@@ -191,6 +192,72 @@ def test_changed_serialized_document_is_rejected_before_selection(setup, monkeyp
     assert_inconclusive(report, 'publication')
     assert 'serialized algebra production differs' in report['reason']
     assert not any((config.output_root/'algebras').iterdir())
+
+
+def test_mutating_writer_cannot_change_verified_metadata(setup, monkeypatch):
+    presentation, config, _ = setup
+    actual_write = pipeline.write_json_atomic
+
+    def corrupt(path, document):
+        if Path(path).name == 'production.json':
+            document['dimension'] = 999
+        actual_write(path, document)
+
+    monkeypatch.setattr(pipeline, 'write_json_atomic', corrupt)
+    report = pipeline.produce_algebra(presentation, {}, config)
+    assert_inconclusive(report, 'publication')
+    assert 'serialized algebra production differs' in report['reason']
+    assert not any((config.output_root/'algebras').iterdir())
+
+
+def test_lazy_exporters_release_previous_json_before_next_export(setup):
+    presentation, config, _ = setup
+    report = pipeline.produce_algebra(presentation, {}, config)
+    sources = {
+        'presentation.json': presentation.to_json,
+        'rewrite-candidate.json': GroebnerCertificate.from_json(
+            read(report['artifacts']['rewrite-candidate.json'])).to_json,
+        'word-basis-certificate.json': WordBasisCertificate.from_json(
+            read(report['artifacts']['word-basis-certificate.json'])).to_json,
+        'production.json': lambda: read(report['artifacts']['production.json']),
+    }
+    exported = []
+
+    class Document(dict):
+        pass
+
+    def factory(source):
+        def export():
+            # Each exporter allocates a fresh complete JSON tree from an actual
+            # certificate. A previous temporary tree must no longer be live.
+            assert all(reference() is None for reference in exported)
+            document = Document(source())
+            exported.append(weakref.ref(document))
+            return document
+        return export
+
+    repeated = pipeline._publish(config.output_root,
+        {name: factory(source) for name, source in sources.items()}, report['producer'])
+    assert len(exported) == 4 and all(reference() is None for reference in exported)
+    assert repeated['generation'] == report['generation']
+
+
+def test_canonical_document_hash_uses_the_existing_encoding():
+    value = {'unicode': 'π𝛼', 'zero': -0.0, 'nested': [(), {'rational': '3/7'}],
+             'empty': {}, 'large': 10**40, 'bool': True, 'none': None}
+    assert pipeline._document_hash(value) == digest_bytes(canonical_json(value))
+
+
+def test_saved_finite_certificate_parent_must_match_presentation(setup):
+    presentation, config, _ = setup
+    report = pipeline.produce_algebra(presentation, {}, config)
+    documents = documents_from_report(report)
+    changed = AlgebraPresentation(presentation.algebra, presentation.relations,
+                                   ('new-label', 'vv', 'vu')).content_hash()
+    documents['word-basis-certificate.json']['presentation_hash'] = changed
+    documents['word-basis-certificate.json']['proof']['presentation_hash'] = changed
+    with pytest.raises(ArtifactError, match='saved presentation'):
+        pipeline._publish(config.output_root, documents, report['producer'])
 
 
 @pytest.mark.parametrize('winner', [False, True])
