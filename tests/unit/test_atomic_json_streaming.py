@@ -33,6 +33,39 @@ def test_streaming_writer_does_not_build_a_whole_encoded_string(tmp_path, monkey
     assert json.loads(path.read_text())['rows'] == [list(range(50)) for _ in range(100)]
 
 
+def test_streaming_writer_writes_multiple_bounded_chunks(tmp_path, monkeypatch):
+    create = artifacts.tempfile.NamedTemporaryFile
+    writes = []
+
+    class RecordingStream:
+        def __init__(self, stream):
+            self.stream = stream
+
+        def __enter__(self):
+            self.stream.__enter__()
+            return self
+
+        def __exit__(self, *args):
+            return self.stream.__exit__(*args)
+
+        def __getattr__(self, name):
+            return getattr(self.stream, name)
+
+        def write(self, chunk):
+            writes.append(len(chunk))
+            return self.stream.write(chunk)
+
+    monkeypatch.setattr(artifacts.tempfile, 'NamedTemporaryFile',
+                        lambda *args, **kwargs: RecordingStream(create(*args, **kwargs)))
+    document = {'rows': [list(range(50)) for _ in range(100)]}
+    path = tmp_path/'artifact.json'
+    artifacts.write_json_atomic(path, document)
+    expected = json.dumps(document, sort_keys=True, indent=2, allow_nan=False)+'\n'
+    assert path.read_text() == expected
+    assert len(writes) > 100 and max(writes) < len(expected)//100
+    assert sum(writes) == len(expected)
+
+
 @pytest.mark.parametrize('failure', ['serialization', 'write', 'replace'])
 def test_partial_stream_does_not_replace_previous_artifact(tmp_path, monkeypatch, failure):
     path = tmp_path/'artifact.json'
