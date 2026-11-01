@@ -1,5 +1,6 @@
 """A saved general cofactor proves the literal target-minus-representative identity."""
 import hashlib
+import importlib.util
 import json
 from pathlib import Path
 import subprocess
@@ -14,6 +15,14 @@ from zipper_algebra.fields import RationalFunctionField
 from zipper_algebra.verification.groebner import GroebnerCertificate, ProofTerm
 
 ROOT = Path(__file__).resolve().parents[2]
+SCRIPT = ROOT / 'examples/general_cofactor.py'
+
+
+def load_example():
+    spec = importlib.util.spec_from_file_location('general_cofactor', SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def inputs(tmp_path, parameters=()):
@@ -32,7 +41,7 @@ def inputs(tmp_path, parameters=()):
 
 
 def run(paths, output, *options):
-    command = [sys.executable, str(ROOT / 'examples/general_cofactor.py'),
+    command = [sys.executable, str(SCRIPT),
                '--presentation', str(paths['presentation.json']),
                '--word-basis', str(paths['word-basis-certificate.json']),
                '--target', str(paths['target.json']), '--output', str(output), *options]
@@ -80,3 +89,55 @@ def test_exhausted_expansion_budget_does_not_claim_membership(tmp_path):
     assert not (tmp_path/'out/cofactor.json').exists()
     assert 'budget' in report['reason']
     assert json.loads((tmp_path/'out/report.json').read_text()) == report
+
+
+@pytest.mark.parametrize('existing_ignore', [False, True])
+def test_nonempty_output_is_rejected_without_changing_existing_files(tmp_path, existing_ignore):
+    output = tmp_path/'run'
+    output.mkdir()
+    (output/'important.txt').write_bytes(b'keep this exactly\n')
+    if existing_ignore:
+        (output/'.gitignore').write_bytes(b'own ignore policy\n')
+    before = {path.name: path.read_bytes() for path in output.iterdir()}
+    result = subprocess.run([sys.executable, str(SCRIPT), '--presentation', 'unused.json',
+        '--word-basis', 'unused.json', '--target', 'unused.json', '--output', str(output)],
+        text=True, capture_output=True, timeout=30)
+    assert result.returncode == 2 and 'empty directory' in result.stderr
+    assert {path.name: path.read_bytes() for path in output.iterdir()} == before
+
+
+@pytest.mark.parametrize('failure', ['representative', 'cofactor', 'source-change'])
+def test_failed_saved_output_binding_removes_unverified_artifacts(tmp_path, monkeypatch, capsys, failure):
+    module = load_example()
+    presentation, u, v, paths = inputs(tmp_path)
+    paths['target.json'].write_text(json.dumps((v*u*v+u).to_json()))
+    write = module.write_json_atomic
+
+    def corrupt(path, document):
+        if path.name == failure+'.json':
+            if failure == 'representative':
+                document = presentation.algebra.zero.to_json()
+            else:
+                # A valid identity for zero must still fail binding to the target.
+                document = CofactorIdentity(presentation.content_hash(), presentation.algebra.zero, ()).to_json()
+        write(path, document)
+
+    def changed(producer):
+        raise RuntimeError('source changed during computation')
+
+    monkeypatch.setattr(module, 'write_json_atomic', corrupt)
+    if failure == 'source-change':
+        monkeypatch.setattr(module, 'validate_source_snapshot', changed)
+    output = tmp_path/'out'
+    code = module.main(['--presentation', str(paths['presentation.json']),
+        '--word-basis', str(paths['word-basis-certificate.json']),
+        '--target', str(paths['target.json']), '--output', str(output)])
+    report = json.loads(capsys.readouterr().out)
+    assert code == 3 and report['status'] == 'inconclusive' and not report['verified']
+    assert 'in_ideal' not in report and 'artifacts' not in report
+    reason = 'source changed' if failure == 'source-change' else 'target minus representative'
+    assert reason in report['reason']
+    assert not (output/'representative.json').exists() and not (output/'cofactor.json').exists()
+    provenance = json.loads((output/'provenance.json').read_text())
+    assert set(provenance['outputs']) == {'report.json'}
+    assert json.loads((output/'report.json').read_text()) == report

@@ -11,7 +11,6 @@ from zipper_algebra.cofactor.artifacts import write_json_atomic
 from zipper_algebra.cofactor.general import cofactor_representation, verify_cofactor
 from zipper_algebra.execution.artifacts import prepare_output_root, validate_source_snapshot
 from zipper_algebra.provenance import capture_provenance, file_identity, write_bundle_provenance
-from zipper_algebra.verification.derivations import VerificationLimit
 from zipper_algebra.verification.finite import WordBasisCertificate
 
 
@@ -27,9 +26,10 @@ def main(argv=None):
     parser.add_argument('--max-dimension', type=int, default=10_000)
     args = parser.parse_args(argv)
     output = args.output.resolve()
-    prepare_output_root(output)
-    if any(path.name != '.gitignore' for path in output.iterdir()):
+    if output.exists() and (not output.is_dir() or
+                            any(path.name != '.gitignore' for path in output.iterdir())):
         parser.error('output must be a new or empty directory')
+    prepare_output_root(output)
     producer = capture_provenance()
     driver_identity = file_identity(Path(__file__))
     inputs = []
@@ -55,8 +55,11 @@ def main(argv=None):
                     max_nodes=args.max_nodes, max_dimension=args.max_dimension)
         write_json_atomic(output / 'representative.json', result.remainder.to_json())
         write_json_atomic(output / 'cofactor.json', result.identity.to_json())
-        # Check the actual serialized identity against the original input.
+        # Bind both serialized outputs to the consumed target before acceptance.
+        representative = AlgebraElement.from_json(json.loads((output / 'representative.json').read_text()))
         saved = CofactorIdentity.from_json(json.loads((output / 'cofactor.json').read_text()))
+        if saved.target != target-representative:
+            raise ValueError('saved cofactor target differs from target minus representative')
         if not verify_cofactor(presentation, saved, max_operations=args.max_operations):
             raise ValueError('saved cofactor fails its exact original-input identity')
         validate_source_snapshot(producer)
@@ -65,10 +68,12 @@ def main(argv=None):
         documents = ['representative.json', 'cofactor.json']
         report.update(status='verified', verified=True,
                       presentation_hash=presentation.content_hash(),
-                      in_ideal=result.remainder.is_zero(),
-                      cofactor_terms=len(result.identity.terms), statistics=result.statistics,
+                      in_ideal=representative.is_zero(),
+                      cofactor_terms=len(saved.terms), statistics=result.statistics,
                       artifacts={name: str(output / name) for name in documents})
-    except (OSError, ValueError, TypeError, ImportError, ArithmeticError, VerificationLimit) as error:
+    except (OSError, ValueError, TypeError, ImportError, ArithmeticError, LookupError, RuntimeError) as error:
+        for name in ('representative.json', 'cofactor.json'):
+            (output / name).unlink(missing_ok=True)
         report.update(reason=str(error))
     report['inputs'] = inputs
     write_json_atomic(output / 'report.json', report)

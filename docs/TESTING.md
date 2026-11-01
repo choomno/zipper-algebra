@@ -158,8 +158,11 @@ parameter and prime fields. They reject false identities and malformed proof
 references and distinguish bounded expansion failures from nonmembership.
 The file-based example tests both nonzero quotient representatives and zero
 representatives, including a generic parameter field. Saved cofactors are
-reloaded and independently checked, and input/output provenance hashes are
-compared with the actual bytes. The original four-strand cofactor comparison
+reloaded and independently checked against the target minus the saved
+representative, and input/output provenance hashes are compared with the actual
+bytes. Corrupted serialization and source changes must leave an inconclusive
+report without unverified cofactor artifacts; rejected nonempty output folders
+must retain their original contents. The original four-strand cofactor comparison
 remains a local research computation outside CI.
 
 ## Runtime bounds

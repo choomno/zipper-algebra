@@ -193,14 +193,18 @@ The output folder must be empty. A successful run writes `representative.json`,
 `cofactor.json`, `report.json` and `provenance.json`, with an ignore policy for
 generated files. The report identifies membership and the literal presentation;
 provenance records the exact consumed input hashes, computation source, package
-revision and output hashes. The example reloads and checks the serialized
-cofactor before reporting success. A checker can subsequently load the original
+revision and output hashes. The example reloads both outputs, binds the cofactor
+target to the input minus the saved representative, and checks the serialized
+identity before reporting success. An unsuccessful check removes the unverified
+representative and cofactor. A checker can subsequently load the original
 presentation and `CofactorIdentity.from_json` data and call `verify_cofactor`;
 the finite-basis certificate is needed separately to audit the chosen basis.
 
 A small shared graph can expand into a much larger explicit cofactor.
-`max_contexts` bounds peak retained intermediate contexts, and `max_nodes` bounds
-the proof graph. Verification, construction, expansion and final checking each
+`max_contexts` bounds peak retained intermediate contexts. `max_nodes` bounds
+the entire augmented proof graph: retained certificate nodes plus newly generated
+reduction nodes, so it must allow headroom beyond the input certificate.
+Verification, construction, expansion and final checking each
 have their own `max_operations` bound. These are operation and storage-entry
 bounds, not process RAM or wall-clock limits. Exhaustion is inconclusive and does
 not establish nonmembership. The API does not assume a universal finite
