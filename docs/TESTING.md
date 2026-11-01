@@ -151,6 +151,17 @@ controls check both file and SQLite transport through an installed package;
 three-strand research examples stay outside CI. See the
 [generic production guide](GENERIC_PRODUCTION.md).
 
+General-cofactor tests expand shared derivations into collected contexts over the
+original defining relations, preserve both noncommuting context orders, and
+check finite-basis target-minus-representative identities over rational,
+parameter and prime fields. They reject false identities and malformed proof
+references and distinguish bounded expansion failures from nonmembership.
+The file-based example tests both nonzero quotient representatives and zero
+representatives, including a generic parameter field. Saved cofactors are
+reloaded and independently checked, and input/output provenance hashes are
+compared with the actual bytes. The original four-strand cofactor comparison
+remains a local research computation outside CI.
+
 ## Runtime bounds
 
 Use `python -m pytest tests/unit -q --durations=10` for quick algebraic checks.

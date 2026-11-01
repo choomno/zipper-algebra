@@ -146,6 +146,66 @@ construction; and `execution/production.py` for orchestration/publication.
 data. `verification/f4ncgb.py`, `derivations.py`, `groebner.py`, `finite.py` and
 `working_field.py` decode and independently check the mathematics.
 
+## Explicit cofactors for elements
+
+The finite-basis output retains the original-input proof graph and all generator
+closure identities. These data support explicit cofactor production for every
+free-polynomial target over the declared coefficient field, independently of the
+number or names of parameters and the chosen untwisting polynomials.
+
+```python
+from zipper_algebra.cofactor.general import cofactor_representation, verify_cofactor
+
+# h belongs to P.algebra; W is the retained finite-basis certificate.
+reduction = cofactor_representation(P, W, h)
+r = reduction.remainder
+identity = reduction.identity
+assert identity.target == h-r
+assert verify_cofactor(P, identity)
+```
+
+The output proves `h-r` as an explicit sum of contextual multiples of the
+**original ordered defining relations**. The representative `r` is expressed in
+the certified word basis. A zero representative gives an explicit ideal-membership
+cofactor for `h`; a nonzero representative gives an equality in the quotient and
+establishes that its class is nonzero. A nonzero quotient element itself does not
+have an ideal-membership cofactor.
+
+The computation verifies `W`, reduces suffixes using its generator actions, and
+combines the retained closure proofs with noncommuting left and right contexts.
+It collects repeated original-input contexts and checks the final explicit
+identity directly. `expand_derivation(P, graph, node)` also exports one selected
+shared proof node as an explicit cofactor without needing a finite basis. Thus a
+target-specific proof can be exported without computing the entire algebra.
+The standalone `verify_cofactor(P, identity)` check needs neither a solver nor
+FiniteFlow; parameter-field arithmetic uses the symbolic extra.
+
+For file-based use, encode `h` with `AlgebraElement.to_json` and run:
+
+```sh
+python examples/general_cofactor.py \
+  --presentation runs/CASE/algebras/GENERATION/presentation.json \
+  --word-basis runs/CASE/algebras/GENERATION/word-basis-certificate.json \
+  --target target.json --output runs/element-cofactor
+```
+
+The output folder must be empty. A successful run writes `representative.json`,
+`cofactor.json`, `report.json` and `provenance.json`, with an ignore policy for
+generated files. The report identifies membership and the literal presentation;
+provenance records the exact consumed input hashes, computation source, package
+revision and output hashes. The example reloads and checks the serialized
+cofactor before reporting success. A checker can subsequently load the original
+presentation and `CofactorIdentity.from_json` data and call `verify_cofactor`;
+the finite-basis certificate is needed separately to audit the chosen basis.
+
+A small shared graph can expand into a much larger explicit cofactor.
+`max_contexts` bounds peak retained intermediate contexts, and `max_nodes` bounds
+the proof graph. Verification, construction, expansion and final checking each
+have their own `max_operations` bound. These are operation and storage-entry
+bounds, not process RAM or wall-clock limits. Exhaustion is inconclusive and does
+not establish nonmembership. The API does not assume a universal finite
+cofactor support or a denominator family.
+
 ## Limits
 
 The solver has a subprocess timeout and explicit iteration/degree limits.
