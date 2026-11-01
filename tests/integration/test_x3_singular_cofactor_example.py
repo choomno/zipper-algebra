@@ -84,6 +84,7 @@ def test_literal_original_input_and_fresh_target_search():
 
 
 def test_publish_reload_and_exactly_verify_original_relation_identity(tmp_path, monkeypatch):
+    pytest.importorskip('sympy', reason='exact parameter-field arithmetic needs the symbolic extra')
     module = load_example()
     full, target = fake_native(module, tmp_path, monkeypatch)
     output = tmp_path/'run'
@@ -107,6 +108,7 @@ def test_publish_reload_and_exactly_verify_original_relation_identity(tmp_path, 
 
 
 def test_native_success_and_target_marker_cannot_substitute_for_exact_proof(tmp_path, monkeypatch):
+    pytest.importorskip('sympy', reason='exact parameter-field arithmetic needs the symbolic extra')
     module = load_example()
     fake_native(module, tmp_path, monkeypatch, coefficient='2')
     with pytest.raises(ValueError, match='expanded cofactor'):
@@ -116,6 +118,7 @@ def test_native_success_and_target_marker_cannot_substitute_for_exact_proof(tmp_
 
 
 def test_changed_package_source_cannot_receive_a_verified_report(tmp_path, monkeypatch):
+    pytest.importorskip('sympy', reason='exact parameter-field arithmetic needs the symbolic extra')
     module = load_example()
     fake_native(module, tmp_path, monkeypatch)
 
@@ -131,6 +134,7 @@ def test_changed_package_source_cannot_receive_a_verified_report(tmp_path, monke
 
 
 def test_shared_node_contexts_are_expanded_in_order():
+    pytest.importorskip('sympy', reason='exact parameter-field arithmetic needs the symbolic extra')
     module = load_example()
     full, _ = module.presentation()
     target = full.algebra.generator('x2')*full.relations[0]*full.algebra.generator('y3')
@@ -146,6 +150,7 @@ def test_shared_node_contexts_are_expanded_in_order():
 
 @pytest.mark.parametrize('document', ['target.json', 'presentation.json'])
 def test_modified_serialized_input_cannot_be_published(tmp_path, monkeypatch, document):
+    pytest.importorskip('sympy', reason='exact parameter-field arithmetic needs the symbolic extra')
     module = load_example()
     fake_native(module, tmp_path, monkeypatch)
     helper = module.load_helper()

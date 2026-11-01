@@ -119,8 +119,8 @@
     },
     {
       "path": "examples/x3_singular_cofactor.py",
-      "bytes": 12303,
-      "sha256": "aec9228ddb7b4b09fdc3e7f5a30006123f5d328eb5e1e2bbdf69412a654ae76a",
+      "bytes": 12308,
+      "sha256": "4035e7b0fa17836c96a21608ab82dc8bd8c87b6c44ddea933a9c94441ed72517",
       "role": "Generic original X3 cofactor discovery, explicit expansion and exact checking with Singular"
     },
     {
@@ -593,8 +593,8 @@
     },
     {
       "path": "tests/integration/test_x3_singular_cofactor_example.py",
-      "bytes": 11816,
-      "sha256": "1f15d4a064bc06e15070ea5a48f6ee70a094ac6546b34041a77a91162338ce97",
+      "bytes": 12321,
+      "sha256": "5e4906d1e164dd958dc4e55f2a3d3fc3c75ff02c0a2f0e3d8b9b455e42bc5249",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
