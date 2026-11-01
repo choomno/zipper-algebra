@@ -442,3 +442,19 @@ def test_one_pole_column_does_not_hide_another_regular_generic_proof(oracle, mon
     assert result.reduction.dimension == 1
     assert len(alternate) == 1
     assert result.certificate.derivations[0] == (ProofTerm(field.one, (), 'input', 2, ()),)
+
+
+def test_context_syzygies_cannot_replace_a_missing_generic_leading_relation(oracle):
+    parent = FreeAlgebra(RationalFunctionField(('a',)), ('x',))
+    a, x = parent.field.parameter('a'), parent.generator('x')
+    relation = a*x*x+x
+    pres = presentation(parent, (relation, relation))
+    numeric = pres.specialize({'a': 0})
+    sample = GroebnerCertificate(numeric.content_hash(), (numeric.relations[0],), ((
+        ProofTerm(numeric.algebra.field.one, (), 'input', 0, ()),
+        ProofTerm(numeric.algebra.field.zero, (), 'input', 1, ()),
+    ),))
+    # The generic context columns have the honest syzygy r0-r1=0. Its
+    # existence cannot certify x in the generic ideal (a*x*x+x).
+    with pytest.raises(SupportFailure, match='no anchor-compatible generic proof'):
+        reconstruct_groebner(pres, sample, point={'a': 0})
