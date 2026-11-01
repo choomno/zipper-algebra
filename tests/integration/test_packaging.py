@@ -26,9 +26,14 @@ import json, sys
 before = list(sys.path)
 from zipper_algebra import Presentation, AtomSet, Cofactor
 from zipper_algebra.cofactor import compose, lift, verify
+from zipper_algebra.action_production import word_basis_from_rewrites
+from zipper_algebra.cofactor.general import cofactor_representation, verify_cofactor
+from zipper_algebra.execution.production import produce_algebra
 assert sys.path == before
 assert 'repo_settings' not in sys.modules
 assert 'sympy' not in sys.modules
+assert 'fflow' not in sys.modules
+assert 'sage' not in sys.modules
 print(json.dumps({'relations': len(Presentation(4).labels())}))
 """
         result = subprocess.run([sys.executable, "-I", "-c", code], cwd=tempfile.gettempdir(),
