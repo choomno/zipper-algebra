@@ -17,8 +17,8 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "bytes": 9507,
-      "sha256": "fbf3ba7f71e7d61707e05980a313cc1932dfe3b54f07b08c63ee6939bf0c9ee9",
+      "bytes": 9654,
+      "sha256": "f14345d90f8c0f051a5c307b64160192dfd225032e286088433f306f25bdfe4d",
       "role": "Hosted software tests, small solver integration and documentation checks"
     },
     {
@@ -53,8 +53,8 @@
     },
     {
       "path": "ci/check_distribution.py",
-      "bytes": 8564,
-      "sha256": "64b57664b1560bbb0f754087d58f88c152fa4cdd35d2181a839c7025729ac6f0",
+      "bytes": 8642,
+      "sha256": "2b1837c4115cea3b15e5789135f4d89ee15f6cfd76b213a16ba007e584906976",
       "role": "Installation, test, coverage, documentation or inventory support"
     },
     {
@@ -65,8 +65,8 @@
     },
     {
       "path": "ci/check_installed.py",
-      "bytes": 3106,
-      "sha256": "5e22cf9eac7fc4fa21ac2210801b82775f54814575f964610d89c236d799def4",
+      "bytes": 3198,
+      "sha256": "7012b6cc0c09f9e918ecac8702eb620820c033606c42acd8289d2057773af118",
       "role": "Installation, test, coverage, documentation or inventory support"
     },
     {
@@ -208,6 +208,12 @@
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
+      "path": "src/zipper_algebra/cofactor/_contexts.py",
+      "bytes": 5372,
+      "sha256": "246190c9b5108d49aac46586376e4fe714cdecde6494c3ef29e4bcce6c342fe7",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
       "path": "src/zipper_algebra/cofactor/artifacts.py",
       "bytes": 10067,
       "sha256": "a7f6c41d7d39bb6120d3a4c7331d346a8e57403114fa30d965ba49858b5f0abb",
@@ -239,8 +245,8 @@
     },
     {
       "path": "src/zipper_algebra/cofactor/general.py",
-      "bytes": 14620,
-      "sha256": "da3ef2a5192443ef369cd6e8b74e79ecd72afd2b38947e67fe4578137fb545fd",
+      "bytes": 15728,
+      "sha256": "90c769c2bf2bbebdeb778a79dee5dbd52457887d2f0bcd7b4bb60ee2123c248f",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
@@ -265,6 +271,12 @@
       "path": "src/zipper_algebra/cofactor/proof.py",
       "bytes": 16238,
       "sha256": "a7f8b52a8a7ce1fc78f76dee313007e9b27be18305062cb9fbe51c5a3e9ad4cb",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
+      "path": "src/zipper_algebra/cofactor/reconstruction.py",
+      "bytes": 16123,
+      "sha256": "23413a6ad3c5acc28704b23fe543486b8196db2d7b9496c2eae1eae8ae470f82",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
@@ -514,6 +526,18 @@
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
+      "path": "tests/integration/test_cofactor_backend_native.py",
+      "bytes": 2759,
+      "sha256": "f3785ea27add69fe271d53c534d813526340432a17927163d069c3553ba6d237",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/integration/test_cofactor_reconstruction_native.py",
+      "bytes": 5956,
+      "sha256": "b67917c22962a65c1e2c4bb389aa4bcb0d360aebfb5d1c4866ea7756be9fb789",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
       "path": "tests/integration/test_coverage_gate.py",
       "bytes": 2853,
       "sha256": "4d9ce62076e16aa3ec36fad2b0ad4395ce20247713090c2244ce435fd686888d",
@@ -545,8 +569,8 @@
     },
     {
       "path": "tests/integration/test_general_cofactor_example.py",
-      "bytes": 7355,
-      "sha256": "c7fa85a670e86c5cce925cc5579b2600d91ccd0ab0f5d2c16b079f7e882e528a",
+      "bytes": 8799,
+      "sha256": "17487d50540105071534030947a842b656f70a24372e790e637b1780f4573743",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
@@ -781,6 +805,18 @@
       "path": "tests/unit/test_certificate_formats.py",
       "bytes": 14117,
       "sha256": "22be30c4222c5fc414a0b33ba7b7969adc4c04956e8fb8b5a9aac33b92ef7e3b",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/unit/test_cofactor_backends.py",
+      "bytes": 5518,
+      "sha256": "9e42cb6d7dd9ce1357f167e635668f282153543007dca8193056a26adefbe3f6",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/unit/test_cofactor_reconstruction.py",
+      "bytes": 26254,
+      "sha256": "01dd1f2b9167841803f403b9a2f7671ece3b002a61cc862b5a34c86bf5a57d97",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {

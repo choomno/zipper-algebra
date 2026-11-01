@@ -202,6 +202,42 @@ target-specific proof can be exported without computing the entire algebra.
 The standalone `verify_cofactor(P, identity)` check needs neither a solver nor
 FiniteFlow; parameter-field arithmetic uses the symbolic extra.
 
+### Optional reconstruction on original-input contexts
+
+The default `backend="literal"` propagates coefficients along the recorded
+proof graph. For presentations over `Q` or `Q(parameters)`, the optional
+`backend="finiteflow"` instead uses the graph to generate contextual multiples
+of the original defining relations and reconstructs one cofactor on that
+support. This works with arbitrary presentations; it does not require a zipper
+presentation or an f4ncgb producer. Prime-field presentations use the literal
+backend.
+
+```python
+reduction = cofactor_representation(P, W, h, backend="finiteflow", threads=2,
+                                    max_matrix_entries=100_000)
+assert verify_cofactor(P, reduction.identity)
+
+# Alternatively, reconstruct one selected proof node without a finite basis.
+from zipper_algebra.cofactor.reconstruction import reconstruct_derivation
+
+proof = reconstruct_derivation(P, graph, node, threads=2)
+assert verify_cofactor(P, proof.identity)
+```
+
+The native sparse affine solve proposes coefficients; it does not certify a
+complete kernel, rank, or minimum cofactor size. The acceptance condition is
+the full exact free-algebra identity against the original ordered relations.
+For a finite-basis query, the target of that identity is still `h-r` and the
+finite-basis check remains required. Reconstruction can choose a different
+valid cofactor from literal expansion. The separate certified matrix-kernel
+interface retains its complete-kernel and rank checks. See the
+[reconstruction guide](RECONSTRUCTION.md#original-input-cofactor-reconstruction)
+for the scalar computation and its bounds.
+
+The common `statistics["contexts"]` count is the final number of nonzero
+cofactor terms; reconstruction's `candidate_contexts` counts its proposed
+structural contexts. Remaining statistics are specific to the selected backend.
+
 For file-based use, encode `h` with `AlgebraElement.to_json` and run:
 
 ```sh
@@ -211,12 +247,28 @@ python examples/general_cofactor.py \
   --target target.json --output runs/element-cofactor
 ```
 
-The output folder must be empty. A successful run writes `representative.json`,
-`cofactor.json`, `report.json` and `provenance.json`, with an ignore policy for
+To select reconstruction, install the [FiniteFlow dependency](RECONSTRUCTION.md#installation)
+and use a fresh output folder:
+
+```sh
+python examples/general_cofactor.py \
+  --presentation runs/CASE/algebras/GENERATION/presentation.json \
+  --word-basis runs/CASE/algebras/GENERATION/word-basis-certificate.json \
+  --target target.json --output runs/element-cofactor-reconstructed \
+  --backend finiteflow --threads 2 --max-matrix-entries 100000 \
+  --max-primes 5 --max-degree 24
+```
+
+The output folder must be empty. A successful run writes `presentation.json`,
+`target.json`, `representative.json`, `cofactor.json`, `report.json` and
+`provenance.json`, with an ignore policy for
 generated files. The report identifies membership and the literal presentation;
 provenance records the exact consumed input hashes, computation source, package
-revision and output hashes. The example reloads both outputs, binds the cofactor
-target to the input minus the saved representative, and checks the serialized
+revision and output hashes, plus loaded dependency hashes for the optional
+native backend. The example reloads the saved presentation, target,
+representative and cofactor, checks the presentation and target against the
+consumed input and the representative against the certified reduction, binds
+the cofactor target to the input minus the saved representative, and checks the serialized
 identity before reporting success. An unsuccessful check removes the unverified
 representative and cofactor. A checker can subsequently load the original
 presentation and `CofactorIdentity.from_json` data and call `verify_cofactor`;
