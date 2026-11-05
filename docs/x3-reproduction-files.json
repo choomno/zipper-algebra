@@ -149,8 +149,8 @@
     },
     {
       "path": "pyproject.toml",
-      "bytes": 1728,
-      "sha256": "31595563b70ecb08c2db1039321bcd26bd3e2b17017e575a35c9db3be57d7ee4",
+      "bytes": 1781,
+      "sha256": "f920b171c5e4feb8f2e3d5b7ab120043d161527c6e741522aff1917609e12d84",
       "role": "Package dependencies and installed commands"
     },
     {
@@ -496,6 +496,18 @@
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
+      "path": "src/zipper_algebra/zipping_algorithm/__init__.py",
+      "bytes": 325,
+      "sha256": "eabff82125e7e3c7a3b2600e0d6bda2a48fe1419e34fed60439c0dd38e219b73",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
+      "path": "src/zipper_algebra/zipping_algorithm/catalog.py",
+      "bytes": 18675,
+      "sha256": "392ab4e655decbae88fceb156ab5628b7d5b0e974b5b4ff81c562efe6f22f41e",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
       "path": "tests/__init__.py",
       "bytes": 50,
       "sha256": "b3c6811b8cd2d4150a2a427fb306ae4968ffc608c97a91c956b30715ae87df1d",
@@ -763,6 +775,12 @@
       "path": "tests/test_survey_domains.py",
       "bytes": 13043,
       "sha256": "0bf3d382de47cb7f910291de8476857877455d1d17bdb924a8a83779b3fba1bf",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_catalog.py",
+      "bytes": 12943,
+      "sha256": "65b19fa7be6e69fd97e2610956577ea9cc11619f20cd1fe014a13b484e5e0349",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {

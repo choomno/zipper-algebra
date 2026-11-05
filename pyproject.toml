@@ -42,6 +42,7 @@ namespaces = false
 
 [tool.setuptools.package-data]
 zipper_algebra = ["_build_provenance.json"]
+"zipper_algebra.zipping_algorithm" = ["data/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
