@@ -65,7 +65,12 @@ def inspect(directory):
                        "verification/gap.py", "verification/groebner.py",
                        "verification/f4ncgb.py", "verification/derivations.py",
                        "verification/finite.py", "verification/working_field.py",
-                       "verification/linear.py", "verification/krylov.py"):
+                       "verification/linear.py", "verification/krylov.py",
+                       "zipping_algorithm/__init__.py", "zipping_algorithm/__main__.py",
+                       "zipping_algorithm/catalog.py", "zipping_algorithm/interpreter.py",
+                       "zipping_algorithm/transport.py", "zipping_algorithm/upward.py",
+                       "zipping_algorithm/two_strand.py", "zipping_algorithm/data/full-catalog.json",
+                       "zipping_algorithm/data/schema.json", "zipping_algorithm/data/manifest.json"):
             assert f"zipper_algebra/{needed}" in names, needed
         assert metadata + "licenses/LICENSE" in names, "the wheel must include the license"
         assert b"License-Expression: MIT" in archive.read(metadata + "METADATA")
@@ -100,7 +105,10 @@ def inspect(directory):
                        "experiments/survey/pointalg.py",
                        "experiments/research/theta_min_poly.py",
                        "experiments/variants/square_zero_regular_rep_qt.py",
-                       "ci/build_x3_manifest.py"):
+                       "ci/build_x3_manifest.py", "docs/ZIPPING_REFERENCE.md",
+                       "src/zipper_algebra/zipping_algorithm/data/full-catalog.json",
+                       "src/zipper_algebra/zipping_algorithm/data/schema.json",
+                       "src/zipper_algebra/zipping_algorithm/data/manifest.json"):
             assert needed in relative, needed
         root = next(iter(roots))
         def read(name):
@@ -123,7 +131,7 @@ def inspect(directory):
     forbidden = {".git", ".cache", "__pycache__", "private-baselines", "research-records",
                  "recovery", "manuscripts", "historical-reconstruction", "logs_and_traces",
                  "logs", "ms_inputs", "archive", "gap_scripts",
-                 "zipping_algorithm", "legacy_x3", "zipper_in_ms.py",
+                 "legacy_x3", "zipper_in_ms.py",
                  "research-archive.json", "restore_data.py", "reconstruction_theory.tex",
                  ".claude", ".codex", ".agents", ".agent-notes", "agent-notes",
                  "CONTRIBUTING.md", "CONTRIBUTING.MD", "AGENTS.md", "CLAUDE.md"}
@@ -136,6 +144,11 @@ def inspect(directory):
         path = PurePosixPath(name)
         assert not path.is_absolute() and ".." not in path.parts and "\\" not in name, name
         assert not forbidden.intersection(path.parts), name
+        # The maintained subpackage shares the historical experiment's name.
+        # Keep the retired top-level tree outside both release formats.
+        if "zipping_algorithm" in path.parts:
+            assert (path.parts[:2] == ("zipper_algebra", "zipping_algorithm")
+                    or path.parts[:4] == (root, "src", "zipper_algebra", "zipping_algorithm")), name
         assert path.suffix not in {".pyc", ".pyo", ".pkl", ".pickle"}, name
     print(f"Distribution contents passed: {wheel.name}, {source.name}")
 

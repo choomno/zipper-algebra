@@ -33,6 +33,14 @@ also give certified coordinates and products from sparse generator actions and
 explicit spanning and independence proofs. Parameter-field verification on this
 route uses the optional symbolic arithmetic dependency.
 
+The [zipper algorithm implementation](docs/ZIPPING_REFERENCE.md) executes a
+deterministic reconstruction of the thesis procedure on literal braid words,
+with both zipping directions, layering, recursive component extraction,
+optional traces, and checked exhaustive enumeration. Runs retain exact pending
+states on limits or unresolved control cases. All-input termination and the
+terminal spanning-family theorem remain under mathematical audit; completed
+runs retain their full routing, orientation, and boundary data.
+
 [Certified minimal polynomials](docs/MINIMAL_POLYNOMIALS.md) compute exact element
 and relative slider-orbit polynomials on a verified finite algebra. Each result
 includes a checkable annihilation and minimality witness. The generic four-strand
