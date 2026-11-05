@@ -54,3 +54,15 @@ def test_noncommuting_contexts_and_rational_scalars_are_preserved():
     with pytest.raises(ArtifactError, match='input-ideal identity'):
         validate_proofs(wrong, [relation], ['x1', 'x2'])
     assert relation.terms[(1, 2)].v == Fraction(1)
+
+
+def test_directory_backed_proofs_preserve_noncommuting_contexts(tmp_path):
+    relation = Poly(0)
+    relation.add_term((1, 2), Coef(1, 0))
+    relation.add_term((2, 1), Coef(-1, 0))
+    (tmp_path / "basis.txt").write_text("1/2*x2*x1*x2*x1 -1/2*x2*x2*x1*x1\n")
+    (tmp_path / "proof.txt").write_text("1/2*x2*[i0]*x1\n")
+    assert validate_proofs(tmp_path, [relation], ["x1", "x2"]) == 1
+    (tmp_path / "proof.txt").write_text("1/2*x1*[i0]*x2\n")
+    with pytest.raises(ArtifactError, match="input-ideal identity"):
+        validate_proofs(tmp_path, [relation], ["x1", "x2"])

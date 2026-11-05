@@ -838,6 +838,12 @@
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
+      "path": "tests/test_public_composition_refusals.py",
+      "bytes": 2143,
+      "sha256": "1734ed1ca248dcf08f44722fa5bb7894622fd18602bd3354280cc52992d21026",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
       "path": "tests/test_recipe_arguments.py",
       "bytes": 5255,
       "sha256": "4de0fa72869bac82711cd1fb934420dcc7a8818d5362757ecce41c523aa7f1f9",
@@ -977,8 +983,8 @@
     },
     {
       "path": "tests/test_zipping_upward.py",
-      "bytes": 13797,
-      "sha256": "996af44eae160e870d3e05be8ccbf1f746ddf57242ba7a2778977533964d30c3",
+      "bytes": 14663,
+      "sha256": "e59ef18988a8b6b2c8c34234bddfd4c0210b996f7cdca45fabf611286241e9d1",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
@@ -1043,8 +1049,8 @@
     },
     {
       "path": "tests/unit/test_dag_validation.py",
-      "bytes": 2596,
-      "sha256": "0bead60fcae3913fd69346fc470bfe2422662400e50f384898cf0b3503f129cd",
+      "bytes": 3176,
+      "sha256": "79a3e9e9380f7bcdd628af848b3a3c990e04c70f47df9cb12911f3af7f9758d6",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {

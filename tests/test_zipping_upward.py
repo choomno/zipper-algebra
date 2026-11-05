@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from zipper_algebra.zipping_algorithm.catalog import Catalog
+from zipper_algebra.zipping_algorithm.catalog import Catalog, CatalogError
 from zipper_algebra.zipping_algorithm.interpreter import Branch, Limits, ReplayError, RunState
 from zipper_algebra.zipping_algorithm.upward import (
     ControlError, check_certificate, initialize, resume, run, step,
@@ -312,3 +312,21 @@ def test_trace_flag_requires_boolean(catalog, value):
         run(state, catalog=catalog, trace=value)
     with pytest.raises(ControlError, match="boolean"):
         step(state, catalog=catalog, trace=value)
+
+
+def test_public_catalog_unbound_context_is_an_input_error(catalog):
+    record = catalog.get("zip.far.positive.I")
+    word = {"type": "concat", "items": [
+        {"type": "word_ref", "name": "exterior_braid"},
+        {"type": "slider", "size": "i", "start": "j"}]}
+    # P X = P X is a valid identity schema. This controller requires a literal
+    # braid context and cannot execute an unspecified named word P.
+    record["lhs"] = record["rhs"] = [
+        {"coefficient": [{"integer": 1, "q_power": 0}], "word": word}]
+    custom = Catalog({"schema_version": "1.0", "rules": [record]})
+    state = initialize(4, (3,))
+    original = state.to_json()
+    for operation in (step, run):
+        with pytest.raises(CatalogError, match="Unbound word reference"):
+            operation(state, catalog=custom)
+        assert state.to_json() == original
