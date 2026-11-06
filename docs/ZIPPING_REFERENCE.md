@@ -310,6 +310,46 @@ retain their ranks-one-and-two procedure and database format; they report
 unsupported requested ranks explicitly. Higher-rank enumeration uses
 `exhaust_general` or `exhaust-general`.
 
+### Parallel experiments with one SQLite writer
+
+On Unix, the repository runner computes independent words in worker processes
+and commits them through one writer in the same length/rank/ordinal order:
+
+```sh
+python experiments/zipper_exhaustive_parallel.py runs/literal-words --ranks 2 3 4 5 6 7 8 --workers 4 --wall-seconds 1800 --max-words 8463
+```
+
+`--max-words` caps the total stored rows, including earlier invocations; omit
+it to continue until the time budget or first unresolved word. `--max-length`
+is optional. `--limits` accepts the same JSON `Limits` fields as the sequential
+driver, and `--trace` retains full traces. The default is compact certificates.
+
+The runner can extend an existing `exhaust_general` database with matching
+rank order, trace mode, source, and catalog identity. Every saved row is audited
+before new work begins. Both producer and checker timings are stored, and each
+worker JSON-reloads and replays its result before it reaches the writer. A
+worker exception or incomplete result leaves the exact checked prefix; later
+speculative results are discarded. At most twice the worker count is in flight.
+The soft time limit excludes the initial audit and may be exceeded while
+bounded in-flight calculations finish.
+
+The runner records its own source hash, checks source identities before commits,
+and uses an exclusive file lock to reject a second parallel writer. Do not run
+the sequential driver concurrently against that database: it does not use the
+parallel runner's lock. Source changes require a new campaign. SQLite WAL permits
+read-only progress queries while computation continues:
+
+```sql
+SELECT n, length, count(*) AS visited,
+       sum(status = 'complete') AS complete
+FROM words GROUP BY n, length ORDER BY length, n;
+```
+
+The process runner is a repository experiment, rather than an installed-package
+entry point. Its tests cover out-of-order worker completion, interruption at an
+incomplete word, exceptions, resume, source binding, exclusive writer ownership,
+and a real process-pool run. The Unix-lock tests are skipped on Windows.
+
 ## Validation
 
 ```sh
