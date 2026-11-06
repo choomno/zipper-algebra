@@ -3,7 +3,7 @@ include INDEX.md WORKFLOW.md .gitignore .gitattributes
 include .github/workflows/ci.yml
 recursive-include src/zipper_algebra *.py
 recursive-include src/zipper_algebra/zipping_algorithm/data *.json
-include docs/ZIPPING_REFERENCE.md
+include docs/ZIPPING_REFERENCE.md docs/ZIPPING_NATIVE.md
 include docs/TESTING.md docs/X3_REPRODUCTION.md docs/x3-reproduction-files.json
 include docs/RECONSTRUCTION.md docs/MINIMAL_POLYNOMIALS.md docs/GENERIC_PRODUCTION.md
 include docs/PROVENANCE.md docs/POLYNOMIAL_UNTWISTINGS.md docs/PARAMETER_FIELDS.md
@@ -19,6 +19,8 @@ include examples/four_strand_finite_basis.sing
 include examples/x3/README.md
 include examples/x3/certificate.txt
 recursive-include experiments *.py
+recursive-include native/zipper_engine *.cpp *.hpp *.h
+include native/zipper_engine/vendor/nlohmann/LICENSE.MIT
 recursive-include singular_run *.sing
 include singular_run/README.md
 include experiments/research/README.md experiments/variants/README.md

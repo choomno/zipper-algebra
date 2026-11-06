@@ -21,6 +21,7 @@ The maintained implementation is installed from `src/zipper_algebra/`.
 | `verification/groebner.py` | Exact derivation checks, both ideal inclusions, complete critical-ambiguity checks and certified normal forms. |
 | `verification/f4ncgb.py` | Decode numeric solver basis/proof text into a candidate domain-bound certificate. |
 | `verification/gap.py` | Export standalone generic cofactor identities for independent expansion in GAP. |
+| `zipping_algorithm/`, `native/zipper_engine/` | Literal-word zipper engines, exact collection, packed C++ execution, and independent Python replay. See the [native engine guide](docs/ZIPPING_NATIVE.md). |
 | `execution/` | Solver configuration, execution, SQLite storage, native dependency identities and verified publication. |
 | `provenance.py` | Source revisions, local changes and input/source hashes for outputs. |
 | `cli.py` | Installed commands and their exit statuses. |

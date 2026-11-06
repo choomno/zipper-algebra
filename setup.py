@@ -38,7 +38,7 @@ def source_metadata():
         prefix = "src/zipper_algebra/"
         build_sources = namespace["BUILD_SOURCES"]
         expected = {name: identity for name, identity in metadata["origin"]["source_files"].items()
-                    if name.startswith((prefix, "experiments/")) or name in build_sources}
+                    if name.startswith((prefix, "experiments/", namespace["NATIVE_PREFIX"])) or name in build_sources}
         current = namespace["current_source_files"]()
         for name in build_sources:
             path = ROOT / name
@@ -57,6 +57,11 @@ def source_metadata():
     recipes = tuple(sorted((ROOT / "experiments").rglob("*.py")))
     origin = namespace["capture_provenance"](extra_sources=recipes)
     return {"schema": "zipper-build-provenance-v1", "origin": origin}
+
+
+def source_metadata_identity(path):
+    namespace = runpy.run_path(str(PACKAGE / "provenance.py"))
+    return namespace["file_identity"](path)
 
 
 def write_metadata(directory, metadata):
@@ -136,11 +141,31 @@ class ProvenanceBuildPy(build_py):
             name = "src/zipper_algebra/" + path.relative_to(destination).as_posix()
             if name not in allowed:
                 path.unlink()
+        # Copy only authenticated native inputs. Their canonical identities stay
+        # rooted at native/zipper_engine even inside an installed wheel.
+        native_destination = destination / "zipping_algorithm" / "_native_sources"
+        if native_destination.exists():
+            shutil.rmtree(native_destination)
+        prefix = "native/zipper_engine/"
+        for name, identity in allowed.items():
+            if name.startswith(prefix):
+                source = ROOT / name
+                if not source.resolve().is_relative_to(ROOT / "native/zipper_engine"):
+                    raise ValueError("native source path leaves its source tree")
+                if source_metadata_identity(source) != identity:
+                    raise ValueError("native source changed during distribution build")
+                target = native_destination / name[len(prefix):]
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source, target)
+                if source_metadata_identity(target) != identity:
+                    raise ValueError("native source changed while copying distribution payload")
         write_metadata(self.build_lib, metadata)
 
     def get_outputs(self, include_bytecode=1):
         outputs = super().get_outputs(include_bytecode)
         metadata = str(Path(self.build_lib) / "zipper_algebra" / METADATA_NAME)
+        native = Path(self.build_lib) / "zipper_algebra/zipping_algorithm/_native_sources"
+        outputs = [*outputs, *(str(path) for path in native.rglob("*") if path.is_file())]
         return outputs if metadata in outputs else [*outputs, metadata]
 
 
@@ -163,6 +188,7 @@ class ProvenanceSdist(sdist):
                 continue
             computation = (relative.startswith(("src/zipper_algebra/", "experiments/"))
                            and relative.endswith(".py"))
+            computation = computation or relative.startswith("native/zipper_engine/")
             if not computation or relative in allowed:
                 selected.append(name)
         super().make_release_tree(base_dir, selected)
