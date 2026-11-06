@@ -8,12 +8,17 @@ the complement. The coefficient ring is $\mathbb{Z}[q,q^{-1}]$. Signed generator
 integers describe braid words in algebraic product order; sliders remain
 explicit tokens during computation.
 
-The executable schedule applies in arbitrary rank and returns its exact state
-when a limit or an unresolved control case stops computation. Termination and
-dispatch coverage for every input, and the theorem identifying all terminal
-records with the intended nested spanning family, remain under mathematical
-audit. Completed finite runs establish the recorded computation. They do not
-establish those universal statements or a dimension bound.
+The mathematical analysis of the corrected prescribed schedule establishes
+uniform literal dispatch, whole-band transport, preservation of the packetwise
+ribbon hierarchy, and termination in the augmented nested terminal family.
+These statements hold over $\mathbb{Z}[q,q^{-1}]$ without polynomial untwisting
+relations. They concern this schedule; termination or confluence under
+arbitrary choices of algebraic rewrites requires a separate argument.
+
+The executable implementation retains exact stopped states when computation
+limits or defensive control checks refuse a transition. Finite executions,
+independent identity checks, and installed-package tests provide separate
+evidence about the implementation.
 
 ## Run a literal braid word
 
@@ -39,15 +44,16 @@ The three run statuses have distinct meanings:
 | --- | --- |
 | `complete` | The pending queue is empty; `output` contains the resulting linear combination and its component reconstruction data. |
 | `incomplete` | A computation limit stopped execution; `output` and `pending` retain the entire represented linear combination. |
-| `control_obligation` | The next state requires a control transition or geometric recognition not established by this implementation; the diagnostic includes that exact state. |
+| `control_obligation` | A defensive control check refused the next transition or geometric recognition; the diagnostic includes the exact stopped state. |
 
 Each output term retains its coefficient, full braid-and-slider word, and component
 records. These records include original endpoint labels, component words,
 external routing braids, orientation, nested twist powers, and finite boundary
 collars with their routing and parity data. Reconstruction uses these data
-together. A tuple of component sizes and twist powers alone is not the output
-contract. Membership of every possible terminal record in the intended nested
-family, with its finite boundary data, is part of the remaining theorem audit.
+together. The terminal-family theorem retains this finite boundary data.
+Compression to bare $(T_{\mathrm{bottom}},T_{\mathrm{top}},\tau)$ records, or to
+component sizes and twist powers alone, remains unproved. A dimension count
+based on such compression also remains unproved.
 
 The checker regenerates the deterministic run and compares the complete saved
 result, including source and catalog hashes. It detects altered inputs, control
@@ -99,6 +105,17 @@ checkpoint exits `0`. Producer commands exit `0` on completion of their stated
 scope, `2` on invalid input, and `3` on incomplete computation or an unsupported
 control case. A successful `check` certifies its recorded scope, including
 valid checkpoints with pending work.
+
+## Reference complexity
+
+For rank $n$ and input length $L$, set $A=8(n+1)^4$, $P=(n+1)^2$, and
+$D=A^{3P+4}(L+n^2+1)$. In the uncollected reference model, the rewrite tree has
+at most $(4^{D+1}-1)/3$ nodes. The time bound, including exact Artin checks, is
+$12^D\operatorname{poly}(n,D)$. Thus the proved upper bound is
+$\exp(O_n(L))$ at fixed rank. This bound controls the prescribed schedule and
+its intermediate growth. Collection, shared structures, optional traces, and
+certificate checking have their own measured costs; timing fits are separate
+from the bound.
 
 ## Frozen rules and independent local verification
 
@@ -264,5 +281,7 @@ Regressions cover literal whole-word runs, both directions, framed transport,
 finite routing during extraction, recursive continuation, optional traces,
 checkpoint limits, exact local original-relator checks, exhaustive-prefix
 audits, and tampering after JSON reload. Finite tests and deterministic replay
-provide evidence for their recorded inputs; the universal termination and
-terminal-family arguments require their separate mathematical audit.
+provide implementation evidence for their recorded inputs. The mathematical
+guarantees concern the corrected prescribed schedule and its augmented
+terminal family; bare-tuple compression and the associated dimension count
+remain separate open questions.
