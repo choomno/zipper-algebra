@@ -1,19 +1,22 @@
 # Exact zipper algorithm reference
 
-The `zipper_algebra.zipping_algorithm` package implements a deterministic
-reconstruction of the thesis's zipper procedure on literal braid words. It
-scans bottom labels, performs upward and downward zipping, transports framed
-sliders through processed words, layers components, and recursively processes
-the complement. The coefficient ring is $\mathbb{Z}[q,q^{-1}]$. Signed generator
-integers describe braid words in algebraic product order; sliders remain
-explicit tokens during computation.
+The `zipper_algebra.zipping_algorithm` package implements the variant that
+continues layering after a same-size correction and restarts zipping after
+slider growth. It scans bottom labels, performs upward and downward zipping,
+transports framed sliders through processed words, layers components, and
+recursively processes the complement. The coefficient ring is
+$\mathbb{Z}[q,q^{-1}]$. Signed generator integers describe literal braid words
+in algebraic product order; sliders remain explicit tokens during computation.
 
-The mathematical analysis of the corrected prescribed schedule establishes
-uniform literal dispatch, whole-band transport, preservation of the packetwise
-ribbon hierarchy, and termination in the augmented nested terminal family.
-These statements hold over $\mathbb{Z}[q,q^{-1}]$ without polynomial untwisting
-relations. They concern this schedule; termination or confluence under
-arbitrary choices of algebraic rewrites requires a separate argument.
+The mathematical analysis establishes uniform literal dispatch, whole-band
+transport, preservation of the packetwise ribbon hierarchy, and termination
+in the augmented nested terminal family for this variant. These statements
+hold over $\mathbb{Z}[q,q^{-1}]$ without polynomial untwisting relations. The
+thesis's printed restart schedule restarts after both a same-size correction
+and slider growth. The termination and complexity results here supply no bound
+for that printed schedule or for a further compression stage. Termination or
+confluence under arbitrary choices of algebraic rewrites also requires a
+separate argument.
 
 The executable implementation retains exact stopped states when computation
 limits or defensive control checks refuse a transition. Finite executions,
@@ -50,10 +53,13 @@ Each output term retains its coefficient, full braid-and-slider word, and compon
 records. These records include original endpoint labels, component words,
 external routing braids, orientation, nested twist powers, and finite boundary
 collars with their routing and parity data. Reconstruction uses these data
-together. The terminal-family theorem retains this finite boundary data.
-Compression to bare $(T_{\mathrm{bottom}},T_{\mathrm{top}},\tau)$ records, or to
-component sizes and twist powers alone, remains unproved. A dimension count
-based on such compression also remains unproved.
+together. The terminal-family theorem for the implemented variant retains
+this finite boundary data. The standard reconstruction from bare unordered
+endpoint sets $(T_{\mathrm{bottom}},T_{\mathrm{top}})$ and full nested-lasso
+twist data $\tau$, using a fixed canonical coupon, cannot generally replace
+these enriched records. Routing data are required for that reconstruction.
+This obstruction concerns that reconstruction; alternative encodings and
+dimension bounds require their own arguments.
 
 The checker regenerates the deterministic run and compares the complete saved
 result, including source and catalog hashes. It detects altered inputs, control
@@ -112,10 +118,12 @@ For rank $n$ and input length $L$, set $A=8(n+1)^4$, $P=(n+1)^2$, and
 $D=A^{3P+4}(L+n^2+1)$. In the uncollected reference model, the rewrite tree has
 at most $(4^{D+1}-1)/3$ nodes. The time bound, including exact Artin checks, is
 $12^D\operatorname{poly}(n,D)$. Thus the proved upper bound is
-$\exp(O_n(L))$ at fixed rank. This bound controls the prescribed schedule and
-its intermediate growth. Collection, shared structures, optional traces, and
-certificate checking have their own measured costs; timing fits are separate
-from the bound.
+$\exp(O_n(L))$ at fixed rank. This bound controls the variant that continues
+layering after a same-size correction, its enriched terminal output, and its
+intermediate growth. It supplies no bound for the printed restart schedule or
+for a further compression stage. Collection, shared structures, optional
+traces, and certificate checking have their own measured costs; timing fits
+are separate from the bound.
 
 ## Frozen rules and independent local verification
 
@@ -282,6 +290,8 @@ finite routing during extraction, recursive continuation, optional traces,
 checkpoint limits, exact local original-relator checks, exhaustive-prefix
 audits, and tampering after JSON reload. Finite tests and deterministic replay
 provide implementation evidence for their recorded inputs. The mathematical
-guarantees concern the corrected prescribed schedule and its augmented
-terminal family; bare-tuple compression and the associated dimension count
-remain separate open questions.
+guarantees concern the implemented layering variant and its augmented
+terminal family. The standard reconstruction from unordered endpoint sets
+and full nested lassos cannot generally replace that output; other encodings
+and dimension counts require separate arguments. The printed restart schedule
+has no complexity bound established here.

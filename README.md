@@ -34,15 +34,18 @@ explicit spanning and independence proofs. Parameter-field verification on this
 route uses the optional symbolic arithmetic dependency.
 
 The [zipper algorithm implementation](docs/ZIPPING_REFERENCE.md) executes the
-corrected prescribed schedule on literal braid words, with both zipping
-directions, layering, recursive extraction, optional traces, and checked
-exhaustive enumeration. Its mathematical analysis establishes uniform dispatch,
-whole-band transport, the packetwise ribbon hierarchy, and termination in a
-terminal family retaining orientation, routing, and finite boundary collars.
-Runs retain exact pending states on limits or defensive control refusals.
-Finite execution checks provide separate implementation evidence; compression
-to bare endpoint and twist records and the associated dimension count remain
-open.
+variant that continues layering after a same-size correction and restarts
+zipping after slider growth. Its analysis establishes uniform dispatch,
+whole-band transport, the packetwise ribbon hierarchy, termination, and a
+fixed-rank exponential reference bound for this variant and its enriched
+terminal output. The printed restart schedule and a further compression stage
+are outside that bound. Output retains orientation, routing, and finite
+boundary collars. The standard reconstruction from unordered endpoint sets
+and full nested lassos with a fixed canonical coupon cannot generally replace
+those records. Alternative encodings and dimension counts require separate
+arguments. Runs support optional traces and checked exhaustive enumeration,
+with exact pending states on limits or defensive control refusals. Finite
+execution checks provide separate implementation evidence.
 
 [Certified minimal polynomials](docs/MINIMAL_POLYNOMIALS.md) compute exact element
 and relative slider-orbit polynomials on a verified finite algebra. Each result
