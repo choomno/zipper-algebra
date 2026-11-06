@@ -47,6 +47,10 @@ arguments. Runs support optional traces and checked exhaustive enumeration,
 with exact pending states on limits or defensive control refusals. Finite
 execution checks provide separate implementation evidence.
 
+The optional [exact GPU collection prototype](docs/ZIPPING_GPU_PROTOTYPE.md)
+captures real rewrite batches and compares CPU, OpenCL, and CUDA coefficient
+collection with transfer and independent verification time included.
+
 [Certified minimal polynomials](docs/MINIMAL_POLYNOMIALS.md) compute exact element
 and relative slider-orbit polynomials on a verified finite algebra. Each result
 includes a checkable annihilation and minimality witness. The generic four-strand
