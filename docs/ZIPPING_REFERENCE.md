@@ -156,6 +156,27 @@ occurrences. It gives no polynomial bound on intermediate states or runtime.
 Exhaustive enumeration additionally visits every word in the signed alphabet:
 there are $[2(n-1)]^\ell$ inputs of length $\ell$, including unreduced words.
 
+### Runtime and parallel execution
+
+Runtime depends strongly on the word as well as its length and strand count.
+Record completion status, transition count, output and pending term counts,
+and producer and checker times together. A stopped prefix is not a timing for
+the complete calculation. CPU time measures computation in a worker; wall time
+also reflects contention, startup, and transfer. Comparisons should retain the
+source hashes, limits, trace mode, and number of workers.
+
+Independent input words can run in separate processes without changing the
+arithmetic. Coefficients remain sparse Laurent polynomials with arbitrary-size
+integer coefficients. The process runners parallelize these independent runs;
+one word's rewrite tree is currently processed sequentially. More workers can
+increase campaign throughput, subject to memory, certificate transfer, and
+the single database writer. This does not improve the per-word complexity bound.
+
+Rule selection filters the validated catalog before copying matching rules.
+It preserves rule order and returns independent copies, avoiding repeated
+copies of all 128 catalog records at each dispatch. This reduces interpreter
+overhead without changing the rewrite schedule, coefficients, or trace.
+
 ## Frozen rules and independent local verification
 
 `src/zipper_algebra/zipping_algorithm/data/manifest.json` records the snapshot
@@ -358,6 +379,32 @@ The process runner is a repository experiment, rather than an installed-package
 entry point. Its tests cover out-of-order worker completion, interruption at an
 incomplete word, exceptions, resume, source binding, exclusive writer ownership,
 and a real process-pool run. The Unix-lock tests are skipped on Windows.
+
+### Selected runtime sweeps across source versions
+
+```sh
+python experiments/zipper_runtime_sweep.py runs/literal-words/words.sqlite3 --ranks 2 3 4 5 6 7 8 --lengths 4 10 12 --workers 4 --per-word-wall 30 --wall-seconds 1800
+```
+
+This deterministic sample includes positive, negative, alternating, and seeded
+random signed words. It visits length 10 first and records whether every
+generator position occurs. It does not extend the exhaustive prefix.
+The `runtime_campaigns` and `runtime_cases` tables bind each campaign to its
+algorithm, catalog, runner, configuration, and exact input words, so new source
+versions can share a database with historical results. Resume verifies that
+identity and the saved certificate hashes, then visits pending cases only.
+
+Each input runs in a fresh spawned process. Workers retain exact arithmetic
+and JSON-reload and replay their certificates before storage. The parent
+alone writes SQLite, with at most `--workers` inputs in flight. Producer and
+checker CPU and wall times are recorded separately. The per-word wall cap
+includes startup, setup, replay, and transfer. A timeout records its phase and
+does not supply an accepted certificate or completed-word timing. A producer
+that completed before a replay timeout is recorded as such in the diagnostic.
+The campaign wall budget stops new submissions; running cases can continue to
+their individual caps. Use a new campaign for a different budget or worker
+count. The runner's JSON summary reports completion fractions and censored
+attempts separately.
 
 ## Validation
 

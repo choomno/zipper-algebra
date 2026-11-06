@@ -474,6 +474,29 @@ class Catalog:
     def rules(self) -> tuple[dict[str, Any], ...]:
         return tuple(deepcopy(list(self._rules.values())))
 
+    def select_rules(
+        self,
+        env: dict[str, int],
+        *,
+        prefix: str = "",
+        suffix: str = "",
+        exclude_prefixes: tuple[str, ...] = (),
+    ) -> tuple[dict[str, Any], ...]:
+        """Return independent copies of applicable rules in catalog order.
+
+        Test the identifiers and conditions on the validated internal records
+        before copying. Controllers need only a few applicable rules, while
+        ``rules`` continues to provide a defensive copy of the full catalog.
+        """
+        return tuple(
+            deepcopy(rule)
+            for rule_id, rule in self._rules.items()
+            if rule_id.startswith(prefix)
+            and rule_id.endswith(suffix)
+            and not rule_id.startswith(exclude_prefixes)
+            and condition(rule["condition"], env)
+        )
+
     def get(self, rule_id: str) -> dict[str, Any]:
         try:
             return deepcopy(self._rules[rule_id])

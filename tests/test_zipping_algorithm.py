@@ -234,6 +234,24 @@ def test_layering_rejects_unsupported_coupon_flags_without_clearing_them(flags, 
     assert state == original
 
 
+@pytest.mark.parametrize("prefix", [(-3,), (-2, -1, -3)])
+def test_layering_rejects_partial_or_misordered_whole_band_crossings(prefix):
+    # The adjacent undercrossing is offensive, but neither one boundary
+    # letter nor a permutation of the full packet may silently stand in for
+    # the required literal crossing (-1,-2,-3) of the three-strand band.
+    state = dict(
+        _root_common(4),
+        phase="layer",
+        word=list(prefix) + [["slider", 3, 1, False, False, False]],
+        payload_length=0,
+        completed_sides=0,
+    )
+    original = deepcopy(state)
+    with pytest.raises(ControlObligation, match="complete active-band crossing"):
+        _layer_step(state, Limits())
+    assert state == original
+
+
 @pytest.mark.parametrize("size", [2, 3])
 @pytest.mark.parametrize("flags", [(True, False), (False, True), (True, True)])
 def test_extraction_rejects_unsupported_coupon_flags_before_normalizing(size, flags):
