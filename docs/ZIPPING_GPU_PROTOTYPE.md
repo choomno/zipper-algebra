@@ -5,6 +5,9 @@ batches on an OpenCL or CUDA GPU. The existing CPU census continues to use its
 frozen CPU implementation. Full zipper rewriting and continuation-state
 canonicalization remain on the CPU.
 
+The separate [packed rewrite prototype](ZIPPING_GPU_REWRITE.md) generates
+contextual successor words and propagates coefficients on an OpenCL GPU.
+
 ## Arithmetic and identities
 
 Each contribution contains an input-root ID, complete continuation-state ID,
