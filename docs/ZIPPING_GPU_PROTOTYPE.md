@@ -78,7 +78,7 @@ and benchmark records. Do not run the benchmark against the live census store.
 
 CPU packing and carry tests cover cancellation, distinct roots/states/exponents,
 malformed input, and coefficients wider than a machine word. Actual OpenCL tests
-exercise the same kernel on the GPU, including 32,769-bit cancellation. Mock
+exercise the same kernel on the GPU, including 32,770-bit cancellation. Mock
 driver tests separately check transport, allocation, launch, and error contracts;
 they are not evidence of NVIDIA hardware execution. Independent certificate
 replay validates the original zipper captures.
