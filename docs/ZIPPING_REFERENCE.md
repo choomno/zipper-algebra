@@ -345,6 +345,15 @@ SELECT n, length, count(*) AS visited,
 FROM words GROUP BY n, length ORDER BY length, n;
 ```
 
+Selected longer-word calculations can share the same SQLite file without being
+counted as exhaustive coverage. `experiments/zipper_probe_store.py` imports
+reports into the separate `long_word_probes` and `probe_imports` tables. It
+replays certificates by default, checks their source and summary identities,
+and imports the batch atomically. The explicit `--trust-recorded-replay` option
+is for reports already JSON-reloaded and replay-checked in a trusted run; the
+database records that distinction. Attempts that ended without a checkpoint
+remain metadata and are never counted as checked probe rows.
+
 The process runner is a repository experiment, rather than an installed-package
 entry point. Its tests cover out-of-order worker completion, interruption at an
 incomplete word, exceptions, resume, source binding, exclusive writer ownership,
