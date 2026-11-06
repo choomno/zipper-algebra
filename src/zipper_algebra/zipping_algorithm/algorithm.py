@@ -10,10 +10,13 @@ spanning result. Optional traces retain the actual calculation; compact
 results retain the exact queue and can be checked by deterministic replay.
 
 The sweep invariant is syntactic at the old-child boundary. Turnaround emits
-literal full-band shuffle packets and words internal to the current band.
-At growth those become, respectively, whole old-child packets and protected
-old-child payload. The unconsumed prefix is unchanged. Endpoint friend fans
-stay outside the next terminator; they are recorded separately on both sides.
+literal full-band shuffle packets and complete internal tokens. Growth keeps
+their ordered stream: internal tokens become child tokens, crossings with
+the adopted strand become root packets, and crossings with another outside
+strand remain incoming old-child packets. Only the gathered internal payload
+is installed in the child slot; the unconsumed prefix and opposite word stay
+literal. Endpoint friend fans stay outside the next terminator and are
+recorded separately on both sides.
 Rotation preserves the literal packet forms. Canonicalization modulo braid
 isotopy is needed only for the terminal internal nested-ribbon words.
 """
@@ -468,6 +471,10 @@ def _layer_step(
     current["coefficient"] = _multiply(work["coefficient"], scalar)
     common = _common(work)
     common["coefficient"] = _multiply(work["coefficient"], growth_scalar)
+    # Only the gathered internal run is a child-supported payload. Keep the
+    # remaining prefix and opposite side in their literal order: a previous
+    # whole-band crossing with the adopted strand is now a root packet, while
+    # one with a still outside strand is an incoming old-child crossing.
     growth = _new_zip(
         common,
         left=remaining,
@@ -613,12 +620,14 @@ def _extract_step(
             canonical_parities={"upper": [], "lower_inverse": []},
         )
     elif size == 2:
-        slider = next(x for x in component if isinstance(x, tuple))
+        # The two reflected X2 polynomials coincide, so the base case also
+        # emits the default normal coupon rather than a redundant mirror bit.
+        slider = ("slider", 2, 1, False, False, False)
         power = sum(x for x in component if type(x) is int)
         component = ((1,) * power if power >= 0 else (-1,) * -power) + (slider,)
         record["twist_powers"] = [power]
         record.update(
-            orientation="mirrored" if slider[3] else "normal",
+            orientation="normal",
             top_route=[],
             bottom_route=[],
             canonical_top_route=[],
@@ -843,6 +852,8 @@ class AlgorithmSession:
                     raise LimitExceeded("term limit exceeded")
                 if any(_size(child) > limits.max_word_size for child in children):
                     raise LimitExceeded("word size limit exceeded")
+                if any(len(item["word"]) > limits.max_word_size for item in added):
+                    raise LimitExceeded("output word size limit exceeded")
                 for item in children + added:
                     if len(item["coefficient"]) > limits.max_coefficient_support:
                         raise LimitExceeded("coefficient support limit exceeded")
@@ -885,7 +896,11 @@ class AlgorithmSession:
             )
             counts[str(name)] += 1
             max_terms = max(max_terms, len(queue) + len(output))
-            max_word = max(max_word, max((_size(x) for x in children), default=0))
+            max_word = max(
+                max_word,
+                max((_size(x) for x in children), default=0),
+                max((len(item["word"]) for item in added), default=0),
+            )
             depth = max(depth, before["depth"] + 1)
             branch_width = max(branch_width, len(children) + len(added))
             for item in children + added:

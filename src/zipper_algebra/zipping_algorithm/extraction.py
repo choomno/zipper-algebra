@@ -473,7 +473,12 @@ def check_split(witness: LayeredSplit) -> None:
 
 @dataclass(frozen=True)
 class BoundaryRoute:
-    """A finite permutation-braid boundary factor inherited at slider growth."""
+    """An exterior signed permutation factor, kept at its literal boundary.
+
+    The scheduler names a fan saved at active size s by growth_size=s+1.
+    This public witness admits more general signed permutation factors; its
+    validator does not establish the scheduler's sharper fan-origin bound.
+    """
     growth_size: int
     word: tuple[int, ...]
 
@@ -501,7 +506,12 @@ def _boundary_routes(routes: Iterable[BoundaryRoute], n: int) -> tuple[BoundaryR
 
 @dataclass(frozen=True)
 class CanonicalSlider:
-    """One twist vector with finite routing on both sides of a standard slider."""
+    """Exact component value with one twist vector and a default normal coupon.
+
+    The finite routes are component braid words, not ambient endpoint subsets
+    or recoverable history flags. The source word and inherited factors are
+    retained separately for witness checking.
+    """
     word: tuple[Any, ...]
     slider: tuple[Any, ...]
     upper: NestedRibbon
@@ -523,10 +533,12 @@ def normalize_canonical_slider(word: Iterable[Any], *,
                                max_operations: int = 10000000) -> CanonicalSlider:
     """Collect canonical input twists through the coupon into its output chain.
 
-    For normal X_i the input hierarchy is the prefix chain and the output
-    hierarchy is the suffix chain; reflection exchanges these. Recognition
-    requires those actual nested ribbons. The inverse lower word is read from
-    the coupon, so its finite boundary routing stays outside the coupon.
+    A mirrored coupon becomes Delta X_i Delta^-1, transporting both marked
+    hierarchies before recognition. The final normal coupon has the prefix
+    input chain and suffix output chain. The inverse lower word is read
+    outward from the coupon, keeping its finite routing exterior. Inherited
+    collars stay at their literal exterior cuts; they need not be comb
+    morphisms. The value record does not recover separate base parities.
     """
     diagram = tuple(word)
     at_list = [idx for idx, token in enumerate(diagram) if type(token) is not int]
@@ -550,12 +562,20 @@ def normalize_canonical_slider(word: Iterable[Any], *,
         raise RibbonError("inherited boundary routes must be the exact exterior prefix and suffix")
     ports = tuple(range(1, n + 1))
     prefix, suffix = ports, tuple(reversed(ports))
-    input_tree, output_tree = (suffix, prefix) if token[3] else (prefix, suffix)
+    input_tree, output_tree = prefix, suffix
     upper_word = _word(diagram[len(top_boundary):at], n)
-    lower_word = _word(diagram[at + 1:end], n)
+    lower_inverse = _inverse_braid(_word(diagram[at + 1:end], n))
+    if token[3]:
+        # U (Delta X Delta^-1) V: both outward body readings acquire Delta.
+        # Its reversal transports every descendant label, not only the root.
+        half_twist = tuple(x for width in range(n - 1, 0, -1)
+                           for x in range(1, width + 1))
+        upper_word += half_twist
+        lower_inverse += half_twist
+    normal_token = ("slider", n, 1, False, False, False)
     upper = recognize_nested(upper_word, labels=output_tree, initial_ports=ports,
                              max_image_letters=max_image_letters, max_operations=max_operations)
-    lower = recognize_nested(_inverse_braid(lower_word), labels=input_tree, initial_ports=ports,
+    lower = recognize_nested(lower_inverse, labels=input_tree, initial_ports=ports,
                              max_image_letters=max_image_letters, max_operations=max_operations)
     top_flags = (0,) + upper.boundary_parities if n > 1 else ()
     bottom_flags = (0,) + lower.boundary_parities if n > 1 else ()
@@ -564,8 +584,8 @@ def normalize_canonical_slider(word: Iterable[Any], *,
     twists = tuple(a - b for a, b in zip(upper.twist_powers, lower.twist_powers))
     combined_counts = twists[:1] + tuple(2 * power for power in twists[1:])
     combined = reconstruct_nested(output_tree, combined_counts, initial_ports=ports)
-    normalized = top + combined + (token,) + bottom
-    return CanonicalSlider(diagram, token, upper, lower, twists, top, bottom, normalized,
+    normalized = top + combined + (normal_token,) + bottom
+    return CanonicalSlider(diagram, normal_token, upper, lower, twists, top, bottom, normalized,
                            inherited_top, inherited_bottom, max_image_letters, max_operations)
 
 

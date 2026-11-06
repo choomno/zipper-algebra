@@ -355,11 +355,16 @@ def test_two_sided_twists_collect_through_the_generic_coupon_with_boundary_flags
                 original = sides[0] + (("slider", n, 1, mirrored, False, False),) + _inverse(sides[1])
                 witness = normalize_canonical_slider(original)
                 check_canonical_slider(witness)
+                assert witness.word == original
+                assert witness.slider == ("slider", n, 1, False, False, False)
+                assert witness.upper.labels == tuple(reversed(ports))
+                assert witness.lower_inverse.labels == ports
                 assert _expanded_coupon_diagram(original, n) == _expanded_coupon_diagram(
                     witness.normalized_word, n)
                 assert len(witness.twist_powers) == n - 1
-                assert len(witness.top_route) <= n * (n - 1) // 2
-                assert len(witness.bottom_route) <= n * (n - 1) // 2
+                route_bound = max(0, n * (n - 1) // 2 - 1)
+                assert len(witness.top_route) <= route_bound
+                assert len(witness.bottom_route) <= route_bound
 
 
 def test_base_and_full_lasso_twists_have_independently_specified_collected_powers():
@@ -368,7 +373,8 @@ def test_base_and_full_lasso_twists_have_independently_specified_collected_power
     assert normal.normalized_word == (2, ("slider", 3, 1, False, False, False))
     mirrored = normalize_canonical_slider((("slider", 3, 1, True, False, False), 2))
     assert mirrored.twist_powers == (1, 0)
-    assert mirrored.normalized_word == (1, ("slider", 3, 1, True, False, False))
+    assert mirrored.normalized_word == (
+        2, 1, 2, ("slider", 3, 1, False, False, False), -2, -1)
     full = normalize_canonical_slider((("slider", 3, 1, False, False, False), 2, 1, 1, 2))
     assert full.twist_powers == (0, 1)
     assert full.normalized_word == (1, 2, 2, 1, ("slider", 3, 1, False, False, False))
@@ -403,11 +409,30 @@ def test_inherited_terminal_friend_route_is_retained_outside_the_body():
     witness = normalize_canonical_slider(original, top_routes=(route,))
     check_canonical_slider(witness)
     assert witness.twist_powers == (0, 0)
-    assert witness.normalized_word == (2, token)
+    assert witness.normalized_word == (
+        2, 2, 1, ("slider", 3, 1, False, False, False), -2, -1)
     assert witness.inherited_top == (route,)
     assert _expanded_coupon_diagram(original, 3) == _expanded_coupon_diagram(witness.normalized_word, 3)
     with pytest.raises(RibbonError):
         normalize_canonical_slider(original)
+
+
+@pytest.mark.parametrize("n", [2, 3, 4, 5])
+def test_final_unflype_transports_every_descendant_and_keeps_default_coupon(n):
+    original = (("slider", n, 1, True, False, False),)
+    witness = normalize_canonical_slider(original)
+    check_canonical_slider(witness)
+    assert witness.slider == ("slider", n, 1, False, False, False)
+    assert witness.upper.crossing_counts == (1,) * (n - 1)
+    assert witness.lower_inverse.crossing_counts == (1,) * (n - 1)
+    assert witness.twist_powers == (0,) * (n - 1)
+    assert _expanded_coupon_diagram(original, n) == _expanded_coupon_diagram(
+        witness.normalized_word, n)
+    # The base crossing is absorbed into the twist vector; only higher-node
+    # parity routes remain, even when every level changes its boundary order.
+    assert len(witness.top_route) == len(witness.bottom_route) == n * (n - 1) // 2 - 1
+    with pytest.raises(RibbonError):
+        check_canonical_slider(replace(witness, slider=original[0]))
 
 
 def test_finite_inherited_routes_on_both_sides_need_no_commuting_identity():

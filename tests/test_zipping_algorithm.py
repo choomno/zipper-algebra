@@ -4,6 +4,7 @@ from collections import defaultdict
 from copy import deepcopy
 from itertools import product
 import json
+from math import comb
 
 import pytest
 
@@ -87,6 +88,18 @@ def test_every_literal_three_strand_word_through_length_two_completes():
             assert not result["pending"] and not result["transitions"]
             assert all(len(term["components"]) <= 3 for term in result["output"])
             for term in result["output"]:
+                for component in term["components"]:
+                    size, record = component["size"], component["record"]
+                    assert record["orientation"] == "normal"
+                    assert all(
+                        type(token) is int or token[3:] == [False, False, False]
+                        for token in component["component_word"]
+                    )
+                    # These are the projected internal collars and residual
+                    # comb routes, not the ambient endpoint-overcrossing routes.
+                    bound = comb(size, 3) + comb(size, 2) - 1 if size > 1 else 0
+                    assert len(record["top_route"]) <= bound
+                    assert len(record["bottom_route"]) <= bound
                 assert sorted(
                     p
                     for c in term["components"]
@@ -159,6 +172,77 @@ def test_four_layer_routing_identities_are_generic_braid_group_equalities(
     assert children[0]["phase"] == "zip_up"
 
 
+def test_growth_retains_the_ordered_old_child_stream_and_transports_only_payload():
+    # The gathered sigma_2 is internal to the old three-strand component.
+    # After growth it shifts to sigma_3 in the new output child {2,3,4}.
+    # The prefix C_3(z) still crosses only that child with the outside z=5.
+    # On the opposite side H_2 C_3(y) H_1 contains the adopted strand y;
+    # it must remain literal for the next sweep, rather than becoming payload.
+    prefix, payload = (2, 3, 4), (2,)
+    opposite = (1, 3, 2, 1, 2)
+    state = dict(
+        _root_common(5),
+        phase="layer",
+        word=list(prefix + (-1, -2, -3) + payload)
+        + [["slider", 3, 1, False, False, False]]
+        + list(opposite),
+        payload_length=1,
+        completed_sides=0,
+    )
+    children, _ = _layer_step(state, Limits())
+    growing, same_size = children
+    control = growing["branch"]["control"]
+    assert control["i"] == 4 and control["left_length"] == len(prefix)
+    assert control["output_payload"] == [3]
+    assert growing["branch"]["word"] == list(prefix) + [3] + [
+        ["slider", 4, 1, False, False, False]
+    ] + list(opposite)
+    assert _expression_sum([state], 5, pending=True) == _expression_sum(
+        children, 5, pending=True
+    )
+
+    # C_3(z) is consumed as a complete old-child packet, gaining a friend.
+    # It is not mistaken for a whole-parent C_4(z) crossing or an internal run.
+    following, event = _zip_step(growing, Catalog.bundled(), Limits(), True)
+    assert event["rule_id"] == "zip.outer.positive.I"
+    assert following[0]["branch"]["control"]["i"] == 4
+    assert following[0]["branch"]["control"]["k"] == 1
+    assert following[0]["branch"]["control"]["output_payload"] == [4]
+    assert following[0]["branch"]["word"][-len(opposite):] == list(opposite)
+    assert _expression_sum([growing], 5, pending=True) == _expression_sum(
+        following, 5, pending=True
+    )
+    assert same_size["phase"] == "layer"
+    continued, _ = _layer_step(same_size, Limits())
+    assert all(child["phase"] == "layer" for child in continued)
+
+
+def test_endpoint_fans_are_saved_once_per_size_and_same_size_layers_do_not_rezip():
+    result = reduce_word((1, 2, 3), n=4, trace=True)
+    assert result["status"] == "complete", result["diagnostic"]
+    seen_fan = False
+    for transition in result["transitions"]:
+        before = transition["predecessor"]
+        for state in [before] + transition["successors"]:
+            for side in ("left", "right"):
+                factors = state[f"boundary_{side}_factors"]
+                sizes = [factor["growth_size"] for factor in factors]
+                assert len(sizes) == len(set(sizes))
+                assert state[f"boundary_{side}"] == [
+                    letter for factor in factors for letter in factor["word"]
+                ]
+                seen_fan |= bool(factors)
+        if transition["evidence"].get("rule_id", "").startswith("layer.route."):
+            growing, same_size = transition["successors"]
+            assert growing["phase"] == "zip_up"
+            assert same_size["phase"] == "layer"
+            for side in ("left", "right"):
+                assert same_size[f"boundary_{side}_factors"] == before[
+                    f"boundary_{side}_factors"
+                ]
+    assert seen_fan
+
+
 def test_trace_is_optional_and_word_inverse_pairs_are_preserved():
     session = AlgorithmSession()
     literal = [1, -1, 2, -2]
@@ -200,6 +284,23 @@ def test_limits_reject_transition_without_losing_its_predecessor(limits, diagnos
     assert result["status"] == "incomplete"
     assert diagnostic in result["diagnostic"]["message"]
     assert result["pending"]
+
+
+def test_terminal_output_size_limit_is_checked_and_can_resume():
+    # Odd negative root counts can expand when written as a positive route
+    # followed by inverse full lassos. The predecessor fits the word limit,
+    # whereas its exact canonical output can be longer.
+    result = reduce_word((1, -2, 1), n=3, limits=Limits(max_word_size=6))
+    assert result["status"] == "incomplete"
+    assert "word size" in result["diagnostic"]["message"]
+    assert result["pending"] and result["diagnostic"]["phase"] == "extract"
+    assert all(len(term["word"]) <= 6 for term in result["output"])
+    assert check_certificate(result)
+    complete = resume(result, limits=Limits(max_word_size=100))
+    assert complete["status"] == "complete", complete["diagnostic"]
+    assert complete["metrics"]["max_local_word_tokens"] >= max(
+        len(term["word"]) for term in complete["output"]
+    )
 
 
 @pytest.mark.parametrize(
@@ -248,6 +349,23 @@ def test_singleton_and_empty_word_extraction():
     assert result["output"][0]["word"] == []
     assert result["output"][0]["components"][0]["record"]["twist_powers"] == []
     assert _common(result["transitions"][0]["predecessor"])["rank"] == 1
+
+
+@pytest.mark.parametrize("mirrored", [False, True])
+def test_two_strand_extraction_also_emits_the_default_normal_coupon(mirrored):
+    state = dict(
+        _root_common(2),
+        phase="extract",
+        word=[-1, -1, ["slider", 2, 1, mirrored, False, False], 1],
+    )
+    children, output, _ = _extract_step(state, limits=Limits(), trace=False)
+    assert children == [] and len(output) == 1
+    record = output[0]["components"][0]["record"]
+    assert record["orientation"] == "normal" and record["twist_powers"] == [-1]
+    assert output[0]["word"] == [-1, ["slider", 2, 1, False, False, False]]
+    assert _expression_sum([state], 2, pending=True) == _expression_sum(
+        output, 2, pending=False
+    )
 
 
 def test_integer_encoding_limit_is_a_resumable_refusal():
