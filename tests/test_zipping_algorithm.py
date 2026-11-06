@@ -11,6 +11,7 @@ import pytest
 from zipper_algebra.zipping_algorithm.algorithm import (
     AlgorithmError,
     AlgorithmSession,
+    ControlObligation,
     _common,
     _extract_step,
     _layer_step,
@@ -215,6 +216,57 @@ def test_growth_retains_the_ordered_old_child_stream_and_transports_only_payload
     assert same_size["phase"] == "layer"
     continued, _ = _layer_step(same_size, Limits())
     assert all(child["phase"] == "layer" for child in continued)
+
+
+@pytest.mark.parametrize("flags", [(True, False), (False, True), (True, True)])
+@pytest.mark.parametrize("prefix", [(), (-1, -2, -3)])
+def test_layering_rejects_unsupported_coupon_flags_without_clearing_them(flags, prefix):
+    state = dict(
+        _root_common(4),
+        phase="layer",
+        word=list(prefix) + [["slider", 3, 1, False, *flags]],
+        payload_length=0,
+        completed_sides=0,
+    )
+    original = deepcopy(state)
+    with pytest.raises(ControlObligation, match="reversed or barred flags"):
+        _layer_step(state, Limits())
+    assert state == original
+
+
+@pytest.mark.parametrize("size", [2, 3])
+@pytest.mark.parametrize("flags", [(True, False), (False, True), (True, True)])
+def test_extraction_rejects_unsupported_coupon_flags_before_normalizing(size, flags):
+    state = dict(
+        _root_common(size),
+        phase="extract",
+        word=[["slider", size, 1, False, *flags]],
+    )
+    original = deepcopy(state)
+    with pytest.raises(ControlObligation, match="reversed or barred flags"):
+        _extract_step(state, limits=Limits(), trace=False)
+    assert state == original
+
+
+@pytest.mark.parametrize("growth_size,fan", [(2, (1,)), (3, (1, 2, 1))])
+def test_scheduler_extraction_rejects_collars_without_the_recorded_fan_bound(
+    growth_size, fan
+):
+    # These are literal exterior permutation braids. They satisfy the public
+    # normalizer's broader collar contract, but cannot be scheduler fans at
+    # their stated growth sizes: the sole size-two fan has at most one leaf
+    # crossing in a final three-strand component.
+    state = dict(
+        _root_common(3),
+        phase="extract",
+        boundary_left=list(fan),
+        boundary_left_factors=[{"growth_size": growth_size, "word": list(fan)}],
+        word=[["slider", 3, 1, False, False, False]],
+    )
+    original = deepcopy(state)
+    with pytest.raises(ControlObligation, match="recorded growth-size bound"):
+        _extract_step(state, limits=Limits(), trace=False)
+    assert state == original
 
 
 def test_endpoint_fans_are_saved_once_per_size_and_same_size_layers_do_not_rezip():

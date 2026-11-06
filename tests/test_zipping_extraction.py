@@ -176,6 +176,21 @@ def test_coupon_extraction_preserves_both_sides_and_orientation_flags():
         check_extraction(None)
 
 
+def test_generic_extraction_reads_lower_word_from_its_remote_boundary():
+    token = ("slider", 3, 1, False, False, False)
+    original = (token, -2, -1)
+    witness = extract_slider(original, upper_labels=(3, 2, 1),
+                             lower_labels=(1, 2, 3), lower_ports=(3, 1, 2))
+    check_extraction(witness)
+    assert witness.lower.initial_ports == (3, 1, 2)
+    assert witness.lower.final_ports == (1, 2, 3)
+    assert witness.slider == token
+    assert _expanded_coupon_diagram(original, 3) == _expanded_coupon_diagram(
+        witness.reconstructed_word, 3)
+    with pytest.raises(RibbonError):
+        extract_slider(original, upper_labels=(3, 2, 1), lower_labels=(1, 2, 3))
+
+
 @pytest.mark.parametrize("word,upper,lower", [
     ((), (1,), (1,)), ((1,), (1, 2), (1, 2)),
     ((("slider", 1, 1, False, False, False),) * 2, (1,), (1,)),
@@ -433,6 +448,32 @@ def test_final_unflype_transports_every_descendant_and_keeps_default_coupon(n):
     assert len(witness.top_route) == len(witness.bottom_route) == n * (n - 1) // 2 - 1
     with pytest.raises(RibbonError):
         check_canonical_slider(replace(witness, slider=original[0]))
+
+
+def test_final_unflype_keeps_noncomb_collars_on_both_boundaries_in_rank_four():
+    ports = (1, 2, 3, 4)
+    reverse = tuple(reversed(ports))
+    top = (BoundaryRoute(3, (2,)),)
+    bottom = (BoundaryRoute(4, (-2,)),)
+    # These signed permutation collars are exterior words, not body-comb
+    # morphisms. Their provenance is not needed by the public normalizer.
+    for factor, tree in ((top[0], ports), (bottom[0], reverse)):
+        with pytest.raises(RibbonError):
+            recognize_nested(factor.word, labels=tree, initial_ports=ports)
+    upper = reconstruct_nested(ports, (-1, 1, -1), initial_ports=ports)
+    lower_inverse = reconstruct_nested(reverse, (1, -1, 1), initial_ports=ports)
+    token = ("slider", 4, 1, True, False, False)
+    original = top[0].word + upper + (token,) + _inverse(lower_inverse) + bottom[0].word
+    witness = normalize_canonical_slider(original, top_routes=top, bottom_routes=bottom)
+    check_canonical_slider(witness)
+    assert witness.word == original
+    assert witness.inherited_top == top
+    assert witness.inherited_bottom == bottom
+    assert witness.top_route[:1] == top[0].word
+    assert witness.bottom_route[-1:] == bottom[0].word
+    assert witness.slider == ("slider", 4, 1, False, False, False)
+    assert _expanded_coupon_diagram(original, 4) == _expanded_coupon_diagram(
+        witness.normalized_word, 4)
 
 
 def test_finite_inherited_routes_on_both_sides_need_no_commuting_identity():

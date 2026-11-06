@@ -331,12 +331,18 @@ class SliderExtraction:
 def extract_slider(word: Iterable[Any], *, upper_labels: Iterable[int],
                    lower_labels: Iterable[int], upper_ports: Iterable[int] | None = None,
                    lower_ports: Iterable[int] | None = None) -> SliderExtraction:
-    """Normalize the two nested ribbon sides, retaining the complete slider token.
+    """Normalize U and V independently in U * slider * V, retaining the coupon.
 
     Input is the isolated component, reindexed to its own rank. The caller
-    supplies the two marked hierarchies obtained from its zipping certificate.
-    The two label sets independently name their own boundary ports.
-    No internal permutation of the slider is assigned.
+    supplies each side's hierarchy and the ports at that braid's initial
+    boundary: upper_ports is at the coupon, whereas lower_ports is at the
+    remote bottom boundary. The two label sets name their boundaries
+    independently; no internal permutation of the slider is assigned.
+
+    This generic operation preserves the slider flags and does not collect
+    twists through it. For the canonical coupon-side convention, which reads
+    V^-1 outward from the coupon and emits one twist vector with a normal
+    slider, use normalize_canonical_slider instead.
     """
     diagram = tuple(word)
     sliders = [idx for idx, token in enumerate(diagram) if type(token) is not int]
@@ -590,7 +596,11 @@ def normalize_canonical_slider(word: Iterable[Any], *,
 
 
 def check_canonical_slider(witness: CanonicalSlider) -> None:
-    """Check the two ribbon witnesses, finite routing and coupon twist collection."""
+    """Recompute ribbon recognition and collection using the proved identities.
+
+    This binds the saved fields to that normalization; it does not separately
+    expand the coupon to verify a braid-group-algebra or quotient identity.
+    """
     if not isinstance(witness, CanonicalSlider):
         raise RibbonError("a canonical slider witness is required")
     check_nested(witness.upper)

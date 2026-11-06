@@ -28,6 +28,7 @@ from copy import deepcopy
 from dataclasses import asdict
 import hashlib
 import json
+from math import comb
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -382,7 +383,11 @@ def _layer_step(
     n = work["rank"]
     word = _word(work["word"])
     left, slider, right = _slider_parts(word)
-    _, size, start, mirrored, _, _ = slider
+    _, size, start, mirrored, reversed_, barred = slider
+    if reversed_ is not False or barred is not False:
+        raise ControlObligation(
+            "layering requires an explicit normal or mirrored coupon without reversed or barred flags"
+        )
     length = work["payload_length"]
     unprocessed, payload = (left[:-length], left[-length:]) if length else (left, ())
     if not _outside_over(unprocessed, n=n, size=size, start=start):
@@ -578,6 +583,23 @@ def _project_factors(
     return list(reversed(result)), member
 
 
+def _check_generated_fans(factors: list[BoundaryRoute], size: int) -> None:
+    """Check sharp fan bounds for scheduler-origin collars after projection."""
+    tags: set[int] = set()
+    for factor in factors:
+        growth = factor.growth_size
+        # A saved active-s fan has tag s+1. Nonempty projection requires
+        # adopting a friend later, so 3 <= tag <= final component size.
+        if (type(growth) is not int or not 3 <= growth <= size or growth in tags
+                or len(factor.word) > (growth - 2) * (size - growth + 1)):
+            raise ControlObligation(
+                "projected endpoint fan exceeds its recorded growth-size bound"
+            )
+        tags.add(growth)
+    if sum(len(factor.word) for factor in factors) > comb(size, 3):
+        raise ControlObligation("projected endpoint collar exceeds its size bound")
+
+
 def _extract_step(
     work: dict[str, Any], *, limits: Limits, trace: bool
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
@@ -593,6 +615,11 @@ def _extract_step(
         top_factors, bottom_factors = (
             [dict(f, word=list(_phi(f["word"], n))) for f in reversed(bottom_factors)],
             [dict(f, word=list(_phi(f["word"], n))) for f in reversed(top_factors)],
+        )
+    _, source_slider, _ = _slider_parts(local)
+    if source_slider[4] is not False or source_slider[5] is not False:
+        raise ControlObligation(
+            "component extraction requires a coupon without reversed or barred flags"
         )
     selected = _bottom_ports(local, n)
     split = split_layered(local, n=n, bottom_ports=selected)
@@ -664,6 +691,8 @@ def _extract_step(
             raise ControlObligation(
                 "projected endpoint fan factors disagree with the full component"
             )
+        _check_generated_fans(inherited_top, size)
+        _check_generated_fans(inherited_bottom, size)
         witness = normalize_canonical_slider(
             component,
             top_routes=tuple(inherited_top),
@@ -671,6 +700,9 @@ def _extract_step(
             max_image_letters=limits.expansion_budget,
             max_operations=100 * limits.expansion_budget,
         )
+        route_bound = comb(size, 3) + comb(size, 2) - 1
+        if max(len(witness.top_route), len(witness.bottom_route)) > route_bound:
+            raise ControlObligation("terminal finite route exceeds its size bound")
         canonical = witness
         component = witness.normalized_word
         record.update(
