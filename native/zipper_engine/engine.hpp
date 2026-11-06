@@ -205,8 +205,10 @@ struct BranchStep {
     std::string rule_id;
     Json evidence = Json::object();
 };
-BranchStep upward_step(const Branch &, Int n, const Catalog &, const Limits &, bool trace = false);
-BranchStep framed_step(const Branch &, Int n, const Catalog &, const Limits &, bool trace = false);
+BranchStep upward_step(const Branch &, Int n, const Catalog &, const Limits &, bool trace = false,
+                       bool want_evidence = true);
+BranchStep framed_step(const Branch &, Int n, const Catalog &, const Limits &, bool trace = false,
+                       bool want_evidence = true);
 // Geometry transport witnesses, kept typed across transitions.
 struct FrameStep {
     std::string kind;
@@ -239,5 +241,5 @@ Json frame_json(const FrameTransport &);
 Json band_json(const BandTransport &);
 Parts turnaround_parts(const Branch &, Int n, Int budget);
 std::pair<Branch, Json> turnaround(const Branch &, Int n, const Catalog &, const Limits &,
-                                   bool trace = false);
+                                   bool trace = false, bool want_certificate = true);
 } // namespace zipper

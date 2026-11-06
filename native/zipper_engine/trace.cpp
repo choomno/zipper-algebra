@@ -56,7 +56,8 @@ std::string canonical_json(const Json &j) {
 std::string sha256_json(const Json &j) {
     std::string input = canonical_json(j);
     unsigned char bytes[SHA256_DIGEST_LENGTH];
-    SHA256(reinterpret_cast<const unsigned char *>(input.data()), input.size(), bytes);
+    if (!SHA256(reinterpret_cast<const unsigned char *>(input.data()), input.size(), bytes))
+        throw EngineError("SHA256 computation failed");
     std::ostringstream out;
     out << std::hex << std::setfill('0');
     for (unsigned char b : bytes)

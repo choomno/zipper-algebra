@@ -62,6 +62,11 @@ def check(directory, no_isolation=False):
                         "--no-deps", str(wheel)], check=True)
         env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1", PYTHONNOUSERSITE="1")
         env.pop("PYTHONPATH", None)
+        # Compilation is outside pytest's per-test deadline; the suite still
+        # executes the installed native engine and compares it with Python.
+        subprocess.run([sys.executable, "-c",
+                        "from zipper_algebra.zipping_algorithm.native import build_engine; "
+                        "print(build_engine()[0])"], cwd=tree, env=env, check=True)
         subprocess.run([sys.executable, "-m", "pytest", "tests"],
                        cwd=tree, env=env, check=True)
         subprocess.run([sys.executable, "ci/check_installed.py"],

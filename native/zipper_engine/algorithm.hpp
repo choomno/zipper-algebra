@@ -37,7 +37,7 @@ struct Transition {
 };
 Work initial_work(int64_t n, const Braid &word);
 Transition algorithm_transition(const Work &work, Catalog &catalog, const Limits &limits,
-                                bool trace);
+                                bool trace, bool want_evidence = true);
 Word work_expression(const Work &work);
 size_t work_size(const Work &work);
 Json work_json(const Work &work);

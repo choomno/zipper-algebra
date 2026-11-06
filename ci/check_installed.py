@@ -44,6 +44,15 @@ def check():
         )
         package = Path(probe.stdout.strip())
         assert not package.is_relative_to(root), "this check requires an installed wheel"
+        subprocess.run(
+            [sys.executable, "-I", "-c",
+             "from zipper_algebra.zipping_algorithm.native import NativeSession; "
+             "session = NativeSession(); "
+             "result = session.reduce([1, -2, 1], n=3, trace=True, batch_size=4); "
+             "assert result['status'] == 'complete'; "
+             "assert session.check(result); session.close()"],
+            cwd=directory, check=True,
+        )
         report = run("describe", "--n", "3", "--json", cwd=directory)
         assert report["n"] == 3 and "Z_2" in report["relations"]
         certificate = Path(directory) / "certificate.txt"

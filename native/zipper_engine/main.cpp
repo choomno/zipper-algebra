@@ -74,9 +74,11 @@ int main() {
             } else if (op == "transition") {
                 if (!session)
                     throw EngineError("Native engine is not initialized");
-                response = transition_json(session->transition(
-                    work_from_json(request.at("work")), limits_from_json(request.at("limits")),
-                    request.value("trace", false)));
+                // Diagnostic requests preserve complete unit evidence even when
+                // their full trace is disabled; ordinary scheduling keeps it compact.
+                response = transition_json(algorithm_transition(
+                    work_from_json(request.at("work")), *catalog,
+                    limits_from_json(request.at("limits")), request.value("trace", false)));
             } else if (op == "turnaround") {
                 if (!session)
                     throw EngineError("Native engine is not initialized");
@@ -87,8 +89,8 @@ int main() {
                     throw EngineError("Positive rank required");
                 validate_word(branch.word, n);
                 check_branch(branch, limits);
-                const auto result = turnaround(branch, n, *catalog, limits,
-                                               request.value("trace", false));
+                const auto result =
+                    turnaround(branch, n, *catalog, limits, request.value("trace", false));
                 response = {{"branch", branch_json(result.first)}, {"certificate", result.second}};
             } else if (op == "upward_step" || op == "framed_step") {
                 if (!session)

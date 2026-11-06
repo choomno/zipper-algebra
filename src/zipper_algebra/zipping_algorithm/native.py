@@ -7,6 +7,7 @@ content addressed and local; importing this module does not invoke a compiler.
 """
 from __future__ import annotations
 
+from contextlib import suppress
 from copy import deepcopy
 from dataclasses import asdict
 import fcntl
@@ -58,6 +59,16 @@ def source_identity(source_directory: Path = SOURCE_DIRECTORY) -> dict[str, str]
 def _manifest(binary: Path, identity: dict[str, Any] | None = None) -> dict[str, Any]:
     try:
         record = json.loads(binary.with_suffix(".json").read_text())
+        if (not isinstance(record, dict)
+                or any(type(record.get(key)) is not str for key in
+                       ("abi", "binary_sha256", "compiler", "compiler_version"))
+                or not isinstance(record.get("source_sha256"), dict)
+                or any(type(key) is not str or type(value) is not str
+                       for key, value in record["source_sha256"].items())
+                or any(not isinstance(record.get(key), list)
+                       or any(type(value) is not str for value in record[key])
+                       for key in ("flags", "link_libraries"))):
+            raise NativeBuildError("Native executable build metadata is malformed")
         if (record["abi"] != ABI or record["source_sha256"] != source_identity()
                 or record["binary_sha256"] != _digest(binary)
                 or identity is not None and any(record[k] != v for k, v in identity.items())):
@@ -83,6 +94,10 @@ def _compile_object(source: Path, *, base: Path, identity: dict[str, Any],
     target = directory / (source.stem + ".o")
     with (directory / "build.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
+        # An older interrupted publication may leave an object without its
+        # manifest. It is derived cache data: discard it and compile afresh.
+        if target.exists() and not target.with_suffix(".json").exists():
+            target.unlink()
         if target.exists():
             try:
                 record = json.loads(target.with_suffix(".json").read_text())
@@ -106,8 +121,10 @@ def _compile_object(source: Path, *, base: Path, identity: dict[str, Any],
             record = {"identity": object_identity, "object_sha256": _digest(candidate)}
             manifest = Path(temporary) / "manifest.json"
             manifest.write_text(json.dumps(record, indent=2) + "\n")
-            candidate.replace(target)
+            # Publish the manifest first under the lock. An interruption then
+            # leaves only metadata, never an executable unbound to its inputs.
             manifest.replace(target.with_suffix(".json"))
+            candidate.replace(target)
     return target, True
 
 
@@ -137,6 +154,8 @@ def build_engine(*, compiler: str = "g++", build_directory: Path | None = None,
     binary = directory / "zipper-engine"
     with (directory / "build.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
+        if binary.exists() and not binary.with_suffix(".json").exists():
+            binary.unlink()
         if binary.exists():
             return binary, _manifest(binary, identity), False
         started = perf_counter()
@@ -160,8 +179,8 @@ def build_engine(*, compiler: str = "g++", build_directory: Path | None = None,
                           reused_translation_units=sum(not compiled for _, compiled in objects))
             manifest = Path(temporary) / "manifest.json"
             manifest.write_text(json.dumps(record, indent=2) + "\n")
-            candidate.replace(binary)
             manifest.replace(binary.with_suffix(".json"))
+            candidate.replace(binary)
     return binary, record, True
 
 
@@ -329,13 +348,20 @@ class NativeSession:
                     detail = ""
                 raise NativeError("Native engine terminated without a response: " + detail)
             result = json.loads(line)
-        except (BrokenPipeError, OSError, json.JSONDecodeError) as error:
-            raise NativeError("Native engine protocol failed") from error
-        if not isinstance(result, dict):
-            raise NativeError("Native engine returned a non-object response")
-        if "protocol_error" in result:
-            raise NativeError(str(result["protocol_error"]))
-        return result
+            if not isinstance(result, dict):
+                raise NativeError("Native engine returned a non-object response")
+            if "protocol_error" in result:
+                raise NativeError(str(result["protocol_error"]))
+            return result
+        except BaseException as error:
+            # The request may already be in flight, even if its write/flush was
+            # interrupted. Never let its eventual response answer another call.
+            # The caller holds _lock, so cleanup must not acquire it again.
+            with suppress(BaseException):
+                self._close_unlocked(abort=True)
+            if isinstance(error, (OSError, json.JSONDecodeError)):
+                raise NativeError("Native engine protocol failed; session closed") from error
+            raise
 
     def reduce(self, word: Iterable[int], *, n: int, limits: Limits | None = None,
                trace: bool = False, batch_size: int = 64, workers: int = 1) -> dict[str, Any]:
@@ -404,26 +430,45 @@ class NativeSession:
         with self._lock:
             self._request({"op": "clear_cache"})
 
-    def close(self) -> None:
-        with self._lock:
-            process, self._process = self._process, None
+    def _close_unlocked(self, *, abort: bool) -> None:
+        """Detach first, then reap only this session's child and close its files."""
+        process, self._process = self._process, None
+        stderr, self._stderr = self._stderr, None
+        try:
             if process is not None:
-                if process.stdin is not None:
-                    process.stdin.close()
                 try:
-                    process.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    process.terminate()
+                    if abort:
+                        with suppress(OSError):
+                            process.kill()
+                    if process.stdin is not None:
+                        with suppress(OSError, ValueError):
+                            process.stdin.close()
                     try:
                         process.wait(timeout=5)
                     except subprocess.TimeoutExpired:
+                        with suppress(OSError):
+                            process.kill()
+                        process.wait(timeout=5)
+                except BaseException:
+                    # A second interrupt during cleanup must not strand the
+                    # child after its handle has been permanently detached.
+                    with suppress(BaseException):
                         process.kill()
-                        process.wait()
-                if process.stdout is not None:
-                    process.stdout.close()
-            if self._stderr is not None:
-                self._stderr.close()
-                self._stderr = None
+                    with suppress(BaseException):
+                        process.wait(timeout=5)
+                    raise
+                finally:
+                    if process.stdout is not None:
+                        with suppress(OSError, ValueError):
+                            process.stdout.close()
+        finally:
+            if stderr is not None:
+                with suppress(OSError, ValueError):
+                    stderr.close()
+
+    def close(self) -> None:
+        with self._lock:
+            self._close_unlocked(abort=False)
 
     def __enter__(self) -> NativeSession:
         return self

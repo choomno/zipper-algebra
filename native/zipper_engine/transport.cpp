@@ -367,7 +367,7 @@ Parts turnaround_parts(const Branch &branch, Int n, Int budget) {
     return {c, std::move(exterior), std::move(processed), std::move(tail)};
 }
 std::pair<Branch, Json> turnaround(const Branch &branch, Int n, const Catalog &catalog,
-                                   const Limits &limits, bool trace) {
+                                   const Limits &limits, bool trace, bool want_certificate) {
     check_branch(branch, limits);
     validate_word(branch.word, n);
     Json evidence = Json::array();
@@ -512,6 +512,8 @@ std::pair<Branch, Json> turnaround(const Branch &branch, Int n, const Catalog &c
         turnaround_parts(following, n, limits.max_word_size);
         event_count = static_cast<Int>(c.processed_events.size());
     }
+    if (!want_certificate)
+        return {std::move(following), Json::object()};
     Json dependencies = Json::object();
     for (const std::string name :
          {"framed.py", "frames.py", "transport.py", "catalog.py", "upward.py", "semilinear.py"})

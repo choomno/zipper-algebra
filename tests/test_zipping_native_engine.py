@@ -183,3 +183,32 @@ def test_native_sparse_coefficients_above_machine_width_in_every_phase(engine):
         cold = _decode_coefficients(engine._request(_encode_coefficients(request)))
         warm = _decode_coefficients(engine._request(_encode_coefficients(request)))
         assert cold == warm == as_arrays(expected), work["phase"]
+
+
+def test_reduce_does_not_call_python_transition_or_collection(engine, monkeypatch):
+    from zipper_algebra.zipping_algorithm import algorithm, collected
+
+    expected = CollectedSession().reduce((1, 2), n=3, trace=True)
+    def forbidden(*args, **kwargs):
+        raise AssertionError("native reduction called the Python state engine")
+    monkeypatch.setattr(collected, "_transition", forbidden)
+    monkeypatch.setattr(collected, "_stage", forbidden)
+    for name in ("_single_step", "_zip_step", "_layer_step", "_extract_step"):
+        monkeypatch.setattr(algorithm, name, forbidden)
+    actual = engine.reduce((1, 2), n=3, trace=True)
+    assert first_difference(reference_certificate(actual), as_arrays(expected)) is None
+
+
+@pytest.mark.parametrize("coordinate", ["q_exponent", "depth"])
+def test_native_coordinate_overflow_is_a_bounded_refusal(engine, coordinate):
+    from dataclasses import asdict
+
+    reference = CollectedSession().reduce((1,), n=2, trace=True)
+    work = deepcopy(reference["transitions"][0]["predecessors"][0])
+    if coordinate == "q_exponent":
+        work["coefficient"] = [[2**63 - 1, 1]]
+    else:
+        work["depth"] = 2**63 - 1
+    result = engine._request({"op": "transition", "work": work,
+                              "limits": asdict(Limits()), "trace": False})
+    assert result == {"error": "incomplete", "message": "signed integer coordinate overflow"}

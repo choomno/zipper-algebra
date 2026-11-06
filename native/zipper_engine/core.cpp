@@ -127,6 +127,8 @@ bool condition(const Json &e, const Env &env) {
     std::string op = e.at("op");
     if (op == "and" || op == "or") {
         require_fields(e, {"op", "args"});
+        if (!e.at("args").is_array())
+            throw CatalogError("condition arguments must be a list");
         bool out = op == "and";
         for (const auto &x : e.at("args")) {
             bool v = condition(x, env);
@@ -280,6 +282,8 @@ Polynomial expand_polynomial(const Json &terms, const Env &env, Int budget,
     for (const auto &term : terms) {
         require_fields(term, {"coefficient", "word"});
         Word word = expand_word(term.at("word"), env, budget, words);
+        if (!term.at("coefficient").is_array())
+            throw CatalogError("Coefficient must be Laurent term list");
         for (const auto &coeff : term.at("coefficient")) {
             require_fields(coeff, {"integer", "q_power"});
             Int q = integer(coeff.at("q_power"), env);

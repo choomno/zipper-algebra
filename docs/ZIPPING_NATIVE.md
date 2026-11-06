@@ -15,8 +15,8 @@ The native backend has its own source and executable provenance.
 
 ## Build and run
 
-A C++17 compiler, Boost headers, and OpenSSL development headers/library are
-required. The pinned JSON header and its license are included. Importing the
+A GCC-compatible C++17 compiler, Boost headers, and OpenSSL development
+headers/library are required. The Python process wrapper currently targets POSIX. The pinned JSON header and its license are included. Importing the
 module does not compile code; constructing a session builds a content-addressed
 executable when no matching build is present.
 
@@ -37,6 +37,13 @@ Input words include inverse pairs and are not identified up to braid isotopy.
 All eligible slider sizes are available. Resource limits yield an exact stopped
 frontier with atomic batch rollback. Coordinate and Laurent-exponent arithmetic
 uses checked signed 64-bit integers; integer coefficients use arbitrary precision.
+
+Before running pytest against a cold checkout, build the engine outside the
+per-test timeout:
+
+```sh
+PYTHONPATH=src python -c 'from zipper_algebra.zipping_algorithm.native import build_engine; build_engine()'
+```
 
 A session retains the parsed catalog and native transition cache across inputs.
 Each input has its own formal sum. Independent word processes can run separate

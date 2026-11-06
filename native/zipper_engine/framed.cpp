@@ -320,7 +320,7 @@ std::tuple<Int, Int, bool, Int, Int> branch_shape(const Json &term, const Env &e
 }
 
 BranchStep upward_step(const Branch &predecessor, Int n, const Catalog &catalog,
-                       const Limits &limits, bool trace) {
+                       const Limits &limits, bool trace, bool want_evidence) {
     auto parts = upward_parts(predecessor, n);
     const auto &c = parts.control;
     const auto &u = parts.u;
@@ -373,7 +373,7 @@ BranchStep upward_step(const Branch &predecessor, Int n, const Catalog &catalog,
                                               {"full_tape_literal_match", true},
                                               {"i2_internal_precedes_flype", c.i == 2}},
                                          &controls);
-    Json normalizations = Json::array();
+    Json normalizations = trace ? Json::array() : Json();
     for (std::size_t index = 0; index < following.size(); ++index) {
         auto &branch = following[index];
         bool changed = false;
@@ -388,8 +388,9 @@ BranchStep upward_step(const Branch &predecessor, Int n, const Catalog &catalog,
             upward_parts(branch, n);
     }
     BranchStep result{std::move(following), rule.id};
-    result.evidence = {{"rule_id", rule.id},
-                       {"metric_delta", metric_delta(predecessor, result.branches)}};
+    result.evidence = {{"rule_id", rule.id}};
+    if (want_evidence || trace)
+        result.evidence["metric_delta"] = metric_delta(predecessor, result.branches);
     if (trace) {
         result.evidence["catalog_transition"] = std::move(equality);
         result.evidence["normalizations"] = normalizations;
@@ -399,7 +400,7 @@ BranchStep upward_step(const Branch &predecessor, Int n, const Catalog &catalog,
 }
 
 BranchStep framed_step(const Branch &old, Int n, const Catalog &catalog, const Limits &limits,
-                       bool trace) {
+                       bool trace, bool want_evidence) {
     check_branch(old, limits);
     auto parts = framed_parts(old, n, limits.max_word_size);
     const auto &c = parts.control;
@@ -421,8 +422,9 @@ BranchStep framed_step(const Branch &old, Int n, const Catalog &catalog, const L
         cc.output_payload.insert(cc.output_payload.begin(), u.back());
         framed_parts(next, n, limits.max_word_size);
         BranchStep result{{std::move(next)}, "control.absorb_internal_tape"};
-        result.evidence = {{"rule_id", result.rule_id},
-                           {"metric_delta", metric_delta(old, result.branches)}};
+        result.evidence = {{"rule_id", result.rule_id}};
+        if (want_evidence || trace)
+            result.evidence["metric_delta"] = metric_delta(old, result.branches);
         if (trace) {
             result.evidence["equality_reference"] = "identical_literal_word";
             result.evidence["successor_state"] = run_state_json(n, result.branches);
@@ -499,7 +501,7 @@ BranchStep framed_step(const Branch &old, Int n, const Catalog &catalog, const L
         throw ControlError("catalog branch count disagrees with frame controls");
     std::vector<Branch> following;
     following.reserve(raw.size());
-    Json witnesses = Json::array();
+    Json witnesses = trace ? Json::array() : Json();
     for (std::size_t idx = 0; idx < rule.rhs.size(); ++idx) {
         const auto &term = rule.rhs[idx];
         auto [jj, kk, mm, aa, bb] = branch_shape(base.rhs[idx], env, mirror);
@@ -540,7 +542,9 @@ BranchStep framed_step(const Branch &old, Int n, const Catalog &catalog, const L
                                  {"emitted_input_power", bb}});
     }
     BranchStep result{std::move(following), rule.id};
-    result.evidence = {{"rule_id", rule.id}, {"metric_delta", metric_delta(old, result.branches)}};
+    result.evidence = {{"rule_id", rule.id}};
+    if (want_evidence || trace)
+        result.evidence["metric_delta"] = metric_delta(old, result.branches);
     if (trace) {
         result.evidence["incoming_frame_transport"] = frame_json(before);
         result.evidence["catalog_transition"] = std::move(equality);

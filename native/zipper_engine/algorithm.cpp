@@ -173,12 +173,13 @@ Transition single_step(const Work &w, Catalog &catalog, const Limits &limits) {
     }
     return r;
 }
-Transition zip_step(const Work &w, Catalog &catalog, const Limits &limits, bool trace) {
+Transition zip_step(const Work &w, Catalog &catalog, const Limits &limits, bool trace,
+                    bool want_evidence) {
     const auto &c = w.branch.control;
     Transition r;
     if (c.phase != "upper_pass_complete" && c.phase != "framed_upper_pass_complete") {
-        auto step = c.i == 2 ? upward_step(w.branch, w.rank, catalog, limits, trace)
-                             : framed_step(w.branch, w.rank, catalog, limits, trace);
+        auto step = c.i == 2 ? upward_step(w.branch, w.rank, catalog, limits, trace, want_evidence)
+                             : framed_step(w.branch, w.rank, catalog, limits, trace, want_evidence);
         for (auto &b : step.branches)
             r.children.push_back(pass_work(w, w.phase, std::move(b)));
         r.event = step.evidence;
@@ -186,7 +187,7 @@ Transition zip_step(const Work &w, Catalog &catalog, const Limits &limits, bool 
             r.event["rule_id"] = step.rule_id;
         return r;
     }
-    auto turned = turnaround(w.branch, w.rank, catalog, limits, trace);
+    auto turned = turnaround(w.branch, w.rank, catalog, limits, trace, trace);
     auto p = turnaround_parts(turned.first, w.rank, limits.max_word_size);
     const auto &cc = p.control;
     if (!p.p.empty())
@@ -715,7 +716,7 @@ size_t work_size(const Work &w) {
     return size;
 }
 Transition algorithm_transition(const Work &work, Catalog &catalog, const Limits &limits,
-                                bool trace) {
+                                bool trace, bool want_evidence) {
     auto unit = work;
     unit.coefficient = {{0, 1}};
     unit.branch.coefficient = unit.coefficient;
@@ -727,7 +728,7 @@ Transition algorithm_transition(const Work &work, Catalog &catalog, const Limits
         if (unit.phase == "single")
             r = single_step(unit, catalog, local);
         else if (unit.phase == "zip_up" || unit.phase == "zip_down")
-            r = zip_step(unit, catalog, local, trace);
+            r = zip_step(unit, catalog, local, trace, want_evidence);
         else if (unit.phase == "layer")
             r = layer_step(unit, local);
         else
@@ -752,14 +753,22 @@ Transition algorithm_transition(const Work &work, Catalog &catalog, const Limits
         r.message = e.what();
         return r;
     }
-    for (auto &child : r.children) {
-        child.coefficient = multiply(work.coefficient, child.coefficient);
-        if (child.phase == "zip_up" || child.phase == "zip_down")
-            child.branch.coefficient = child.coefficient;
-        child.depth = checked_add(work.depth, 1);
+    try {
+        for (auto &child : r.children) {
+            child.coefficient = multiply(work.coefficient, child.coefficient);
+            if (child.phase == "zip_up" || child.phase == "zip_down")
+                child.branch.coefficient = child.coefficient;
+            child.depth = checked_add(work.depth, 1);
+        }
+        for (auto &output : r.output)
+            output.coefficient = multiply(work.coefficient, output.coefficient);
+    } catch (const LimitExceeded &error) {
+        // Scaling belongs to the atomic transition, including overflow guards.
+        Transition refused;
+        refused.error = "incomplete";
+        refused.message = error.what();
+        return refused;
     }
-    for (auto &output : r.output)
-        output.coefficient = multiply(work.coefficient, output.coefficient);
     return r;
 }
 Json work_json(const Work &w) {

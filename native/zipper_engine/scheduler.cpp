@@ -262,8 +262,9 @@ Json reduce_collected(const Work &initial, Catalog &catalog, const Limits &limit
             // earlier one refuses, matching the reference's atomic batch.
             for (const auto &[key, item] : selected) {
                 (void)key;
-                results.push_back(session ? session->transition(item, limits, trace)
-                                          : algorithm_transition(item, catalog, limits, trace));
+                results.push_back(session
+                                      ? session->transition(item, limits, trace)
+                                      : algorithm_transition(item, catalog, limits, trace, trace));
             }
             if (session)
                 session->record_timing("transition_seconds", elapsed(transition_start));
@@ -490,7 +491,7 @@ Transition EngineSession::transition(const Work &work, const Limits &limits, boo
     if (!p.max_entries || !p.max_bytes) {
         ++p.misses;
         ++p.evaluations;
-        return algorithm_transition(work, p.catalog, limits, trace);
+        return algorithm_transition(work, p.catalog, limits, trace, trace);
     }
     auto key_start = Clock::now();
     auto key = cache_key(work, limits, trace);
@@ -510,7 +511,7 @@ Transition EngineSession::transition(const Work &work, const Limits &limits, boo
         Work unit = work;
         set_coefficient(unit, Laurent{{0, 1}});
         unit.depth = 0;
-        result = algorithm_transition(unit, p.catalog, limits, trace);
+        result = algorithm_transition(unit, p.catalog, limits, trace, trace);
         if (!result.error.empty())
             return result;
         const size_t charge = key.size() + transition_charge(result);
@@ -531,7 +532,14 @@ Transition EngineSession::transition(const Work &work, const Limits &limits, boo
             p.peak_entries = std::max(p.peak_entries, p.cache.size());
         }
     }
-    reweight(result, work);
+    try {
+        reweight(result, work);
+    } catch (const LimitExceeded &error) {
+        Transition refused;
+        refused.error = "incomplete";
+        refused.message = error.what();
+        return refused;
+    }
     return result;
 }
 Json EngineSession::last_telemetry() const {
