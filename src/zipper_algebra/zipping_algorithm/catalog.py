@@ -8,10 +8,12 @@ certify equality in a braid group or any quotient algebra.
 from __future__ import annotations
 import json
 import hashlib
+import sys
+from threading import RLock
 from copy import deepcopy
 from importlib.resources import files
 from typing import Any
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 
 PARAMETERS = frozenset(("n", "i", "j", "k", "l", "eps"))
 
@@ -458,6 +460,92 @@ class Catalog:
         self.sha256 = source_sha256
         self.author_review = "partial"
         self.version = CATALOG_VERSION
+        self._rule_cache: OrderedDict[bytes, bytes] = OrderedDict()
+        self._rule_cache_lock = RLock()
+        self._rule_cache_max_bytes = 4 * 1024 * 1024
+        self._rule_cache_max_entries = 256
+        self._rule_cache_bytes = 0
+        self._rule_cache_hits = 0
+        self._rule_cache_misses = 0
+        self._rule_cache_evictions = 0
+
+    def configure_rule_cache(self, *, max_bytes: int, max_entries: int) -> None:
+        """Bound retained derived-rule JSON; eviction never discards a calculation."""
+        if any(type(x) is not int or x < 0 for x in (max_bytes, max_entries)):
+            raise CatalogError("nonnegative integer rule-cache budgets required")
+        with self._rule_cache_lock:
+            self._rule_cache_max_bytes, self._rule_cache_max_entries = max_bytes, max_entries
+            self._trim_rule_cache()
+
+    def _trim_rule_cache(self) -> None:
+        while self._rule_cache and (
+            len(self._rule_cache) > self._rule_cache_max_entries
+            or self._rule_cache_bytes > self._rule_cache_max_bytes
+        ):
+            key, value = self._rule_cache.popitem(last=False)
+            self._rule_cache_bytes -= len(key) + len(value)
+            self._rule_cache_evictions += 1
+
+    def rule_cache_clear(self) -> None:
+        """Release derived rules and reset their counters."""
+        with self._rule_cache_lock:
+            self._rule_cache.clear()
+            self._rule_cache_bytes = 0
+            self._rule_cache_hits = self._rule_cache_misses = self._rule_cache_evictions = 0
+
+    def rule_cache_info(self) -> dict[str, int]:
+        """Payload accounting and an object-size estimate, not a process RSS limit."""
+        with self._rule_cache_lock:
+            return self._rule_cache_info()
+
+    def _rule_cache_info(self) -> dict[str, int]:
+        return {
+            "hits": self._rule_cache_hits, "misses": self._rule_cache_misses,
+            "evictions": self._rule_cache_evictions, "entries": len(self._rule_cache),
+            "retained_bytes": self._rule_cache_bytes,
+            "max_bytes": self._rule_cache_max_bytes, "max_entries": self._rule_cache_max_entries,
+            "resident_estimate_bytes": sys.getsizeof(self._rule_cache) + sys.getsizeof(self._rule_cache_lock) + sum(
+                sys.getsizeof(key) + sys.getsizeof(value) for key, value in self._rule_cache.items()
+            ),
+        }
+
+    def semilinear_rule(self, source_id: str, env: dict[str, int]) -> dict[str, Any]:
+        """Reuse a parameterized BM derivation with fresh, validated bindings.
+
+        The cache belongs to this frozen catalog. Widths, exact q powers and
+        all bindings remain part of the derivation; no slider sizes are
+        identified. Immutable JSON backing prevents mutation through callers.
+        Expansion and resource checks still run when the rule is instantiated.
+        """
+        bindings = dict(env)
+        with self._rule_cache_lock:
+            return self._semilinear_rule(source_id, bindings)
+
+    def _semilinear_rule(self, source_id: str, env: dict[str, int]) -> dict[str, Any]:
+        from .semilinear import (
+            _bind_semilinear_template, _semilinear_template, validate_semilinear_bindings,
+        )
+
+        if source_id not in self._rules:
+            raise CatalogError("Unknown rule id: " + source_id)
+        rule = self._rules[source_id]
+        validate_semilinear_bindings(rule, env)
+        if not self._rule_cache_max_entries or not self._rule_cache_max_bytes:
+            self._rule_cache_misses += 1
+            return _bind_semilinear_template(_semilinear_template(rule), env)
+        key = source_id.encode()
+        if key in self._rule_cache:
+            self._rule_cache_hits += 1
+            self._rule_cache.move_to_end(key)
+            return _bind_semilinear_template(json.loads(self._rule_cache[key]), env)
+        self._rule_cache_misses += 1
+        result = _semilinear_template(rule)
+        payload = json.dumps(result, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
+        if self._rule_cache_max_entries and len(key) + len(payload) <= self._rule_cache_max_bytes:
+            self._rule_cache[key] = payload
+            self._rule_cache_bytes += len(key) + len(payload)
+            self._trim_rule_cache()
+        return _bind_semilinear_template(result, env)
 
     @classmethod
     def bundled(cls) -> Catalog:
@@ -488,8 +576,17 @@ class Catalog:
         before copying. Controllers need only a few applicable rules, while
         ``rules`` continues to provide a defensive copy of the full catalog.
         """
+        return tuple(deepcopy(self._rules[rule_id]) for rule_id in self.select_rule_ids(
+            env, prefix=prefix, suffix=suffix, exclude_prefixes=exclude_prefixes
+        ))
+
+    def select_rule_ids(
+        self, env: dict[str, int], *, prefix: str = "", suffix: str = "",
+        exclude_prefixes: tuple[str, ...] = (),
+    ) -> tuple[str, ...]:
+        """Select immutable family IDs before materializing any rule record."""
         return tuple(
-            deepcopy(rule)
+            rule_id
             for rule_id, rule in self._rules.items()
             if rule_id.startswith(prefix)
             and rule_id.endswith(suffix)

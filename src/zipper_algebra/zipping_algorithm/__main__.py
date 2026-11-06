@@ -44,6 +44,10 @@ def _read(path: str) -> dict[str, Any]:
 
 def _check(certificate: dict[str, Any]) -> dict[str, Any]:
     schema = certificate.get("schema")
+    if schema == "zipper-memoized-run-v1":
+        from .memoized import check_certificate as check_memoized
+
+        return {"pass": check_memoized(certificate), "scope": certificate["scope"]}
     if schema == "zipper-collected-run-v1":
         from .collected import check_certificate as check_collected
 
@@ -111,6 +115,19 @@ def _parser() -> argparse.ArgumentParser:
     collected.add_argument("--trace", action="store_true")
     collected.add_argument("--workers", type=int, default=1)
     collected.add_argument("--batch-size", type=int, default=64)
+    memoized = commands.add_parser(
+        "run-memoized", help="Reuse intrinsic zipper transitions and complement calculations"
+    )
+    memoized.add_argument("--n", type=int, required=True)
+    memoized.add_argument("--word", required=True, help="JSON literal signed braid word")
+    memoized.add_argument("--limits", default="{}", help="JSON exact computation limits")
+    memoized.add_argument("--trace", action="store_true")
+    memoized.add_argument("--workers", type=int, default=1)
+    memoized.add_argument("--batch-size", type=int, default=64)
+    memoized.add_argument("--cache-bytes", type=int, default=64 * 1024**2)
+    memoized.add_argument("--cache-entries", type=int, default=4096)
+    memoized.add_argument("--rule-cache-bytes", type=int, default=4 * 1024**2)
+    memoized.add_argument("--rule-cache-entries", type=int, default=256)
     general = commands.add_parser(
         "exhaust-general",
         help="Enumerate literal words with the general zipper procedure",
@@ -175,6 +192,19 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def _execute(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
+    if args.command == "run-memoized":
+        from .memoized import MemoizedSession
+
+        session = MemoizedSession(
+            cache_bytes=args.cache_bytes, cache_entries=args.cache_entries,
+            rule_cache_bytes=args.rule_cache_bytes, rule_cache_entries=args.rule_cache_entries,
+        )
+        result = session.reduce(
+            json.loads(args.word), n=args.n,
+            limits=Limits(**_object(json.loads(args.limits))), trace=args.trace,
+            workers=args.workers, batch_size=args.batch_size,
+        )
+        return result, 0 if result["status"] == "complete" else 3
     if args.command == "run-collected":
         from .collected import reduce_word as reduce_collected
 

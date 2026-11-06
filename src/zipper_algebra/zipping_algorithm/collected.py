@@ -52,11 +52,12 @@ _EXPECTED = (
 
 def continuation_key(item: dict[str, Any], *, pending: bool = True) -> str:
     """Canonical identity of a complete continuation, or a completed term."""
-    payload = deepcopy(item)
+    payload = dict(item)
     del payload["coefficient"]
     if pending:
         payload.pop("depth", None)
         if "branch" in payload:
+            payload["branch"] = dict(payload["branch"])
             del payload["branch"]["coefficient"]
     return reference._json(payload)
 
@@ -223,6 +224,44 @@ class CollectedSession:
     def __init__(self) -> None:
         self._catalog = Catalog.bundled()
 
+    def _source_identity(self) -> dict[str, str]:
+        return _source()
+
+    def _new_pool(self, workers: int, batch_size: int) -> ProcessPoolExecutor:
+        return ProcessPoolExecutor(
+            max_workers=min(workers, batch_size),
+            initializer=_initialize_worker,
+            mp_context=get_context("spawn"),
+        )
+
+    def _execute_batch(
+        self,
+        selected: list[tuple[str, dict[str, Any]]],
+        limits: Limits,
+        trace: bool,
+        workers: int,
+        batch_size: int,
+        pool: ProcessPoolExecutor | None,
+    ) -> tuple[list[dict[str, Any]], ProcessPoolExecutor | None]:
+        if workers == 1 or len(selected) == 1:
+            return [
+                _transition(item, limits, trace, self._catalog) for _, item in selected
+            ], pool
+        if pool is None:
+            pool = self._new_pool(workers, batch_size)
+        try:
+            results = list(
+                pool.map(
+                    _worker,
+                    ((item, limits, trace) for _, item in selected),
+                    chunksize=max(1, len(selected) // (4 * min(workers, batch_size))),
+                )
+            )
+        except BaseException:
+            pool.shutdown(wait=True, cancel_futures=True)
+            raise
+        return results, pool
+
     def reduce(
         self,
         word: Iterable[int],
@@ -300,27 +339,9 @@ class CollectedSession:
                         )
                     _check_items((item for _, item in selected), limits, pending=True)
                     metrics["attempted_steps"] += len(selected)
-                    if workers == 1 or len(selected) == 1:
-                        results = [
-                            _transition(item, limits, trace, self._catalog)
-                            for _, item in selected
-                        ]
-                    else:
-                        if pool is None:
-                            pool = ProcessPoolExecutor(
-                                max_workers=min(workers, batch_size),
-                                initializer=_initialize_worker,
-                                mp_context=get_context("spawn"),
-                            )
-                        results = list(
-                            pool.map(
-                                _worker,
-                                ((item, limits, trace) for _, item in selected),
-                                chunksize=max(
-                                    1, len(selected) // (4 * min(workers, batch_size))
-                                ),
-                            )
-                        )
+                    results, pool = self._execute_batch(
+                        selected, limits, trace, workers, batch_size, pool
+                    )
                     failure = next(
                         (
                             (item, result)
@@ -445,7 +466,7 @@ class CollectedSession:
             "n": n,
             "input_word": list(word),
             "coefficient_ring": "Z[q,q^-1]",
-            "source_sha256": _source(),
+            "source_sha256": self._source_identity(),
             "catalog_sha256": self._catalog.sha256,
             "trace_enabled": trace,
             "limits": asdict(limits),

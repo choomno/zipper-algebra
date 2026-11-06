@@ -41,7 +41,33 @@ provides `reduce` and `check`; `reduce_word` is the one-shot entry point. Use a
 standard `if __name__ == "__main__":` guard around a script that starts workers.
 `trace=True` records the actual batch rewrites and collection updates.
 
-The uncollected executor remains available for comparison:
+For bounded reuse across terms and inputs, use `MemoizedSession` in
+`zipper_algebra.zipping_algorithm.memoized`, or:
+
+```sh
+python -m zipper_algebra.zipping_algorithm run-memoized --n 3 --word '[1,2,1,2]' --cache-bytes 67108864 --cache-entries 4096 > memoized.json
+python -m zipper_algebra.zipping_algorithm check memoized.json
+```
+
+The session reuses coefficient-free local transitions of complementary
+subproblems. It retains active words, rank, frames, boundary factors, and control
+history in the key. Previously extracted outer contexts and endpoint names are
+restored by explicit lifting and relabeling; incoming coefficients are multiplied
+afterward. This caches intrinsic transition results, rather than entire completed
+complement normal forms. Results from distinct input words are never added
+together. The recursive rule-family cache shares parameterized BM syntax across
+band widths while preserving exact size-dependent coefficients and exceptional
+two-strand cases.
+
+`cache_info()` reports runtime hits, misses, actual evaluations, evictions, and
+retained bytes separately from the certificate's logical rule counts. Unit and
+rule caches have independent byte/entry budgets. Those budgets count encoded
+cache storage, not process RSS or temporary calculation memory. Eviction causes
+recomputation; it never deletes a calculation term. All eligible slider sizes
+through the input rank remain enabled. The memoized checker executes unfactored
+states with both acceleration caches disabled.
+
+The uncollected reference example is:
 
 ```python
 import json
@@ -454,8 +480,31 @@ Resume checks all saved hashes and input/configuration/cursor bindings;
 `--replay-audit` additionally repeats the saved arithmetic. `summary.json` is
 updated during the run and distinguishes completed layers from partial ones.
 The wall budget stops admission between words; bounded in-flight work may
-finish afterward. An exclusive lock prevents a second writer. Source changes
-require a new campaign database.
+finish afterward. An exclusive lock prevents a second writer. Unregistered
+source changes are refused; explicit version migration is described below.
+
+The versioned runner also supports `--execution memoized`, the unit-cache
+options above, and `--rule-cache-bytes` / `--rule-cache-entries`. It limits
+speculative occupancy per rank as well as globally. At the wall deadline it
+stops submissions and drains admitted consecutive results before exiting.
+Snapshots distinguish running, paused, and completed campaigns. `--status`
+and `--audit-only` are read-only.
+
+To upgrade an existing database, first stop its writer. Explicit `--migrate`
+audits its saved bindings, creates a backup, and registers a new source version
+atomically. Historical identities, configurations, and completed certificates
+are retained. A retried unresolved certificate is archived before replacement.
+Every row is checked against its own source version; an old certificate is not
+silently attributed to the new executor. An arithmetic replay of historical
+certificates requires their matching source implementation.
+
+`experiments/zipper_rule_statistics.py` produces JSON and CSV distributions
+from a consistent read-only SQLite snapshot. Its primary strata are exact
+strand count and word length, with layer coverage and source-version counts.
+It separates control actions, transport moves, and catalog rewrites. Logical
+rule counts describe committed term transitions; actual evaluations and cache
+reuse are separate runtime measurements. Frequencies alone do not measure
+time spent in a rule.
 
 ### Selected runtime sweeps across source versions
 
