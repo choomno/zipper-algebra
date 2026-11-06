@@ -26,6 +26,23 @@ evidence about the implementation.
 
 ## Run a literal braid word
 
+For calculations with collection after every rewrite batch, use the collected
+executor. It combines identical continuation states over $\mathbb Z[q,q^{-1}]$
+and removes zero coefficients before further rewriting. Independent terms
+within each batch can run in separate processes:
+
+```sh
+python -m zipper_algebra.zipping_algorithm run-collected --n 3 --word '[1,2,1,2]' --workers 4 --batch-size 64 > collected.json
+python -m zipper_algebra.zipping_algorithm check collected.json
+```
+
+In Python, `CollectedSession` in `zipper_algebra.zipping_algorithm.collected`
+provides `reduce` and `check`; `reduce_word` is the one-shot entry point. Use a
+standard `if __name__ == "__main__":` guard around a script that starts workers.
+`trace=True` records the actual batch rewrites and collection updates.
+
+The uncollected executor remains available for comparison:
+
 ```python
 import json
 from zipper_algebra.zipping_algorithm.algorithm import AlgorithmSession
@@ -148,6 +165,14 @@ before completion; the bound describes the procedure with sufficient budgets.
 Exact replay has the same asymptotic bound. Collection and shared structures
 require their own analysis; timing fits are separate from the bound.
 
+The collected executor uses the same local transitions. Unfolding a merged
+state into its contributing histories recovers the corresponding reference
+branches; scalar collection creates no new geometric transition. Its
+conservative fixed-rank upper bound remains exponential in input length,
+including the cost of keyed collection. The specific numerical expression
+$12^{D+1}\operatorname{poly}(n,D)$ above describes the uncollected reference
+cost model. No polynomial bound on intermediate collected states is established.
+
 The linear retained-word bound and terminal compression give
 $O_n((L+1)^{n-1})$ possible compressed terminal value records for words of
 length at most $L$. This counts boundary words, endpoint subsets, component
@@ -158,6 +183,35 @@ there are $[2(n-1)]^\ell$ inputs of length $\ell$, including unreduced words.
 
 ### Runtime and parallel execution
 
+The collected executor keys pending terms by their complete continuation state,
+including phase, word, frames, endpoint labels, boundary factors, and extraction
+contexts. It excludes the scalar coefficient and keeps maximum path depth as
+diagnostic data. Identical completed records are collected too. Coefficients
+are exact sparse Laurent polynomials; addition retains negative coefficients
+and deletes zeros. Collection uses an incremental dictionary, updating affected
+states after each bounded batch.
+
+Each worker applies one transition to a unit-coefficient state. Its result is
+scaled by the incoming coefficient before collection. This uses linearity over
+$\mathbb Z[q,q^{-1}]$; the semilinear transformation used to derive a local BM
+rule does not act on the incoming coefficient. A fixed batch size determines
+the schedule independently of worker count. The coordinator commits a whole
+batch only after all transitions and collected limits pass; refusal retains
+the preceding formal sum exactly. `max_steps` counts committed term
+transitions. Term-count and coefficient-support limits apply after collection;
+primitive transitions retain word, integer-bit, and expansion limits and use
+local term/support floors of four/two. Batch traces retain unit rewrite
+evidence, weighted successors, and collection updates. Serial replay verifies
+the same certificate produced by multiple workers.
+
+This follows the term-processing architecture described for
+[FORM's parallel implementations](https://arxiv.org/html/1006.2099v1): independent
+term chunks followed by collection. The
+[FORM manual](https://tueda.github.io/form-doc/latest/manual/) discusses early
+cancellation, worker buffers, and the cost of dispatch and final merging.
+The implementation here reuses the zipper transition functions and adds no
+external rewriting-engine dependency.
+
 Runtime depends strongly on the word as well as its length and strand count.
 Record completion status, transition count, output and pending term counts,
 and producer and checker times together. A stopped prefix is not a timing for
@@ -165,10 +219,10 @@ the complete calculation. CPU time measures computation in a worker; wall time
 also reflects contention, startup, and transfer. Comparisons should retain the
 source hashes, limits, trace mode, and number of workers.
 
-Independent input words can run in separate processes without changing the
+Independent input words can also run in separate processes without changing the
 arithmetic. Coefficients remain sparse Laurent polynomials with arbitrary-size
-integer coefficients. The process runners parallelize these independent runs;
-one word's rewrite tree is currently processed sequentially. More workers can
+integer coefficients. The uncollected executor processes one word sequentially;
+the collected executor also supports workers within one word. More workers can
 increase campaign throughput, subject to memory, certificate transfer, and
 the single database writer. This does not improve the per-word complexity bound.
 
@@ -385,6 +439,17 @@ and a real process-pool run. The Unix-lock tests are skipped on Windows.
 ```sh
 python experiments/zipper_runtime_sweep.py runs/literal-words/words.sqlite3 --ranks 2 3 4 5 6 7 8 --lengths 4 10 12 --workers 4 --per-word-wall 30 --wall-seconds 1800
 ```
+
+For collected calculations with parallel terms within each word:
+
+```sh
+python experiments/zipper_runtime_sweep.py runs/literal-words/words.sqlite3 --execution collected --ranks 3 --lengths 10 --workers 1 --term-workers 4 --batch-size 64 --per-word-wall 300
+```
+
+Outer workers handle independent words; term workers belong to one collected
+calculation. Collected mode defaults to one outer worker. Its recorded CPU
+time includes the coordinator and reaped term-worker processes. A per-word
+timeout terminates that word's process group, including its term workers.
 
 This deterministic sample includes positive, negative, alternating, and seeded
 random signed words. It visits length 10 first and records whether every

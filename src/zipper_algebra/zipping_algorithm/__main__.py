@@ -44,6 +44,10 @@ def _read(path: str) -> dict[str, Any]:
 
 def _check(certificate: dict[str, Any]) -> dict[str, Any]:
     schema = certificate.get("schema")
+    if schema == "zipper-collected-run-v1":
+        from .collected import check_certificate as check_collected
+
+        return {"pass": check_collected(certificate), "scope": certificate["scope"]}
     if schema == "zipper-algorithm-run-v1":
         return {"pass": check_algorithm(certificate), "scope": certificate["scope"]}
     if schema == "zipper-contextual-replay-v1":
@@ -98,6 +102,15 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--word", required=True, help="JSON literal signed braid word")
     run.add_argument("--limits", default="{}", help="JSON exact computation limits")
     run.add_argument("--trace", action="store_true")
+    collected = commands.add_parser(
+        "run-collected", help="Collect exact formal sums and rewrite terms in parallel"
+    )
+    collected.add_argument("--n", type=int, required=True)
+    collected.add_argument("--word", required=True, help="JSON literal signed braid word")
+    collected.add_argument("--limits", default="{}", help="JSON exact computation limits")
+    collected.add_argument("--trace", action="store_true")
+    collected.add_argument("--workers", type=int, default=1)
+    collected.add_argument("--batch-size", type=int, default=64)
     general = commands.add_parser(
         "exhaust-general",
         help="Enumerate literal words with the general zipper procedure",
@@ -162,6 +175,15 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def _execute(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
+    if args.command == "run-collected":
+        from .collected import reduce_word as reduce_collected
+
+        result = reduce_collected(
+            json.loads(args.word), n=args.n,
+            limits=Limits(**_object(json.loads(args.limits))), trace=args.trace,
+            workers=args.workers, batch_size=args.batch_size,
+        )
+        return result, 0 if result["status"] == "complete" else 3
     if args.command == "instantiate":
         return Catalog.bundled().instantiate(
             args.rule,

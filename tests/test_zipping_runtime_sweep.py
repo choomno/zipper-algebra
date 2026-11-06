@@ -108,3 +108,67 @@ def test_bounded_parallelism_and_check_timeout_classification(tmp_path):
     assert peak==2
     assert all(row['timeout_phases']=={'check':1} for row in result['strata'])
     assert all(row['complete_reduce_cpu_mean'] is None for row in result['strata'])
+
+
+def test_collected_configuration_has_one_outer_worker_and_independent_identity(tmp_path,monkeypatch):
+    original=runtime.identity
+    def selected(execution='reference'):
+        result=original()
+        if execution=='collected':
+            result['algorithm_source_sha256']={**result['algorithm_source_sha256'],'collected.py':'collected-version'}
+        return result
+    monkeypatch.setattr(runtime,'identity',selected)
+    result=runtime.run_sweep(tmp_path/'words.sqlite3',ranks=(3,),lengths=(10,),
+        execution='collected',term_workers=3,batch_size=7,max_new_cases=0,campaign='collected')
+    assert result['config']['concurrency']==1
+    assert result['config']['term_workers']==3 and result['config']['batch_size']==7
+    assert result['identity']['algorithm_source_sha256']['collected.py']=='collected-version'
+    with pytest.raises(ValueError,match='source or configuration changed'):
+        runtime.run_sweep(tmp_path/'words.sqlite3',ranks=(3,),lengths=(10,),
+            execution='collected',term_workers=2,batch_size=7,max_new_cases=0,campaign='collected')
+
+
+@pytest.mark.parametrize('options',[{'execution':'invalid'},{'term_workers':2},{'execution':'collected','term_workers':0},{'batch_size':0}])
+def test_execution_options_validate_before_launch(tmp_path,options):
+    with pytest.raises(ValueError):
+        runtime.run_sweep(tmp_path/'words.sqlite3',max_new_cases=0,**options)
+
+
+def nested_sleepy(sender,case,limits,identity):
+    import subprocess
+    import sys
+    child=subprocess.Popen([sys.executable,'-c','import time; time.sleep(30)'])
+    sender.send({'kind':'phase','phase':'reduce','descendant_pid':child.pid})
+    time.sleep(30)
+
+
+def test_word_timeout_stops_nested_term_processes():
+    from pathlib import Path
+    if not Path('/proc/self/stat').exists():
+        pytest.skip('process-state assertion requires procfs')
+    expected=runtime.identity();case=runtime.sample_cases([2],[2],random_per_cell=0)[0]
+    result=runtime.run_case(case,Limits(),expected,1,_target=nested_sleepy)
+    assert result['status']=='timeout'
+    child=Path(f"/proc/{result['detail']['descendant_pid']}/stat")
+    for _ in range(100):
+        if not child.exists() or child.read_text().split()[2]=='Z':
+            break
+        time.sleep(.01)
+    else:
+        pytest.fail('nested process survived the word timeout')
+
+
+def test_collected_child_and_database_certificate_are_replayed(tmp_path):
+    result=runtime.run_sweep(tmp_path/'words.sqlite3',ranks=(3,),lengths=(3,),
+        execution='collected',term_workers=2,batch_size=4,random_per_cell=0,per_word_wall=20)
+    assert all(row['completion_fraction']==1 for row in result['strata'])
+    with sqlite3.connect(tmp_path/'words.sqlite3') as db:
+        for certificate,detail in db.execute('SELECT certificate,detail FROM runtime_cases'):
+            certificate=json.loads(certificate);detail=json.loads(detail)
+            assert certificate['schema']=='zipper-collected-run-v1'
+            assert certificate['execution']['batch_size']==4
+            assert 'collected.py' in certificate['source_sha256']
+            assert detail['cpu_scope']=='process_and_reaped_children'
+            assert detail['reduce_cpu']>=0 and detail['check_cpu']>=0
+    expected=runtime.identity('collected');expected['batch_size']=8
+    assert not runtime._execution_matches(certificate,expected)

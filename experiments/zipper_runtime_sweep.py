@@ -7,7 +7,11 @@ when wall times reflect concurrent load. Worker count is campaign metadata.
 The campaign wall budget stops new admissions; active cases finish or reach
 their individual caps, so total time can exceed it by a case cap plus cleanup.
 Reduction/check timings exclude child startup and catalog setup, recorded
-separately. CPU times use process_time. Incomplete and timeout observations
+separately. CPU times use process_time for reference execution. Collected execution adds
+reaped term-worker CPU time; its default is one outer word worker, and
+--term-workers controls parallel arithmetic inside that word. Timed-out words
+terminate their entire process group, including nested workers.
+Incomplete and timeout observations
 are censored, never substituted for complete-word timings.
 
 New source versions receive independent runtime campaigns without changing
@@ -29,6 +33,9 @@ import hashlib
 import json
 import math
 import multiprocessing
+import os
+import resource
+import signal
 from pathlib import Path
 import platform
 import random
@@ -44,15 +51,22 @@ from zipper_algebra.zipping_algorithm.enumeration import _json, _sha
 from zipper_algebra.zipping_algorithm.interpreter import Limits
 
 
-def identity():
-    return {"algorithm_source_sha256": _source(), "catalog_sha256": Catalog.bundled().sha256,
-            "runner_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+def _algorithm_source(execution):
+    if execution == "collected":
+        from zipper_algebra.zipping_algorithm.collected import _source as collected_source
+        return collected_source()
+    return _source()
+
+
+def identity(execution="reference"):
+    return {"algorithm_source_sha256": _algorithm_source(execution), "catalog_sha256": Catalog.bundled().sha256,
+            "runner_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), "execution": execution,
             "catalog_schema_sha256": SCHEMA_SHA256,
             "coefficient_ring": "Z[q,q^-1]", "python": sys.version, "platform": platform.platform()}
 
 
 def _source_matches(expected):
-    return (_source() == expected["algorithm_source_sha256"]
+    return (_algorithm_source(expected.get("execution", "reference")) == expected["algorithm_source_sha256"]
             and hashlib.sha256(Path(__file__).read_bytes()).hexdigest() == expected["runner_sha256"]
             and hashlib.sha256(_data("full-catalog.json")).hexdigest() == expected["catalog_sha256"]
             and hashlib.sha256(_data("schema.json")).hexdigest() == expected["catalog_schema_sha256"])
@@ -94,22 +108,55 @@ def sample_cases(ranks, lengths, *, seed=20261106, random_per_cell=1):
     return result
 
 
+def _execution_matches(certificate, expected):
+    if expected.get("execution", "reference") == "collected":
+        return (certificate.get("schema") == "zipper-collected-run-v1"
+                and certificate.get("execution", {}).get("batch_size") == expected.get("batch_size",64))
+    return certificate.get("schema") != "zipper-collected-run-v1"
+
+
+def _cpu_time(execution):
+    value = time.process_time()
+    if execution == "collected":
+        children = resource.getrusage(resource.RUSAGE_CHILDREN)
+        value += children.ru_utime + children.ru_stime
+    return value
+
+
+def _process_entry(target, sender, case, limits, expected):
+    # A separate session lets the supervising parent stop nested term pools.
+    os.setsid()
+    target(sender, case, limits, expected)
+
+
 def _worker(sender, case, limits, expected):
     try:
-        wall, cpu = time.perf_counter(), time.process_time()
-        session = AlgorithmSession()
-        setup = {"setup_wall":time.perf_counter()-wall,"setup_cpu":time.process_time()-cpu}
+        execution = expected.get("execution", "reference")
+        wall, cpu = time.perf_counter(), _cpu_time(execution)
+        if execution == "collected":
+            from zipper_algebra.zipping_algorithm import collected
+            session = collected.CollectedSession()
+            reduce = lambda: session.reduce(case["word"], n=case["n"],
+                workers=expected.get("term_workers",1), batch_size=expected.get("batch_size",64),
+                limits=Limits(**limits), trace=False)
+            check = session.check
+        else:
+            session = AlgorithmSession()
+            reduce = lambda: session.reduce(case["word"],n=case["n"],limits=Limits(**limits),trace=False)
+            check = session.check
+        setup = {"setup_wall":time.perf_counter()-wall,"setup_cpu":_cpu_time(execution)-cpu,
+                 "cpu_scope":"process_and_reaped_children" if execution == "collected" else "process"}
         sender.send({"kind":"phase","phase":"reduce",**setup})
-        wall, cpu = time.perf_counter(), time.process_time()
-        certificate = session.reduce(case["word"],n=case["n"],limits=Limits(**limits),trace=False)
-        timing = {**setup,"reduce_wall":time.perf_counter()-wall,"reduce_cpu":time.process_time()-cpu,
+        wall, cpu = time.perf_counter(), _cpu_time(execution)
+        certificate = reduce()
+        timing = {**setup,"reduce_wall":time.perf_counter()-wall,"reduce_cpu":_cpu_time(execution)-cpu,
                   "reduce_status":certificate["status"],"reduce_steps":certificate["metrics"]["steps"]}
         sender.send({"kind":"phase","phase":"check",**timing})
         encoded = _json(certificate)
-        wall, cpu = time.perf_counter(), time.process_time()
-        if session.check(json.loads(encoded)) is not True:
+        wall, cpu = time.perf_counter(), _cpu_time(execution)
+        if check(json.loads(encoded)) is not True:
             raise ValueError("certificate failed JSON reload/replay")
-        timing.update(check_wall=time.perf_counter()-wall,check_cpu=time.process_time()-cpu)
+        timing.update(check_wall=time.perf_counter()-wall,check_cpu=_cpu_time(execution)-cpu)
         if (certificate["source_sha256"] != expected["algorithm_source_sha256"]
                 or certificate["catalog_sha256"] != expected["catalog_sha256"]):
             raise ValueError("source changed during computation")
@@ -131,7 +178,7 @@ def run_case(case, limits, expected, wall_seconds, *, _target=_worker):
     """Return a checked result or a censored observation with no certificate."""
     ctx = multiprocessing.get_context("spawn")
     receiver, sender = ctx.Pipe(duplex=False)
-    process = ctx.Process(target=_target,args=(sender,case,asdict(limits),expected))
+    process = ctx.Process(target=_process_entry,args=(_target,sender,case,asdict(limits),expected))
     started = time.perf_counter()
     process.start()
     sender.close()
@@ -159,7 +206,8 @@ def run_case(case, limits, expected, wall_seconds, *, _target=_worker):
                                 or certificate["source_sha256"] != expected["algorithm_source_sha256"]
                                 or certificate["catalog_sha256"] != expected["catalog_sha256"]
                                 or certificate["limits"] != asdict(limits)
-                                or certificate["trace_enabled"] is not False):
+                                or certificate["trace_enabled"] is not False
+                                or not _execution_matches(certificate,expected)):
                             raise ValueError("checked certificate does not match its case")
                         result = {"status":certificate["status"],"certificate":encoded,
                                   "certificate_sha":header["certificate_sha"],"metrics":certificate["metrics"],
@@ -183,11 +231,19 @@ def run_case(case, limits, expected, wall_seconds, *, _target=_worker):
         result["attempt_wall"] = elapsed
         return result
     finally:
+        try:
+            os.killpg(process.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
         if process.is_alive():
             process.terminate()
         process.join(2)
         if process.is_alive():
             process.kill();process.join()
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
         receiver.close()
 
 
@@ -218,7 +274,16 @@ def summarize(db, campaign_id):
 
 def run_sweep(database, *, ranks=(2,3,4,5,6,7,8), lengths=(4,10,12), seed=20261106,
               random_per_cell=1, limits=None, per_word_wall=30, wall_seconds=1800,
-              campaign=None, max_new_cases=None, workers=4, _run_case=run_case):
+              campaign=None, max_new_cases=None, workers=None, execution="reference",
+              term_workers=1, batch_size=64, _run_case=run_case):
+    if execution not in ("reference", "collected"):
+        raise ValueError("execution must be reference or collected")
+    if type(term_workers) is not int or term_workers < 1 or type(batch_size) is not int or batch_size < 1:
+        raise ValueError("positive integer term_workers and batch_size required")
+    if execution == "reference" and term_workers != 1:
+        raise ValueError("term_workers requires collected execution")
+    if workers is None:
+        workers = 1 if execution == "collected" else 4
     if type(workers) is not int or workers < 1:
         raise ValueError("positive worker count required")
     cases = sample_cases(ranks,lengths,seed=seed,random_per_cell=random_per_cell)
@@ -230,10 +295,12 @@ def run_sweep(database, *, ranks=(2,3,4,5,6,7,8), lengths=(4,10,12), seed=202611
             raise ValueError("positive finite wall budgets required")
     if max_new_cases is not None and (type(max_new_cases) is not int or max_new_cases < 0):
         raise ValueError("max_new_cases must be nonnegative")
-    expected = identity()
+    expected = identity() if execution == "reference" else identity(execution)
+    expected.update(execution=execution, term_workers=term_workers, batch_size=batch_size)
     config = {"ranks":list(ranks),"lengths":list(lengths),"seed":seed,"random_per_cell":random_per_cell,
               "limits":asdict(limits),"per_word_wall":per_word_wall,"trace":False,
-              "cases_sha256":_sha(_json(cases)),"concurrency":workers}
+              "cases_sha256":_sha(_json(cases)),"concurrency":workers,
+              "execution":execution,"term_workers":term_workers,"batch_size":batch_size}
     campaign = campaign or "runtime-" + _sha(_json([expected,config]))[:20]
     if not isinstance(campaign,str) or not campaign:
         raise ValueError("nonempty campaign identifier required")
@@ -276,7 +343,8 @@ def run_sweep(database, *, ranks=(2,3,4,5,6,7,8), lengths=(4,10,12), seed=202611
                     if (_sha(certificate) != digest or value['source_sha256'] != expected['algorithm_source_sha256']
                             or value['catalog_sha256'] != expected['catalog_sha256'] or value['status'] != status
                             or value['n'] != case['n'] or value['input_word'] != case['word']
-                            or value['limits'] != asdict(limits) or value['trace_enabled'] is not False):
+                            or value['limits'] != asdict(limits) or value['trace_enabled'] is not False
+                            or not _execution_matches(value,expected)):
                         raise ValueError('stored runtime certificate hash or identity mismatch')
             started = time.perf_counter();new = 0;submitted = 0;reason = 'finished'
             remaining = [case for case,row in zip(cases,rows) if row[1] == 'pending']
@@ -321,7 +389,10 @@ def main():
     parser.add_argument('--per-word-wall',type=float,default=30)
     parser.add_argument('--wall-seconds',type=float,default=1800)
     parser.add_argument('--max-new-cases',type=int)
-    parser.add_argument('--workers',type=int,default=4)
+    parser.add_argument('--workers',type=int)
+    parser.add_argument('--execution',choices=('reference','collected'),default='reference')
+    parser.add_argument('--term-workers',type=int,default=1)
+    parser.add_argument('--batch-size',type=int,default=64)
     args=vars(parser.parse_args());args['limits']=Limits(**args['limits']) if args['limits'] else None
     print(json.dumps(run_sweep(**args),indent=2),flush=True)
 

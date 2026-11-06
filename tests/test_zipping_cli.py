@@ -36,6 +36,18 @@ def replay_fixture():
     return state, requests
 
 
+def test_collected_run_replay_and_checkpoint(capsys, tmp_path):
+    args = ["run-collected", "--n", "3", "--word", "[1,2]", "--batch-size", "8"]
+    certificate = invoke(capsys, args + ["--trace"])
+    assert certificate["schema"] == "zipper-collected-run-v1"
+    assert certificate["status"] == "complete"
+    assert invoke(capsys, ["check", save(tmp_path, certificate)])["pass"]
+    checkpoint = invoke(capsys, args + ["--limits", '{"max_steps":1}'], 3)
+    assert checkpoint["status"] == "incomplete"
+    assert invoke(capsys, ["check", save(tmp_path, checkpoint)])["pass"]
+    assert invoke(capsys, args + ["--workers", "0"], 2)
+
+
 def test_instantiate(capsys):
     parameters = {"n": 5, "i": 3, "j": 1, "k": 2, "l": 1}
     value = invoke(
