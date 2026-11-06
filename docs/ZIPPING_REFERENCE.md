@@ -434,6 +434,29 @@ entry point. Its tests cover out-of-order worker completion, interruption at an
 incomplete word, exceptions, resume, source binding, exclusive writer ownership,
 and a real process-pool run. The Unix-lock tests are skipped on Windows.
 
+### Exhaustive collected campaigns
+
+```sh
+python experiments/zipper_exhaustive_collected.py runs/collected --targets '{"2":10,"3":10,"4":10,"5":10,"6":10,"7":10,"8":10}' --workers 8 --wall-seconds 86400
+```
+
+This runner enumerates every literal signed word in increasing length and
+ordinal within each rank, including unreduced inputs. Eight independent-word
+workers each use the collected executor with one term worker. Each rank has
+its own consecutive cursor; its first incomplete word pauses that rank while
+other ranks continue. Increasing computation limits retries that exact word.
+Targets can be extended on resume without changing the source identity.
+
+One parent writes `words.sqlite3`, with compressed JSON certificates, hashes,
+inputs, timings, limits, replay provenance, and per-rank cursors. Every new
+certificate undergoes JSON reload and exact serial replay before storage.
+Resume checks all saved hashes and input/configuration/cursor bindings;
+`--replay-audit` additionally repeats the saved arithmetic. `summary.json` is
+updated during the run and distinguishes completed layers from partial ones.
+The wall budget stops admission between words; bounded in-flight work may
+finish afterward. An exclusive lock prevents a second writer. Source changes
+require a new campaign database.
+
 ### Selected runtime sweeps across source versions
 
 ```sh
