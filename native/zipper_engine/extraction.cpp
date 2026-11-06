@@ -170,7 +170,8 @@ RibbonGathering gathering(const Braid &word, const Braid &canonical, int64_t n, 
     s << ']';
     auto bytes = s.str();
     unsigned char digest[SHA256_DIGEST_LENGTH];
-    SHA256(reinterpret_cast<const unsigned char *>(bytes.data()), bytes.size(), digest);
+    if (!SHA256(reinterpret_cast<const unsigned char *>(bytes.data()), bytes.size(), digest))
+        throw EngineError("SHA256 computation failed");
     std::ostringstream hex;
     hex << std::hex << std::setfill('0');
     for (auto c : digest)

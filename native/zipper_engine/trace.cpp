@@ -14,7 +14,7 @@ std::string canonical(const Json &j, const std::string &key = "") {
             if (!first)
                 s += ",";
             first = false;
-            s += Json(it.key()).dump() + ":" + canonical(it.value(), it.key());
+            s += Json(it.key()).dump(-1, ' ', true) + ":" + canonical(it.value(), it.key());
         }
         return s + "}";
     }

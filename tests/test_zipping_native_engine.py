@@ -8,6 +8,9 @@ from zipper_algebra.zipping_algorithm.collected import CollectedSession
 from zipper_algebra.zipping_algorithm.interpreter import Limits
 from zipper_algebra.zipping_algorithm.native import NativeSession, reference_certificate
 
+# A fresh O3 build is part of the first module fixture and can exceed one minute.
+pytestmark = pytest.mark.timeout(300)
+
 
 @pytest.fixture(scope="module")
 def engine():

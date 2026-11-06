@@ -438,23 +438,107 @@ size_t transition_charge(const Transition &result) {
         total += sizeof(Output) + output_key(item).size() + scalar_charge(item.coefficient);
     return total;
 }
-void reweight(Transition &result, const Work &work) {
+// The unit transition is local to its active component. Extracted outer
+// components and original endpoint names are restored only on return. Every
+// geometric boundary, phase, frame, and processed-event field remains keyed.
+Work intrinsic_work(const Work &work) {
+    Work unit;
+    unit.rank = work.rank;
+    unit.coefficient = {{0, 1}};
+    unit.world_phi = work.world_phi;
+    unit.boundary_left = work.boundary_left;
+    unit.boundary_right = work.boundary_right;
+    unit.boundary_left_factors = work.boundary_left_factors;
+    unit.boundary_right_factors = work.boundary_right_factors;
+    unit.bottom_labels.resize(work.rank);
+    for (Int i = 0; i < work.rank; ++i)
+        unit.bottom_labels[i] = i + 1;
+    unit.top_labels = unit.bottom_labels;
+    unit.phase = work.phase;
+    if (work.phase == "single") {
+        unit.left = work.left;
+        unit.processed = work.processed;
+        unit.position = work.position;
+    } else if (work.phase == "zip_up" || work.phase == "zip_down") {
+        unit.branch = work.branch;
+        unit.branch.coefficient = unit.coefficient;
+    } else {
+        unit.word = work.word;
+        unit.payload_length = work.payload_length;
+        unit.completed_sides = work.completed_sides;
+    }
+    return unit;
+}
+Braid relabel_ports(const Braid &ports, const Braid &labels) {
+    Braid restored;
+    restored.reserve(ports.size());
+    for (Int port : ports) {
+        if (port < 1 || static_cast<size_t>(port) > labels.size())
+            throw EngineError("cached endpoint port lies outside the caller labels");
+        restored.push_back(labels[port - 1]);
+    }
+    return restored;
+}
+void relabel_record(Json &record, const Work &work) {
+    record["original_bottom_ports"] =
+        relabel_ports(record.at("original_bottom_ports").get<Braid>(), work.bottom_labels);
+    record["original_top_ports"] =
+        relabel_ports(record.at("original_top_ports").get<Braid>(), work.top_labels);
+}
+void restore_contexts(std::vector<Context> &contexts, const Work &work) {
+    for (auto &context : contexts)
+        relabel_record(context.record, work);
+    contexts.insert(contexts.begin(), work.contexts.begin(), work.contexts.end());
+}
+Word lift_contexts(Word word, const std::vector<Context> &contexts) {
+    for (auto context = contexts.rbegin(); context != contexts.rend(); ++context) {
+        Word next;
+        next.reserve(context->top_route.size() + context->component_word.size() + word.size() +
+                     context->bottom_route.size());
+        for (Int letter : context->top_route)
+            next.emplace_back(letter);
+        append(next, context->component_word);
+        for (auto token : word) {
+            if (token.is_slider())
+                token.start = checked_add(token.start, context->size);
+            else
+                token.generator = (token.generator > 0 ? 1 : -1) *
+                                  checked_add(std::abs(token.generator), context->size);
+            next.push_back(token);
+        }
+        for (Int letter : context->bottom_route)
+            next.emplace_back(letter);
+        word = std::move(next);
+    }
+    return word;
+}
+void rebase(Transition &result, const Work &work) {
     for (auto &child : result.children) {
+        restore_contexts(child.contexts, work);
+        child.bottom_labels = relabel_ports(child.bottom_labels, work.bottom_labels);
+        child.top_labels = relabel_ports(child.top_labels, work.top_labels);
         set_coefficient(child, multiply(work.coefficient, child.coefficient));
         child.depth = checked_add(work.depth, 1);
     }
-    for (auto &item : result.output)
+    for (auto &item : result.output) {
+        restore_contexts(item.components, work);
+        item.word = lift_contexts(std::move(item.word), work.contexts);
         set_coefficient(item, multiply(work.coefficient, item.coefficient));
+    }
+    if (result.event.contains("component"))
+        relabel_record(result.event["component"], work);
 }
 } // namespace
 struct EngineSession::Impl {
     struct Entry {
         Transition result;
         size_t bytes;
+        uint64_t input;
     };
     Catalog &catalog;
     size_t max_entries, max_bytes, bytes = 0, peak_bytes = 0, peak_entries = 0;
     uint64_t hits = 0, misses = 0, evictions = 0, oversized = 0, evaluations = 0;
+    uint64_t input = 0, cross_input_hits = 0, complement_hits = 0;
     std::map<std::string, double> timings;
     OrderedMap<Entry> cache;
     Impl(Catalog &c, size_t entries, size_t memory)
@@ -468,23 +552,27 @@ void EngineSession::clear_cache() {
     p.cache.clear();
     p.bytes = p.peak_bytes = p.peak_entries = 0;
     p.hits = p.misses = p.evictions = p.oversized = p.evaluations = 0;
+    p.cross_input_hits = p.complement_hits = 0;
 }
 Json EngineSession::cache_info() const {
     const auto &p = *impl_;
-    return {{"hits", p.hits},
-            {"misses", p.misses},
-            {"evictions", p.evictions},
-            {"oversized", p.oversized},
-            {"evaluations", p.evaluations},
-            {"entries", p.cache.size()},
-            {"bytes", p.bytes},
-            {"peak_bytes", p.peak_bytes},
-            {"peak_entries", p.peak_entries},
-            {"max_entries", p.max_entries},
-            {"max_bytes", p.max_bytes},
-            {"byte_measure",
-             "estimated-typed-state-and-structural-key-payload; excludes allocator overhead"},
-            {"key_scope", "full-continuation-except-scalar-and-depth"}};
+    return {
+        {"hits", p.hits},
+        {"misses", p.misses},
+        {"cross_input_hits", p.cross_input_hits},
+        {"complement_hits", p.complement_hits},
+        {"evictions", p.evictions},
+        {"oversized", p.oversized},
+        {"evaluations", p.evaluations},
+        {"entries", p.cache.size()},
+        {"bytes", p.bytes},
+        {"peak_bytes", p.peak_bytes},
+        {"peak_entries", p.peak_entries},
+        {"max_entries", p.max_entries},
+        {"max_bytes", p.max_bytes},
+        {"byte_measure",
+         "estimated-typed-state-and-structural-key-payload; excludes allocator overhead"},
+        {"key_scope", "intrinsic-unit-transition-except-outer-contexts-labels-scalar-and-depth"}};
 }
 Transition EngineSession::transition(const Work &work, const Limits &limits, bool trace) {
     auto &p = *impl_;
@@ -494,11 +582,14 @@ Transition EngineSession::transition(const Work &work, const Limits &limits, boo
         return algorithm_transition(work, p.catalog, limits, trace, trace);
     }
     auto key_start = Clock::now();
-    auto key = cache_key(work, limits, trace);
+    auto unit = intrinsic_work(work);
+    auto key = cache_key(unit, limits, trace);
     record_timing("cache_key_seconds", elapsed(key_start));
     Transition result;
     if (auto entry = p.cache.get(key)) {
         ++p.hits;
+        p.cross_input_hits += entry->input != p.input;
+        p.complement_hits += !work.contexts.empty();
         // Move the existing entry to the LRU tail. Copy the return template
         // first so no pointer survives the erase.
         result = entry->result;
@@ -508,9 +599,6 @@ Transition EngineSession::transition(const Work &work, const Limits &limits, boo
     } else {
         ++p.misses;
         ++p.evaluations;
-        Work unit = work;
-        set_coefficient(unit, Laurent{{0, 1}});
-        unit.depth = 0;
         result = algorithm_transition(unit, p.catalog, limits, trace, trace);
         if (!result.error.empty())
             return result;
@@ -526,14 +614,14 @@ Transition EngineSession::transition(const Work &work, const Limits &limits, boo
                 p.cache.erase(old_key);
                 ++p.evictions;
             }
-            p.cache.set(key, Impl::Entry{result, charge});
+            p.cache.set(key, Impl::Entry{result, charge, p.input});
             p.bytes += charge;
             p.peak_bytes = std::max(p.peak_bytes, p.bytes);
             p.peak_entries = std::max(p.peak_entries, p.cache.size());
         }
     }
     try {
-        reweight(result, work);
+        rebase(result, work);
     } catch (const LimitExceeded &error) {
         Transition refused;
         refused.error = "incomplete";
@@ -553,6 +641,7 @@ void EngineSession::record_timing(const char *phase, double seconds) {
 Json EngineSession::reduce(const Work &initial, const Limits &limits, bool trace,
                            size_t batch_size) {
     impl_->timings.clear();
+    ++impl_->input;
     auto start = Clock::now();
     auto result = reduce_collected(initial, impl_->catalog, limits, trace, batch_size, this);
     record_timing("total_seconds", elapsed(start));

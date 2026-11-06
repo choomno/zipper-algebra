@@ -24,7 +24,7 @@ executable when no matching build is present.
 from zipper_algebra.zipping_algorithm.native import NativeSession
 from zipper_algebra.zipping_algorithm.interpreter import Limits
 
-with NativeSession() as session:
+with NativeSession(cache_entries=262_144, cache_bytes=256 * 1024**2) as session:
     result = session.reduce(
         [1, -2] * 5, n=3,
         limits=Limits(max_steps=100_000, max_terms=100_000),
@@ -46,6 +46,13 @@ PYTHONPATH=src python -c 'from zipper_algebra.zipping_algorithm.native import bu
 ```
 
 A session retains the parsed catalog and native transition cache across inputs.
+Cache keys retain rank, active geometry, control, boundary factors, limits, and
+trace policy. Already extracted components, endpoint label values, coefficients,
+and depth are restored from the caller when a unit transition is reused. This
+includes complement steps; it does not identify different literal input words.
+The cache byte counter estimates typed payload and keys and excludes allocator
+overhead, frontiers, optional traces, and other process memory.
+
 Each input has its own formal sum. Independent word processes can run separate
 sessions; the first implementation executes each native batch in one thread.
 Cache budgets and timing telemetry are execution data, not mathematical output.
