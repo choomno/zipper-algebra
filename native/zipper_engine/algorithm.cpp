@@ -754,11 +754,14 @@ Transition algorithm_transition(const Work &work, Catalog &catalog, const Limits
         return r;
     }
     try {
+        // A completed extraction still consumes one transition, even when it
+        // emits only an output term and therefore has no child depth to store.
+        const Int next_depth = checked_add(work.depth, 1);
         for (auto &child : r.children) {
             child.coefficient = multiply(work.coefficient, child.coefficient);
             if (child.phase == "zip_up" || child.phase == "zip_down")
                 child.branch.coefficient = child.coefficient;
-            child.depth = checked_add(work.depth, 1);
+            child.depth = next_depth;
         }
         for (auto &output : r.output)
             output.coefficient = multiply(work.coefficient, output.coefficient);

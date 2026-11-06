@@ -202,12 +202,16 @@ def test_reduce_does_not_call_python_transition_or_collection(engine, monkeypatc
     assert first_difference(reference_certificate(actual), as_arrays(expected)) is None
 
 
-@pytest.mark.parametrize("coordinate", ["q_exponent", "depth"])
+@pytest.mark.parametrize("coordinate", ["q_exponent", "depth", "terminal_depth"])
 def test_native_coordinate_overflow_is_a_bounded_refusal(engine, coordinate):
     from dataclasses import asdict
 
     reference = CollectedSession().reduce((1,), n=2, trace=True)
     work = deepcopy(reference["transitions"][0]["predecessors"][0])
+    if coordinate == "terminal_depth":
+        terminal = CollectedSession().reduce((), n=1, trace=True)
+        work = deepcopy(terminal["transitions"][-1]["predecessors"][0])
+        assert work["phase"] == "extract"
     if coordinate == "q_exponent":
         work["coefficient"] = [[2**63 - 1, 1]]
     else:

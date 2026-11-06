@@ -57,3 +57,19 @@ def test_corpus_source_drift_refuses_measurement(tmp_path, monkeypatch):
     with sqlite3.connect(path) as db:
         assert db.execute("SELECT COUNT(*) FROM measurements").fetchone() == (0,)
         assert db.execute("SELECT status FROM campaigns").fetchone() == ("failed",)
+
+
+@pytest.mark.parametrize("alias", [True, 1.0])
+def test_corpus_rejects_equal_valued_boolean_or_float_coefficient(tmp_path, monkeypatch, alias):
+    normalize = corpus.shared.reference_form
+    def corrupt_type(certificate, backend):
+        result = normalize(certificate, backend)
+        assert result["output"][0]["coefficient"] == [[0, 1]]
+        result["output"][0]["coefficient"][0][1] = alias
+        return result
+    monkeypatch.setattr(corpus.shared, "reference_form", corrupt_type)
+    path = tmp_path / "corpus.sqlite3"
+    with pytest.raises(AssertionError, match="exact replay mismatch"):
+        corpus.run(path, bounds=((3, 0),), backends=("python_collected",))
+    with sqlite3.connect(path) as db:
+        assert db.execute("SELECT COUNT(*) FROM measurements").fetchone() == (0,)

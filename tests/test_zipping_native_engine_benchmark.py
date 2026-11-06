@@ -80,3 +80,21 @@ def test_unverified_result_never_enters_sqlite(tmp_path, monkeypatch):
     with sqlite3.connect(path) as db:
         assert db.execute("SELECT COUNT(*) FROM measurements").fetchone() == (0,)
         assert db.execute("SELECT status FROM campaigns").fetchone() == ("failed",)
+
+
+@pytest.mark.parametrize("alias", [True, 1.0])
+def test_equal_valued_boolean_or_float_coefficient_is_rejected(tmp_path, monkeypatch, alias):
+    monkeypatch.setitem(bench.CASES, "unit", (1, []))
+    normalize = bench.reference_form
+    def corrupt_type(certificate, backend):
+        result = normalize(certificate, backend)
+        assert result["output"][0]["coefficient"] == [[0, 1]]
+        result["output"][0]["coefficient"][0][1] = alias
+        return result
+    monkeypatch.setattr(bench, "reference_form", corrupt_type)
+    path = tmp_path / "timings.sqlite3"
+    with pytest.raises(AssertionError, match="exact replay mismatch"):
+        bench.run(path, cases=["unit"], rounds=1, backends=["python_collected"],
+                  limits=Limits(), batch_size=64)
+    with sqlite3.connect(path) as db:
+        assert db.execute("SELECT COUNT(*) FROM measurements").fetchone() == (0,)

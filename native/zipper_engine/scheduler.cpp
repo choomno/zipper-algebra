@@ -7,8 +7,8 @@
 
 namespace zipper {
 namespace {
-struct SchedulerLimit : std::runtime_error {
-    using std::runtime_error::runtime_error;
+struct SchedulerLimit : LimitExceeded {
+    using LimitExceeded::LimitExceeded;
 };
 using Clock = std::chrono::steady_clock;
 double elapsed(Clock::time_point start) {
@@ -247,6 +247,8 @@ Json reduce_collected(const Work &initial, Catalog &catalog, const Limits &limit
         Removed removed;
         std::vector<Transition> results;
         int64_t pm = 0, om = 0, term_count = 0;
+        Int next_steps = 0, next_batches = 0, next_merged = 0, next_zeroes = 0;
+        Int next_maximum_depth = metrics.maximum_depth;
         Json batch_trace;
         try {
             if (static_cast<uint64_t>(limits.max_steps - metrics.steps) < selected.size())
@@ -302,8 +304,8 @@ Json reduce_collected(const Work &initial, Catalog &catalog, const Limits &limit
                         output_representatives[key_of(item)] = output_json(item);
                 }
             }
-            term_count = count_after(frontier, pending_updates, removed) +
-                         count_after(output, output_updates, none);
+            term_count = checked_add(count_after(frontier, pending_updates, removed),
+                                     count_after(output, output_updates, none));
             if (term_count > limits.max_terms)
                 throw SchedulerLimit("collected term limit exceeded");
             for (const auto &[key, item] : pending_updates) {
@@ -316,6 +318,16 @@ Json reduce_collected(const Work &initial, Catalog &catalog, const Limits &limit
                 if (item)
                     check_item(*item, limits);
             }
+            // All signed diagnostic arithmetic is staged before committing
+            // the batch, including output-only transitions at the depth limit.
+            next_steps = checked_add(metrics.steps, static_cast<Int>(selected.size()));
+            next_batches = checked_add(metrics.batches, 1);
+            next_merged = checked_add(metrics.merged_terms, checked_add(pm, om));
+            next_zeroes = checked_add(metrics.zero_terms, checked_add(zero_count(pending_updates),
+                                                                      zero_count(output_updates)));
+            for (const auto &selected_item : selected)
+                next_maximum_depth =
+                    std::max(next_maximum_depth, checked_add(selected_item.second.depth, 1));
             collection_timer.stop();
             if (trace) {
                 auto trace_start = Clock::now();
@@ -335,7 +347,7 @@ Json reduce_collected(const Work &initial, Catalog &catalog, const Limits &limit
                 if (session)
                     session->record_timing("trace_materialization_seconds", elapsed(trace_start));
             }
-        } catch (const SchedulerLimit &exc) {
+        } catch (const LimitExceeded &exc) {
             status = "incomplete";
             diagnostic = {{"message", exc.what()},
                           {"phase", "batch"},
@@ -343,15 +355,15 @@ Json reduce_collected(const Work &initial, Catalog &catalog, const Limits &limit
                           {"batch_rolled_back", true}};
             break;
         }
-        metrics.steps += static_cast<int64_t>(selected.size());
-        ++metrics.batches;
-        metrics.merged_terms += pm + om;
-        metrics.zero_terms += zero_count(pending_updates) + zero_count(output_updates);
+        metrics.steps = next_steps;
+        metrics.batches = next_batches;
+        metrics.merged_terms = next_merged;
+        metrics.zero_terms = next_zeroes;
+        metrics.maximum_depth = next_maximum_depth;
         metrics.max_terms = std::max(metrics.max_terms, term_count);
         for (size_t i = 0; i < results.size(); ++i) {
             const auto &result = results[i];
             ++metrics.counts[event_rule(result.event)];
-            metrics.maximum_depth = std::max(metrics.maximum_depth, selected[i].second.depth + 1);
             metrics.max_branch_count =
                 std::max(metrics.max_branch_count,
                          static_cast<int64_t>(result.children.size() + result.output.size()));
@@ -513,12 +525,13 @@ Word lift_contexts(Word word, const std::vector<Context> &contexts) {
     return word;
 }
 void rebase(Transition &result, const Work &work) {
+    const Int next_depth = checked_add(work.depth, 1);
     for (auto &child : result.children) {
         restore_contexts(child.contexts, work);
         child.bottom_labels = relabel_ports(child.bottom_labels, work.bottom_labels);
         child.top_labels = relabel_ports(child.top_labels, work.top_labels);
         set_coefficient(child, multiply(work.coefficient, child.coefficient));
-        child.depth = checked_add(work.depth, 1);
+        child.depth = next_depth;
     }
     for (auto &item : result.output) {
         restore_contexts(item.components, work);
