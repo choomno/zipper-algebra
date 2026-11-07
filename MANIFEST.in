@@ -38,3 +38,5 @@ prune build
 prune dist
 
 exclude CONTRIBUTING.md CONTRIBUTING.MD
+
+include docs/zipper-descending-peeling.md

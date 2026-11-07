@@ -12,6 +12,8 @@ calculations, and equality of cost. General trace invariance is false; see the
 | Far commutations within that family | Equal output and logical transition count. |
 | Idle-strand inclusions and translations | See the source-level [separation argument](zipper-block-separation.md) and its stated proof dependencies. |
 | Disconnected support blocks | See the ordered product and reconstruction statement in the [separation argument](zipper-block-separation.md). |
+| Initial descending strands with the same literal core and peeled top ports | Equal full output; [peeling theorem and exact cost](zipper-descending-peeling.md). |
+| Far swap disappearing under that peeling | Equal output and logical cost, even with repeated indices. |
 | Far swap of indices each used once | Unproved output-invariance candidate; not calculation correspondence. |
 | Adjacent inverse cancellation | Unproved output-invariance candidate; transition counts need not agree. |
 | Reflection, reversal, crossing-sign inversion | No general termwise output or calculation symmetry; examples below. |
@@ -198,6 +200,43 @@ Simpler restrictions already fail: even all-positive words `(1,3,2,3)` and
 a swap to a prefix or suffix does not suffice. All-negative B4 words survived
 142 tested far swaps through length five as output equalities, but 42 of
 these pairs had different transition counts; this is also only a candidate.
+
+## Further proof attempt and broader candidate
+
+The single-use conjecture remains open. A further sampled stress campaign
+completed 1,355 distinct pairs with identical exact full outputs and left 16
+pairs unresolved under resource limits. It includes B5 and B6 words of lengths
+6 through 10. Six selected heavy certificates passed both independent C++ and
+Python replay. These counts are for this campaign, deduplicated across its
+five databases; they are not claimed disjoint from all earlier searches.
+
+For `i<j-1`, write the conjectured pair as
+`U sigma_i^e sigma_j^f V` and `U sigma_j^f sigma_i^e V`.
+Both U and V omit i,j and lie in the interval parabolic product
+`B_i x B_(j-i) x B_(n-j)`. The missing statement is invariance of the
+controller's terminal formal sum under interchanging these two boundary
+attachments, with arbitrary permitted internal histories of all three blocks.
+The attachments exchange original strands; subsequent crossings need not
+preserve the original color blocks. Thus the disconnected-support theorem
+does not supply this relative statement. Growing sliders can interact with
+both attachments, and rewrites can recreate the supposedly unique indices.
+Input uniqueness alone is not an inductive invariant. An independent Opus
+proof review also left this relative interchange statement unresolved.
+
+A stronger candidate allows `U C V`, where U,V omit i,j and C contains only
+signed i,j letters, possibly repeated. Reorder C while preserving each
+index's signed subsequence. This includes the single-use conjecture.
+A sampled campaign completed 429 pairs with equal full outputs; one pair
+remained resource-limited. Of the equal pairs, 343 had different transition
+counts. No general proof has been obtained.
+
+There is a separate proved sufficient condition: the
+[descending-prefix peeling theorem](zipper-descending-peeling.md). If at least
+one of the swapped crossings disappears when the certified descending bottom
+strands are deleted, the retained words agree literally, so full outputs and
+logical transition counts agree. This allows repeated indices and arbitrary
+branching cores, but does not contain every single-use case. When both swapped
+crossings survive, it reduces the question to the retained core.
 
 ## Free inverse cancellation: evidence, not a theorem
 
