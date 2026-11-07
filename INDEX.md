@@ -29,6 +29,7 @@ The maintained implementation is installed from `src/zipper_algebra/`.
 | `docs/zipper-output-identifications.md` | Proved output identifications for already layered strands, exact cost formulas, and explicitly unproved candidates. |
 | `docs/zipper-descending-peeling.md` | Initial singleton peeling, arbitrary retained cores, exact transition count, and a repeated-index far-commutation corollary. |
 | `docs/zipper-geometric-layer-persistence.md` | Geometric layer counterexample with exact expansion and the separate completed-slider preservation statement. |
+| `docs/zipper-census-baselines.md` | Exact current-procedure and revised-procedure computation baselines, recursive coverage, and SQLite reproduction. |
 | `execution/` | Solver configuration, execution, SQLite storage, native dependency identities and verified publication. |
 | `provenance.py` | Source revisions, local changes and input/source hashes for outputs. |
 | `cli.py` | Installed commands and their exit statuses. |

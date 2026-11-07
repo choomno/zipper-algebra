@@ -41,3 +41,6 @@ exclude CONTRIBUTING.md CONTRIBUTING.MD
 
 include docs/zipper-descending-peeling.md
 include docs/zipper-geometric-layer-persistence.md docs/figures/geometric-layer-counterexample.svg
+include docs/zipper-census-baselines.md
+include experiments/zipper_reduced_trace_counts.py
+include experiments/zipper_artin_baseline_counts.py

@@ -11,6 +11,10 @@ combinatorial normal form is correct, but it does not identify the existing
 procedure's outputs or costs: see the [exact counterexample](TRACE_EXECUTION_COUNTEREXAMPLE.md).
 The two enumeration domains are recorded separately in SQLite identities.
 
+For the smaller proved residual domain and separately defined canonicalizing
+procedures, see [census baselines](zipper-census-baselines.md). The existing
+runner and its ordinal convention are unchanged.
+
 ## Input coverage theorem
 
 Let `w` be a literal word in the signed generators of `B_n`. Define its support
