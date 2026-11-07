@@ -23,6 +23,10 @@ The maintained implementation is installed from `src/zipper_algebra/`.
 | `verification/gap.py` | Export standalone generic cofactor identities for independent expansion in GAP. |
 | `zipping_algorithm/`, `native/zipper_engine/` | Literal-word zipper engines, exact collection, packed C++ execution, and independent Python replay. See the [native engine guide](docs/ZIPPING_NATIVE.md). |
 | `native/zipper_verifier/`, `zipping_algorithm/native_verifier.py` | Separate C++ replay verifier using GMP and complete JSON states. See the [independent verifier guide](docs/ZIPPING_NATIVE_VERIFIER.md). |
+| `zipping_algorithm/essential_enumeration.py`, `zipping_algorithm/word_coverage.py` | Direct enumeration of full-support signed trace representatives and independently checked input decompositions. See [scope and proof obligations](docs/essential-enumeration.md). |
+| `docs/TRACE_EXECUTION_COUNTEREXAMPLE.md` | Exact counterexample to trace-invariance of the existing procedure's formal output and computation cost. |
+| `docs/zipper-block-separation.md` | Separation proof for disconnected inputs, with packet and catalog lemmas, normalization, exact collection, and inclusion corollaries. |
+| `docs/zipper-output-identifications.md` | Proved output identifications for already layered strands, exact cost formulas, and explicitly unproved candidates. |
 | `execution/` | Solver configuration, execution, SQLite storage, native dependency identities and verified publication. |
 | `provenance.py` | Source revisions, local changes and input/source hashes for outputs. |
 | `cli.py` | Installed commands and their exit statuses. |

@@ -4,6 +4,10 @@ include .github/workflows/ci.yml
 recursive-include src/zipper_algebra *.py
 recursive-include src/zipper_algebra/zipping_algorithm/data *.json
 include docs/ZIPPING_REFERENCE.md docs/ZIPPING_NATIVE.md docs/ZIPPING_NATIVE_VERIFIER.md
+include docs/essential-enumeration.md
+include docs/zipper-block-separation.md docs/TRACE_EXECUTION_COUNTEREXAMPLE.md
+include docs/zipper-catalog-equivariance.md docs/zipper-packet-contiguity.md
+include docs/zipper-output-identifications.md
 include docs/TESTING.md docs/X3_REPRODUCTION.md docs/x3-reproduction-files.json
 include docs/RECONSTRUCTION.md docs/MINIMAL_POLYNOMIALS.md docs/GENERIC_PRODUCTION.md
 include docs/PROVENANCE.md docs/POLYNOMIAL_UNTWISTINGS.md docs/PARAMETER_FIELDS.md
