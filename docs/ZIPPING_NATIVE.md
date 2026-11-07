@@ -21,6 +21,10 @@ Native arithmetic results are accepted by comparing the full output, pending
 frontier, diagnostics, deterministic metrics, and enabled trace with that replay.
 The native backend has its own source and executable provenance.
 
+The census also supports a separate [C++/GMP replay verifier](ZIPPING_NATIVE_VERIFIER.md)
+with `--verifier cpp`. It implements its own transitions, collection, and
+scheduler; it does not call the producer's mathematical code.
+
 ## Build and run
 
 A GCC-compatible C++17 compiler, Boost headers, and OpenSSL development
@@ -108,6 +112,6 @@ should be interpreted as a universal speedup or complexity theorem.
 - `scheduler.cpp`: stable atomic batches, exact collection and transition reuse.
 - `main.cpp`: persistent process interface.
 
-The Python implementation remains the independent verifier and historical replay
-reference. The native engine is the default production path; the SQLite runner
-records native source/build identities and independent verification provenance.
+The Python implementation remains the historical replay reference and the
+default checker. The SQLite runner can explicitly select the independent C++
+checker and records its source/build identities and verification provenance.

@@ -1,7 +1,7 @@
 """Exhaust literal words with collected arithmetic and independent rank prefixes.
 
 One parent writes one SQLite database. Each spawned worker retains a C++
-NativeSession and a separate Python verification session. It reduces one literal
+NativeSession and a separate Python or C++ verification session. It reduces one literal
 word, JSON-reloads it and independently replays the complete calculation before
 returning it. Python production modes remain available for historical replay.
 Certificates are stored as zlib-compressed
@@ -67,6 +67,9 @@ from zipper_algebra.zipping_algorithm.interpreter import Limits
 CODEC = 'zlib-utf8-json-v1'
 CHECK = 'json-roundtrip-exact-serial-replay-v2'
 NATIVE_CHECK = 'json-roundtrip-independent-python-cached-replay-v1'
+CPP_CHECK = 'json-roundtrip-independent-cpp-cached-replay-v1'
+VERIFIER_BUILD_FIELDS = ('abi','binary_sha256','compiler','compiler_version','flags',
+                         'wrapper_source_sha256','link_libraries','libraries')
 NATIVE_BUILD_FIELDS = ('abi','binary_sha256','compiler','compiler_version','flags',
                        'wrapper_source_sha256','link_libraries')
 DEFAULT_TARGETS = {n:10 for n in range(2,9)}
@@ -145,16 +148,44 @@ def _source(execution):
     return engine.source_identity() if execution == 'native' else engine._source()
 
 
-def identity(batch_size, execution='native'):
+def _verifier_source(backend):
+    if backend == 'cpp':
+        from zipper_algebra.zipping_algorithm import native_verifier
+        return {**native_verifier.source_identity(), 'native_verifier.py':_hash(native_verifier.__file__)}
+    from zipper_algebra.zipping_algorithm import independent_replay
+    return independent_replay.source_identity()
+
+
+def _verifier_build(metadata):
+    return {key:metadata[key] for key in VERIFIER_BUILD_FIELDS}
+
+
+def _verifier_allocator(path):
+    if path is None:return None
+    from zipper_algebra.zipping_algorithm.native_verifier import _allocator_identity
+    return _allocator_identity(Path(path))
+
+
+def _allocator_runtime(identity):
+    return None if identity is None else dict(identity,mapped_verified=True)
+
+
+def identity(batch_size, execution='native', verifier='python', verifier_allocator=None):
     engine = _engine(execution)
     extra = {}
     if execution == 'native':
-        from zipper_algebra.zipping_algorithm import independent_replay
         _, build, _ = engine.build_engine()
         build['wrapper_source_sha256'] = _hash(engine.__file__)
         extra = {'native_build':{key:build[key] for key in NATIVE_BUILD_FIELDS},
                  'python_reference_source_sha256':collected._source(),
-                 'verifier_source_sha256':independent_replay.source_identity()}
+                 'verifier_source_sha256':_verifier_source(verifier)}
+        if verifier == 'cpp':
+            from zipper_algebra.zipping_algorithm import native_verifier
+            _, verifier_build, _ = native_verifier.build_verifier()
+            verifier_build['wrapper_source_sha256']=_hash(native_verifier.__file__)
+            extra.update(verifier_backend='cpp',verifier_build=_verifier_build(verifier_build))
+            if verifier_allocator is not None:
+                extra['verifier_allocator']=_verifier_allocator(verifier_allocator)
     return {'schema':'zipper-versioned-literal-enumeration-v2',
             'algorithm_source_sha256':_source(execution),
             'certificate_schema':{'native':'zipper-native-run-v1','memoized':'zipper-memoized-run-v1',
@@ -163,7 +194,7 @@ def identity(batch_size, execution='native'):
             'catalog_sha256':Catalog.bundled().sha256,'catalog_schema_sha256':SCHEMA_SHA256,
             'runner_sha256':_hash(__file__),'enumeration_sha256':_hash(enumeration.__file__),
             'batch_size':batch_size,'coefficient_ring':'Z[q,q^-1]',
-            'codec':CODEC,'production_check':NATIVE_CHECK if execution=='native' else CHECK,
+            'codec':CODEC,'production_check':(CPP_CHECK if verifier=='cpp' else NATIVE_CHECK) if execution=='native' else CHECK,
             'trace':False,'term_workers':1,**extra}
 
 
@@ -175,11 +206,14 @@ def _assert_source(expected):
             or hashlib.sha256(_data('schema.json')).hexdigest()!=expected['catalog_schema_sha256']):
         raise ValueError('enumeration source or catalog changed')
     if expected.get('execution') == 'native':
-        from zipper_algebra.zipping_algorithm import native, independent_replay
+        from zipper_algebra.zipping_algorithm import native
         if (collected._source()!=expected['python_reference_source_sha256']
-                or independent_replay.source_identity()!=expected['verifier_source_sha256']
+                or _verifier_source(expected.get('verifier_backend','python'))!=expected['verifier_source_sha256']
                 or _hash(native.__file__)!=expected['native_build']['wrapper_source_sha256']):
             raise ValueError('native wrapper or independent verifier source changed')
+        allocator=expected.get('verifier_allocator')
+        if allocator is not None and _verifier_allocator(allocator['path'])!=allocator:
+            raise ValueError('independent verifier allocator identity changed')
 
 
 def _new_session(expected, cache_bytes=64*1024*1024, cache_entries=4096, rule_cache_bytes=4*1024*1024, rule_cache_entries=256):
@@ -202,10 +236,27 @@ def _initialize(limits, expected, cache_bytes, cache_entries, rule_cache_bytes, 
     _session=_new_session(expected,cache_bytes,cache_entries,rule_cache_bytes,rule_cache_entries)
     _verifier=None
     if expected.get('execution')=='native':
-        from zipper_algebra.zipping_algorithm.independent_replay import IndependentVerifier
-        _verifier=IndependentVerifier(cache_bytes=verifier_cache_bytes,cache_entries=verifier_cache_entries,
-                                      rule_cache_bytes=rule_cache_bytes,rule_cache_entries=rule_cache_entries)
-        Finalize(_session,_session.close,exitpriority=10)
+        try:
+            if expected.get('verifier_backend','python') == 'cpp':
+                from zipper_algebra.zipping_algorithm.native_verifier import CppVerifier
+                _verifier=CppVerifier(producer_metadata=_session.metadata,
+                                      cache_bytes=verifier_cache_bytes,cache_entries=verifier_cache_entries,
+                                      allocator_library=(Path(expected['verifier_allocator']['path']) if expected.get('verifier_allocator') else None))
+                if _verifier_build(_verifier.metadata)!=expected['verifier_build']:
+                    raise ValueError('independent verifier build differs from campaign identity')
+                if _verifier.metadata.get('allocator_library')!=_allocator_runtime(expected.get('verifier_allocator')):
+                    raise ValueError('independent verifier allocator differs from campaign identity')
+                Finalize(_verifier,_verifier.close,exitpriority=20)
+            else:
+                from zipper_algebra.zipping_algorithm.independent_replay import IndependentVerifier
+                _verifier=IndependentVerifier(cache_bytes=verifier_cache_bytes,cache_entries=verifier_cache_entries,
+                                              rule_cache_bytes=rule_cache_bytes,rule_cache_entries=rule_cache_entries)
+            Finalize(_session,_session.close,exitpriority=10)
+        except BaseException:
+            try:
+                if _verifier is not None and hasattr(_verifier,'close'):_verifier.close()
+            finally:_session.close()
+            raise
     _worker_limits=Limits(**limits)
     _worker_identity=expected
 
@@ -287,7 +338,8 @@ def _compute(n,word):
     encoded=_json(certificate)
     start=time.perf_counter_ns()
     reloaded=_loads(encoded)
-    accepted=(_verifier.check_native(_session,reloaded) if _verifier is not None else _session.check(reloaded))
+    if _worker_identity.get('verifier_backend')=='cpp':accepted=_verifier.check(reloaded)
+    else:accepted=(_verifier.check_native(_session,reloaded) if _verifier is not None else _session.check(reloaded))
     if accepted is not True:
         raise ValueError('certificate failed exact replay')
     checker=time.perf_counter_ns()-start
@@ -301,12 +353,16 @@ def _compute(n,word):
                'evaluation_scope':'producer-attempted-transitions-including-rolled-back-batches',**_memory_info()}
     if _verifier is not None:
         verifier_after=_cache_info(_verifier)
-        telemetry.update(checker_mode='independent-python-cached-replay',
+        telemetry.update(checker_mode=('independent-cpp-cached-replay' if _worker_identity.get('verifier_backend')=='cpp' else 'independent-python-cached-replay'),
                          verifier_before=verifier_before,verifier_after=verifier_after,
                          verifier_delta=_numeric_delta(verifier_before,verifier_after),
                          verifier_source_sha256=_worker_identity['verifier_source_sha256'],
                          native_pid=_session.pid,native_runtime=_session.last_runtime_info,
                          **_native_memory_info(_session.pid))
+        if _worker_identity.get('verifier_backend')=='cpp':
+            telemetry.update(verifier_pid=_verifier.pid,verifier_build=_verifier_build(_verifier.metadata),
+                             verifier_allocator=_verifier.metadata.get('allocator_library'),
+                             verifier_process_memory=_native_memory_info(_verifier.pid))
     return encoded,producer,checker,telemetry
 
 
@@ -376,7 +432,10 @@ def _configuration_map(db,versions):
             raise ValueError('saved configuration hash/version binding mismatch')
         expected=versions[config['identity_sha256']]
         if expected.get('execution')=='native' and (config.get('execution')!='native'
-                or config.get('verifier_source_sha256')!=expected['verifier_source_sha256']):
+                or config.get('verifier_source_sha256')!=expected['verifier_source_sha256']
+                or config.get('verifier_backend','python')!=expected.get('verifier_backend','python')
+                or config.get('verifier_build')!=expected.get('verifier_build')
+                or config.get('verifier_allocator')!=expected.get('verifier_allocator')):
             raise ValueError('native configuration verifier identity differs from epoch')
         configs[digest]=config
     return configs
@@ -436,22 +495,35 @@ def _validate_runtime(encoded,digest,config=None):
             if (info['max_bytes']!=config['cache_bytes'] or info['max_entries']!=config['cache_entries']
                     or info['bytes']>config['cache_bytes'] or info['entries']>config['cache_entries']):
                 raise ValueError('native cache telemetry differs from configured budgets')
-        if (value.get('checker_mode')!='independent-python-cached-replay'
+        backend=config.get('verifier_backend','python')
+        mode='independent-cpp-cached-replay' if backend=='cpp' else 'independent-python-cached-replay'
+        if (backend not in ('python','cpp') or value.get('checker_mode')!=mode
                 or value.get('verifier_source_sha256')!=config['verifier_source_sha256']
                 or value['verifier_delta']!=_numeric_delta(value['verifier_before'],value['verifier_after'])
                 or type(value.get('native_pid')) is not int or value['native_pid']<1):
             raise ValueError('independent verifier telemetry identity or delta differs')
+        if backend=='cpp' and (type(value.get('verifier_pid')) is not int or value['verifier_pid']<1
+                or value.get('verifier_build')!=config['verifier_build']):
+            raise ValueError('independent C++ verifier build or PID differs')
+        if backend=='cpp':
+            allocator=value.get('verifier_allocator')
+            if (allocator!=_allocator_runtime(config.get('verifier_allocator'))
+                    or allocator is not None and allocator.get('mapped_verified') is not True):
+                raise ValueError('independent C++ verifier allocator identity differs')
         for stage in ('verifier_before','verifier_after'):
-            info=value[stage];rule=info['rule_cache']
+            info=value[stage]
             if (info['max_bytes']!=config['verifier_cache_bytes']
                     or info['max_entries']!=config['verifier_cache_entries']
                     or info['bytes']>config['verifier_cache_bytes']
-                    or info['entries']>config['verifier_cache_entries']
-                    or rule['max_bytes']!=config['rule_cache_bytes']
+                    or info['entries']>config['verifier_cache_entries']):
+                raise ValueError('independent verifier cache differs from configured budgets')
+            if backend=='python':
+                rule=info['rule_cache']
+                if (rule['max_bytes']!=config['rule_cache_bytes']
                     or rule['max_entries']!=config['rule_cache_entries']
                     or rule['retained_bytes']>config['rule_cache_bytes']
                     or rule['entries']>config['rule_cache_entries']):
-                raise ValueError('independent verifier cache differs from configured budgets')
+                    raise ValueError('independent verifier rule cache differs from configured budgets')
     return value
 
 
@@ -716,7 +788,7 @@ def _restore_drain_handler(previous):
 
 def exhaust(output,*,targets=None,workers=8,batch_size=64,wall_seconds=86400,limits=None,
             max_new_words=None,replay_audit=False,audit_only=False,migrate=False,
-            migration_backup=None,execution='native',cache_bytes=256*1024*1024,
+            migration_backup=None,execution='native',verifier='python',verifier_allocator=None,cache_bytes=256*1024*1024,
             cache_entries=262144,rule_cache_bytes=4*1024*1024,rule_cache_entries=256,
             verifier_cache_bytes=256*1024*1024,verifier_cache_entries=262144,
             admission_deadline_utc=None,_executor_factory=_process_pool):
@@ -732,6 +804,10 @@ def exhaust(output,*,targets=None,workers=8,batch_size=64,wall_seconds=86400,lim
         raise ValueError('positive finite wall_seconds required')
     if max_new_words is not None and (type(max_new_words) is not int or max_new_words<0):
         raise ValueError('nonnegative max_new_words required')
+    if verifier not in ('python','cpp') or (execution!='native' and verifier!='python'):
+        raise ValueError('C++ verification requires native execution; verifier must be python or cpp')
+    if verifier_allocator is not None and (execution!='native' or verifier!='cpp'):
+        raise ValueError('verifier allocator requires native execution with C++ verification')
     deadline=None
     if admission_deadline_utc is not None:
         try:
@@ -746,9 +822,9 @@ def exhaust(output,*,targets=None,workers=8,batch_size=64,wall_seconds=86400,lim
     if not isinstance(limits,Limits):raise ValueError('limits must be a Limits record')
     if audit_only:
         if migrate:raise ValueError('audit-only cannot migrate a database')
-        expected=identity(batch_size,execution) if replay_audit else None
+        expected=(identity(batch_size,execution) if verifier=='python' else identity(batch_size,execution,verifier,verifier_allocator)) if replay_audit else None
         return _read_only_audit(output,expected=expected,replay=replay_audit)
-    expected=identity(batch_size,execution)
+    expected=(identity(batch_size,execution) if verifier=='python' else identity(batch_size,execution,verifier,verifier_allocator))
     output=Path(output);output.mkdir(parents=True,exist_ok=True);database=output/'words.sqlite3'
     config={'targets':targets,'workers':workers,'max_in_flight':2*workers,
             'per_rank_window':'ceil_global_window_over_active_ranks','limits':asdict(limits),
@@ -758,7 +834,11 @@ def exhaust(output,*,targets=None,workers=8,batch_size=64,wall_seconds=86400,lim
             'rule_cache_bytes':rule_cache_bytes,'rule_cache_entries':rule_cache_entries,
             'verifier_cache_bytes':verifier_cache_bytes,'verifier_cache_entries':verifier_cache_entries,
             'python':sys.version,'created_utc':datetime.now(timezone.utc).isoformat()}
-    if execution=='native':config['verifier_source_sha256']=expected['verifier_source_sha256']
+    if execution=='native':
+        config['verifier_source_sha256']=expected['verifier_source_sha256']
+        if verifier=='cpp':
+            config.update(verifier_backend='cpp',verifier_build=expected['verifier_build'])
+            if 'verifier_allocator' in expected:config['verifier_allocator']=expected['verifier_allocator']
     config_sha=_sha(_json(config));lock=(output/'.parallel.lock').open('a+')
     try:fcntl.flock(lock.fileno(),fcntl.LOCK_EX|fcntl.LOCK_NB)
     except BlockingIOError as error:
@@ -945,6 +1025,8 @@ def main():
     parser.add_argument('--audit-only',action='store_true');parser.add_argument('--status',action='store_true')
     parser.add_argument('--migrate',action='store_true');parser.add_argument('--migration-backup')
     parser.add_argument('--execution',choices=('native','memoized','collected'),default='native')
+    parser.add_argument('--verifier',choices=('python','cpp'),default='python')
+    parser.add_argument('--verifier-allocator')
     parser.add_argument('--cache-bytes',type=int,default=256*1024*1024)
     parser.add_argument('--cache-entries',type=int,default=262144)
     parser.add_argument('--verifier-cache-bytes',type=int,default=256*1024*1024)

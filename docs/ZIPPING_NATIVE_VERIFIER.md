@@ -50,6 +50,12 @@ python -c 'from zipper_algebra.zipping_algorithm.native_verifier import build_ve
 
 Native verification is an explicit API. The running census configuration retains
 its recorded checker and source identity until an explicit, versioned migration.
+The census runner accepts `--verifier cpp` and optionally
+`--verifier-allocator /path/to/libtcmalloc_minimal.so.4`. Changing an existing
+campaign's checker requires draining its writer, then `--migrate` with a fresh
+`--migration-backup` path. Historical certificates retain their original epochs;
+the new epoch binds verifier code, build, and allocator identity. The Python
+checker remains available with `--verifier python`.
 
 `check()` accepts an exactly reproduced bounded prefix as well as a completed
 calculation. Inspect the certificate's `status` when completion is required.
