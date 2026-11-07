@@ -14,6 +14,8 @@ calculations, and equality of cost. General trace invariance is false; see the
 | Disconnected support blocks | See the ordered product and reconstruction statement in the [separation argument](zipper-block-separation.md). |
 | Initial descending strands with the same literal core and peeled top ports | Equal full output; [peeling theorem and exact cost](zipper-descending-peeling.md). |
 | Far swap disappearing under that peeling | Equal output and logical cost, even with repeated indices. |
+| Arbitrary geometrically separated internal braids | Original partition need not persist: [exact three-strand counterexample](zipper-geometric-layer-persistence.md). |
+| Already zipped topmost active slider | Frozen by extraction; [precise reached-state statement](zipper-geometric-layer-persistence.md#preservation-of-an-already-completed-slider). |
 | Far swap of indices each used once | Unproved output-invariance candidate; not calculation correspondence. |
 | Adjacent inverse cancellation | Unproved output-invariance candidate; transition counts need not agree. |
 | Reflection, reversal, crossing-sign inversion | No general termwise output or calculation symmetry; examples below. |

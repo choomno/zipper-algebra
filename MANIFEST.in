@@ -40,3 +40,4 @@ prune dist
 exclude CONTRIBUTING.md CONTRIBUTING.MD
 
 include docs/zipper-descending-peeling.md
+include docs/zipper-geometric-layer-persistence.md docs/figures/geometric-layer-counterexample.svg
