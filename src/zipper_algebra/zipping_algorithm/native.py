@@ -21,11 +21,14 @@ import subprocess
 import tempfile
 from threading import Lock
 from time import perf_counter
-from typing import Any, Iterable, TextIO
+from typing import Any, Iterable, TextIO, TYPE_CHECKING
 
 from . import collected
 from .catalog import Catalog
 from .interpreter import Limits
+
+if TYPE_CHECKING:
+    from .independent_replay import IndependentVerifier
 
 FLAGS = ("-O3", "-std=c++17", "-pthread", "-Wall", "-Wextra")
 ABI = "zipper-native-engine-v1"
@@ -397,9 +400,11 @@ class NativeSession:
         self.last_call_seconds = perf_counter() - started
         return result
 
-    def check(self, certificate: dict[str, Any]) -> bool:
-        """Replay all steps in Python with result caches disabled."""
-        if (certificate.get("schema") != "zipper-native-run-v1"
+    def _validate_certificate_identity(self, certificate: dict[str, Any]) -> None:
+        """Authenticate native producer and independent reference identities."""
+        if (not isinstance(certificate, dict)
+                or certificate.get("schema") != "zipper-native-run-v1"
+                or certificate.get("scope") != "literal_word_native_collected_spanning_procedure"
                 or certificate.get("source_sha256") != self.metadata["source_sha256"]
                 or certificate.get("python_reference_source_sha256") != collected._source()
                 or certificate.get("catalog_sha256") != self._catalog_sha256
@@ -407,6 +412,24 @@ class NativeSession:
                     ("abi", "binary_sha256", "compiler", "compiler_version", "flags",
                      "wrapper_source_sha256", "link_libraries")}):
             raise NativeError("Native certificate source or catalog identity differs")
+    def check(self, certificate: dict[str, Any], *,
+              verifier: IndependentVerifier | None = None, cold: bool = False) -> bool:
+        """Replay independently in Python; retain only Python-computed transitions.
+
+        ``cold=True`` disables both Python cache layers for an audit. An explicit
+        verifier allows a runner to budget and record verifier memory separately.
+        """
+        from .independent_replay import IndependentVerifier
+
+        if type(cold) is not bool or (cold and verifier is not None):
+            raise NativeError("cold must be boolean and cannot accompany a verifier")
+        if not cold:
+            if verifier is None:
+                verifier = getattr(self, "_verifier", None)
+                if verifier is None:
+                    verifier = self._verifier = IndependentVerifier()
+            return verifier.check_native(self, certificate)
+        self._validate_certificate_identity(certificate)
         checker = collected.CollectedSession()
         checker._catalog.configure_rule_cache(max_bytes=0, max_entries=0)
         try:
@@ -431,37 +454,46 @@ class NativeSession:
             self._request({"op": "clear_cache"})
 
     def _close_unlocked(self, *, abort: bool) -> None:
-        """Detach first, then reap only this session's child and close its files."""
-        process, self._process = self._process, None
-        stderr, self._stderr = self._stderr, None
+        """Reap this session's child even if an interrupt arrives during detachment."""
+        process = self._process
+        stderr = None
         try:
+            # Capture and detach under the same cleanup guard. An interrupt
+            # while reading stderr must not strand an already detached child.
+            stderr, self._stderr = self._stderr, None
+            self._process = None
             if process is not None:
-                try:
-                    if abort:
-                        with suppress(OSError):
-                            process.kill()
-                    if process.stdin is not None:
-                        with suppress(OSError, ValueError):
-                            process.stdin.close()
-                    try:
-                        process.wait(timeout=5)
-                    except subprocess.TimeoutExpired:
-                        with suppress(OSError):
-                            process.kill()
-                        process.wait(timeout=5)
-                except BaseException:
-                    # A second interrupt during cleanup must not strand the
-                    # child after its handle has been permanently detached.
-                    with suppress(BaseException):
+                if abort:
+                    with suppress(OSError):
                         process.kill()
-                    with suppress(BaseException):
-                        process.wait(timeout=5)
-                    raise
-                finally:
-                    if process.stdout is not None:
-                        with suppress(OSError, ValueError):
-                            process.stdout.close()
+                if process.stdin is not None:
+                    with suppress(OSError, ValueError):
+                        process.stdin.close()
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    with suppress(OSError):
+                        process.kill()
+                    process.wait(timeout=5)
+        except BaseException:
+            self._process = None
+            if process is not None:
+                with suppress(BaseException):
+                    process.kill()
+                with suppress(BaseException):
+                    process.wait(timeout=5)
+            # If the first stderr read was interrupted, retain and close its
+            # handle on this recovery path as well.
+            if stderr is None:
+                with suppress(BaseException):
+                    stderr, self._stderr = self._stderr, None
+            raise
         finally:
+            if process is not None:
+                for stream in (process.stdin, process.stdout):
+                    if stream is not None:
+                        with suppress(OSError, ValueError):
+                            stream.close()
             if stderr is not None:
                 with suppress(OSError, ValueError):
                     stderr.close()

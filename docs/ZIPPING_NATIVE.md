@@ -1,6 +1,6 @@
 # Native zipper state engine
 
-The optional C++ engine executes complete literal-word zipper calculations.
+The default C++ engine executes complete literal-word zipper calculations.
 It retains native braid-token vectors, Laurent polynomials over arbitrary-precision
 integers, control states, ordered frontiers, and transition caches throughout a
 calculation. Python sends one input request and receives one final certificate.
@@ -8,7 +8,15 @@ Optional traces retain the committed batches and their local rewrite evidence.
 Small event and terminal-record objects remain native JSON values; they do not
 require a Python callback or a text round trip between transitions.
 
-The existing Python collected executor is the independent replay reference.
+The Python collected executor is the independent replay reference. Its verifier
+retains unit-coefficient transitions computed by Python in a separate bounded
+cache. Keys normalize coefficient and depth, then restore both exactly, while
+retaining all caller geometry, outer contexts, endpoint labels, limits, and trace
+settings. No producer transition or cached result is admitted to that cache.
+The verifier clones catalog rule trees from its own trusted serialized bytes and
+skips unused compact turnaround certificate construction. These optimizations
+preserve the Python transition and geometry checks; native context and label
+factorization is not used by the verifier.
 Native arithmetic results are accepted by comparing the full output, pending
 frontier, diagnostics, deterministic metrics, and enabled trace with that replay.
 The native backend has its own source and executable provenance.
@@ -31,6 +39,8 @@ with NativeSession(cache_entries=262_144, cache_bytes=256 * 1024**2) as session:
         trace=False,
     )
     session.check(result)
+    # Optional audit that disables independent replay caches:
+    session.check(result, cold=True)
 ```
 
 Input words include inverse pairs and are not identified up to braid isotopy.
@@ -44,6 +54,18 @@ per-test timeout:
 ```sh
 PYTHONPATH=src python -c 'from zipper_algebra.zipping_algorithm.native import build_engine; build_engine()'
 ```
+
+The CLI `run` command uses this engine; `run-native` is an explicit alias:
+
+```sh
+python -m zipper_algebra.zipping_algorithm run --n 3 --word '[1,-2,1]' --trace > result.json
+python -m zipper_algebra.zipping_algorithm check result.json
+```
+
+`run-reference`, `run-collected`, and `run-memoized` retain the Python reference
+routes and their historical certificate schemas. Existing census databases must
+be upgraded with the runner's explicit `--migrate` operation after their previous
+writer stops; historical records keep their original source identities.
 
 A session retains the parsed catalog and native transition cache across inputs.
 Cache keys retain rank, active geometry, control, boundary factors, limits, and
@@ -81,4 +103,6 @@ should be interpreted as a universal speedup or complexity theorem.
 - `scheduler.cpp`: stable atomic batches, exact collection and transition reuse.
 - `main.cpp`: persistent process interface.
 
-The frozen Python engine and running census remain independently usable.
+The Python implementation remains the independent verifier and historical replay
+reference. The native engine is the default production path; the SQLite runner
+records native source/build identities and independent verification provenance.

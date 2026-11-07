@@ -26,46 +26,49 @@ evidence about the implementation.
 
 ## Run a literal braid word
 
-For calculations with collection after every rewrite batch, use the collected
-executor. It combines identical continuation states over $\mathbb Z[q,q^{-1}]$
-and removes zero coefficients before further rewriting. Independent terms
-within each batch can run in separate processes:
+The default `run` command uses the packed C++ engine. It retains braid words,
+exact Laurent coefficients, continuation states, collection, and scheduling in
+native memory for the complete calculation. All eligible slider sizes remain
+enabled. The Python reference independently verifies saved results.
 
 ```sh
-python -m zipper_algebra.zipping_algorithm run-collected --n 3 --word '[1,2,1,2]' --workers 4 --batch-size 64 > collected.json
-python -m zipper_algebra.zipping_algorithm check collected.json
+python -m zipper_algebra.zipping_algorithm run --n 3 --word '[1,2,1,2]' --batch-size 64 > run.json
+python -m zipper_algebra.zipping_algorithm check run.json
 ```
 
-In Python, `CollectedSession` in `zipper_algebra.zipping_algorithm.collected`
-provides `reduce` and `check`; `reduce_word` is the one-shot entry point. Use a
-standard `if __name__ == "__main__":` guard around a script that starts workers.
-`trace=True` records the actual batch rewrites and collection updates.
+`run-native` is an explicit alias for `run`. Both accept `--trace`, `--limits`,
+`--batch-size`, `--cache-bytes`, and `--cache-entries`. Their cache budgets count
+estimated stored payload; process memory also includes frontiers and temporary
+values. C++17, Boost headers, and OpenSSL development files are required. See
+[the native engine guide](ZIPPING_NATIVE.md) for build and Python usage.
 
-For bounded reuse across terms and inputs, use `MemoizedSession` in
-`zipper_algebra.zipping_algorithm.memoized`, or:
+In Python, `NativeSession` in `zipper_algebra.zipping_algorithm.native` provides
+`reduce`, `check`, and persistent transition caches. Its producer uses intrinsic
+transition keys and restores caller contexts, endpoint labels, coefficients,
+and depth exactly. Each literal input has its own formal sum.
 
-```sh
-python -m zipper_algebra.zipping_algorithm run-memoized --n 3 --word '[1,2,1,2]' --cache-bytes 67108864 --cache-entries 4096 > memoized.json
-python -m zipper_algebra.zipping_algorithm check memoized.json
-```
+The independent verifier executes the Python reference and retains a separate
+cache of transitions it computes itself. For cache lookup it sets the coefficient
+to one and depth to zero, then restores their exact values after replay. Keys
+retain the full caller geometry, outer contexts, endpoint labels, resource limits,
+and trace setting. The verifier does not factor out contexts or labels, and no
+native transition or producer cache entry populates its cache. Its catalog clones
+rule trees from trusted bytes serialized inside the verifier process; external
+certificates are never deserialized with that mechanism. Compact replay omits
+unused turnaround certificate construction while retaining the geometric checks.
+Exact comparisons include outputs, pending states, diagnostics, deterministic
+metrics, and optional traces. `session.check(result, cold=True)` uses uncached
+Python collected replay for an additional audit.
+Independent word processes can each retain a native session and verifier; each
+native session currently runs one thread.
 
-The session reuses coefficient-free local transitions of complementary
-subproblems. It retains active words, rank, frames, boundary factors, and control
-history in the key. Previously extracted outer contexts and endpoint names are
-restored by explicit lifting and relabeling; incoming coefficients are multiplied
-afterward. This caches intrinsic transition results, rather than entire completed
-complement normal forms. Results from distinct input words are never added
-together. The recursive rule-family cache shares parameterized BM syntax across
-band widths while preserving exact size-dependent coefficients and exceptional
-two-strand cases.
-
-`cache_info()` reports runtime hits, misses, actual evaluations, evictions, and
-retained bytes separately from the certificate's logical rule counts. Unit and
-rule caches have independent byte/entry budgets. Those budgets count encoded
-cache storage, not process RSS or temporary calculation memory. Eviction causes
-recomputation; it never deletes a calculation term. All eligible slider sizes
-through the input rank remain enabled. The memoized checker executes unfactored
-states with both acceleration caches disabled.
+Explicit Python reference commands remain available for historical certificates
+and differential testing: `run-reference` executes the uncollected procedure,
+`run-collected` collects after each batch, and `run-memoized` uses the Python
+intrinsic transition cache. Their module APIs are unchanged. The old CLI `run`
+behavior is now named `run-reference`; the default output schema is
+`zipper-native-run-v1`. The generic `check` command dispatches by certificate
+schema and requires the matching source and build identities.
 
 The uncollected reference example is:
 
@@ -460,22 +463,24 @@ entry point. Its tests cover out-of-order worker completion, interruption at an
 incomplete word, exceptions, resume, source binding, exclusive writer ownership,
 and a real process-pool run. The Unix-lock tests are skipped on Windows.
 
-### Exhaustive collected campaigns
+### Exhaustive native campaigns
 
 ```sh
-python experiments/zipper_exhaustive_collected.py runs/collected --targets '{"2":10,"3":10,"4":10,"5":10,"6":10,"7":10,"8":10}' --workers 8 --wall-seconds 86400
+python experiments/zipper_exhaustive_collected.py runs/native --execution native --targets '{"2":10,"3":10,"4":10,"5":10,"6":10,"7":10,"8":10}' --workers 8 --wall-seconds 86400
 ```
 
 This runner enumerates every literal signed word in increasing length and
-ordinal within each rank, including unreduced inputs. Eight independent-word
-workers each use the collected executor with one term worker. Each rank has
+ordinal within each rank, including unreduced inputs. Each independent-word
+worker retains a C++ session and a separate exact Python verifier. Each rank has
 its own consecutive cursor; its first incomplete word pauses that rank while
 other ranks continue. Increasing computation limits retries that exact word.
 Targets can be extended on resume without changing the source identity.
 
 One parent writes `words.sqlite3`, with compressed JSON certificates, hashes,
 inputs, timings, limits, replay provenance, and per-rank cursors. Every new
-certificate undergoes JSON reload and exact serial replay before storage.
+certificate undergoes JSON reload and independent exact replay before storage.
+Verifier transitions are reused only from its own prior computations; producer
+and verifier cache counters and memory budgets are recorded separately.
 Resume checks all saved hashes and input/configuration/cursor bindings;
 `--replay-audit` additionally repeats the saved arithmetic. `summary.json` is
 updated during the run and distinguishes completed layers from partial ones.
@@ -483,8 +488,10 @@ The wall budget stops admission between words; bounded in-flight work may
 finish afterward. An exclusive lock prevents a second writer. Unregistered
 source changes are refused; explicit version migration is described below.
 
-The versioned runner also supports `--execution memoized`, the unit-cache
-options above, and `--rule-cache-bytes` / `--rule-cache-entries`. It limits
+The versioned runner defaults to `--execution native`. Explicit
+`--execution collected` and `--execution memoized` retain historical reproduction
+paths. Production and verification cache limits are exposed separately; consult
+`--help` for the current options. It limits
 speculative occupancy per rank as well as globally. At the wall deadline it
 stops submissions and drains admitted consecutive results before exiting.
 Snapshots distinguish running, paused, and completed campaigns. `--status`

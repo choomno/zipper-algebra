@@ -276,7 +276,7 @@ def _zip_step(
             _pass_work(_common(work), work["phase"], b) for b in following.branches
         ], evidence
     turned, certificate = turnaround(
-        branch, n=n, catalog=catalog, limits=limits, trace=trace
+        branch, n=n, catalog=catalog, limits=limits, trace=trace, _want_certificate=trace
     )
     cc, exterior, protected, tail = turnaround_parts(
         turned, n=n, budget=limits.max_word_size
