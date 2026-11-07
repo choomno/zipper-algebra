@@ -242,3 +242,45 @@ def test_wrapper_comparator_is_bound_in_verifier_identity():
 
     assert independent_replay.source_identity()["native.py"] == hashlib.sha256(
         Path(native.__file__).read_bytes()).hexdigest()
+
+
+def test_close_interrupt_without_process_still_closes_stderr():
+    import io
+    from threading import Lock
+
+    class Interrupted(native.NativeSession):
+        @property
+        def _stderr(self):
+            if self.interrupt:
+                self.interrupt = False
+                raise KeyboardInterrupt
+            return self.saved
+
+        @_stderr.setter
+        def _stderr(self, value):
+            self.saved = value
+
+    session = object.__new__(Interrupted)
+    session._process = None
+    session._lock = Lock()
+    stream = session._stderr = io.StringIO()
+    session.interrupt = True
+    with pytest.raises(KeyboardInterrupt):
+        session.close()
+    assert stream.closed and session._process is None
+
+
+def test_close_interrupt_after_stderr_capture_reaps_and_closes():
+    import io
+    from threading import Lock
+    from unittest.mock import Mock
+
+    session = object.__new__(native.NativeSession)
+    session._lock = Lock()
+    session._process = process = Mock(stdin=None, stdout=None)
+    process.wait.side_effect = [KeyboardInterrupt, None]
+    session._stderr = stream = io.StringIO()
+    with pytest.raises(KeyboardInterrupt):
+        session.close()
+    process.kill.assert_called_once_with()
+    assert process.wait.call_count == 2 and stream.closed and session.pid is None

@@ -88,6 +88,11 @@ timings, and their sums. Native reduction time includes request encoding, proces
 communication, native computation, final certificate encoding, and response
 decoding. Compilation and initialization are recorded separately.
 
+`experiments/zipper_verification_benchmark.py` compares independent retained
+verification against fresh uncached Python replay on explicit literal inputs.
+Its SQLite store retains compressed certificates, producer and verifier source
+identities, separate timings, and verifier cache statistics.
+
 Measurements must identify the source epoch, limits, batch size, trace policy,
 and cache policy. Complete outputs and bounded prefixes are distinguished.
 Concurrent census load and repeated-input cache reuse affect timings; neither

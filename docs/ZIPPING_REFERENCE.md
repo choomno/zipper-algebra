@@ -497,6 +497,12 @@ stops submissions and drains admitted consecutive results before exiting.
 Snapshots distinguish running, paused, and completed campaigns. `--status`
 and `--audit-only` are read-only.
 
+On POSIX, send `SIGUSR1` to the recorded parent PID to stop admissions and
+drain checked results before restarting or migrating.
+`--admission-deadline-utc` accepts an absolute UTC timestamp (for example,
+`2026-11-07T17:56:22Z`); it remains effective across startup auditing and
+backup creation. The relative `--wall-seconds` budget is an additional limit.
+
 To upgrade an existing database, first stop its writer. Explicit `--migrate`
 audits its saved bindings, creates a backup, and registers a new source version
 atomically. Historical identities, configurations, and completed certificates
