@@ -47,10 +47,18 @@ def check():
         subprocess.run(
             [sys.executable, "-I", "-c",
              "from zipper_algebra.zipping_algorithm.native import NativeSession; "
+             "from zipper_algebra.zipping_algorithm.native_verifier import CppVerifier; "
+             "from zipper_algebra.zipping_algorithm.interpreter import Limits; "
              "session = NativeSession(); "
              "result = session.reduce([1, -2, 1], n=3, trace=True, batch_size=4); "
              "assert result['status'] == 'complete'; "
-             "assert session.check(result); session.close()"],
+             "assert session.check(result); "
+             "verifier = CppVerifier(producer_metadata=session.metadata); "
+             "assert verifier.check(result); "
+             "prefix = session.reduce([1, -2] * 5, n=3, trace=True, limits=Limits(max_steps=2)); "
+             "assert prefix['status'] == 'incomplete'; "
+             "assert session.check(prefix); assert verifier.check(prefix); "
+             "verifier.close(); session.close()"],
             cwd=directory, check=True,
         )
         report = run("describe", "--n", "3", "--json", cwd=directory)

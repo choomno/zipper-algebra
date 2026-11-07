@@ -25,14 +25,16 @@ PREFIX = "src/zipper_algebra/"
 BUILD_SOURCES = ("MANIFEST.in", "pyproject.toml", "setup.py")
 NATIVE_PREFIX = "native/zipper_engine/"
 NATIVE_PACKAGE = "zipping_algorithm/_native_sources"
+NATIVE_BUNDLES = ((NATIVE_PREFIX, NATIVE_PACKAGE),
+                  ("native/zipper_verifier/", "zipping_algorithm/_verifier_sources"))
 
 
 def native_source_name(name):
     """Recognize only native compilation inputs and their vendored license."""
-    return name.startswith(NATIVE_PREFIX) and (
+    return any(name.startswith(prefix) and (
         name.endswith((".cpp", ".hpp", ".h"))
-        or name == NATIVE_PREFIX + "vendor/nlohmann/LICENSE.MIT"
-    )
+        or name == prefix + "vendor/nlohmann/LICENSE.MIT"
+    ) for prefix, _ in NATIVE_BUNDLES)
 
 
 def _canonical(value):
@@ -237,21 +239,25 @@ def current_source_files(names=None):
     package = Path(__file__).resolve().parent
     candidate = package.parent.parent
     checkout = package.parent.name == "src" and _project(candidate)
-    native = candidate / NATIVE_PREFIX if checkout else package / NATIVE_PACKAGE
+    bundles = {prefix: candidate / prefix if checkout else package / payload
+               for prefix, payload in NATIVE_BUNDLES}
     paths: list[tuple[str, Path, Path]] = []
     if names is None:
         paths.extend((PREFIX + path.relative_to(package).as_posix(), path, package)
                      for path in sorted(package.rglob("*.py")))
-        paths.extend((NATIVE_PREFIX + path.relative_to(native).as_posix(), path, native)
-                     for path in sorted(native.rglob("*"))
-                     if native_source_name(NATIVE_PREFIX + path.relative_to(native).as_posix()))
+        for prefix, native in bundles.items():
+            paths.extend((prefix + path.relative_to(native).as_posix(), path, native)
+                         for path in sorted(native.rglob("*"))
+                         if native_source_name(prefix + path.relative_to(native).as_posix()))
     else:
         for name in names:
             _relative(name)
             if name.startswith(PREFIX) and name.endswith(".py"):
                 paths.append((name, package / name[len(PREFIX):], package))
             elif native_source_name(name):
-                paths.append((name, native / name[len(NATIVE_PREFIX):], native))
+                prefix = next(prefix for prefix in bundles if name.startswith(prefix))
+                native = bundles[prefix]
+                paths.append((name, native / name[len(prefix):], native))
             else:
                 raise ValueError("source rehash names must identify package Python or native files")
     sources = {}
@@ -303,7 +309,7 @@ def capture_provenance(*, extra_sources=()):
     if baseline is not None:
         state, origin = baseline["git"], "build"
         before = baseline["source_files"]
-        compared = {name for name in before.keys() | sources.keys() if name.startswith((PREFIX, NATIVE_PREFIX))} | requested
+        compared = {name for name in before.keys() | sources.keys() if name.startswith((PREFIX, *(prefix for prefix, _ in NATIVE_BUNDLES)))} | requested
         if project is not None:
             compared.update(BUILD_SOURCES)
         changes = [{"path": name, "status": "added" if name not in before else "deleted" if name not in sources else "modified"}

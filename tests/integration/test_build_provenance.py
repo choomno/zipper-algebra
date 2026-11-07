@@ -60,11 +60,12 @@ class TestDistributionProvenance:
             self.check(forged)
 
 
-    def test_native_payload_is_bound_and_extra_changed_or_missing_source_is_rejected(self):
-        path = "zipper_algebra/zipping_algorithm/_native_sources/engine.cpp"
+    @pytest.mark.parametrize("native_prefix,payload", provenance.NATIVE_BUNDLES)
+    def test_native_payload_is_bound_and_extra_changed_or_missing_source_is_rejected(self, native_prefix, payload):
+        path = "zipper_algebra/" + payload + "/engine.cpp"
         content = b"int engine() { return 0; }\n"
         self.files[path] = content
-        key = "native/zipper_engine/engine.cpp"
+        key = native_prefix + "engine.cpp"
         self.metadata["origin"]["source_files"][key] = {
             "bytes": len(content), "sha256": hashlib.sha256(content).hexdigest()}
         self.metadata["origin"]["source_sha256"] = hashlib.sha256(json.dumps(
@@ -178,12 +179,13 @@ class TestSourceArchiveProvenance:
             self.read_metadata()
 
     @pytest.mark.parametrize("mutation", ["modified", "deleted", "added"])
-    def test_native_archive_drift_cannot_inherit_original_origin(self, mutation):
-        path = self.root / "native/zipper_engine/engine.cpp"
+    @pytest.mark.parametrize("native_prefix,payload", provenance.NATIVE_BUNDLES)
+    def test_native_archive_drift_cannot_inherit_original_origin(self, mutation, native_prefix, payload):
+        path = self.root / native_prefix / "engine.cpp"
         path.parent.mkdir(parents=True)
         path.write_text("int engine() { return 0; }\n")
         sources = self.metadata["origin"]["source_files"]
-        sources["native/zipper_engine/engine.cpp"] = provenance.file_identity(path)
+        sources[native_prefix + "engine.cpp"] = provenance.file_identity(path)
         self.metadata["origin"]["source_sha256"] = hashlib.sha256(json.dumps(
             sources, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
         (self.package / "_build_provenance.json").write_text(json.dumps(self.metadata))

@@ -89,22 +89,23 @@ class TestSourceSnapshots(ProvenanceFixture):
         assert original['src/zipper_algebra/__init__.py'] != current['src/zipper_algebra/__init__.py']
         assert current['src/zipper_algebra/new.py'] == source.file_identity(self.package / 'new.py')
 
-    def test_native_sources_keep_identity_across_wheel_layout_and_detect_drift(self):
-        native = self.root / "native/zipper_engine"
+    @pytest.mark.parametrize("native_prefix,payload", source.NATIVE_BUNDLES)
+    def test_native_sources_keep_identity_across_wheel_layout_and_detect_drift(self, native_prefix, payload):
+        native = self.root / native_prefix
         native.mkdir(parents=True)
         source_file = native / "engine.cpp"
         source_file.write_text("int engine() { return 1; }\n")
         (native / "private-notes.txt").write_text("not a build input")
         self.initialize()
         baseline = self.capture()
-        key = "native/zipper_engine/engine.cpp"
+        key = native_prefix + "engine.cpp"
         assert baseline["source_files"][key] == source.file_identity(source_file)
         assert "private-notes" not in json.dumps(baseline)
         installed = self.installed(baseline)
-        shutil.copytree(native, installed / source.NATIVE_PACKAGE)
+        shutil.copytree(native, installed / payload)
         result = self.capture(package=installed)
         assert result["changes_since_build"] == []
-        target = installed / source.NATIVE_PACKAGE / "engine.cpp"
+        target = installed / payload / "engine.cpp"
         target.write_text("int engine() { return 2; }\n")
         assert self.capture(package=installed)["changes_since_build"] == [
             {"path": key, "status": "modified"}]
@@ -114,8 +115,9 @@ class TestSourceSnapshots(ProvenanceFixture):
         assert self.capture(package=installed)["changes_since_build"] == [
             {"path": key, "status": "deleted"}]
 
-    def test_native_symlink_cannot_escape_source_directory(self):
-        native = self.root / "native/zipper_engine"
+    @pytest.mark.parametrize("native_prefix,payload", source.NATIVE_BUNDLES)
+    def test_native_symlink_cannot_escape_source_directory(self, native_prefix, payload):
+        native = self.root / native_prefix
         native.mkdir(parents=True)
         outside = self.root / "external.cpp"
         outside.write_text("int private_value;\n")

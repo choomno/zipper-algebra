@@ -66,7 +66,9 @@ def check(directory, no_isolation=False):
         # executes the installed native engine and compares it with Python.
         subprocess.run([sys.executable, "-c",
                         "from zipper_algebra.zipping_algorithm.native import build_engine; "
-                        "print(build_engine()[0])"], cwd=tree, env=env, check=True)
+                        "print(build_engine()[0]); "
+                        "from zipper_algebra.zipping_algorithm.native_verifier import build_verifier; "
+                        "print(build_verifier()[0])"], cwd=tree, env=env, check=True)
         subprocess.run([sys.executable, "-m", "pytest", "tests"],
                        cwd=tree, env=env, check=True)
         subprocess.run([sys.executable, "ci/check_installed.py"],
