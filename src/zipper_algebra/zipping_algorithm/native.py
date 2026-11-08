@@ -400,6 +400,45 @@ class NativeSession:
         self.last_call_seconds = perf_counter() - started
         return result
 
+    def reduce_reused(self, word: Iterable[int], *, n: int,
+                      limits: Limits | None = None) -> dict[str, Any]:
+        """Complete a literal input using memoized intrinsic continuations.
+
+        The separate result schema contains mathematical output and actual DAG
+        work metrics, never a standalone execution trace. ``max_steps`` bounds
+        expansions performed in this call; warm complete hits do not consume
+        that budget. Complete and transition caches each receive the configured
+        cache budget. The independent verifier must use ``check_reused``.
+        """
+        if type(n) is not int or n < 1:
+            raise NativeError("Positive rank required")
+        if not isinstance(word, (list, tuple)) or any(
+                type(x) is not int or not 1 <= abs(x) < n for x in word):
+            raise NativeError("A literal signed-generator list or tuple in the stated rank is required")
+        bounds = Limits() if limits is None else limits
+        if not isinstance(bounds, Limits):
+            raise NativeError("limits must be a Limits instance")
+        if max(n, *asdict(bounds).values()) > 2**63 - 1:
+            raise NativeError("Rank and limits must fit signed 64-bit coordinates")
+        started = perf_counter()
+        with self._lock:
+            body = self._request({"op": "reduce_reused", "n": n, "word": list(word),
+                                  "limits": asdict(bounds), "trace": False, "batch_size": 1})
+        self.last_runtime_info = body.pop("native_runtime", {})
+        result = _decode_coefficients(body)
+        result.update(n=n, input_word=list(word), coefficient_ring="Z[q,q^-1]",
+                      trace_enabled=False, limits=asdict(bounds),
+                      schema="zipper-native-reuse-v1",
+                      scope="literal_word_native_reused_spanning_procedure",
+                      source_sha256=deepcopy(self.metadata["source_sha256"]),
+                      python_reference_source_sha256=deepcopy(self._reference_source),
+                      catalog_sha256=self._catalog_sha256,
+                      native_build={k: deepcopy(self.metadata[k]) for k in
+                                    ("abi", "binary_sha256", "compiler", "compiler_version", "flags",
+                                     "wrapper_source_sha256", "link_libraries")})
+        self.last_call_seconds = perf_counter() - started
+        return result
+
     def _validate_certificate_identity(self, certificate: dict[str, Any]) -> None:
         """Authenticate native producer and independent reference identities."""
         if (not isinstance(certificate, dict)

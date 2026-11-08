@@ -41,6 +41,16 @@ class VerifierError(ValueError):
     """Invalid certificate, failed independent replay, or process contract."""
 
 
+class VerifierIncomplete(VerifierError):
+    """Independent replay stopped at a resource or control obligation, without deciding equality."""
+
+    def __init__(self, message: str, *, replay_status: str = "incomplete",
+                 replay_diagnostic: Any = None) -> None:
+        super().__init__(message)
+        self.replay_status = replay_status
+        self.replay_diagnostic = deepcopy(replay_diagnostic)
+
+
 class VerifierBuildError(VerifierError):
     """The verifier cannot be built or its source/executable binding differs."""
 
@@ -386,22 +396,29 @@ class CppVerifier:
 
     def check(self, certificate: dict[str, Any]) -> bool:
         """Replay and compare in C++; no producer/Python mathematical fallback."""
-        if not isinstance(certificate, dict):
-            raise VerifierError("Certificate must be an object")
-        _validate_candidate(certificate)
         with self._lock:
+            self.last_result = {}
+            self.last_call_seconds = 0.0
+            if not isinstance(certificate, dict):
+                raise VerifierError("Certificate must be an object")
+            _validate_candidate(certificate)
             self._assert_source()
             started = perf_counter()
             result = self._request({"op": "verify", "certificate": _wire(certificate)})
             self.last_call_seconds = perf_counter() - started
             self.last_result = result
             if result.get("ok") is not True:
+                if result.get("replay_status") == "incomplete":
+                    raise VerifierIncomplete(
+                        str(result.get("error", "Independent C++ replay exhausted its resources")),
+                        replay_diagnostic=result.get("replay_diagnostic"),
+                    )
                 raise VerifierError(str(result.get("error", "Independent C++ replay rejected the certificate")))
             return True
 
     def diagnostic(self, operation: str, **parameters: Any) -> dict[str, Any]:
         """Execute independent replay/transition diagnostics for differential tests."""
-        if operation not in ("replay", "transition"):
+        if operation not in ("replay", "transition", "replay_reused"):
             raise VerifierError("Unknown verifier diagnostic")
         with self._lock:
             self._assert_source()
@@ -409,6 +426,35 @@ class CppVerifier:
             if result.get("ok") is False:
                 raise VerifierError(str(result.get("error", "Verifier diagnostic failed")))
             return result
+
+    def check_reused(self, result: dict[str, Any]) -> bool:
+        """Independently complete and compare a census result, ignoring telemetry.
+
+        This uses the verifier's own transition implementation and bounded cache
+        of complete intrinsic calculations. It does not certify a standalone
+        schedule, trace, or producer resource counters. Limits bound performed
+        completion work; a cache hit still checks restored outputs against the
+        word, term, and exact coefficient limits.
+        """
+        with self._lock:
+            self.last_result = {}
+            self.last_call_seconds = 0.0
+            if not isinstance(result, dict):
+                raise VerifierError("Reused result must be an object")
+            _validate_candidate(result)
+            self._assert_source()
+            started = perf_counter()
+            response = self._request({"op": "verify_reused", "certificate": _wire(result)})
+            self.last_call_seconds = perf_counter() - started
+            self.last_result = response
+            if response.get("ok") is not True:
+                if response.get("replay_status") in ("incomplete", "control_obligation", "unsupported"):
+                    raise VerifierIncomplete(
+                        str(response.get("error", "Independent C++ completion did not finish")),
+                        replay_status=response["replay_status"], replay_diagnostic=response.get("replay_diagnostic"),
+                    )
+                raise VerifierError(str(response.get("error", "Independent C++ completion rejected the result")))
+            return True
 
     def cache_info(self) -> dict[str, Any]:
         with self._lock:

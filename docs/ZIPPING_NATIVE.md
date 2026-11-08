@@ -1,5 +1,11 @@
 # Native zipper state engine
 
+`NativeSession.reduce_reused` provides a separate census evaluation mode that
+caches completed intrinsic continuations. It returns a `zipper-native-reuse-v1`
+result, independently checked with `CppVerifier.check_reused`. The standalone
+`reduce` API retains its execution certificates and optional traces. See
+[census reuse](zipper-census-reuse.md) and [the computation graph](zipper-computation-graph.md).
+
 The default C++ engine executes complete literal-word zipper calculations.
 It retains native braid-token vectors, Laurent polynomials over arbitrary-precision
 integers, control states, ordered frontiers, and transition caches throughout a

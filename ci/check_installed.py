@@ -49,6 +49,7 @@ def check():
              "from zipper_algebra.zipping_algorithm.native import NativeSession; "
              "from zipper_algebra.zipping_algorithm.native_verifier import CppVerifier; "
              "from zipper_algebra.zipping_algorithm.interpreter import Limits; "
+             "from zipper_algebra.zipping_algorithm.normal_form_reconstruction import completed_output; "
              "session = NativeSession(); "
              "result = session.reduce([1, -2, 1], n=3, trace=True, batch_size=4); "
              "assert result['status'] == 'complete'; "
@@ -58,6 +59,9 @@ def check():
              "prefix = session.reduce([1, -2] * 5, n=3, trace=True, limits=Limits(max_steps=2)); "
              "assert prefix['status'] == 'incomplete'; "
              "assert session.check(prefix); assert verifier.check(prefix); "
+             "reused = session.reduce_reused([1, -2, 1], n=3); "
+             "assert verifier.check_reused(reused); "
+             "assert completed_output(reused) == completed_output(result); "
              "verifier.close(); session.close()"],
             cwd=directory, check=True,
         )

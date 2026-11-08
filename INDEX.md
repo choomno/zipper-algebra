@@ -32,6 +32,9 @@ The maintained implementation is installed from `src/zipper_algebra/`.
 | `docs/zipper-current-normal-forms.md` | Current-algorithm input/output conventions, verified reconstruction interfaces, and current-only identifications. |
 | `docs/zipper-rank-two-identification.md` | Proof of exponent-sum invariance of full rank-two outputs, including recursive complements. |
 | `docs/zipper-inverse-cancellation.md` | Open arbitrary-rank cancellation conjecture, precise proof obligations, and conditional workload count. |
+| `docs/zipper-census-reuse.md`, `experiments/zipper_exhaustive_reuse.py` | Resumable SQLite census using checked input reconstruction, completed native calculations, and independent verification. |
+| `docs/zipper-computation-graph.md` | Intrinsic continuation nodes, context restoration, completed-output equality, and separate producer/verifier caches. |
+| `docs/zipper-reuse-performance.md` | Matched exact benchmarks, cold-input regressions, memory use, and Bloom filter evaluation. |
 | `docs/zipper-census-baselines.md` | Separate research comparisons with modified representative procedures; not current-output invariances. |
 | `execution/` | Solver configuration, execution, SQLite storage, native dependency identities and verified publication. |
 | `provenance.py` | Source revisions, local changes and input/source hashes for outputs. |

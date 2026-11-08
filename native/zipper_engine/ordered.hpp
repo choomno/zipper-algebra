@@ -70,7 +70,14 @@ template <class Value> class OrderedMap {
         }
         items_.emplace_back(std::move(key), std::move(value));
         auto last = std::prev(items_.end());
-        index_.emplace(last->first, last);
+        try {
+            index_.emplace(last->first, last);
+        } catch (...) {
+            // Keep list/index membership identical if hashing, key copying,
+            // or allocation fails after the list node has been appended.
+            items_.pop_back();
+            throw;
+        }
     }
     void erase(const std::string &key) {
         auto found = index_.find(key);

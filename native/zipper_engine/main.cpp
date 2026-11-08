@@ -50,7 +50,7 @@ int main() {
                     *catalog, static_cast<size_t>(protocol_int(request.at("cache_entries"))),
                     static_cast<size_t>(protocol_int(request.at("cache_bytes"))));
                 response = {{"abi", abi}, {"ready", true}};
-            } else if (op == "reduce") {
+            } else if (op == "reduce" || op == "reduce_reused") {
                 if (!session)
                     throw EngineError("Native engine is not initialized");
                 const auto n = protocol_int(request.at("n"));
@@ -61,8 +61,13 @@ int main() {
                 if (n < 1 || batch < 1)
                     throw EngineError("Positive rank and batch size required");
                 validate_word(word_from_braid(word), n);
-                response = session->reduce(initial_work(n, word), limits, trace,
-                                           static_cast<size_t>(batch));
+                if (op == "reduce_reused") {
+                    if (trace)
+                        throw EngineError("Completed reuse has no standalone execution trace");
+                    response = session->reduce_reused(initial_work(n, word), limits);
+                } else
+                    response = session->reduce(initial_work(n, word), limits, trace,
+                                               static_cast<size_t>(batch));
                 response["native_runtime"] = session->last_telemetry();
                 response["native_runtime"]["cache"] = session->cache_info();
             } else if (op == "cache_info" || op == "clear_cache") {

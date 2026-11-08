@@ -548,6 +548,19 @@ struct EngineSession::Impl {
         size_t bytes;
         uint64_t input;
     };
+    struct CompletedSum {
+        std::vector<Output> output;
+        size_t bytes = sizeof(std::vector<Output>);
+    };
+    struct CompletedEntry {
+        std::shared_ptr<const CompletedSum> output;
+        size_t bytes;
+        uint64_t input;
+    };
+    OrderedMap<CompletedEntry> completed;
+    size_t completed_bytes = 0, completed_peak_bytes = 0, completed_peak_entries = 0;
+    uint64_t completed_hits = 0, completed_misses = 0, completed_evictions = 0,
+             completed_oversized = 0, completed_cross_input_hits = 0;
     Catalog &catalog;
     size_t max_entries, max_bytes, bytes = 0, peak_bytes = 0, peak_entries = 0;
     uint64_t hits = 0, misses = 0, evictions = 0, oversized = 0, evaluations = 0;
@@ -566,10 +579,23 @@ void EngineSession::clear_cache() {
     p.bytes = p.peak_bytes = p.peak_entries = 0;
     p.hits = p.misses = p.evictions = p.oversized = p.evaluations = 0;
     p.cross_input_hits = p.complement_hits = 0;
+    p.completed.clear();
+    p.completed_bytes = p.completed_peak_bytes = p.completed_peak_entries = 0;
+    p.completed_hits = p.completed_misses = p.completed_evictions = 0;
+    p.completed_oversized = p.completed_cross_input_hits = 0;
 }
 Json EngineSession::cache_info() const {
     const auto &p = *impl_;
     return {
+        {"completed", {{"entries", p.completed.size()}, {"bytes", p.completed_bytes},
+                       {"peak_bytes", p.completed_peak_bytes},
+                       {"peak_entries", p.completed_peak_entries},
+                       {"hits", p.completed_hits}, {"misses", p.completed_misses},
+                       {"cross_input_hits", p.completed_cross_input_hits},
+                       {"evictions", p.completed_evictions},
+                       {"oversized", p.completed_oversized},
+                       {"max_entries", p.max_entries}, {"max_bytes", p.max_bytes},
+                       {"budget_scope", "separate-from-transition-cache"}}},
         {"hits", p.hits},
         {"misses", p.misses},
         {"cross_input_hits", p.cross_input_hits},
@@ -659,5 +685,230 @@ Json EngineSession::reduce(const Work &initial, const Limits &limits, bool trace
     auto result = reduce_collected(initial, impl_->catalog, limits, trace, batch_size, this);
     record_timing("total_seconds", elapsed(start));
     return result;
+}
+// This evaluator distributes the linear continuation over its children and
+// collects every completed sum exactly. The standalone atomic-batch scheduler
+// above is deliberately separate: DFS resource accounting and traces differ.
+Json EngineSession::reduce_reused(const Work &initial, const Limits &limits) {
+    auto &p = *impl_;
+    p.timings.clear();
+    ++p.input;
+    const auto start = Clock::now();
+    struct Frame {
+        std::string key;
+        std::vector<Work> children;
+        size_t next = 0;
+        OrderedMap<Output> output;
+        std::shared_ptr<const Impl::CompletedSum> sole_result;
+    };
+    std::vector<Frame> frames;
+    std::unordered_set<std::string> active;
+    std::shared_ptr<const Impl::CompletedSum> completed;
+    Int expanded = 0, hits = 0, merges = 0, max_stack = 0, max_output = 0;
+    Int live_terms = 0, max_live_terms = 0;
+    std::map<std::string, Int> rules;
+    std::string status = "complete";
+    Json diagnostic = nullptr;
+    auto account = [&](Int delta) {
+        live_terms = checked_add(live_terms, delta);
+        max_live_terms = std::max(max_live_terms, live_terms);
+        if (live_terms > limits.max_terms)
+            throw SchedulerLimit("aggregate active frame term limit exceeded");
+    };
+    auto collect = [&](OrderedMap<Output> &target, const Output &item) {
+        const auto before_size = target.size();
+        check_item(item, limits);
+        auto key = output_key(item);
+        auto value = item;
+        if (const auto *old = target.get(key)) {
+            set_coefficient(value, add(old->coefficient, item.coefficient));
+            merges = checked_add(merges, 1);
+        }
+        check_item(value, limits);
+        if (value.coefficient.empty())
+            target.erase(key);
+        else
+            target.set(std::move(key), std::move(value));
+        if (target.size() > static_cast<size_t>(limits.max_terms))
+            throw SchedulerLimit("completed node term limit exceeded");
+        max_output = std::max(max_output, static_cast<Int>(target.size()));
+        account(static_cast<Int>(target.size()) - static_cast<Int>(before_size));
+    };
+    auto restore = [&](const std::vector<Output> &output, const Work &caller,
+                       OrderedMap<Output> &target) {
+        for (const auto &item : output) {
+            // rebase also restores original endpoint records and extracted
+            // routing/components; every restored coefficient is checked.
+            Transition lifted;
+            lifted.output.push_back(item);
+            rebase(lifted, caller);
+            collect(target, lifted.output.front());
+        }
+    };
+    auto request = [&](const Work &work) -> std::shared_ptr<const Impl::CompletedSum> {
+        check_item(work, limits);
+        auto unit = intrinsic_work(work);
+        check_item(unit, limits);
+        auto key = cache_key(unit, limits, false);
+        if (auto *entry = p.completed.get(key)) {
+            ++p.completed_hits;
+            ++hits;
+            p.completed_cross_input_hits += entry->input != p.input;
+            auto result = entry->output;
+            auto retained = std::move(*entry);
+            p.completed.erase(key);
+            p.completed.set(key, std::move(retained));
+            return result;
+        }
+        if (active.count(key))
+            throw ControlError("cyclic intrinsic continuation detected");
+        if (expanded >= limits.max_steps)
+            throw SchedulerLimit("intrinsic transition evaluation limit exceeded");
+        ++expanded;
+        ++p.completed_misses;
+        auto transition = algorithm_transition(unit, p.catalog, limits, false, false);
+        if (!transition.error.empty()) {
+            status = transition.error;
+            throw ControlError(transition.message);
+        }
+        ++rules[event_rule(transition.event)];
+        if (transition.children.size() + transition.output.size() >
+            static_cast<size_t>(limits.max_terms))
+            throw SchedulerLimit("intrinsic transition term limit exceeded");
+        Frame frame;
+        frame.key = std::move(key);
+        for (const auto &item : transition.output)
+            collect(frame.output, item);
+        OrderedMap<Work> children;
+        for (auto &child : transition.children) {
+            check_item(child, limits);
+            auto key = work_key(child);
+            if (const auto *old = children.get(key)) {
+                set_coefficient(child, add(old->coefficient, child.coefficient));
+                merges = checked_add(merges, 1);
+            }
+            check_item(child, limits);
+            if (child.coefficient.empty())
+                children.erase(key);
+            else
+                children.set(std::move(key), std::move(child));
+        }
+        for (auto &[key, child] : children) {
+            (void)key;
+            frame.children.push_back(std::move(child));
+        }
+        account(static_cast<Int>(frame.children.size()));
+        active.insert(frame.key);
+        frames.push_back(std::move(frame));
+        max_stack = std::max(max_stack, static_cast<Int>(frames.size()));
+        return nullptr;
+    };
+    auto receive = [&](Frame &parent, const std::shared_ptr<const Impl::CompletedSum> &result) {
+        auto &caller = parent.children[parent.next];
+        bool identity = caller.contexts.empty() && caller.coefficient == Laurent{{0, 1}} &&
+                        caller.bottom_labels.size() == static_cast<size_t>(caller.rank) &&
+                        caller.top_labels == caller.bottom_labels;
+        for (size_t i = 0; identity && i < caller.bottom_labels.size(); ++i)
+            identity = caller.bottom_labels[i] == static_cast<Int>(i + 1);
+        if (identity && parent.children.size() == 1 && parent.output.empty()) {
+            // Single-child chains share their immutable completed sum. This
+            // avoids copying a large terminal polynomial at every ancestor.
+            for (const auto &item : result->output)
+                check_item(item, limits);
+            parent.sole_result = result;
+        } else
+            restore(result->output, caller, parent.output);
+        caller = Work{};
+        account(-1);
+        ++parent.next;
+    };
+    try {
+        completed = request(initial);
+        while (!completed) {
+            if (frames.back().next < frames.back().children.size()) {
+                // request can reallocate frames, so never retain a frame
+                // reference across it. The child is copied for the same reason.
+                const Work child = frames.back().children[frames.back().next];
+                auto found = request(child);
+                if (found) {
+                    receive(frames.back(), found);
+                }
+                continue;
+            }
+            auto &frame = frames.back();
+            std::shared_ptr<const Impl::CompletedSum> result = frame.sole_result;
+            if (!result) {
+                auto gathered = std::make_shared<Impl::CompletedSum>();
+                gathered->output.reserve(frame.output.size());
+                for (auto &[key, item] : frame.output) {
+                    gathered->bytes += sizeof(Output) + key.size() + scalar_charge(item.coefficient);
+                    gathered->output.push_back(std::move(item));
+                }
+                result = std::move(gathered);
+            }
+            account(-static_cast<Int>(frame.output.size()));
+            // The immutable polynomial charge is computed once. Single-child
+            // identity chains share both the polynomial and its size estimate.
+            const size_t charge = frame.key.size() + sizeof(Impl::CompletedEntry) + result->bytes;
+            if (p.max_bytes && p.max_entries) {
+                if (charge > p.max_bytes)
+                    ++p.completed_oversized;
+                else {
+                    while (!p.completed.empty() &&
+                           (p.completed.size() >= p.max_entries ||
+                            charge > p.max_bytes - p.completed_bytes)) {
+                        const auto &old = *p.completed.begin();
+                        const auto old_key = old.first;
+                        p.completed_bytes -= old.second.bytes;
+                        p.completed.erase(old_key);
+                        ++p.completed_evictions;
+                    }
+                    p.completed.set(frame.key, Impl::CompletedEntry{result, charge, p.input});
+                    p.completed_bytes += charge;
+                    p.completed_peak_bytes = std::max(p.completed_peak_bytes, p.completed_bytes);
+                    p.completed_peak_entries = std::max(p.completed_peak_entries, p.completed.size());
+                }
+            }
+            active.erase(frame.key);
+            frames.pop_back();
+            if (frames.empty())
+                completed = std::move(result);
+            else {
+                receive(frames.back(), result);
+            }
+        }
+        OrderedMap<Output> restored;
+        restore(completed->output, initial, restored);
+        auto result = std::make_shared<Impl::CompletedSum>();
+        for (auto &[key, item] : restored) {
+            result->bytes += sizeof(Output) + key.size() + scalar_charge(item.coefficient);
+            result->output.push_back(std::move(item));
+        }
+        completed = result;
+    } catch (const LimitExceeded &error) {
+        status = "incomplete";
+        diagnostic = {{"message", error.what()}, {"scope", "reuse-evaluator"}};
+        completed.reset();
+    } catch (const ControlError &error) {
+        if (status == "complete")
+            status = "unsupported";
+        diagnostic = {{"message", error.what()}, {"scope", "reuse-evaluator"}};
+        completed.reset();
+    }
+    Json output = Json::array();
+    if (completed)
+        for (const auto &item : completed->output)
+            output.push_back(output_json(item));
+    record_timing("total_seconds", elapsed(start));
+    return {{"status", status}, {"diagnostic", diagnostic}, {"output", output},
+            {"pending", Json::array()},
+            {"execution", {{"schedule", "intrinsic-completion-dag-v1"},
+                           {"collection", "full-output-except-scalar-v1"},
+                           {"local_term_floor", 4}, {"local_support_floor", 2}}},
+            {"metrics", {{"transition_evaluations", expanded}, {"completed_cache_hits", hits},
+                         {"max_stack", max_stack}, {"max_live_frame_terms", max_live_terms},
+                         {"max_node_output_terms", max_output},
+                         {"merged_terms", merges}, {"output_terms", output.size()},
+                         {"evaluated_rule_applications", rules}}}};
 }
 } // namespace zipper
