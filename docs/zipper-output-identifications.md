@@ -17,7 +17,9 @@ calculations, and equality of cost. General trace invariance is false; see the
 | Arbitrary geometrically separated internal braids | Original partition need not persist: [exact three-strand counterexample](zipper-geometric-layer-persistence.md). |
 | Already zipped topmost active slider | Frozen by extraction; [precise reached-state statement](zipper-geometric-layer-persistence.md#preservation-of-an-already-completed-slider). |
 | Far swap of indices each used once | Unproved output-invariance candidate; not calculation correspondence. |
-| Adjacent inverse cancellation | Unproved output-invariance candidate; transition counts need not agree. |
+| Equal exponent sums in rank-two blocks or recursive rank-two restarts | Equal full output; [rank-two proof](zipper-rank-two-identification.md). Not equal costs or traces. |
+| Adjacent inverse cancellation in general rank | Unproved output-invariance candidate; transition counts need not agree. |
+| Adjacent Artin braid relation | Not full-output invariant: B3 `(1,2,1)` versus `(2,1,2)` gives 18 versus 13 terms. |
 | Reflection, reversal, crossing-sign inversion | No general termwise output or calculation symmetry; examples below. |
 
 The theorem in the next sections is a source-level proof for the existing
@@ -240,7 +242,12 @@ logical transition counts agree. This allows repeated indices and arbitrary
 branching cores, but does not contain every single-use case. When both swapped
 crossings survive, it reduces the question to the retained core.
 
-## Free inverse cancellation: evidence, not a theorem
+## Free inverse cancellation in general rank: evidence, not a theorem
+
+For isolated rank-two inputs and compatible recursive rank-two restarts,
+[exponent-sum output invariance is now proved](zipper-rank-two-identification.md).
+It does not justify canceling an arbitrary two-letter substring interacting
+with other strands in a connected block.
 
 The engine does not freely reduce raw inputs before scanning. In B2,
 `(1,-1)`, `(-1,1)`, and the empty word have identical formal outputs but take
@@ -293,3 +300,21 @@ removes frozen extraction contexts and renames original endpoint labels
 locally, restoring them on return. These are exact state-level reuse rules.
 They do not identify arbitrary initial words before enough computation has
 been performed to reach the matching continuations.
+
+## A current-source Artin-relation obstruction
+
+The positive B3 pair `(1,2,1)` and `(2,1,2)` gives different full terminal sums:
+158 transitions/18 terms versus 127 transitions/13 terms. Native certificates
+for both inputs passed independent C++ replay, and fresh Python reference
+computations gave the same respective full outputs. This is a generic exact
+Laurent-coefficient computation, not a parameter specialization. It disproves
+invariance of the current formal output under the adjacent Artin relation;
+it does not dispute their algebraic equality.
+
+Selected equal-output observations also remain outside the proved input policy:
+`(-2,2,-1)` and `(-1)` agree in full output (95 versus 8 transitions), as do
+`(-2,-1,2)` and `(1,-2,-1)` (29 versus 27 transitions). Both pairs have distinct
+current reconstruction plans, so that plan is a sufficient invariant rather
+than a complete output classifier. All four current native certificates passed
+independent C++ replay and matched fresh reference computations. No general
+cancellation or signed-Artin identification is adopted from these observations.

@@ -11,9 +11,10 @@ combinatorial normal form is correct, but it does not identify the existing
 procedure's outputs or costs: see the [exact counterexample](TRACE_EXECUTION_COUNTEREXAMPLE.md).
 The two enumeration domains are recorded separately in SQLite identities.
 
-For the smaller proved residual domain and separately defined canonicalizing
-procedures, see [census baselines](zipper-census-baselines.md). The existing
-runner and its ordinal convention are unchanged.
+For current-only reductions and exact input/output reconstruction, see
+[the current normal-form interface](zipper-current-normal-forms.md).
+[Modified representative procedures](zipper-census-baselines.md) are separate
+research comparisons. The existing runner and its ordinal convention are unchanged.
 
 ## Input coverage theorem
 

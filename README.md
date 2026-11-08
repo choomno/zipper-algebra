@@ -46,6 +46,11 @@ those records. Alternative encodings and dimension counts require separate
 arguments. Runs support optional traces and checked exhaustive enumeration,
 with exact pending states on limits or defensive control refusals. Finite
 execution checks provide separate implementation evidence.
+The [current input/output interface](docs/zipper-current-normal-forms.md) fixes
+word and endpoint conventions, produces reusable local computation requests,
+and reconstructs full routed outputs from completed results. It uses proved
+current-output identifications; the experimental modified procedures are separate.
+
 The default [C++ zipper engine](docs/ZIPPING_NATIVE.md) retains packed states and
 exact arbitrary-precision coefficients across rewriting, collection, and
 scheduling. Saved results undergo independent Python replay with a separate

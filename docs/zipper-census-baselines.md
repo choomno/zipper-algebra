@@ -1,6 +1,12 @@
-# Smaller census baselines
+# Comparisons with revised representative procedures
 
-Counts below cover strand counts 2 through 8 and word lengths at most 10.
+For current-algorithm identifications and its interchange convention, start
+with [the current normal-form interface](zipper-current-normal-forms.md).
+The modified procedures below are separate research comparisons and are not
+used by that interface. Their large reductions do not preserve all outputs
+of the current algorithm.
+
+The historical counts below cover strand counts 2 through 8 and word lengths at most 10.
 They exclude one globally shared identity case. They count sufficient distinct
 computations, not exact equivalence classes of all possible formal outputs.
 Different ambient inputs still need their endpoint embeddings and reconstruction
