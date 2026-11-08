@@ -31,6 +31,7 @@ The maintained implementation is installed from `src/zipper_algebra/`.
 | `docs/zipper-geometric-layer-persistence.md` | Geometric layer counterexample with exact expansion and the separate completed-slider preservation statement. |
 | `docs/zipper-current-normal-forms.md` | Current-algorithm input/output conventions, verified reconstruction interfaces, and current-only identifications. |
 | `docs/zipper-rank-two-identification.md` | Proof of exponent-sum invariance of full rank-two outputs, including recursive complements. |
+| `docs/zipper-inverse-cancellation.md` | Open arbitrary-rank cancellation conjecture, precise proof obligations, and conditional workload count. |
 | `docs/zipper-census-baselines.md` | Separate research comparisons with modified representative procedures; not current-output invariances. |
 | `execution/` | Solver configuration, execution, SQLite storage, native dependency identities and verified publication. |
 | `provenance.py` | Source revisions, local changes and input/source hashes for outputs. |

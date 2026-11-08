@@ -168,3 +168,7 @@ and passed independent C++ replay; 24 also passed cold Python replay. These
 checks support the general rank-two proof. General-rank inverse cancellation
 and unique-index far-swap invariance remain open. No modified Artin or reduced-
 trace preprocessing is enabled by this interface.
+
+The [inverse-cancellation audit](zipper-inverse-cancellation.md) records the
+remaining proof obligations, additional bounded evidence, and conditional
+counts. Free reduction at arbitrary rank is not enabled.

@@ -45,3 +45,4 @@ include docs/zipper-census-baselines.md
 include experiments/zipper_reduced_trace_counts.py
 include experiments/zipper_artin_baseline_counts.py
 include docs/zipper-current-normal-forms.md docs/zipper-rank-two-identification.md
+include docs/zipper-inverse-cancellation.md
