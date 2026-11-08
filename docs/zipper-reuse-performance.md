@@ -210,3 +210,31 @@ and storage remain material. Future work should target controller-state
 construction and exact output materialization, and investigate when early
 collection can reduce distinct DAG work. None of these measurements changes the
 algorithm's proved word identifications or its asymptotic complexity argument.
+
+## Restart integrity audit
+
+A checkpoint restart exposed a separate cost: the full integrity audit of
+39,578 stored jobs ran beyond a ten-minute admission window before any new word
+was admitted. The runner had started that clock before its startup audit and
+worker initialization. The admission clock now starts after setup; total wall
+time and the audit, setup, and admission/drain durations remain separately
+reported. This prevents a successful but long audit from consuming the entire
+word-processing window.
+
+The audit also normalized each stored terminal sum four times through nested
+validation helpers. It now performs one full structural normalization, validates
+the same source, request, limits, and dependency bindings, and hashes the
+already canonical output with the existing canonical digest helper. Fresh JSON
+parsing uses the coefficient object hook. Tests check digest equality with the
+former public path, including arbitrary-width coefficients, Unicode extension
+data, collection, and cancellation, and reject corrupted payloads and bindings.
+The full audit remains mandatory at startup. It is an integrity check;
+independent mathematical replay still occurs when a stored leaf is reused.
+
+A read-only sample of the newest 256 stored jobs was measured in both orders:
+6.349 to 1.945 seconds for baseline/candidate, then 1.949 seconds candidate and
+6.367 seconds baseline. This is approximately 3.27 times as fast for that audit
+sample. Separate instrumented profiles counted 1,024 versus 256 normalization
+calls and attributed most of the baseline cost to normalization rather than
+enumeration ordinals. These audit measurements are separate from the native
+word-processing benchmarks above and do not predict a whole-store restart time.

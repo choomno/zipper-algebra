@@ -252,3 +252,238 @@ def test_native_low_limits_bootstrap_and_record_incomplete(tmp_path,bounds):
     assert runner._store is None and runner._sessions==()
     assert all(session.pid is None for session in sessions)
     runner._close()
+
+
+def _audit_fixture():
+    import hashlib
+    import zlib
+    from zipper_algebra.zipping_algorithm.census_reuse import _json as stored_json
+    from zipper_algebra.zipping_algorithm.input_normal_form import leaf_requests,input_normal_form
+    from zipper_algebra.zipping_algorithm.output_normal_form import from_certificate,output_fingerprint
+    session=CollectedSession()
+    certificate=session.reduce([1,2,1],n=3)
+    request=leaf_requests(input_normal_form([1,2,1],n=3))[0]
+    encoded=stored_json(certificate).encode()
+    row=(stored_json(request),zlib.compress(encoded),hashlib.sha256(encoded).hexdigest(),
+         output_fingerprint(from_certificate(certificate)))
+    return row,request,execution_identity(certificate),certificate['limits'],certificate
+
+
+def test_audit_leaf_normalizes_once_and_uses_identical_canonical_bytes(monkeypatch):
+    from copy import deepcopy
+    from zipper_algebra.zipping_algorithm.census_reuse import _canonical_digest
+    from zipper_algebra.zipping_algorithm.output_normal_form import canonical_bytes,output_fingerprint
+    row,request,identity,limits,certificate=_audit_fixture()
+    original=runner.completed_output
+    calls=[]
+    def once(value):
+        calls.append(value)
+        return original(value)
+    monkeypatch.setattr(runner,'completed_output',once)
+    runner._audit_leaf(row,request,identity,limits)
+    assert len(calls)==1
+    assert calls[0]==certificate and calls[0] is not certificate
+    for coefficient in (1,-1,1<<20000,-(1<<20000)):
+        changed=deepcopy(certificate)
+        changed['output'][0]['coefficient']=[[0,coefficient]]
+        changed['output'][0]['unicode_extension']='α雪'
+        duplicate=deepcopy(changed['output'][0])
+        canceling=deepcopy(duplicate)
+        canceling['coefficient']=[[0,-coefficient]]
+        changed['output'].extend([duplicate,canceling])
+        normal=original(changed)
+        assert _canonical_digest(normal)==output_fingerprint(normal)
+        assert (json.dumps(normal,sort_keys=True,separators=(',', ':'),ensure_ascii=True,
+                           allow_nan=False).encode('ascii')==canonical_bytes(normal))
+
+
+@pytest.mark.parametrize('mutation',[
+    'payload_digest','output_digest','request_bool','word_bool','word_float','rank_float',
+    'limits_bool','limits_float','source_hash','catalog','execution','pending','partial',
+    'route','ports','coefficient','schema','nonobject',
+])
+def test_optimized_audit_rejects_corrupt_or_misbound_leaves(mutation):
+    import hashlib
+    import zlib
+    from zipper_algebra.zipping_algorithm.census_reuse import _json as stored_json
+    row,request,identity,limits,certificate=_audit_fixture()
+    row=list(row)
+    if mutation=='payload_digest':
+        row[2]='0'*64
+    elif mutation=='output_digest':
+        row[3]='0'*64
+    elif mutation=='request_bool':
+        bad=dict(request,word=[True,2,1])
+        row[0]=runner._json(bad)
+    else:
+        if mutation=='word_bool':
+            certificate['input_word']=[True,2,1]
+        elif mutation=='word_float':
+            certificate['input_word']=[1.0,2,1]
+        elif mutation=='rank_float':
+            certificate['n']=3.0
+        elif mutation=='limits_bool':
+            certificate['limits']=dict(limits,max_steps=True)
+        elif mutation=='limits_float':
+            certificate['limits']=dict(limits,max_steps=float(limits['max_steps']))
+        elif mutation=='source_hash':
+            certificate['source_sha256']=dict.fromkeys(identity['source_sha256'],'x'*64)
+        elif mutation=='catalog':
+            certificate['catalog_sha256']='0'*64
+        elif mutation=='execution':
+            certificate['execution']=dict(certificate['execution'],unknown='policy')
+        elif mutation=='pending':
+            certificate['pending']=[{}]
+        elif mutation=='partial':
+            certificate['status']='incomplete'
+        elif mutation=='route':
+            certificate['output'][0]['components'][0]['top_route']=[999]
+        elif mutation=='ports':
+            certificate['output'][0]['components'][0]['record']['original_top_ports']=[999]
+        elif mutation=='coefficient':
+            certificate['output'][0]['coefficient']=[[0,123456789]]
+        elif mutation=='schema':
+            certificate['schema']='unsupported'
+        else:
+            certificate=[]
+        encoded=stored_json(certificate).encode()
+        row[1]=zlib.compress(encoded)
+        row[2]=hashlib.sha256(encoded).hexdigest()
+    with pytest.raises(ValueError):
+        runner._audit_leaf(row,request,identity,limits)
+
+
+def test_admission_budget_starts_after_audit_and_worker_setup(tmp_path,fake_pool,monkeypatch):
+    clock=[0.0]
+    monkeypatch.setattr(runner,'perf_counter',lambda:clock[0])
+    audit=runner.audit_store
+    def slow_audit(path):
+        clock[0]+=120
+        return audit(path)
+    monkeypatch.setattr(runner,'audit_store',slow_audit)
+    pool_type=runner.ProcessPoolExecutor
+    submit=pool_type.submit
+    def delayed(self,fn,*args):
+        if fn is runner._ready:
+            clock[0]+=30
+        elif fn is runner._evaluate:
+            clock[0]+=6
+        return submit(self,fn,*args)
+    monkeypatch.setattr(pool_type,'submit',delayed)
+    result=runner.run(tmp_path,targets={2:3},wall_seconds=5)
+    assert result['admitted']==1 and result['jobs']=={'complete':1}
+    assert result['audit_seconds']==120
+    assert result['setup_seconds']==150
+    assert result['admission_and_drain_seconds']==6
+    assert result['admission_window_seconds']==5
+    assert result['wall_seconds']==156
+
+
+def test_audit_request_encoding_matches_runtime_exactly():
+    row,request,identity,limits,_=_audit_fixture()
+    row=list(row)
+    row[0]=json.dumps(json.loads(row[0]),indent=2)
+    with pytest.raises(ValueError,match='request mismatch'):
+        runner._audit_leaf(row,request,identity,limits)
+
+
+@pytest.mark.parametrize('mutation',['root_bool','policy_spacing','embedded_policy_float'])
+def test_audit_rejects_root_and_policy_type_or_encoding_corruption(tmp_path,fake_pool,mutation):
+    runner.run(tmp_path,targets={2:1},max_new_words=1)
+    if mutation=='embedded_policy_float':
+        with sqlite3.connect(tmp_path/'census.sqlite3') as db:
+            key,encoded=db.execute('SELECT key,identity FROM reuse_campaigns').fetchone()
+            value=json.loads(encoded)
+            limits=value['worker']['identity']['limits']
+            limits['max_steps']=float(limits['max_steps'])
+            replacement=runner._key(value)
+            db.execute('UPDATE reuse_campaigns SET key=?,identity=? WHERE key=?',
+                       (replacement,runner._json(value),key))
+            for table in ('reuse_jobs','reuse_cursors','reuse_round_robin','reuse_worker_telemetry','reuse_job_attempts'):
+                db.execute(f'UPDATE {table} SET campaign=? WHERE campaign=?',(replacement,key))
+    else:
+        with sqlite3.connect(tmp_path/'shards/worker-0.sqlite3') as db:
+            if mutation=='root_bool':
+                value=json.loads(db.execute('SELECT witness FROM reuse_roots').fetchone()[0])
+                value['root']['top_labels'][0]=True
+                db.execute('UPDATE reuse_roots SET witness=?',(runner._json(value),))
+            else:
+                value=json.loads(db.execute('SELECT payload FROM reuse_policies').fetchone()[0])
+                db.execute('UPDATE reuse_policies SET payload=?',(json.dumps(value,indent=2),))
+    with pytest.raises(ValueError,match='root missing|policy identity'):
+        runner.audit_store(tmp_path)
+
+
+def test_live_admission_does_not_mix_coordinator_read_snapshots(tmp_path,fake_pool,monkeypatch):
+    runner.run(tmp_path,targets={2:3},max_new_words=1)
+    connect=sqlite3.connect
+    path=tmp_path/'census.sqlite3'
+    injected=[]
+    class SnapshotConnection(sqlite3.Connection):
+        def execute(self,sql,parameters=()):
+            cursor=super().execute(sql,parameters)
+            if sql=='SELECT * FROM reuse_cursors' and not injected:
+                injected.append(True)
+                # Commit a genuine new admission after the audit has read the
+                # campaigns, but before its jobs scan. The completed shard rows
+                # it will inspect remain immutable and predate the job commit.
+                with connect(path) as writer:
+                    campaign=writer.execute('SELECT key FROM reuse_campaigns').fetchone()[0]
+                    word=[1,1]
+                    key=runner._key({'n':2,'word':word})
+                    writer.execute('INSERT INTO reuse_jobs VALUES (?,?,?,?,?,?,?)',
+                                   (campaign,key,2,runner._json(word),'running',None,None))
+                    writer.execute('UPDATE reuse_cursors SET length=2,ordinal=? WHERE campaign=? AND n=2',
+                                   ('1',campaign))
+            return cursor
+    monkeypatch.setattr(runner.sqlite3,'connect',lambda *args,**kwargs:
+                        connect(*args,**kwargs,factory=SnapshotConnection))
+    assert runner.audit_store(tmp_path)=={'jobs':1,'complete':1}
+    assert injected==[True]
+    # A subsequent audit gets the next coherent committed snapshot.
+    assert runner.audit_store(tmp_path)=={'jobs':2,'complete':1}
+
+
+@pytest.mark.parametrize('when',['before_setup','during_audit','during_readiness'])
+def test_package_edit_during_setup_rejected_before_admission(tmp_path,fake_pool,monkeypatch,when):
+    actual=runner.reconstruction_sources
+    changed=dict(actual())
+    changed[next(iter(changed))]='0'*64
+    def edit():
+        monkeypatch.setattr(runner,'reconstruction_sources',lambda:changed)
+    if when=='before_setup':
+        edit()
+    elif when=='during_audit':
+        audit=runner.audit_store
+        def editing_audit(path):
+            result=audit(path)
+            edit()
+            return result
+        monkeypatch.setattr(runner,'audit_store',editing_audit)
+    else:
+        ready=runner._ready
+        def editing_ready():
+            result=ready()
+            edit()
+            return result
+        monkeypatch.setattr(runner,'_ready',editing_ready)
+    with pytest.raises(ValueError,match='package sources changed since import'):
+        runner.run(tmp_path,targets={2:1},max_new_words=1)
+    path=tmp_path/'census.sqlite3'
+    if path.exists():
+        with sqlite3.connect(path) as db:
+            assert db.execute('SELECT count(*) FROM reuse_jobs').fetchone()[0]==0
+
+
+def test_worker_package_identity_must_match_coordinator_import(tmp_path,fake_pool,monkeypatch):
+    from copy import deepcopy
+    ready=runner._ready
+    def wrong_source():
+        result=deepcopy(ready())
+        result['identity']['reconstruction_sources']['census_reuse.py']='0'*64
+        return result
+    monkeypatch.setattr(runner,'_ready',wrong_source)
+    with pytest.raises(ValueError,match='worker reconstruction sources differ'):
+        runner.run(tmp_path,targets={2:1},max_new_words=1)
+    with sqlite3.connect(tmp_path/'census.sqlite3') as db:
+        assert db.execute('SELECT count(*) FROM reuse_campaigns').fetchone()[0]==0

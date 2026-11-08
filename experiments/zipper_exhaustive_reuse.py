@@ -26,18 +26,18 @@ from time import perf_counter
 from typing import Any
 
 from zipper_algebra.zipping_algorithm.census_reuse import (
-    ReuseCensus, reconstruction_sources, verifier_binding,
+    ReuseCensus, reconstruction_sources, verifier_binding, _canonical_digest, _IMPORT_SOURCES,
 )
 from zipper_algebra.zipping_algorithm.input_normal_form import input_normal_form, leaf_requests
 from zipper_algebra.zipping_algorithm.interpreter import Limits
-from zipper_algebra.zipping_algorithm.native import NativeSession, _decode_coefficients
+from zipper_algebra.zipping_algorithm.native import NativeSession, _decode_coefficient_object
 from zipper_algebra.zipping_algorithm.native_verifier import CppVerifier
-from zipper_algebra.zipping_algorithm.normal_form_reconstruction import completed_output, execution_cache_key, execution_identity
-from zipper_algebra.zipping_algorithm.output_normal_form import output_fingerprint
+from zipper_algebra.zipping_algorithm.normal_form_reconstruction import completed_output, execution_cache_key, execution_identity, _identity
 from zipper_algebra.zipping_algorithm.peeling_enumeration import NonPeelableWords
 
 SCHEMA = 'zipper-current-reuse-campaign-v1'
 RUNNER_SHA256 = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+PACKAGE_SOURCE_SHA256 = dict(_IMPORT_SOURCES)
 _store: ReuseCensus | None = None
 _sessions: tuple[Any, ...] = ()
 _work: dict[str, Any] = {}
@@ -54,6 +54,11 @@ def _key(value):
 def _assert_runner_source():
     if hashlib.sha256(Path(__file__).read_bytes()).hexdigest()!=RUNNER_SHA256:
         raise ValueError('runner source changed since import')
+
+
+def _assert_package_sources():
+    if reconstruction_sources()!=PACKAGE_SOURCE_SHA256:
+        raise ValueError('reconstruction package sources changed since import')
 
 
 def _close():
@@ -131,6 +136,7 @@ def _initialize_store(path, settings, producer, verifier):
 def _ready():
     assert _store is not None
     _assert_runner_source()
+    _assert_package_sources()
     return {'policy': _store.policy_key, 'identity': _store.policy,
             'runner_sha256':RUNNER_SHA256}
 
@@ -224,22 +230,66 @@ def _ledger(db):
     ''')
 
 
+def _audit_leaf(row, request, producer, limits):
+    """Check integrity, binding, and structure of one complete stored leaf exactly.
+
+    JSON parsing owns these fresh dictionaries, so coefficient decoding can
+    happen in its object hook. The terminal sum is canonicalized once; the
+    digest then uses precisely the same bytes as output_fingerprint on that
+    validated canonical sum. This remains an integrity audit, not rewrite replay.
+    """
+    if row[0] != _json(request):
+        raise ValueError('verified leaf request mismatch')
+    raw=zlib.decompress(row[1])
+    if hashlib.sha256(raw).hexdigest()!=row[2]:
+        raise ValueError('verified leaf content or binding mismatch')
+    value=json.loads(raw, object_hook=_decode_coefficient_object)
+    if type(value) is not dict:
+        raise ValueError('verified leaf content or binding mismatch')
+    metadata=_identity({'schema':value.get('schema'),
+                        'source_sha256':value.get('source_sha256'),
+                        'catalog_sha256':value.get('catalog_sha256'),
+                        'execution':value.get('execution',{})})
+    if (_json(metadata)!=_json(producer)
+            or _json(value.get('n'))!=_json(request['n'])
+            or _json(value.get('input_word'))!=_json(request['word'])
+            or _json(value.get('limits'))!=_json(limits)):
+        raise ValueError('verified leaf content or binding mismatch')
+    normal=completed_output(value)
+    if normal['completion']!='complete' or _canonical_digest(normal)!=row[3]:
+        raise ValueError('verified leaf content or binding mismatch')
+
+
 def audit_store(output):
-    """Read-only integrity and dependency audit; does not claim fresh replay."""
+    """Read-only integrity and dependency audit; does not claim fresh replay.
+
+    One coordinator transaction fixes its campaigns/cursors/jobs snapshot. Each
+    later shard transaction contains every completed root referenced there:
+    the runner commits immutable shard rows before marking a job complete.
+    This relies on that append-only contract, not arbitrary external mutations
+    being globally atomic across separate databases. No writer lock is needed.
+    """
     output = Path(output)
     path = output/'census.sqlite3'
     if not path.exists():
         return {'jobs':0, 'complete':0}
+    _assert_runner_source()
+    _assert_package_sources()
     db=sqlite3.connect(path.resolve().as_uri()+'?mode=ro',uri=True)
     shards={}
     counts={'jobs':0,'complete':0}
     checked=OrderedDict()
     try:
+        db.execute('BEGIN')
         identities={}
         for key,payload in db.execute('SELECT key,identity FROM reuse_campaigns'):
             identity=json.loads(payload)
             if _key(identity)!=key:
                 raise ValueError('campaign identity digest mismatch')
+            worker_identity=identity.get('worker',{})
+            if (type(worker_identity) is not dict or 'identity' not in worker_identity
+                    or _key(worker_identity['identity'])!=worker_identity.get('policy')):
+                raise ValueError('embedded worker policy identity digest mismatch')
             identities[key]=identity
         cursors={}
         for campaign,n,length,ordinal in db.execute('SELECT * FROM reuse_cursors'):
@@ -277,14 +327,15 @@ def audit_store(output):
             if worker not in shards:
                 shard_path=output/'shards'/f'worker-{worker}.sqlite3'
                 shards[worker]=sqlite3.connect(shard_path.resolve().as_uri()+'?mode=ro',uri=True)
+                shards[worker].execute('BEGIN')
             shard=shards[worker]
             policy=identity['policy']
             row=shard.execute('SELECT payload FROM reuse_policies WHERE key=?',(policy,)).fetchone()
-            if row is None or json.loads(row[0])!=identity['identity'] or _key(json.loads(row[0]))!=policy:
+            if row is None or row[0]!=_json(identity['identity']) or _key(json.loads(row[0]))!=policy:
                 raise ValueError('shard policy identity mismatch')
             row=shard.execute('SELECT witness,output_digest FROM reuse_roots WHERE policy=? AND key=?',
                               (policy,key)).fetchone()
-            if row is None or json.loads(row[0])!=form or row[1]!=result.get('output_digest'):
+            if row is None or row[0]!=_json(form) or row[1]!=result.get('output_digest'):
                 raise ValueError('completed root missing or corrupted in shard')
             producer=identity['identity']['producer']
             requests={execution_cache_key(r,producer):r for r in leaf_requests(form)}
@@ -297,21 +348,13 @@ def audit_store(output):
                                   (policy,leaf)).fetchone()
                 if row is None:
                     raise ValueError('missing verified leaf')
-                if json.loads(row[0])!=request:
+                if row[0]!=_json(request):
                     raise ValueError('verified leaf request mismatch')
                 checked_key=(worker,policy,leaf,hashlib.sha256(row[1]).digest(),row[2],row[3])
                 if checked_key in checked:
                     checked.move_to_end(checked_key)
                     continue
-                raw=zlib.decompress(row[1])
-                value=_decode_coefficients(json.loads(raw))
-                if (json.loads(row[0])!=request or hashlib.sha256(raw).hexdigest()!=row[2]
-                        or _json(execution_identity(value))!=_json(producer)
-                        or value.get('n')!=request['n'] or value.get('input_word')!=request['word']
-                        or completed_output(value)['completion']!='complete'
-                        or value.get('limits')!=identity['identity']['limits']
-                        or output_fingerprint(completed_output(value))!=row[3]):
-                    raise ValueError('verified leaf content or binding mismatch')
+                _audit_leaf(row,request,producer,identity['identity']['limits'])
                 checked[checked_key]=None
                 if len(checked)>65536:
                     checked.popitem(last=False)
@@ -326,6 +369,8 @@ def audit_store(output):
                    for size in range(length+1)]
             if ordinal>sizes[-1] or sum(sizes[:-1])+ordinal!=count:
                 raise ValueError('census cursor skips or repeats admitted words')
+        _assert_runner_source()
+        _assert_package_sources()
         return counts
     finally:
         for shard in shards.values():
@@ -342,6 +387,7 @@ def run(output, *, targets=None, words=None, workers=1, wall_seconds=3600,
     proved primitive baseline fairly by rank. Cache reuse is shard-local.
     """
     _assert_runner_source()
+    _assert_package_sources()
     if (type(workers) is not int or workers < 1 or wall_seconds <= 0
             or mode not in ('reuse', 'standalone')
             or (max_new_words is not None and (type(max_new_words) is not int or max_new_words < 0))):
@@ -368,7 +414,10 @@ def run(output, *, targets=None, words=None, workers=1, wall_seconds=3600,
         _probe_ledger(output/'census.sqlite3')
         db = sqlite3.connect(output/'census.sqlite3')
         _ledger(db)
+        audit_started = perf_counter()
         audit_store(output)
+        audit_seconds = perf_counter() - audit_started
+        _assert_package_sources()
         settings = {'mode':mode, 'limits':asdict(limits or Limits()),
                     'cache_bytes':cache_bytes, 'cache_entries':cache_entries,
                     'allocator':None if allocator is None else str(allocator)}
@@ -379,8 +428,11 @@ def run(output, *, targets=None, words=None, workers=1, wall_seconds=3600,
                          initargs=(str(output/'shards'/f'worker-{worker}.sqlite3'),settings)))
         identities = [pool.submit(_ready).result() for pool in pools]
         _assert_runner_source()
+        _assert_package_sources()
         if any(item['runner_sha256']!=RUNNER_SHA256 for item in identities):
             raise ValueError('worker runner source differs from coordinator')
+        if any(_json(item['identity'].get('reconstruction_sources'))!=_json(PACKAGE_SOURCE_SHA256) for item in identities):
+            raise ValueError('worker reconstruction sources differ from coordinator import')
         if len({item['policy'] for item in identities}) != 1:
             raise ValueError('worker execution identities disagree')
         identity = {'schema':SCHEMA, 'worker':identities[0],
@@ -409,9 +461,11 @@ def run(output, *, targets=None, words=None, workers=1, wall_seconds=3600,
         snapshot_counts = {}
         failed_workers = set()
         stop_reason = None
-        source_snapshot = reconstruction_sources()
+        source_snapshot = PACKAGE_SOURCE_SHA256
+        admission_started = perf_counter()
+        setup_seconds = admission_started - started
         while active or idle:
-            while idle and stop_reason is None and perf_counter()-started < wall_seconds and (max_new_words is None or admitted<max_new_words):
+            while idle and stop_reason is None and perf_counter()-admission_started < wall_seconds and (max_new_words is None or admitted<max_new_words):
                 item = None
                 retry = next(pending,None)
                 if retry is not None:
@@ -514,8 +568,13 @@ def run(output, *, targets=None, words=None, workers=1, wall_seconds=3600,
                     stop_reason='worker_failure'
         counts = dict(db.execute('SELECT status,count(*) FROM reuse_jobs WHERE campaign=? GROUP BY status',(campaign,)))
         _assert_runner_source()
+        _assert_package_sources()
+        finished = perf_counter()
         summary = {'schema':SCHEMA,'campaign':campaign,'run':run_id,'admitted':admitted,'jobs':counts,
-                   'worker_counts':snapshot_counts,'wall_seconds':perf_counter()-started,
+                   'worker_counts':snapshot_counts,'wall_seconds':finished-started,
+                   'setup_seconds':setup_seconds,'audit_seconds':audit_seconds,
+                   'admission_and_drain_seconds':finished-admission_started,
+                   'admission_window_seconds':wall_seconds,
                    'stop_reason':stop_reason or 'admission_finished',
                    'unavailable_workers':sorted(failed_workers),
                    'coverage':'completed requested outputs via checked reconstruction; no full ambient traces',
@@ -537,7 +596,8 @@ def main():
     parser.add_argument('--targets',type=json.loads)
     parser.add_argument('--words',type=Path,help='JSON list of [rank, word] pairs')
     parser.add_argument('--workers',type=int,default=1)
-    parser.add_argument('--wall-seconds',type=float,default=3600)
+    parser.add_argument('--wall-seconds',type=float,default=3600,
+                        help='admission window after full audit and worker setup; admitted jobs then drain')
     parser.add_argument('--max-new-words',type=int)
     parser.add_argument('--mode',choices=('reuse','standalone'),default='reuse')
     parser.add_argument('--limits',type=json.loads,default={})

@@ -17,7 +17,11 @@ python -m experiments.zipper_exhaustive_reuse /path/to/reuse-census \
   --limits '{"max_steps":1000000,"max_terms":100000,"expansion_budget":1000000}'
 ```
 
-The runner admits jobs for the specified time and then drains admitted work.
+The runner completes its startup integrity audit and worker initialization,
+then admits jobs for the specified time and drains admitted work. Startup time
+does not consume the admission window. Its summary reports `audit_seconds`,
+`setup_seconds` (including the audit), `admission_and_drain_seconds`, and the
+total `wall_seconds` separately.
 Resource limits remain effective inside each producer, independent verifier,
 and ambient reconstruction. A conservative bound on Cartesian products,
 polynomial support, coefficient bits, and route lengths is checked before
@@ -43,7 +47,11 @@ and job admission commit together. Interrupted jobs are retried on restart;
 Persisted rank rotation prevents short resumed runs from favoring the first
 rank. `--audit-only` checks stored identities, root/dependency bindings, payload
 digests, and referenced shard existence. This integrity audit does not claim
-fresh mathematical replay of historical data.
+fresh mathematical replay of historical data. Read transactions hold the
+coordinator snapshot and each subsequently opened shard snapshot. Completed
+coordinator rows refer to previously committed, immutable shard records, so
+concurrent census appends do not change the records being audited. Source
+identities are checked across startup before any new jobs are admitted.
 
 `--cache-mib` applies separately to each transition and completion cache in
 both native processes. At 256 MiB this permits up to 1 GiB of estimated cache
