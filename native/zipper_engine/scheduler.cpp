@@ -551,14 +551,18 @@ struct EngineSession::Impl {
     struct CompletedSum {
         std::vector<Output> output;
         size_t bytes = sizeof(std::vector<Output>);
+        // Bookkeeping only: the exact polynomial and its size are immutable.
+        // Counts retained cache entries, excluding temporary/frame ownership.
+        mutable size_t cache_references = 0;
     };
     struct CompletedEntry {
         std::shared_ptr<const CompletedSum> output;
-        size_t bytes;
+        size_t key_bytes;
         uint64_t input;
     };
     OrderedMap<CompletedEntry> completed;
     size_t completed_bytes = 0, completed_peak_bytes = 0, completed_peak_entries = 0;
+    size_t completed_key_bytes = 0, completed_payload_bytes = 0, completed_payloads = 0;
     uint64_t completed_hits = 0, completed_misses = 0, completed_evictions = 0,
              completed_oversized = 0, completed_cross_input_hits = 0;
     Catalog &catalog;
@@ -569,25 +573,52 @@ struct EngineSession::Impl {
     OrderedMap<Entry> cache;
     Impl(Catalog &c, size_t entries, size_t memory)
         : catalog(c), max_entries(entries), max_bytes(memory) {}
+    void evict_completed() {
+        const auto &oldest = *completed.begin();
+        const auto old_key = oldest.first;
+        const auto payload = oldest.second.output;
+        const auto key_bytes = oldest.second.key_bytes;
+        completed.erase(old_key);
+        completed_key_bytes -= key_bytes;
+        completed_bytes -= key_bytes;
+        if (--payload->cache_references == 0) {
+            completed_payload_bytes -= payload->bytes;
+            completed_bytes -= payload->bytes;
+            --completed_payloads;
+        }
+    }
 };
 EngineSession::EngineSession(Catalog &catalog, size_t cache_entries, size_t cache_bytes)
-    : impl_(std::make_unique<Impl>(catalog, cache_entries, cache_bytes)) {}
+    : impl_(std::make_unique<Impl>(catalog, cache_entries, cache_bytes)) {
+    // A small independent catalog cache avoids reevaluating immutable guards.
+    // It is disabled with the session caches and has an explicit extra budget.
+    catalog.configure_selection_cache(std::min<size_t>(cache_entries, 4096),
+                                      std::min<size_t>(cache_bytes, 4 * 1024 * 1024));
+}
 EngineSession::~EngineSession() = default;
 void EngineSession::clear_cache() {
     auto &p = *impl_;
+    p.catalog.clear_selection_cache();
     p.cache.clear();
     p.bytes = p.peak_bytes = p.peak_entries = 0;
     p.hits = p.misses = p.evictions = p.oversized = p.evaluations = 0;
     p.cross_input_hits = p.complement_hits = 0;
-    p.completed.clear();
+    while (!p.completed.empty())
+        p.evict_completed();
     p.completed_bytes = p.completed_peak_bytes = p.completed_peak_entries = 0;
+    p.completed_key_bytes = p.completed_payload_bytes = p.completed_payloads = 0;
     p.completed_hits = p.completed_misses = p.completed_evictions = 0;
     p.completed_oversized = p.completed_cross_input_hits = 0;
 }
 Json EngineSession::cache_info() const {
     const auto &p = *impl_;
     return {
+        {"rule_selection", p.catalog.selection_cache_info()},
         {"completed", {{"entries", p.completed.size()}, {"bytes", p.completed_bytes},
+                       {"key_bytes", p.completed_key_bytes},
+                       {"unique_payload_bytes", p.completed_payload_bytes},
+                       {"unique_payloads", p.completed_payloads},
+                       {"byte_measure", "per-key-overhead-plus-unique-immutable-payload-estimate-not-RSS"},
                        {"peak_bytes", p.completed_peak_bytes},
                        {"peak_entries", p.completed_peak_entries},
                        {"hits", p.completed_hits}, {"misses", p.completed_misses},
@@ -715,13 +746,13 @@ Json EngineSession::reduce_reused(const Work &initial, const Limits &limits) {
         if (live_terms > limits.max_terms)
             throw SchedulerLimit("aggregate active frame term limit exceeded");
     };
-    auto collect = [&](OrderedMap<Output> &target, const Output &item) {
+    auto collect = [&](OrderedMap<Output> &target, Output item) {
         const auto before_size = target.size();
         check_item(item, limits);
         auto key = output_key(item);
-        auto value = item;
+        auto value = std::move(item);
         if (const auto *old = target.get(key)) {
-            set_coefficient(value, add(old->coefficient, item.coefficient));
+            set_coefficient(value, add(old->coefficient, value.coefficient));
             merges = checked_add(merges, 1);
         }
         check_item(value, limits);
@@ -742,7 +773,7 @@ Json EngineSession::reduce_reused(const Work &initial, const Limits &limits) {
             Transition lifted;
             lifted.output.push_back(item);
             rebase(lifted, caller);
-            collect(target, lifted.output.front());
+            collect(target, std::move(lifted.output.front()));
         }
     };
     auto request = [&](const Work &work) -> std::shared_ptr<const Impl::CompletedSum> {
@@ -750,15 +781,11 @@ Json EngineSession::reduce_reused(const Work &initial, const Limits &limits) {
         auto unit = intrinsic_work(work);
         check_item(unit, limits);
         auto key = cache_key(unit, limits, false);
-        if (auto *entry = p.completed.get(key)) {
+        if (auto *entry = p.completed.touch(key)) {
             ++p.completed_hits;
             ++hits;
             p.completed_cross_input_hits += entry->input != p.input;
-            auto result = entry->output;
-            auto retained = std::move(*entry);
-            p.completed.erase(key);
-            p.completed.set(key, std::move(retained));
-            return result;
+            return entry->output;
         }
         if (active.count(key))
             throw ControlError("cyclic intrinsic continuation detected");
@@ -777,8 +804,8 @@ Json EngineSession::reduce_reused(const Work &initial, const Limits &limits) {
             throw SchedulerLimit("intrinsic transition term limit exceeded");
         Frame frame;
         frame.key = std::move(key);
-        for (const auto &item : transition.output)
-            collect(frame.output, item);
+        for (auto &item : transition.output)
+            collect(frame.output, std::move(item));
         OrderedMap<Work> children;
         for (auto &child : transition.children) {
             check_item(child, limits);
@@ -847,24 +874,35 @@ Json EngineSession::reduce_reused(const Work &initial, const Limits &limits) {
                 result = std::move(gathered);
             }
             account(-static_cast<Int>(frame.output.size()));
-            // The immutable polynomial charge is computed once. Single-child
-            // identity chains share both the polynomial and its size estimate.
-            const size_t charge = frame.key.size() + sizeof(Impl::CompletedEntry) + result->bytes;
+            // Each key owns its lookup metadata, while immutable terminal
+            // sums shared along identity chains are charged exactly once.
+            const size_t key_charge = frame.key.size() + sizeof(Impl::CompletedEntry);
             if (p.max_bytes && p.max_entries) {
-                if (charge > p.max_bytes)
+                if (key_charge > p.max_bytes || result->bytes > p.max_bytes - key_charge)
                     ++p.completed_oversized;
                 else {
+                    auto added_bytes = [&] {
+                        return key_charge + (result->cache_references ? 0 : result->bytes);
+                    };
                     while (!p.completed.empty() &&
                            (p.completed.size() >= p.max_entries ||
-                            charge > p.max_bytes - p.completed_bytes)) {
-                        const auto &old = *p.completed.begin();
-                        const auto old_key = old.first;
-                        p.completed_bytes -= old.second.bytes;
-                        p.completed.erase(old_key);
+                            added_bytes() > p.max_bytes - p.completed_bytes)) {
+                        // This can remove the last retained alias of result.
+                        // The frame still owns it; recalculate its added charge.
+                        p.evict_completed();
                         ++p.completed_evictions;
                     }
-                    p.completed.set(frame.key, Impl::CompletedEntry{result, charge, p.input});
-                    p.completed_bytes += charge;
+                    // The key was absent when its active frame was admitted;
+                    // any recursive encounter would have triggered cycle refusal.
+                    // Counters change only after the strong-invariant insertion.
+                    p.completed.set(frame.key, Impl::CompletedEntry{result, key_charge, p.input});
+                    p.completed_key_bytes += key_charge;
+                    p.completed_bytes += key_charge;
+                    if (result->cache_references++ == 0) {
+                        p.completed_payload_bytes += result->bytes;
+                        p.completed_bytes += result->bytes;
+                        ++p.completed_payloads;
+                    }
                     p.completed_peak_bytes = std::max(p.completed_peak_bytes, p.completed_bytes);
                     p.completed_peak_entries = std::max(p.completed_peak_entries, p.completed.size());
                 }

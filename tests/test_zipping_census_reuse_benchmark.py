@@ -456,3 +456,61 @@ def test_fresh_session_refuses_python_drift_since_import(tmp_path, monkeypatch):
     with sqlite3.connect(path) as db:
         assert db.execute("SELECT status FROM reuse_bench_runs").fetchone() == ("failed",)
         assert db.execute("SELECT COUNT(*) FROM reuse_bench_measurements").fetchone() == (1,)
+
+
+@pytest.mark.parametrize("name,expected", [("census", "dag"), ("census-standalone", "standalone")])
+def test_census_leaf_backend_uses_matching_independent_checker(monkeypatch, tmp_path, name, expected):
+    calls = []
+
+    class Producer:
+        metadata = {}
+
+        def __init__(self, **kwargs):
+            pass
+
+        def reduce(self, word, **kwargs):
+            calls.append(("standalone", word))
+            return {"kind": "standalone"}
+
+        def reduce_reused(self, word, **kwargs):
+            calls.append(("dag", word))
+            return {"kind": "dag"}
+
+        def close(self):
+            pass
+
+    class Verifier:
+        metadata = {}
+
+        def __init__(self, **kwargs):
+            pass
+
+        def check(self, result):
+            return result == {"kind": "standalone"}
+
+        def check_reused(self, result):
+            return result == {"kind": "dag"}
+
+        def close(self):
+            pass
+
+    class Census:
+        def __init__(self, path, *, produce, verify, **kwargs):
+            self.produce, self.verify = produce, verify
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(bench, "NativeSession", Producer)
+    monkeypatch.setattr(bench, "CppVerifier", Verifier)
+    monkeypatch.setattr(bench, "ReuseCensus", Census)
+    monkeypatch.setattr(bench, "execution_identity", lambda result: result)
+    monkeypatch.setattr(bench, "verifier_binding", lambda metadata: metadata)
+    backend = bench.Backend(name, tmp_path / "sidecar.sqlite3", config())
+    try:
+        leaf = backend.census.produce(3, [1, 2])
+        assert leaf == {"kind": expected}
+        assert backend.census.verify(leaf)
+        assert calls == [(expected, []), (expected, [1, 2])]
+    finally:
+        backend.close()

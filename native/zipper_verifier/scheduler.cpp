@@ -208,11 +208,20 @@ std::string continuation_key(const J &item, bool pending) {
     return canonical_json(identity);
 }
 ReplaySession::ReplaySession(Catalog &catalog, std::size_t entries, std::size_t bytes)
-    : catalog_(catalog), max_entries_(entries), max_bytes_(bytes) {}
+    : catalog_(catalog), max_entries_(entries), max_bytes_(bytes) {
+    catalog_.configure_selection_cache(std::min<std::size_t>(entries,4096),
+                                       std::min<std::size_t>(bytes,4*1024*1024));
+    catalog_.configure_bound_cache(std::min<std::size_t>(entries,4096),
+                                   std::min<std::size_t>(bytes,4*1024*1024));
+}
 void ReplaySession::clear_cache() {
+    catalog_.clear_selection_cache();
+    catalog_.clear_bound_cache();
     index_.clear(); cache_.clear(); bytes_=0; input_=0;
     hits_=misses_=evictions_=oversized_=cross_input_hits_=complement_hits_=peak_entries_=peak_bytes_=0;
+    for (auto &entry:complete_cache_) entry.second.result->cache_references=0;
     complete_index_.clear(); complete_cache_.clear(); complete_bytes_=0;
+    complete_key_bytes_=complete_payload_bytes_=complete_unique_outputs_=0;
     complete_hits_=complete_misses_=complete_evictions_=complete_oversized_=0;
     complete_peak_bytes_=complete_peak_entries_=complete_cross_input_hits_=0;
 }
@@ -224,11 +233,15 @@ J ReplaySession::cache_info() const {
             {"byte_measure","canonical-key-and-payload-estimate"},
             {"mode","independent-cpp-intrinsic-unit-replay-v2"},
             {"completed",{{"entries",complete_cache_.size()},{"bytes",complete_bytes_},
+                {"key_bytes",complete_key_bytes_},{"payload_bytes",complete_payload_bytes_},
+                {"unique_outputs",complete_unique_outputs_},
                 {"max_entries",max_entries_},{"max_bytes",max_bytes_},
                 {"hits",complete_hits_},{"misses",complete_misses_},{"evictions",complete_evictions_},
                 {"oversized",complete_oversized_},{"cross_input_hits",complete_cross_input_hits_},
                 {"peak_entries",complete_peak_entries_},{"peak_bytes",complete_peak_bytes_},
-                {"byte_measure","canonical-key-and-payload-estimate"}}},
+                {"byte_measure","canonical keys per entry plus each shared immutable payload once; excludes container overhead"}}},
+            {"selection",catalog_.selection_cache_info()},
+            {"bound_rules",catalog_.bound_cache_info()},
             {"memory_scope","separate estimated payload budget per cache; excludes container and active-frame overhead"}};
 }
 J ReplaySession::evaluate(const J &work, const Limits &limits, bool trace) {
@@ -287,21 +300,42 @@ J ReplaySession::evaluate(const J &work, const Limits &limits, bool trace) {
 }
 void ReplaySession::retain_complete(const std::string &key,const std::shared_ptr<const CompleteOutput> &output) {
     if (!max_bytes_ || !max_entries_) return;
-    const std::size_t amount=key.size()+output->serialized_bytes;
-    if (amount>max_bytes_) { ++complete_oversized_; return; }
-    while (!complete_cache_.empty() &&
-           (complete_cache_.size()>=max_entries_ || complete_bytes_>max_bytes_-amount)) {
+    const std::size_t key_bytes=key.size();
+    if (output->serialized_bytes>max_bytes_ || key_bytes>max_bytes_-output->serialized_bytes) {
+        ++complete_oversized_; return;
+    }
+    // Recompute after every eviction: removing the last cached alias of this
+    // very payload changes the cost of retaining it from key-only to key+sum.
+    std::size_t payload_bytes=output->cache_references?0:output->serialized_bytes;
+    while (true) {
+        if (payload_bytes>max_bytes_ || key_bytes>max_bytes_-payload_bytes) {
+            ++complete_oversized_; return;
+        }
+        if (complete_cache_.size()<max_entries_ &&
+            complete_bytes_<=max_bytes_-(key_bytes+payload_bytes)) break;
         const auto &old=complete_cache_.front();
         complete_bytes_-=old.second.bytes;
+        complete_key_bytes_-=old.second.bytes;
+        if (--old.second.result->cache_references==0) {
+            complete_bytes_-=old.second.result->serialized_bytes;
+            complete_payload_bytes_-=old.second.result->serialized_bytes;
+            --complete_unique_outputs_;
+        }
         complete_index_.erase(old.first);
         complete_cache_.pop_front();
         ++complete_evictions_;
+        payload_bytes=output->cache_references?0:output->serialized_bytes;
     }
-    complete_cache_.emplace_back(key,CompleteEntry{output,amount,input_});
+    complete_cache_.emplace_back(key,CompleteEntry{output,key_bytes,input_});
     auto added=complete_cache_.end(); --added;
     try { complete_index_.emplace(key,added); }
     catch (...) { complete_cache_.pop_back(); throw; }
-    complete_bytes_+=amount;
+    if (output->cache_references++==0) {
+        complete_payload_bytes_+=output->serialized_bytes;
+        ++complete_unique_outputs_;
+    }
+    complete_key_bytes_+=key_bytes;
+    complete_bytes_+=key_bytes+payload_bytes;
     complete_peak_bytes_=std::max(complete_peak_bytes_,static_cast<I>(complete_bytes_));
     complete_peak_entries_=std::max(complete_peak_entries_,static_cast<I>(complete_cache_.size()));
 }

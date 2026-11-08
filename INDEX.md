@@ -35,6 +35,7 @@ The maintained implementation is installed from `src/zipper_algebra/`.
 | `docs/zipper-census-reuse.md`, `experiments/zipper_exhaustive_reuse.py` | Resumable SQLite census using checked input reconstruction, completed native calculations, and independent verification. |
 | `docs/zipper-computation-graph.md` | Intrinsic continuation nodes, context restoration, completed-output equality, and separate producer/verifier caches. |
 | `docs/zipper-reuse-performance.md` | Matched exact benchmarks, cold-input regressions, memory use, and Bloom filter evaluation. |
+| `experiments/zipper_cold_epoch_benchmark.py` | Paired source-epoch benchmarks with exact output comparison, fresh or retained caches, and process-tree memory measurements. |
 | `docs/zipper-census-baselines.md` | Separate research comparisons with modified representative procedures; not current-output invariances. |
 | `execution/` | Solver configuration, execution, SQLite storage, native dependency identities and verified publication. |
 | `provenance.py` | Source revisions, local changes and input/source hashes for outputs. |

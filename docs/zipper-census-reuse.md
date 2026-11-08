@@ -48,8 +48,13 @@ fresh mathematical replay of historical data.
 `--cache-mib` applies separately to each transition and completion cache in
 both native processes. At 256 MiB this permits up to 1 GiB of estimated cache
 payload per worker, in addition to active calculations, materialized outputs,
-and allocator overhead. Worker count and cache size are independent controls;
-the cache estimate is not a process RSS limit.
+and allocator overhead. Each native process also has a rule-selection cache;
+the verifier additionally caches validated bound semilinear records. Each of
+these caches is capped at the smaller of 4 MiB and its configured cache budget,
+with at most 4,096 entries. Shared immutable completion payloads are charged
+once per cache, while every retained key has its own charge. Worker count and
+cache size are independent controls; the cache estimate is not a process RSS
+limit.
 
 The result store keys completed leaves by exact request, producer source,
 catalog, execution policy, limits, independent verifier identity, and Python

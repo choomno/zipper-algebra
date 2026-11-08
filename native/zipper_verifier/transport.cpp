@@ -42,7 +42,8 @@ J typed_event(const J &event, I n, I i, Catalog &catalog, const Limits &limits) 
         (barred && event["mirror_policy"]!="bar_mirror") ||
         (suffix(name,".M") && event["mirror_policy"]!="M"))
         throw TurnaroundError("tail event has incompatible rank or orientation");
-    const J rule=rule_for_event(catalog,event);
+    const auto held_rule=held_rule_for_event(catalog,event);
+    const J &rule=held_rule.get();
     const I index=as_i(event["rhs_index"]);
     if (!rule.contains("execution") || !rule["execution"].is_object() ||
         !rule["execution"].contains("algebra_verified") ||
@@ -51,7 +52,7 @@ J typed_event(const J &event, I n, I i, Catalog &catalog, const Limits &limits) 
         !condition(rule["condition"],env) || index<0 || index>=length(rule["rhs"]))
         throw TurnaroundError("tail event lacks a valid accepted rule branch");
     const I old_j=mirrored ? checked_add(checked_sub(checked_sub(n,i),as_i(env["j"])),2) : as_i(env["j"]);
-    const J base=catalog.get(rule["base_id"].get<std::string>()+".I");
+    const J &base=catalog.get(rule["base_id"].get<std::string>()+".I");
     auto [jj,kk,mm,aa,bb]=branch_shape(base["rhs"][index],env,mirrored);
     if (barred) {aa=neg(aa);bb=neg(bb);}
     const auto [output,inp]=anchors(i,jj,kk,mm);
@@ -162,7 +163,8 @@ std::pair<J,J> turnaround(const J &initial,I n,Catalog &catalog,const Limits &li
             J env=typed["env"];
             env["j"]=pre_mirrored?checked_add(checked_sub(checked_sub(n,i),j),2):j;
             env["k"]=0;
-            const J packet=rule_for_event(catalog,J{{"rule_id",packet_id},{"parameters",env},{"rhs_index",0},{"mirror_policy",policy}});
+            const auto held_packet=held_rule_for_event(catalog,J{{"rule_id",packet_id},{"parameters",env},{"rhs_index",0},{"mirror_policy",policy}});
+            const J &packet=held_packet.get();
             const Word incoming=packet_word(packet["lhs"],env,limits.expansion_budget);
             if (slice(incoming,checked_sub(length(incoming),1))!=J::array({slider(i,j,pre_mirrored)}))
                 throw TurnaroundError("flype packet has an invalid input slider");

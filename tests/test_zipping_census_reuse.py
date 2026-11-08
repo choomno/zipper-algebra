@@ -346,6 +346,27 @@ def test_rehashed_wrong_leaf_still_requires_independent_replay(tmp_path,backend)
         assert len(checks)==2
 
 
+def test_stored_leaf_returns_independent_mutable_outputs(tmp_path, backend):
+    settings, _, _, _ = backend
+    original = settings['produce']
+    captured = []
+    def produce(n, word):
+        result = original(n, word)
+        captured.append(result)
+        return result
+    with cr.ReuseCensus(tmp_path/'reuse.sqlite3', **dict(settings, produce=produce)) as store:
+        first = store.evaluate([1], n=2)
+        expected = deepcopy(first['output'])
+        first['output']['terms'][0]['coefficient'][0][1] = '123456'
+        first['output']['terms'][0]['components'][0]['record']['original_bottom_ports'].clear()
+        captured[0]['output'][0]['coefficient'][0][1] = 999
+        second = store.evaluate([1], n=2)
+        assert second['stats']['leaf_hits'] == 1
+        assert second['output'] == expected
+        second['output']['terms'].clear()
+        assert store.evaluate([1], n=2)['output'] == expected
+
+
 @pytest.mark.parametrize('failure', ['connect', 'legacy-race'])
 def test_initialization_failure_releases_lock_and_preserves_legacy(tmp_path, backend,
                                                                   monkeypatch, failure):

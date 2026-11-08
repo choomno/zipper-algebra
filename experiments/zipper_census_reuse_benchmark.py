@@ -42,7 +42,8 @@ from zipper_algebra.zipping_algorithm.native_verifier import CppVerifier, Verifi
 from zipper_algebra.zipping_algorithm.normal_form_reconstruction import execution_identity
 from zipper_algebra.zipping_algorithm.output_normal_form import canonical_bytes, canonical_output
 
-BACKENDS = ("standalone", "dag", "census")
+BACKENDS = ("standalone", "dag", "census", "census-standalone")
+CENSUS_BACKENDS = ("census", "census-standalone")
 
 
 class BenchmarkDeadline(BaseException):
@@ -272,11 +273,13 @@ class Backend:
             self.verifier = CppVerifier(producer_metadata=self.producer.metadata,
                                        cache_bytes=config["cache_bytes"], cache_entries=config["cache_entries"],
                                        allocator_library=Path(config["allocator"]) if config["allocator"] else None)
-            if name == "census":
-                identity_result = self.producer.reduce_reused([], n=1, limits=self.limits)
+            if name in CENSUS_BACKENDS:
+                reduce_leaf = self.producer.reduce if name == "census-standalone" else self.producer.reduce_reused
+                check_leaf = self.verifier.check if name == "census-standalone" else self.verifier.check_reused
+                identity_result = reduce_leaf([], n=1, limits=self.limits)
                 self.census = ReuseCensus(
-                    sidecar, produce=lambda n, word: self.producer.reduce_reused(word, n=n, limits=self.limits),
-                    verify=self.verifier.check_reused, producer_identity=execution_identity(identity_result),
+                    sidecar, produce=lambda n, word: reduce_leaf(word, n=n, limits=self.limits),
+                    verify=check_leaf, producer_identity=execution_identity(identity_result),
                     verifier_identity=verifier_binding(self.verifier.metadata), limits=asdict(self.limits),
                     cache_entries=config["cache_entries"])
             self.identity = {"producer": self.producer.metadata, "verifier": self.verifier.metadata,
@@ -380,7 +383,7 @@ def worker(database: Path, run: int) -> None:
                 raise RuntimeError("benchmark source changed before measurement")
             if config.get("selected_cases_sha256") != digest(encoded(cases)):
                 raise ValueError("selected benchmark inputs changed")
-            if name == "census" and any(Path(str(sidecar) + suffix).exists() for suffix in ("", "-wal", "-shm")):
+            if name in CENSUS_BACKENDS and any(Path(str(sidecar) + suffix).exists() for suffix in ("", "-wal", "-shm")):
                 raise ValueError("benchmark requires a new sidecar for each run")
             db.execute("UPDATE reuse_bench_runs SET status='running' WHERE id=?", (run,))
             db.commit()
@@ -405,7 +408,7 @@ def worker(database: Path, run: int) -> None:
                     telemetry = {"harness_sha256": initial_hash, "identity": backend.identity,
                                  "session_generation": session_generation,
                                  "input_classification": classification,
-                                 "persistent_sidecar_retained": name == "census"}
+                                 "persistent_sidecar_retained": name in CENSUS_BACKENDS}
                     db.execute("INSERT INTO reuse_bench_measurements VALUES(?,?,?,'running',0,NULL,NULL,NULL,NULL,NULL,?,NULL)",
                                (run, repeat, case_id, encoded(telemetry).decode()))
                     db.commit()
@@ -557,7 +560,7 @@ def compare(database: Path) -> dict[str, Any]:
                           "includes_standalone": "standalone" in (lr["backend"], rr["backend"]),
                           "cache_mode": lr["cache_mode"],
                           "census_sidecar_policy": ("new per run, retained across native session restarts"
-                                                     if "census" in (lr["backend"], rr["backend"]) else None),
+                                                     if any(name in CENSUS_BACKENDS for name in (lr["backend"], rr["backend"])) else None),
                           "session_generations": {
                               side: sorted({json.loads(row[0]).get("session_generation", 1)
                                   for row in db.execute("SELECT telemetry FROM reuse_bench_measurements WHERE run=? AND pass=?", key)})
@@ -573,7 +576,7 @@ def compare(database: Path) -> dict[str, Any]:
             sessions = sorted({json.loads(row[0]).get("session_generation", 1)
                                for row in db.execute("SELECT telemetry FROM reuse_bench_measurements WHERE run=?", (run,))})
             summaries.append({"run": run, **record, "session_generations": sessions,
-                              "persistent_sidecar_retained": record["backend"] == "census",
+                              "persistent_sidecar_retained": record["backend"] in CENSUS_BACKENDS,
                               "totals_scope": "unpaired diagnostic totals; use backend_pairs for timing comparisons",
                               "measurements": [{"pass": p, "status": s, "cases": c, "seconds": t,
                                                 "peak_tree_rss_bytes": m} for p, s, c, t, m in measurements]})

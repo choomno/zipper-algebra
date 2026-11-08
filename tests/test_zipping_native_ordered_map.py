@@ -71,6 +71,19 @@ int main() {
         }
     }
     assert(failures > 0 && successes > 0);
+    zipper::OrderedMap<int> touched;
+    touched.set("a", 1); touched.set("b", 2); touched.set("c", 3);
+    const std::string b = "b", missing = "missing";
+    auto *before = touched.get(b);
+    remaining = 0;
+    assert(touched.touch(b) == before);
+    assert(touched.touch(missing) == nullptr);
+    remaining = -1;
+    auto it = touched.begin();
+    assert(it++->first == "a");
+    assert(it++->first == "c");
+    assert(it++->first == "b");
+    assert(it == touched.end());
 }
 ''', encoding="utf-8")
     binary = tmp_path / "failure"

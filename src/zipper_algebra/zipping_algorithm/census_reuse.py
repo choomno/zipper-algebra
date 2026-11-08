@@ -20,7 +20,7 @@ from typing import Any, NamedTuple
 import zlib
 
 from .input_normal_form import input_normal_form, leaf_requests, reconstruction_plan
-from .native import _decode_coefficients, _encode_coefficients
+from .native import _decode_coefficient_object, _encode_coefficients
 from .native_verifier import VerifierIncomplete
 from .normal_form_reconstruction import (
     completed_output, execution_cache_key, _identity, reconstruct_output,
@@ -214,7 +214,7 @@ class ReuseCensus:
             digest = hashlib.sha256(encoded).hexdigest()
             if row[0] != _json(request) or digest != row[2]:
                 raise ValueError("cached primitive payload or request digest mismatch")
-            result = _decode_coefficients(json.loads(encoded))
+            result = json.loads(encoded, object_hook=_decode_coefficient_object)
             validated = self._validate_leaf(result, request)
             if validated.output_digest != row[3]:
                 raise ValueError("cached primitive output digest mismatch")

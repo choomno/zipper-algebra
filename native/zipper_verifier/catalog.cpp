@@ -378,20 +378,73 @@ Catalog::Catalog(const J &catalog,std::string source_sha256):catalog_(catalog),s
         order_.push_back(id);
     }
 }
-J Catalog::get(const std::string &rule_id) const {
+const J &Catalog::get(const std::string &rule_id) const {
     auto found=rules_.find(rule_id);if (found==rules_.end()) throw CatalogError("Unknown rule id: "+rule_id);
     return found->second;
+}
+void Catalog::configure_selection_cache(std::size_t entries,std::size_t bytes) {
+    clear_selection_cache();
+    selection_max_entries_=entries;
+    selection_max_bytes_=bytes;
+}
+void Catalog::clear_selection_cache() {
+    selection_index_.clear(); selections_.clear(); selection_bytes_=0;
+    selection_hits_=selection_misses_=selection_evictions_=0;
+}
+J Catalog::selection_cache_info() const {
+    return {{"entries",selections_.size()},{"bytes",selection_bytes_},
+        {"max_entries",selection_max_entries_},{"max_bytes",selection_max_bytes_},
+        {"hits",selection_hits_},{"misses",selection_misses_},{"evictions",selection_evictions_},
+        {"byte_measure","two key strings plus selected identifier strings; excludes container overhead"}};
 }
 std::vector<J> Catalog::rules() const {
     std::vector<J> result;for (const auto &id:order_) result.push_back(rules_.at(id));return result;
 }
 std::vector<std::string> Catalog::select_rule_ids(const J &env,const std::string &prefix,const std::string &suffix,
         const std::vector<std::string> &exclude_prefixes) const {
+    // The catalog is immutable. Retain only this verifier's own guard results,
+    // keyed by every argument, including unused environment fields and order.
+    bool cache=selection_max_entries_ && selection_max_bytes_;
+    std::string key;
+    if (cache) {
+        // Generic environments can contain unused extension fields. Do not
+        // apply coefficient-aware encoding, or impose new serialization errors
+        // on values the original guard evaluation never inspects.
+        try { key=J::array({env,prefix,suffix,exclude_prefixes}).dump(); }
+        catch (const J::exception &) { cache=false; }
+    }
+    if (cache) {
+        auto found=selection_index_.find(key);
+        if (found!=selection_index_.end()) {
+            ++selection_hits_;
+            selections_.splice(selections_.end(),selections_,found->second);
+            return found->second->second.ids;
+        }
+    }
+    ++selection_misses_;
     std::vector<std::string> result;
     for (const auto &id:order_) {
         if (!starts(id,prefix)||!ends(id,suffix)) continue;
         if (std::any_of(exclude_prefixes.begin(),exclude_prefixes.end(),[&](const std::string &x){return starts(id,x);})) continue;
         if (condition(rules_.at(id).at("condition"),env)) result.push_back(id);
+    }
+    if (cache) {
+        std::size_t bytes=key.size()*2;
+        for (const auto &id:result) bytes+=id.size();
+        if (bytes<=selection_max_bytes_) {
+            while (!selections_.empty() &&
+                    (selections_.size()>=selection_max_entries_ || selection_bytes_>selection_max_bytes_-bytes)) {
+                const auto &old=selections_.front();
+                selection_bytes_-=old.second.bytes;
+                selection_index_.erase(old.first);
+                selections_.pop_front(); ++selection_evictions_;
+            }
+            selections_.emplace_back(key,Selection{result,bytes});
+            auto added=selections_.end(); --added;
+            try { selection_index_.emplace(key,added); }
+            catch (...) { selections_.pop_back(); throw; }
+            selection_bytes_+=bytes;
+        }
     }
     return result;
 }
@@ -400,10 +453,70 @@ std::vector<J> Catalog::select_rules(const J &env,const std::string &prefix,cons
     std::vector<J> result;for (const auto &id:select_rule_ids(env,prefix,suffix,exclude_prefixes)) result.push_back(get(id));return result;
 }
 J Catalog::semilinear_rule(const std::string &source_id,const J &env) {
-    J rule=get(source_id);validate_semilinear_bindings(rule,env);
+    return *semilinear_rule_handle(source_id,env);
+}
+void Catalog::configure_bound_cache(std::size_t entries,std::size_t bytes) {
+    clear_bound_cache(); bound_max_entries_=entries; bound_max_bytes_=bytes;
+}
+void Catalog::clear_bound_cache() {
+    bound_index_.clear(); bounds_.clear(); bound_bytes_=0;
+    bound_hits_=bound_misses_=bound_evictions_=bound_oversized_=0;
+}
+J Catalog::bound_cache_info() const {
+    return {{"entries",bounds_.size()},{"bytes",bound_bytes_},
+        {"max_entries",bound_max_entries_},{"max_bytes",bound_max_bytes_},
+        {"hits",bound_hits_},{"misses",bound_misses_},{"evictions",bound_evictions_},
+        {"oversized",bound_oversized_},
+        {"byte_measure","two key strings plus JSON record bytes; excludes containers and active handles"}};
+}
+std::shared_ptr<const J> Catalog::semilinear_rule_handle(const std::string &source_id,const J &env) {
+    const J &rule=get(source_id);
+    bool cache=bound_max_entries_ && bound_max_bytes_ && env.is_object();
+    std::string key;
+    if (cache) {
+        // The bound record embeds the complete environment. Restrict caching
+        // to literal integer bindings and preserve signed/unsigned JSON types;
+        // generic extension values still undergo the original computation.
+        J parameters=J::array();
+        for (auto it=env.begin();it!=env.end();++it) {
+            if (!is_int(it.value())) { cache=false; break; }
+            parameters.push_back(J::array({it.key(),static_cast<int>(it.value().type()),it.value()}));
+        }
+        if (cache) {
+            try { key=J::array({source_id,parameters}).dump(); }
+            catch (const J::exception &) { cache=false; }
+        }
+    }
+    if (cache) {
+        auto found=bound_index_.find(key);
+        if (found!=bound_index_.end()) {
+            ++bound_hits_; bounds_.splice(bounds_.end(),bounds_,found->second);
+            return found->second->second.rule;
+        }
+    }
+    ++bound_misses_;
+    validate_semilinear_bindings(rule,env);
     auto found=semilinear_templates_.find(source_id);
     if (found==semilinear_templates_.end()) found=semilinear_templates_.emplace(source_id,semilinear_template(rule)).first;
-    return bind_semilinear(found->second,env);
+    auto result=std::make_shared<const J>(bind_semilinear(found->second,env));
+    if (cache) {
+        const std::size_t payload=result->dump().size();
+        if (payload>bound_max_bytes_ || key.size()>(bound_max_bytes_-payload)/2) ++bound_oversized_;
+        else {
+            const std::size_t bytes=payload+2*key.size();
+            while (!bounds_.empty() &&
+                    (bounds_.size()>=bound_max_entries_ || bound_bytes_>bound_max_bytes_-bytes)) {
+                const auto &old=bounds_.front(); bound_bytes_-=old.second.bytes;
+                bound_index_.erase(old.first); bounds_.pop_front(); ++bound_evictions_;
+            }
+            bounds_.emplace_back(key,Bound{result,bytes});
+            auto added=bounds_.end(); --added;
+            try { bound_index_.emplace(key,added); }
+            catch (...) { bounds_.pop_back(); throw; }
+            bound_bytes_+=bytes;
+        }
+    }
+    return result;
 }
 J Catalog::instantiate(const std::string &rule_id,const J &env,const J &words,bool expand_sliders,I max_terms,bool require_verified) const {
     return instantiate_rule(get(rule_id),env,words,expand_sliders,max_terms,require_verified);

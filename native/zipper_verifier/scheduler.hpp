@@ -20,12 +20,17 @@ class ReplaySession {
     I cross_input_hits_ = 0, complement_hits_ = 0, peak_entries_ = 0, peak_bytes_ = 0;
     // Identity continuations share both an immutable sum and its measured
     // payload size; measuring that sum again at each cache key is unnecessary.
-    struct CompleteOutput { J terms; std::size_t serialized_bytes; };
+    struct CompleteOutput {
+        J terms;
+        std::size_t serialized_bytes;
+        mutable std::size_t cache_references=0;
+    };
     struct CompleteEntry { std::shared_ptr<const CompleteOutput> result; std::size_t bytes; I input; };
     using CompleteList = std::list<std::pair<std::string, CompleteEntry>>;
     CompleteList complete_cache_;
     std::unordered_map<std::string, CompleteList::iterator> complete_index_;
     std::size_t complete_bytes_ = 0;
+    std::size_t complete_key_bytes_ = 0, complete_payload_bytes_ = 0, complete_unique_outputs_ = 0;
     I complete_hits_ = 0, complete_misses_ = 0, complete_evictions_ = 0;
     I complete_oversized_ = 0, complete_peak_bytes_ = 0, complete_peak_entries_ = 0;
     I complete_cross_input_hits_ = 0;

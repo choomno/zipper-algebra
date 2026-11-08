@@ -152,26 +152,28 @@ std::pair<J,J> upward_step(const J &state, I selected, Catalog &catalog,
         J env = {{"n", rank}, {"i", c.at("i")}, {"j", c.at("j")}, {"k", c.at("k")},
                  {"l", abs_i(as_i(u.back()))}, {"eps", as_i(u.back()) > 0 ? 1 : -1}};
         const I prefix_end = checked_add(checked_add(length(u), checked_mul(checked_sub(size, 1), as_i(c.at("k")))), 1);
-        std::vector<std::pair<J,I>> candidates;
+        std::vector<std::pair<const J *,I>> candidates;
         const std::vector<std::string> excludes = size == 2 ? std::vector<std::string>{"zip.flype."} : std::vector<std::string>{};
-        for (const auto &rule : catalog.select_rules(env, "zip.", ".I", excludes)) {
+        for (const auto &id : catalog.select_rule_ids(env, "zip.", ".I", excludes)) {
+            const J &rule=catalog.get(id);
             auto lhs = expand_polynomial(rule.at("lhs"), env, J::object(), false, limits.expansion_budget);
             if (lhs.empty()) throw CatalogError("upward rule has empty left side");
             const Word &occurrence = lhs.front().word;
             const I offset = checked_sub(prefix_end, length(occurrence));
             if (offset >= 0 && offset < length(u) && slice(old.at("word"), offset, prefix_end) == occurrence)
-                candidates.emplace_back(rule, offset);
+                candidates.emplace_back(&rule, offset);
         }
         if (candidates.size() != 1) {
             if (candidates.empty()) throw ControlError("missing full-tape rule");
             std::string message = "competing upward rules: ";
             for (std::size_t i=0; i<candidates.size(); ++i) {
                 if (i) message += ", ";
-                message += candidates[i].first.at("id").get<std::string>();
+                message += candidates[i].first->at("id").get<std::string>();
             }
             throw ControlError(message);
         }
-        const auto &[rule, offset] = candidates.front();
+        const auto &[selected_rule, offset] = candidates.front();
+        const J &rule=*selected_rule;
         std::map<std::string,std::size_t> positions;
         std::vector<J> terms;
         for (const auto &term : rule.at("rhs")) {

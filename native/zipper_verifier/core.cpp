@@ -274,7 +274,9 @@ J apply_rule(const J &state,const J &req,Catalog &catalog,const Limits &limits,b
     const J &env=req["parameters"];
     if(!env.contains("n")||as_i(env["n"])!=n)throw ReplayError("rule ambient rank differs from state rank");
     std::string rid=req["rule_id"];
-    J rule=rid.size()>=3 && rid.compare(rid.size()-3,3,".BM")==0 ? catalog.semilinear_rule(rid.substr(0,rid.size()-3)+".M",env) : catalog.get(rid);
+    std::shared_ptr<const J> derived;
+    const J &rule=rid.size()>=3 && rid.compare(rid.size()-3,3,".BM")==0 ?
+        *(derived=catalog.semilinear_rule_handle(rid.substr(0,rid.size()-3)+".M",env)) : catalog.get(rid);
     if(!rule.contains("execution")||!rule["execution"].contains("algebra_verified")||rule["execution"]["algebra_verified"]!=J(true))throw ReplayError("rule lacks accepted algebraic verification");
     if(!condition(rule.at("condition"),env))throw ReplayError("rule guard is false");
     Polynomial lhs,rhs;

@@ -79,11 +79,35 @@ results in a bounded cache. Equal sibling continuations are collected before
 descent. A hit skips the whole remaining local computation. Single-child
 identity continuations share an immutable terminal sum and its size estimate.
 Collected active-frame terms have a separate guard from retained cache payload.
-Payload charges are conservative per-key estimates: shared sums can be charged
-more than once, while allocator and JSON-container overhead are not fully
-represented. Frame-term counters do not count every transient shared result.
+The completion cache charges each retained key and each distinct immutable
+output payload once. Several keys can refer to the same output:
+
+```mermaid
+graph LR
+    A[Continuation key A] --> P[Shared immutable output P]
+    B[Continuation key B] --> P
+    C[Continuation key C] --> Q[Immutable output Q]
+```
+
+The charge is the sum of key estimates plus the estimates for P and Q. Removing
+the last retained reference removes that payload's charge. Temporary ownership
+by an active calculation is tracked separately from cache ownership. Allocator
+and JSON-container overhead are not fully represented by these estimates.
+Frame-term counters do not count every transient shared result.
 Neither counter is an RSS limit. Warm hits can change both transition-budget
 and active-frame-term outcomes; restored outputs are still checked.
+
+Each native implementation also memoizes its own catalog rule selection with
+bounded storage. The key contains the complete environment and every selection
+filter. This avoids repeating guard evaluation and introduces no additional
+identification of continuation states or braid words.
+
+The verifier also retains its own validated semilinear rule bindings. Hot
+callers hold shared ownership of immutable records, so a nested lookup or cache
+eviction cannot invalidate a record still in use. Every successful binding
+depends on the full source identifier and the complete eligible environment,
+including integer types; other environments follow the uncached validation
+path. Both implementations continue to perform their own mathematical work.
 
 The verifier uses a separately implemented intrinsic normalization, transition
 engine, restoration, and collection. It builds its own completed-result cache

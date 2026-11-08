@@ -9,6 +9,7 @@
 #include <vector>
 #include <boost/multiprecision/cpp_int.hpp>
 #include "vendor/nlohmann/json.hpp"
+#include "ordered.hpp"
 namespace zipper {
 using Int = std::int64_t;
 using BigInt = boost::multiprecision::cpp_int;
@@ -115,10 +116,31 @@ struct Rule {
 class Catalog {
     std::map<std::string, Rule> rules_;
     std::vector<std::string> ordered_ids_;
+    struct SelectionEntry {
+        std::vector<std::string> ids;
+        size_t bytes;
+    };
+    // Cache rule IDs rather than borrowed pointers so Catalog copies/moves
+    // retain correct ownership. OrderedMap rebuilds its index when copied.
+    mutable OrderedMap<SelectionEntry> selection_cache_;
+    size_t selection_max_entries_ = 0, selection_max_bytes_ = 0;
+    mutable size_t selection_bytes_ = 0, selection_peak_bytes_ = 0;
+    mutable uint64_t selection_hits_ = 0, selection_misses_ = 0,
+                     selection_evictions_ = 0, selection_oversized_ = 0;
 
   public:
     explicit Catalog(const Json &source);
+    // Catalog owns one serially accessed mutable selection memo. Copy/move
+    // transfers the mathematical data and cache limits, starting a cold memo.
+    Catalog(const Catalog &other);
+    Catalog &operator=(const Catalog &other);
+    Catalog(Catalog &&other) noexcept;
+    Catalog &operator=(Catalog &&other) noexcept;
+    void swap(Catalog &other) noexcept;
     const Rule &get(const std::string &id) const;
+    void configure_selection_cache(size_t entries, size_t bytes);
+    void clear_selection_cache() noexcept;
+    Json selection_cache_info() const;
     std::vector<const Rule *> select(const Env &, const std::string &prefix,
                                      const std::string &suffix, bool exclude_flype = false) const;
 };

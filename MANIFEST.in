@@ -4,6 +4,7 @@ include .github/workflows/ci.yml
 recursive-include src/zipper_algebra *.py
 recursive-include src/zipper_algebra/zipping_algorithm/data *.json
 include docs/ZIPPING_REFERENCE.md docs/ZIPPING_NATIVE.md docs/ZIPPING_NATIVE_VERIFIER.md
+include docs/ZIPPING_GPU_PROTOTYPE.md docs/ZIPPING_GPU_REWRITE.md
 include docs/essential-enumeration.md
 include docs/zipper-block-separation.md docs/TRACE_EXECUTION_COUNTEREXAMPLE.md
 include docs/zipper-catalog-equivariance.md docs/zipper-packet-contiguity.md
@@ -48,3 +49,4 @@ include docs/zipper-current-normal-forms.md docs/zipper-rank-two-identification.
 include docs/zipper-inverse-cancellation.md
 include docs/zipper-census-reuse.md docs/zipper-computation-graph.md
 include docs/zipper-reuse-performance.md
+include experiments/zipper_cold_epoch_benchmark.py

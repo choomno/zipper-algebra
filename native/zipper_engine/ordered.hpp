@@ -62,6 +62,15 @@ template <class Value> class OrderedMap {
         auto found = index_.find(key);
         return found == index_.end() ? nullptr : &found->second->second;
     }
+    // Return and promote an existing node without allocating or invalidating
+    // either the index iterator or pointers to the stored value.
+    Value *touch(const std::string &key) {
+        auto found = index_.find(key);
+        if (found == index_.end())
+            return nullptr;
+        items_.splice(items_.end(), items_, found->second);
+        return &found->second->second;
+    }
     void set(std::string key, Value value) {
         auto found = index_.find(key);
         if (found != index_.end()) {

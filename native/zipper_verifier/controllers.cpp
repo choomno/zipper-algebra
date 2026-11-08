@@ -73,11 +73,14 @@ Word friend_word(I n,const J &control) {
                           control.at("mirrored").get<bool>(),control.at("mirror_policy").get<std::string>());
     return slice(full,0,checked_sub(length(full),1));
 }
-J rule_for_event(Catalog &catalog,const J &event) {
+EventRule held_rule_for_event(Catalog &catalog,const J &event) {
     std::string rid=event.at("rule_id").get<std::string>();
     if(rid.size()>=3 && rid.compare(rid.size()-3,3,".BM")==0)
-        return catalog.semilinear_rule(rid.substr(0,rid.size()-3)+".M",event.at("parameters"));
-    return catalog.get(rid);
+        return {catalog.semilinear_rule_handle(rid.substr(0,rid.size()-3)+".M",event.at("parameters")),nullptr};
+    return {nullptr,&catalog.get(rid)};
+}
+J rule_for_event(Catalog &catalog,const J &event) {
+    return held_rule_for_event(catalog,event).get();
 }
 J framed_control(I i,I j,I k,bool mirrored,I a,I b,I left,I processed,I tail) {
     return {{"phase",left?"framed_zip_up":"framed_upper_pass_complete"},
@@ -207,9 +210,17 @@ std::pair<J,J> framed_step(const J &state,I selected,Catalog &catalog,const Limi
                {"k",k},{"l",mirror?checked_sub(n,abs_i(last)):abs_i(last)},
                {"eps",(last>0?1:-1)*(bm?-1:1)}};
         Word core=framed_core(n,i,j,k,mirror,policy);
-        struct Candidate {J rule;Word w;J witness;};std::vector<Candidate> candidates;
+        struct Candidate {
+            std::shared_ptr<const J> derived;
+            const J *ordinary;
+            Word w;
+            J witness;
+            const J &rule() const {return ordinary?*ordinary:*derived;}
+        };
+        std::vector<Candidate> candidates;
         for(const auto &id:catalog.select_rule_ids(env,"zip.",mirror?".M":".I")) {
-            J rule=bm?catalog.semilinear_rule(id,env):catalog.get(id);
+            std::shared_ptr<const J> derived;
+            const J &rule=bm?*(derived=catalog.semilinear_rule_handle(id,env)):catalog.get(id);
             auto lhs=expand_polynomial(rule.at("lhs"),env,J::object(),false,limits.expansion_budget);
             if(lhs.empty()) throw ControlError("catalog left side does not retain the framed core");
             const Word &occurrence=lhs.front().word;I boundary=checked_sub(length(occurrence),length(core));
@@ -220,11 +231,12 @@ std::pair<J,J> framed_step(const J &state,I selected,Catalog &catalog,const Limi
             try {
                 J witness=transport_frame(slice(u,checked_sub(length(u),length(w))),n,i-1,out,field(c,"output_power"),"left");
                 check_frame(witness);
-                if(witness.at("transformed")==w) candidates.push_back({rule,w,witness});
+                if(witness.at("transformed")==w)
+                    candidates.push_back({std::move(derived),bm?nullptr:&rule,w,std::move(witness)});
             } catch(const FrameError &) {}
         }
         if(candidates.size()!=1) throw ControlError(candidates.empty()?"missing framed full-tape rule":"competing framed rules");
-        const auto &chosen=candidates.front();const J &rule=chosen.rule;const Word &w=chosen.w;const J &before=chosen.witness;
+        const auto &chosen=candidates.front();const J &rule=chosen.rule();const Word &w=chosen.w;const J &before=chosen.witness;
         Word urest=slice(u,0,checked_sub(length(u),length(w)));
         I end=field(before,"end"),shift=checked_sub(end,out);
         Word payload=J::array();for(const auto &x:c.at("output_payload")) {
@@ -237,7 +249,7 @@ std::pair<J,J> framed_step(const J &state,I selected,Catalog &catalog,const Limi
                       rule.at("id").get<std::string>(),env,J::object(),
                       {{"controller","framed_upward"},{"marked_tape_transport",true}});
         J application=apply_rule(middle,req,catalog,limits,trace);J raw=application.at("state");
-        J base=catalog.get(rule.at("base_id").get<std::string>()+".I");
+        const J &base=catalog.get(rule.at("base_id").get<std::string>()+".I");
         if(rule.at("rhs").size()!=base.at("rhs").size()) throw ControlError("catalog branch counts differ");
         J new_branches=J::array(),witnesses=J::array();
         for(std::size_t idx=0;idx<rule.at("rhs").size();++idx) {

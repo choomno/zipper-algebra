@@ -38,7 +38,8 @@ def material():
         yield producer.metadata, cases
 
 
-@pytest.mark.parametrize("cache_entries,cache_bytes", [(0, 0), (1, 10000000), (10000, 100000000)])
+@pytest.mark.parametrize("cache_entries,cache_bytes", [
+    (0, 0), (1, 10000000), (10000, 4096), (10000, 100000000)])
 def test_completed_replay_matches_independent_standalone_outputs(material, cache_entries, cache_bytes):
     metadata, cases = material
     with CppVerifier(producer_metadata=metadata, cache_entries=cache_entries,
@@ -48,17 +49,22 @@ def test_completed_replay_matches_independent_standalone_outputs(material, cache
                 assert verifier.check_reused(reused_envelope(cert))
                 assert verifier.last_result["verification_mode"] == "independent-intrinsic-completion-v1"
         info = verifier.cache_info()["completed"]
+        assert info["bytes"] == info["key_bytes"] + info["payload_bytes"]
+        assert info["unique_outputs"] <= info["entries"]
         assert info["entries"] <= cache_entries
         assert info["bytes"] <= cache_bytes
         if cache_entries == 0:
             assert info["entries"] == info["hits"] == 0
-        elif cache_entries == 1:
+        elif cache_entries == 1 or cache_bytes == 4096:
             assert info["evictions"] > 0
         else:
             assert info["cross_input_hits"] > 0
             assert verifier.last_result["metrics"]["expanded_nodes"] == 0
+            assert info["unique_outputs"] < info["entries"]
         verifier.clear_cache()
         assert verifier.cache_info()["completed"]["entries"] == 0
+        assert verifier.cache_info()["completed"]["unique_outputs"] == 0
+        assert verifier.cache_info()["completed"]["payload_bytes"] == 0
         assert verifier.check_reused(reused_envelope(cases[0]))
 
 

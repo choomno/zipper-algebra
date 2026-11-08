@@ -112,3 +112,101 @@ not population confidence intervals.
 See [the computation graph](zipper-computation-graph.md) for the output-equality
 argument and [the census runner](zipper-census-reuse.md) for storage, limits,
 independent replay, and restart behavior.
+
+## Cold-workload profiling and second optimization round
+
+This round compares the preceding implementation at revision `0758be0` with
+unique shared-payload accounting, bounded catalog-selection caches, cached
+independently validated semilinear records, fewer output copies, and coefficient
+conversion during fresh JSON parsing. The rule catalog, exact arithmetic,
+transition order, input equivalences, and completed-output contract are unchanged.
+
+The main cold regression had two distinct causes. On the five-strand input
+`[-4,-3,1,2,3,4]`, the old completion cache evaluated 133,601 continuations
+although only 109,380 exact intrinsic keys occurred. Charging the same immutable
+output separately for each referring key caused excessive eviction. Charging
+each shared payload once eliminates all 24,221 repeated evaluations in this
+measurement and reduces evictions from 92,756 to 5,541. More outputs remain in
+memory. This fixes avoidable recomputation but does not eliminate the difference
+between the DAG and standalone schedulers: the latter evaluates 64,476 distinct
+one-step transitions, with collection and cancellation between batches. Its
+116,863 logical steps are a different work measure.
+
+Independent-verifier profiling identified geometric controller replay and rule
+selection as the main costs. Coefficient multiplication occupied less than 1%
+of the instrumented profile. A subsequent instrumented pass counted 105,793
+bound semilinear-rule derivations, taking 1.96 seconds including validation and
+record construction. The final verifier computes and validates each cached
+record itself: on this input it performs 298 derivations and reuses the records
+105,495 times, with 1.63 MB of estimated record residency. Complete typed
+environments are part of the key, and shared ownership keeps a borrowed record
+alive across nested eviction. These profiling times are attribution evidence,
+not uninstrumented speed measurements.
+
+The eight-strand input `[4,1,6,7,2,5,6,3]` produces 8,994 terminal terms and a
+21.65 MB JSON certificate. Python processing is material there: a fresh parse
+followed by a copying coefficient conversion took 1.937 seconds, versus 0.674
+seconds when the conversion occurs during parsing. These are three-run medians
+for the parsing stage alone. Each parsed result remains independently mutable;
+the general decoder for existing Python objects retains its nonmutating API.
+
+### Matched end-to-end measurements
+
+The maintained `experiments/zipper_cold_epoch_benchmark.py` driver freezes two
+source epochs and applies the same benchmark helper to each. It records source
+and native-binary identities and compares the full independently checked
+canonical output bytes. The cold cohort uses fresh sessions and three distinct,
+unchanged primitive requests. The locality cohort uses retained sessions and 28
+distinct primitive requests in colexicographic order. Neither cohort counts
+repeating the same root as census progress.
+
+Two runs used opposite epoch order, baseline/candidate then candidate/baseline.
+The table reports medians of those two measurements. Each benchmark process was
+pinned to CPU 6 of an Intel Core Ultra 7 265H, with 256 MiB per native cache and
+authenticated tcmalloc in both verifiers. The two-worker live census continued
+throughout; the benchmark had no exclusive CPU reservation. Timing includes
+transfers, authentication, independent exact checking, reconstruction,
+canonicalization, compression, and committed SQLite writes. Initialization and
+diagnostic reporting are excluded. Two observations do not supply population
+confidence intervals or a census-wide forecast.
+
+| Workload | Previous | Optimized | Speed ratio |
+|---|---:|---:|---:|
+| Cold B5, `[-4,-3,1,2,3,4]` | 41.258 s | 29.938 s | 1.378 |
+| Cold B8, `[4,1,6,7,2,5,6,3]` | 21.632 s | 18.491 s | 1.170 |
+| Cold B3, `[-1,-2]` repeated five times | 1.318 s | 1.015 s | 1.299 |
+| Sum of the three cold requests | 64.208 s | 49.444 s | 1.299 |
+| 28 distinct primitive colex requests | 7.142 s | 5.555 s | 1.286 |
+
+Both cold-cohort comparisons agree closely: 63.815 to 49.647 seconds and
+64.601 to 49.242 seconds. All completed cross-epoch outputs agree exactly.
+Peak sampled process-tree RSS increases from 2.34 to 3.15 GB for the cold cohort;
+on B5 alone it increases from 0.95 to 1.44 GB. On the locality cohort the change
+is 0.372 to 0.382 GB. These are decimal GB, and summed RSS can double-count shared
+pages. The configured cache budget estimates retained data; it is not an RSS
+limit.
+
+A separate bounded four-input probe completes the same two inputs in both
+epochs: B7 length eight takes 1.557 to 1.370 seconds, and B8 length nine takes
+6.052 to 5.143 seconds. The positive and mixed B8 length-ten probes remain
+incomplete at the 10,000-evaluation guard. Faster refusal is not completed-word
+throughput, and no length-ten completion improvement is established here.
+
+### Remaining bottlenecks and scheduler choice
+
+The optimized census with standalone leaves takes 24.842 seconds on the cold B5
+case and 0.856 seconds on the negative B3 case, still faster than DAG reuse for
+those individual requests. On the output-heavy B8 case it takes 41.951 seconds,
+versus approximately 18.49 seconds for DAG reuse. These standalone references
+are single runs using the same input reconstruction, independent verification,
+storage, and limits. The default remains DAG reuse; `--mode standalone` remains
+available. The measurements do not justify a uniform scheduler replacement or
+an input-based dispatch rule.
+
+On optimized cold B5, independent verification still takes approximately 25
+seconds of the 30-second total. On B8, producer and verifier calls together take
+about 10.8 seconds of the 18.5-second total; output conversion, canonicalization,
+and storage remain material. Future work should target controller-state
+construction and exact output materialization, and investigate when early
+collection can reduce distinct DAG work. None of these measurements changes the
+algorithm's proved word identifications or its asymptotic complexity argument.
