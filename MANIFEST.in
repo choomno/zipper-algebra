@@ -50,4 +50,5 @@ include docs/zipper-inverse-cancellation.md
 include docs/zipper-census-reuse.md docs/zipper-computation-graph.md
 include docs/zipper-reuse-performance.md
 include docs/zipper-async-census.md docs/zipper-census-plan.md docs/zipper-derivation-certificates.md
+include docs/zipper-async-performance.md
 include experiments/zipper_cold_epoch_benchmark.py

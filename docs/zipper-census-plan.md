@@ -66,9 +66,43 @@ The pilot's verifier accounts for approximately 79–83% of total elapsed work.
 Separating computation from certification improves scheduling but does not
 remove that cost if every result is eventually independently checked.
 
+### Larger pilot on the production implementation
+
+Revision `7dc1481` subsequently completed and independently certified **all 512**
+B3 length-nine requests from a separate stratified pilot, one random ordinal
+per equal population interval, seed 20261109. It used one compute worker and
+two certification workers with the same limits, cache budgets, and allocator.
+The exact request manifest matched the database, all candidate payload hashes
+and successful certification bindings passed an independent storage audit,
+and SQLite integrity checks passed. No incomplete, rejected, or error outcomes
+occurred. Every certification used the same authenticated verifier binding.
+
+| Measured stage | Mean seconds | 99th sample percentile | Maximum seconds | Sum of recorded seconds |
+|---|---:|---:|---:|---:|
+| Compute | 0.204 | 1.191 | 1.529 | 104.679 |
+| Certify | 0.690 | 3.531 | 5.507 | 353.119 |
+
+The concurrent run took **221.50 seconds**, including worker setup and drain,
+or **2.31 certified inputs per second**. The compute timer excludes candidate
+publication work; the run elapsed time includes canonicalization, compression,
+SQLite writes, queue coordination, and polling. Candidate payloads occupy
+1.810 MB compressed and the closed database 5.853 MB. Certification accounts
+for 77.1% of the recorded stage seconds. The candidate backlog reached its
+configured count watermark and computation resumed as certification drained it.
+
+Linear projection of that observed run rate gives **30.34 hours** for the
+252,497-request layer. The compressed candidate projection is 0.892 GB; the
+database also retains attempts, identities, indices, and other metadata. The
+72-hour initial allocation therefore remains appropriate as a planning budget.
+This is finite sampled evidence under concurrent host load, not a worst-case
+bound or a guarantee that every word fits the tested limits. The 512-case
+cohort differs from the earlier 32-case cohort, so their ratio is not a matched
+implementation speedup measurement.
+
 ## Checkpoints and resource budgets
 
-1. **Complete B3 length nine.** The 252,497-input primitive layer projects to
+1. **Complete B3 length nine.** In the earlier synchronous pilot, the
+   252,497-input primitive layer projected to
    83 worker-hours
    for the combined synchronous route. Its measured producer and verifier
    components project to 13.49 and 68.87 hours respectively. One compute plus
@@ -78,10 +112,12 @@ remove that cost if every result is eventually independently checked.
    With one compute and two certification workers, the ideal bottleneck is
    approximately 34.5 hours. Allocate a 72-hour window for that split
    (96 hours if limited to one worker of each role) and 10 GB of additional
-   database allowance. Treat a broader pilot of at least 512 stratified
-   length-nine inputs and initial sustained production as a budget checkpoint:
-   revise the worker split or window if certification throughput or unresolved
-   tails are worse than projected. This is a budget, not a completion guarantee.
+   database allowance. The separate 512-case pilot above satisfies the initial
+   sampling checkpoint and gives a 30.34-hour elapsed projection with the
+   production implementation. Continue to revise the worker split or window if
+   sustained certification throughput or unresolved tails are worse than projected.
+   An early colex prefix is not a substitute for this pilot. This is a budget,
+   not a completion guarantee.
 2. **Reassess B3 length ten and B4 length seven.** B3 length ten alone projects
    to 424 combined worker-hours. The asynchronous duration depends on the
    worker split and sustained service rates. It is a possible later campaign,
@@ -115,17 +151,25 @@ throughput, memory, and backlog determine which deployment is preferable.
 Every checkpoint reports computed, certified, incomplete, and mismatching inputs
 separately. Use a dedicated target-only database; do not enqueue additional
 `--words` requests there. With that restriction, completion requires exactly
-252,497 certified requests and zero queued, running, provisional, unresolved,
-or rejected requests. The current `status` command reports aggregate counts,
+252,497 certified requests under one policy and zero queued, running,
+provisional, unresolved, or rejected requests. The current `status` command reports aggregate counts,
 not an independent audit of an arbitrary mixed request set. Halt expansion and
 investigate any mismatch. Retain attempts when a limit is increased; larger
 limits create a new policy. Do not sum policy counts to assert completion:
 cross-policy coverage requires a separate explicit request-by-request audit.
+That audit is not automated by this runner. A hard-input retry under larger
+limits therefore requires either a complete new-policy layer or a separately
+implemented and checked audit combining the exact requested inputs across
+policies. A partial retry cannot silently close the first policy's holes.
 An unresolved hard input remains a coverage hole; neither sampling nor finishing
 the rest of its layer makes the layer complete. Certification is exact and
 independent, with no sampling-based promotion of provisional results.
 
-For checkpoint one, use a frozen checkout and a new database:
+For checkpoint one, use a frozen checkout. First initialize a separate pilot
+database, enqueue a manifest containing one random ordinal from each of 512
+equal population intervals in B3 length nine, and run the same worker, cache,
+allocator, and limit settings. Retain the seed, intervals, words, and identities.
+Only after inspecting that pilot, initialize the new production database:
 
 ```sh
 python -m experiments.zipper_async_census init /path/to/depth.sqlite3 \

@@ -10,6 +10,9 @@ authenticated verifier builds may certify different rows in the same producer
 policy; each successful attempt records the full verifier binding. The total
 certified count does not assert one uniform verifier binary for the campaign.
 
+See the [worker measurements](zipper-async-performance.md) for measured role
+allocations and the [census plan](zipper-census-plan.md) for the next frontier.
+
 The existing synchronous reuse census, historical SQLite results, full
 standalone execution, and optional standalone traces remain available.
 

@@ -139,6 +139,7 @@ def inspect(directory):
                        "docs/zipper-census-reuse.md", "docs/zipper-computation-graph.md",
                        "docs/zipper-reuse-performance.md",
                        "docs/zipper-async-census.md", "docs/zipper-census-plan.md",
+                       "docs/zipper-async-performance.md",
                        "docs/zipper-derivation-certificates.md",
                        "experiments/zipper_exhaustive_reuse.py",
                        "experiments/zipper_census_reuse_benchmark.py",
