@@ -214,7 +214,7 @@ std::pair<J,J> framed_step(const J &state,I selected,Catalog &catalog,const Limi
             std::shared_ptr<const J> derived;
             const J *ordinary;
             Word w;
-            J witness;
+            FrameWitness witness;
             const J &rule() const {return ordinary?*ordinary:*derived;}
         };
         std::vector<Candidate> candidates;
@@ -229,16 +229,16 @@ std::pair<J,J> framed_step(const J &state,I selected,Catalog &catalog,const Limi
             Word w=slice(occurrence,0,boundary);
             if(w.empty()||length(w)>length(u)) continue;
             try {
-                J witness=transport_frame(slice(u,checked_sub(length(u),length(w))),n,i-1,out,field(c,"output_power"),"left");
+                auto witness=typed_transport_frame(slice(u,checked_sub(length(u),length(w))),n,i-1,out,field(c,"output_power"),"left");
                 check_frame(witness);
-                if(witness.at("transformed")==w)
+                if(witness.transformed==w)
                     candidates.push_back({std::move(derived),bm?nullptr:&rule,w,std::move(witness)});
             } catch(const FrameError &) {}
         }
         if(candidates.size()!=1) throw ControlError(candidates.empty()?"missing framed full-tape rule":"competing framed rules");
-        const auto &chosen=candidates.front();const J &rule=chosen.rule();const Word &w=chosen.w;const J &before=chosen.witness;
+        const auto &chosen=candidates.front();const J &rule=chosen.rule();const Word &w=chosen.w;const auto &before=chosen.witness;
         Word urest=slice(u,0,checked_sub(length(u),length(w)));
-        I end=field(before,"end"),shift=checked_sub(end,out);
+        I end=before.end,shift=checked_sub(end,out);
         Word payload=J::array();for(const auto &x:c.at("output_payload")) {
             I value=as_i(x);I idx=checked_add(abs_i(value),shift);payload.push_back(value>0?idx:neg(idx));
         }
@@ -262,8 +262,8 @@ std::pair<J,J> framed_step(const J &state,I selected,Catalog &catalog,const Limi
             Word right=frame_power(i-1,inp2,bb,limits.max_word_size);I skip=checked_add(length(prefix),length(right));
             if(slice(local,0,skip)!=concat({prefix,right})) throw ControlError("catalog branch is missing its retained flype frames");
             Word residual=slice(local,skip);
-            J after=transport_frame(residual,n,i-1,inp,field(c,"input_power"),"left");check_frame(after);
-            if(field(after,"end")!=inp2||after.at("transformed")!=residual)
+            auto after=typed_transport_frame(residual,n,i-1,inp,field(c,"input_power"),"left");check_frame(after);
+            if(after.end!=inp2||after.transformed!=residual)
                 throw ControlError("catalog tail does not preserve the marked input tape");
             J cc=framed_control(i,jj,kk,mm,checked_add(field(c,"output_power"),aa),checked_add(field(c,"input_power"),bb),
                                 length(urest),checked_add(length(residual),length(p)),length(tail));
@@ -273,13 +273,13 @@ std::pair<J,J> framed_step(const J &state,I selected,Catalog &catalog,const Limi
             const J &emitted=raw.at("branches").at(static_cast<std::size_t>(selected)+idx);
             Word word=framed_expression(n,cc,urest,concat({residual,p}),tail,limits.max_word_size);
             new_branches.push_back(branch(word,emitted.at("coefficient"),cc));
-            if(trace) witnesses.push_back({{"tail_transport",after},{"emitted_output_power",aa},{"emitted_input_power",bb}});
+            if(trace) witnesses.push_back({{"tail_transport",after.json()},{"emitted_output_power",aa},{"emitted_input_power",bb}});
         }
         J following=replace_branches(raw,selected,new_branches,length(new_branches));limits.check(following);
         for(const auto &b:new_branches) framed_parts(b,n,limits.max_word_size);
         J event={{"rule_id",rule.at("id")},{"metric_delta",changes(old,new_branches)}};
         if(trace) {
-            event["incoming_frame_transport"]=before;event["catalog_transition"]=application.at("transition");
+            event["incoming_frame_transport"]=before.json();event["catalog_transition"]=application.at("transition");
             event["payload_transport"]={{"start",out},{"end",end},{"word",c.at("output_payload")},{"transformed",payload}};
             event["branch_frames"]=witnesses;event["successor_state"]=following;
             if(bm) event["semilinear_derivation"]=rule.at("semilinear");

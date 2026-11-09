@@ -48,7 +48,13 @@ void set_coefficient(J &work_or_branch, const J &value);
 J normalize_coefficients(const J &value); // wire numeric integers -> decimal strings
 
 Word slice(const Word &word, I begin, I end = std::numeric_limits<I>::max());
-Word concat(std::initializer_list<Word> words);
+// Arguments (including temporaries) live through the containing full expression.
+// The view is consumed synchronously and must never be stored by concat.
+struct WordView {
+    const Word &value;
+    WordView(const Word &word) : value(word) {}
+};
+Word concat(std::initializer_list<WordView> words);
 void append(Word &target, const Word &word);
 Word inverse(const Word &word); // pure braid words only
 Word bar(const Word &word);
@@ -73,6 +79,8 @@ struct Limits {
 };
 J metrics(const J &state);
 std::string canonical_json(const J &value); // Python sorted ensure_ascii JSON; coefficient strings emitted numerically
+// Canonical continuation identity without allocating a modified JSON tree.
+std::string continuation_json(const J &value, bool pending);
 std::string sha256(const std::string &text);
 std::string digest(const J &value);
 bool strict_equal(const J &a, const J &b);

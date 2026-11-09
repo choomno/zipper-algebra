@@ -238,3 +238,70 @@ sample. Separate instrumented profiles counted 1,024 versus 256 normalization
 calls and attributed most of the baseline cost to normalization rather than
 enumeration ordinals. These audit measurements are separate from the native
 word-processing benchmarks above and do not predict a whole-store restart time.
+
+## Typed internal verifier records and fewer temporary JSON objects
+
+The next verifier revision replaces internal frame-transport, band-transport,
+operation-step, and processed-tail-event objects with typed records. Word arrays
+remain in the existing exact representation. Independent local identity,
+interval, coverage, and endpoint checks still run; JSON witnesses are constructed
+when a trace needs them. The public JSON witness constructors and checkers remain
+available and provide a differential oracle for the typed paths. This is a
+conversion of those internal records, not a conversion of the entire verifier
+state engine.
+
+Two adjacent changes remove avoidable copying. Continuation identities are
+serialized directly while omitting exactly the same coefficient and depth
+fields, rather than copying the whole state and deleting fields. Concatenation
+borrows its input words for the duration of the call, avoiding the deep copies
+previously introduced by an initializer list of owning JSON objects. The
+resulting word remains independently owned. No producer implementation is used
+by these changes, and no mathematical checks or exact coefficient operations
+are removed.
+
+Matched runs compared frozen revision `357b55e` against a frozen candidate source
+snapshot, recording complete producer/verifier build identities and output
+digests. Each run used fresh native sessions, CPU 6, 256 MiB per cache, and the
+same authenticated tcmalloc allocator. The hard pair was run baseline/candidate
+and then candidate/baseline. Other work continued on the machine; the core was
+not exclusively reserved. The hard rows below are medians of two observations
+per version; the rank-three rows are one observation per version.
+
+| Input | Previous verifier | Typed verifier | Speed ratio |
+|---|---:|---:|---:|
+| B5, `[-4,-3,1,2,3,4]` | 28.339 s | 21.466 s | 1.320 |
+| B8, `[4,1,6,7,2,5,6,3]` | 9.167 s | 8.207 s | 1.117 |
+| B3, `[-1,-2]` repeated five times | 0.944 s | 0.638 s | 1.479 |
+| B3, `[-1,-2]` repeated six times | 3.697 s | 3.178 s | 1.163 |
+
+These are independent verification-call timings including request/response
+conversion and process transfers. They exclude producer execution, startup,
+output canonicalization, and SQLite storage; they must not be presented as
+end-to-end census speedups. All calls completed exact independent checks, and
+canonical output digests agreed across the source versions. The two hard-case
+verifier medians sum to 37.506 versus 29.673 seconds, approximately 1.264 times
+as fast. These small cohorts do not establish population confidence intervals
+or predict the hard tail of a complete census.
+
+A sampled process-tree RSS measurement in the second order found essentially
+unchanged residency: B5 1.435 versus 1.435 GB, B8 3.000 versus 2.998 GB. The
+rank-three measurements were 0.282 versus 0.283 GB at length ten and 0.354 versus
+0.352 GB at length twelve. These sums include the Python driver and producer as
+well as verifier; shared pages can be counted more than once. The low-rank
+length-twelve example establishes completion for that word, not feasibility of
+all rank-three words through length twelve.
+
+The focused transition/replay/adversarial suite passed 77 tests, including exact
+standalone trace comparisons and completed-cache modes. New native tests compare
+typed witnesses against legacy JSON through rank five with both orientations,
+frame directions, and several powers, and reject corrupted typed witnesses.
+A supplemental corpus checks accepted four-hop whole-band and whole-frame
+crossings of width at least three through rank seven, with both signs, frame
+directions, seven powers, and mirrored bands. It compares canonical witness
+bytes and exact exception types/messages, and mutates corresponding typed and
+JSON witnesses at each step. Continuation-key tests compare thousands of states
+and malformed boundary cases,
+including exact exception type and message, large coefficients, Unicode,
+overflowing exponents, and retained versus omitted fields. An attempted optional
+AddressSanitizer/UndefinedBehaviorSanitizer supplement could not link because the
+installed GCC sanitizer runtime was missing; it is not counted as validation.

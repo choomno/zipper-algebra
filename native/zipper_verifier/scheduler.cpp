@@ -199,13 +199,7 @@ void collect_output(OrderedStates &output,J term,const Limits &limits) {
 } // namespace
 
 std::string continuation_key(const J &item, bool pending) {
-    J identity = item;
-    identity.erase("coefficient");
-    if (pending) {
-        identity.erase("depth");
-        if (identity.contains("branch")) identity["branch"].erase("coefficient");
-    }
-    return canonical_json(identity);
+    return continuation_json(item, pending);
 }
 ReplaySession::ReplaySession(Catalog &catalog, std::size_t entries, std::size_t bytes)
     : catalog_(catalog), max_entries_(entries), max_bytes_(bytes) {

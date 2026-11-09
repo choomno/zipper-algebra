@@ -219,4 +219,126 @@ void check_transport(const J &w) {
     }
     if(offset!=length(w["word"])||position!=as_i(w["end"])) throw Error("transport witness does not cover the entire word");
 }
+FrameWitness typed_transport_frame(const J &word,I n,I size,I start,I power,const std::string &side) {
+    const std::string invalid="valid rank, tape interval, integer power and side required";
+    validate_interval(n,size,start,invalid);
+    if(side!="left"&&side!="right") throw Error(invalid);
+    validate_braid(word,n);
+    I position=start,cursor=side=="left" ? length(word) : 0;
+    const I total=length(word), last=last_start(n,size);
+    std::vector<J> pieces;
+    std::vector<FrameStep> steps;
+    while(side=="left" ? cursor>0 : cursor<total) {
+        const I letter=as_i(word.at(static_cast<std::size_t>(side=="left" ? cursor-1 : cursor)));
+        const I expected_size=frame_block_size(letter,size,position);
+        if(expected_size>(side=="left" ? cursor : checked_sub(total,cursor))) {
+            const I offset=side=="left" ? checked_sub(cursor,expected_size) : cursor;
+            throw FrameError("whole marked tape required at offset "+std::to_string(offset)+
+                             "; tape starts at "+std::to_string(position)+", side="+side);
+        }
+        const LocalFrame relation=frame_relation(letter,size,position,power,side);
+        const I count=length(relation.block);
+        const I offset=side=="left" ? checked_sub(cursor,count) : cursor;
+        if(offset<0 || slice(word,offset,checked_add(offset,count))!=relation.block ||
+           relation.after<1 || relation.after>last)
+            throw FrameError("whole marked tape required at offset "+std::to_string(offset)+
+                             "; tape starts at "+std::to_string(position)+", side="+side);
+        steps.push_back({relation.kind,offset,position,relation.after,relation.block,relation.emitted});
+        pieces.push_back(relation.emitted);
+        cursor=side=="left" ? offset : checked_add(cursor,count);
+        position=relation.after;
+    }
+    return {n,size,start,position,power,side,word,flatten(pieces,side=="left"),std::move(steps)};
+}
+
+BandWitness typed_transport_band(const J &word,I n,I size,I start,bool mirrored) {
+    validate_interval(n,size,start,"valid rank, band interval and boolean orientation required");
+    validate_braid(word,n);
+    I position=start,offset=0; std::vector<BandStep> steps;
+    while(offset<length(word)) {
+        const I letter=as_i(word.at(static_cast<std::size_t>(offset))), index=abs_i(letter),sign=letter>0 ? 1 : -1;
+        I after=position; J block; std::string kind;
+        const I left=checked_sub(position,1),right=checked_add(position,size);
+        if(index<left||index>=right) {kind="far";block=J::array({letter});}
+        else if(size==1) {kind="singleton";block=J::array({letter});after=checked_add(position,index==position ? 1 : -1);}
+        else if(size==2&&index==position) {kind="internal_i2";block=J::array({letter});}
+        else if(index==checked_sub(right,1)) {
+            if(size>checked_sub(length(word),offset)) band_failure("whole-band crossing required",offset,position,slice(word,offset));
+            kind="right";block=consecutive(position,size,sign,true);after=checked_add(position,1);}
+        else if(index==left) {
+            if(size>checked_sub(length(word),offset)) band_failure("whole-band crossing required",offset,position,slice(word,offset));
+            kind="left";block=consecutive(left,size,sign,false);after=checked_sub(position,1);}
+        else band_failure("internal crossing requires a flype or another explicit witness",offset,position,slice(word,offset));
+        if(slice(word,offset,checked_add(offset,length(block)))!=block)
+            band_failure("whole-band crossing required",offset,position,slice(word,offset));
+        steps.push_back({kind,offset,position,after,std::move(block)});
+        position=after;offset=checked_add(offset,length(steps.back().block));
+    }
+    return {n,size,start,position,mirrored,word,std::move(steps)};
+}
+
+J FrameWitness::json() const {
+    J encoded=J::array();
+    for(const auto &s:steps)
+        encoded.push_back({{"kind",s.kind},{"offset",s.offset},{"start_before",s.start_before},
+                           {"start_after",s.start_after},{"block",s.block},{"emitted",s.emitted}});
+    return {{"n",n},{"size",size},{"start",start},{"end",end},{"power",power},{"side",side},
+            {"word",word},{"transformed",transformed},{"steps",std::move(encoded)}};
+}
+J BandWitness::json() const {
+    J encoded=J::array();
+    for(const auto &s:steps)
+        encoded.push_back({{"kind",s.kind},{"offset",s.offset},{"start_before",s.start_before},
+                           {"start_after",s.start_after},{"block",s.block}});
+    return {{"n",n},{"size",size},{"start",start},{"end",end},{"mirrored",mirrored},
+            {"word",word},{"steps",std::move(encoded)}};
+}
+void check_frame(const FrameWitness &w) {
+    validate_interval(w.n,w.size,w.start,"valid rank, tape interval, integer power and side required");
+    if(w.side!="left"&&w.side!="right") throw Error("valid rank, tape interval, integer power and side required");
+    validate_braid(w.word,w.n);
+    if(!braid_array(w.transformed,w.n)) throw Error("frame witness does not cover the entire identity");
+    const I last=last_start(w.n,w.size);
+    if(w.end<1||w.end>last) throw Error("invalid final tape interval");
+    I position=w.start,cursor=w.side=="left"?length(w.word):0;
+    std::vector<J> pieces;
+    for(const auto &s:w.steps) {
+        if(!braid_array(s.block,w.n)||s.block.empty()||!braid_array(s.emitted,w.n)||s.start_before!=position)
+            throw Error("invalid frame step");
+        const I letter=as_i(w.side=="left"?s.block.back():s.block.front());
+        if(length(s.block)!=frame_block_size(letter,w.size,position)) throw Error("invalid local frame identity");
+        const auto expected=frame_relation(letter,w.size,position,w.power,w.side);
+        const I offset=w.side=="left"?checked_sub(cursor,length(s.block)):cursor;
+        if(s.kind!=expected.kind||s.start_after!=expected.after||s.block!=expected.block||s.emitted!=expected.emitted||
+           s.offset!=offset||offset<0||slice(w.word,offset,checked_add(offset,length(s.block)))!=s.block||
+           s.start_after<1||s.start_after>last) throw Error("invalid local frame identity");
+        pieces.push_back(s.emitted);
+        cursor=w.side=="left"?offset:checked_add(cursor,length(s.block));
+        position=s.start_after;
+    }
+    if(cursor!=(w.side=="left"?0:length(w.word))||position!=w.end||flatten(pieces,w.side=="left")!=w.transformed)
+        throw Error("frame witness does not cover the entire identity");
+}
+void check_transport(const BandWitness &w) {
+    validate_interval(w.n,w.size,w.start,"valid rank, band interval and boolean orientation required");
+    validate_braid(w.word,w.n);
+    const I last=last_start(w.n,w.size);
+    if(w.end<1||w.end>last) throw Error("invalid final band interval");
+    I position=w.start,offset=0;
+    for(const auto &s:w.steps) {
+        if(!braid_array(s.block,w.n)||s.block.empty()||s.offset!=offset||s.start_before!=position)
+            throw Error("invalid transport step location or block");
+        const I letter=as_i(s.block.front()),sign=letter>0?1:-1,index=abs_i(letter),after=s.start_after;
+        bool valid=false;
+        if(s.kind=="far") valid=s.block.size()==1&&after==position&&(index<checked_sub(position,1)||index>=checked_add(position,w.size));
+        else if(s.kind=="internal_i2") valid=w.size==2&&s.block.size()==1&&index==position&&after==position;
+        else if(s.kind=="singleton") valid=w.size==1&&s.block.size()==1&&(index==checked_sub(position,1)||index==position)&&after==checked_add(position,index==position?1:-1);
+        else if(s.kind=="right") valid=length(s.block)==w.size&&s.block==consecutive(position,w.size,sign,true)&&after==checked_add(position,1);
+        else if(s.kind=="left") valid=length(s.block)==w.size&&s.block==consecutive(checked_sub(position,1),w.size,sign,false)&&after==checked_sub(position,1);
+        if(!valid||slice(w.word,offset,checked_add(offset,length(s.block)))!=s.block||after<1||after>last)
+            throw Error("invalid local band transport identity");
+        position=after;offset=checked_add(offset,length(s.block));
+    }
+    if(offset!=length(w.word)||position!=w.end) throw Error("transport witness does not cover the entire word");
+}
 } // namespace zipper_verify
