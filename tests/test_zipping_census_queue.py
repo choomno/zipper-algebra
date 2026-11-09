@@ -29,6 +29,25 @@ def setup(tmp_path):
     queue.close()
 
 
+def test_work_presence_ignores_certified_history(setup):
+    queue, produce, verify = setup
+    assert not any(queue.work_presence().values())
+    queue.enqueue(3, [-1])
+    assert queue.work_presence()["queued"]
+    queue.compute_one(produce)
+    assert queue.work_presence()["candidate"]
+    queue.certify_one(verify, IDENTITY)
+    statements = []
+    queue.db.set_trace_callback(statements.append)
+    assert not any(queue.work_presence().values())
+    queue.db.set_trace_callback(None)
+    assert len(statements) == 1
+    assert "COUNT(" not in statements[0].upper()
+    assert "ASYNC_CANDIDATES" not in statements[0].upper()
+    plans = queue.db.execute("EXPLAIN QUERY PLAN " + statements[0]).fetchall()
+    assert all("SCAN async_jobs" not in row[3] for row in plans)
+
+
 def test_durable_separate_compute_and_certify(setup):
     queue, produce, verify = setup
     key = queue.enqueue(3, [-1, -2])
@@ -101,6 +120,11 @@ def test_backpressure_and_fifo(setup):
 @pytest.mark.parametrize("failure,status,reason", [
     (False, "rejected", "replay_mismatch"),
     (VerifierIncomplete("budget"), "verification_incomplete", "resource_limit"),
+    (VerifierIncomplete("control", replay_status="control_obligation",
+                        replay_diagnostic={"rule": "pending"}),
+     "verification_incomplete", "control_obligation"),
+    (VerifierIncomplete("unsupported", replay_status="unsupported"),
+     "verification_incomplete", "unsupported"),
     (VerifierError("source changed"), "verification_error", "operational_error"),
     (RuntimeError("process died"), "verification_error", "operational_error"),
 ])
@@ -118,6 +142,9 @@ def test_verification_outcomes_preserve_candidate(setup, failure, status, reason
     assert queue.db.execute("SELECT payload FROM async_candidates").fetchone()[0] == blob
     record = json.loads(queue.db.execute("SELECT record FROM async_attempts ORDER BY id DESC").fetchone()[0])
     assert record["reason"] == reason
+    if isinstance(failure, VerifierIncomplete):
+        assert record["replay_status"] == failure.replay_status
+        assert record["replay_diagnostic"] == failure.replay_diagnostic
     if status == "rejected":
         with pytest.raises(ValueError):
             queue.retry(status)

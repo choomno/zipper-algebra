@@ -119,7 +119,7 @@ def worker(path: Path, policy: dict[str, Any], role: str, settings: dict[str, An
             if settings["once"]:
                 break
             if not did_work:
-                counts = queue.counts()
+                counts = queue.work_presence()
                 if settings["drain"]:
                     remaining = (sum(counts.get(s, 0) for s in ("queued", "computing")) if role == "compute"
                                  else sum(counts.get(s, 0) for s in ("queued", "computing", "candidate", "certifying")))
@@ -128,7 +128,7 @@ def worker(path: Path, policy: dict[str, Any], role: str, settings: dict[str, An
                     if (role == "compute" and counts.get("queued", 0)
                             and not sum(counts.get(s, 0) for s in ("computing", "candidate", "certifying"))
                             and sum(counts.get(s, 0) for s in ("verification_incomplete", "verification_error"))):
-                        print(json.dumps({"blocked": "uncertified backlog requires retry", "counts": counts}), flush=True)
+                        print(json.dumps({"blocked": "uncertified backlog requires retry", "present": counts}), flush=True)
                         if settings.get("stop"):
                             settings["stop"].set()
                         break

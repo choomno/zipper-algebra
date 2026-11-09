@@ -332,7 +332,10 @@ class CensusQueue:
                         record["error"] = "independent verifier rejected output"
                 except VerifierIncomplete as exc:
                     status, record["error"] = "verification_incomplete", str(exc)
-                    record["reason"] = "resource_limit"
+                    record["reason"] = ("resource_limit" if exc.replay_status == "incomplete"
+                                        else exc.replay_status)
+                    record["replay_status"] = exc.replay_status
+                    record["replay_diagnostic"] = deepcopy(exc.replay_diagnostic)
                 except Exception as exc:
                     status, record["error"] = "verification_error", str(exc)
                     record["reason"] = "operational_error"
@@ -352,6 +355,17 @@ class CensusQueue:
                 self._attempt(row[0], "retry", destinations[state], {"previous_state": state})
             return self.db.execute("UPDATE async_jobs SET state=?,updated=? WHERE policy=? AND state=?",
                                    (destinations[state], time.time(), self.policy_key, state)).rowcount
+
+    def work_presence(self) -> dict[str, bool]:
+        """Indexed existence checks for worker control, independent of history size."""
+        states = ("queued", "computing", "candidate", "certifying",
+                  "verification_incomplete", "verification_error")
+        # One statement gives all probes the same SQLite snapshot during retries.
+        query = " UNION ALL ".join(
+            "SELECT EXISTS(SELECT 1 FROM async_jobs WHERE policy=? AND state=? LIMIT 1)"
+            for _ in states)
+        parameters = tuple(value for state in states for value in (self.policy_key, state))
+        return dict(zip(states, (bool(row[0]) for row in self.db.execute(query, parameters))))
 
     def counts(self) -> dict[str, Any]:
         rows = dict(self.db.execute("SELECT state,count(*) FROM async_jobs WHERE policy=? GROUP BY state",
