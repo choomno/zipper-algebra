@@ -254,9 +254,11 @@ class CensusQueue:
                 raise ValueError("candidate native build binding mismatch")
         return _canonical_digest(completed_output(result))
 
-    def publish(self, claim: Claim, result: dict[str, Any], *, seconds: float) -> None:
+    def publish(self, claim: Claim, result: dict[str, Any], *, seconds: float,
+                attempt_metadata: dict[str, Any] | None = None) -> None:
         if claim.stage != "compute":
             raise ValueError("only a compute claim can publish")
+        started = time.perf_counter()
         self.assert_sources()
         output_digest = self._validate(result, claim)
         encoded = _json(result).encode()
@@ -266,7 +268,10 @@ class CensusQueue:
             self.db.execute("INSERT INTO async_candidates VALUES (?,?,?,?,?,?)",
                             (self.policy_key, claim.key, payload, digest, output_digest, len(payload)))
             self._attempt(claim.key, "compute", "candidate", {"seconds": seconds, "digest": digest,
-                          "compressed_bytes": len(payload), "metrics": result.get("metrics", {})})
+                          "compressed_bytes": len(payload), "metrics": result.get("metrics", {}),
+                          "attempt_metadata": deepcopy(attempt_metadata or {}),
+                          "timings": {"compute_seconds": seconds,
+                                      "publication_seconds": time.perf_counter() - started}})
             self.db.execute("UPDATE async_jobs SET state='candidate',token=NULL,lease=NULL,updated=? "
                             "WHERE policy=? AND key=?", (time.time(), self.policy_key, claim.key))
 
@@ -285,7 +290,8 @@ class CensusQueue:
             raise ValueError("candidate output digest mismatch")
         return result, row[1]
 
-    def compute_one(self, produce: Callable[[int, list[int]], dict[str, Any]], **claim_options: Any) -> bool:
+    def compute_one(self, produce: Callable[[int, list[int]], dict[str, Any]], *,
+                    attempt_metadata: dict[str, Any] | None = None, **claim_options: Any) -> bool:
         self.assert_sources()
         claim = self.claim("compute", **claim_options)
         if claim is None:
@@ -293,30 +299,41 @@ class CensusQueue:
         started = time.perf_counter()
         with self.keepalive(claim, claim_options.get("lease_seconds", 300)):
             try:
+                started = time.perf_counter()
                 result = produce(claim.n, claim.word)
+                compute_seconds = time.perf_counter() - started
                 if result.get("status") != "complete":
-                    self.finish(claim, "compute_incomplete", {"seconds": time.perf_counter() - started,
-                                "status": result.get("status"), "diagnostic": result.get("diagnostic")})
+                    self.finish(claim, "compute_incomplete", {"seconds": compute_seconds,
+                                "timings": {"compute_seconds": compute_seconds},
+                                "attempt_metadata": deepcopy(attempt_metadata or {}),
+                                "metrics": result.get("metrics", {}), "status": result.get("status"), "diagnostic": result.get("diagnostic")})
                 else:
-                    self.publish(claim, result, seconds=time.perf_counter() - started)
+                    self.publish(claim, result, seconds=compute_seconds, attempt_metadata=attempt_metadata)
             except LostLease:
                 raise
             except Exception as exc:
-                self.finish(claim, "compute_error", {"seconds": time.perf_counter() - started, "error": str(exc)})
+                self.finish(claim, "compute_error", {"seconds": time.perf_counter() - started, "error": str(exc),
+                            "attempt_metadata": deepcopy(attempt_metadata or {})})
                 raise
         return True
 
     def certify_one(self, verify: Callable[[dict[str, Any]], bool], verifier_identity: dict[str, Any],
+                    *, attempt_metadata: dict[str, Any] | None = None,
+                    verification_telemetry: Callable[[], dict[str, Any]] | None = None,
                     **claim_options: Any) -> bool:
         verifier_identity = verifier_binding(verifier_identity)
         self.assert_sources()
         claim = self.claim("certify", **claim_options)
         if claim is None:
             return False
-        record: dict[str, Any] = {"verifier": deepcopy(verifier_identity)}
+        record: dict[str, Any] = {"verifier": deepcopy(verifier_identity),
+                                  "attempt_metadata": deepcopy(attempt_metadata or {})}
+        timings = {"candidate_loading_seconds": 0.0, "verification_seconds": 0.0}
+        record["timings"] = timings
         started = time.perf_counter()
         status = "certified"
         with self.keepalive(claim, claim_options.get("lease_seconds", 300)):
+            loading_started = time.perf_counter()
             try:
                 result, record["digest"] = self.candidate(claim)
             except (LostLease, SourceChanged):
@@ -325,6 +342,8 @@ class CensusQueue:
                 status, record["error"] = "rejected", str(exc)
                 record["reason"] = "candidate_integrity"
             else:
+                timings["candidate_loading_seconds"] = time.perf_counter() - loading_started
+                verification_started = time.perf_counter()
                 try:
                     if verify(result) is not True:
                         status = "rejected"
@@ -339,6 +358,19 @@ class CensusQueue:
                 except Exception as exc:
                     status, record["error"] = "verification_error", str(exc)
                     record["reason"] = "operational_error"
+                finally:
+                    timings["verification_seconds"] = time.perf_counter() - verification_started
+                    # Observational data cannot supply or alter the verdict. A failed
+                    # telemetry hook must not discard a completed exact check.
+                    if verification_telemetry is not None:
+                        try:
+                            telemetry = deepcopy(verification_telemetry())
+                            _json(telemetry)
+                            record["verification_telemetry"] = telemetry
+                        except Exception as exc:
+                            record["telemetry_error"] = str(exc)
+            if "digest" not in record:
+                timings["candidate_loading_seconds"] = time.perf_counter() - loading_started
             self.assert_sources()
             record["seconds"] = time.perf_counter() - started
             self.finish(claim, status, record)

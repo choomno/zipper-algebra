@@ -15,6 +15,7 @@ from collections import deque
 from pathlib import Path
 import sqlite3
 import time
+import uuid
 from typing import Any
 
 from zipper_algebra.zipping_algorithm.census_queue import CensusQueue, SCHEMA, LostLease
@@ -83,6 +84,9 @@ def verify_result(verifier: Any, result: dict[str, Any], mode: str) -> bool:
 def worker(path: Path, policy: dict[str, Any], role: str, settings: dict[str, Any]) -> None:
     queue = CensusQueue(path, policy)
     session: Any = None
+    attempt_metadata: dict[str, Any] = {"worker_session": str(uuid.uuid4()), "cache_bytes": settings["cache_bytes"],
+                        "cache_entries": settings.get("cache_entries", 262144) if role == "certify" else 65536,
+                        "cache_lifetime": "worker_session", "attempt_index": 0}
     try:
         queue.assert_sources()
         if policy["runner_sha256"] != hashlib.sha256(Path(__file__).read_bytes()).hexdigest():
@@ -97,22 +101,30 @@ def worker(path: Path, policy: dict[str, Any], role: str, settings: dict[str, An
             limits = Limits(**policy["limits"])
             def step() -> bool:
                 return queue.compute_one(lambda n, word: reduce(word, n=n, limits=limits),
+                                         attempt_metadata=attempt_metadata,
                                          max_pending=settings["max_pending"],
                                          max_pending_bytes=settings["max_pending_bytes"])
         else:
             session = CppVerifier(producer_metadata=policy["producer_metadata"],
                                   cache_bytes=settings["cache_bytes"],
+                                  cache_entries=settings.get("cache_entries", 262144),
                                   allocator_library=settings["allocator"])
             def verify(result: dict[str, Any]) -> bool:
                 return verify_result(session, result, policy["mode"])
             identity = verifier_binding(session.metadata)
             def step() -> bool:
-                return queue.certify_one(verify, identity)
+                return queue.certify_one(verify, identity, attempt_metadata=attempt_metadata,
+                                         verification_telemetry=lambda: {
+                                             "report": session.last_result,
+                                             "native_call_seconds": session.last_call_seconds})
         deadline = time.monotonic() + settings["wall_seconds"]
         while time.monotonic() < deadline and not (settings.get("stop") and settings["stop"].is_set()):
             try:
                 did_work = step()
+                if did_work:
+                    attempt_metadata["attempt_index"] += 1
             except LostLease:
+                attempt_metadata["attempt_index"] += 1
                 did_work = True
             if role == "certify" and session.pid is None:
                 raise RuntimeError("verifier process exited; remaining candidates preserved")
@@ -121,13 +133,13 @@ def worker(path: Path, policy: dict[str, Any], role: str, settings: dict[str, An
             if not did_work:
                 counts = queue.work_presence()
                 if settings["drain"]:
-                    remaining = (sum(counts.get(s, 0) for s in ("queued", "computing")) if role == "compute"
-                                 else sum(counts.get(s, 0) for s in ("queued", "computing", "candidate", "certifying")))
+                    remaining = (sum(counts.get(s, False) for s in ("queued", "computing")) if role == "compute"
+                                 else sum(counts.get(s, False) for s in ("queued", "computing", "candidate", "certifying")))
                     if remaining == 0:
                         break
-                    if (role == "compute" and counts.get("queued", 0)
-                            and not sum(counts.get(s, 0) for s in ("computing", "candidate", "certifying"))
-                            and sum(counts.get(s, 0) for s in ("verification_incomplete", "verification_error"))):
+                    if (role == "compute" and counts.get("queued", False)
+                            and not sum(counts.get(s, False) for s in ("computing", "candidate", "certifying"))
+                            and sum(counts.get(s, False) for s in ("verification_incomplete", "verification_error"))):
                         print(json.dumps({"blocked": "uncertified backlog requires retry", "present": counts}), flush=True)
                         if settings.get("stop"):
                             settings["stop"].set()
@@ -143,7 +155,7 @@ def admit(queue: CensusQueue, targets: dict[str, int], *, maximum: int, minimum_
     """Round-robin bounded admission of primitive rank >=3 layers."""
     if type(minimum_length) is not int or minimum_length < 0:
         raise ValueError("minimum length must be a nonnegative integer")
-    layers = []
+    layers: list[NonPeelableWords] = []
     for rank, cutoff in sorted((int(n), value) for n, value in targets.items()):
         if rank < 3 or type(cutoff) is not int or cutoff < 0:
             raise ValueError("census targets require rank >=3 and nonnegative integer cutoffs")
@@ -158,8 +170,10 @@ def admit(queue: CensusQueue, targets: dict[str, int], *, maximum: int, minimum_
     while order and admitted < maximum:
         index = order.popleft()
         layer = layers[index]
+        def request_at(i: int, layer: NonPeelableWords = layer) -> tuple[int, list[int]]:
+            return layer.n, list(layer.word_at(i))
         count = queue.enqueue_interval(f"nonpeelable-v1:{layer.n}:{layer.length}", layer.count,
-                  lambda i, layer=layer: (layer.n, list(layer.word_at(i))), batch=min(64, maximum - admitted),
+                  request_at, batch=min(64, maximum - admitted),
                   rotation=(rotation_key, str(index)))
         admitted += count
         if count:
@@ -179,6 +193,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--min-length", type=int, default=0, help="lowest length to admit from --targets")
     parser.add_argument("--admit-max", type=int, default=10000)
     parser.add_argument("--cache-mib", type=int, default=256)
+    parser.add_argument("--cache-entries", type=int, default=262144, help="verifier cache entry budget")
     parser.add_argument("--max-pending", type=int, default=256)
     parser.add_argument("--max-pending-mib", type=int, default=1024)
     parser.add_argument("--compute-workers", type=int, default=1)
@@ -189,7 +204,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--allocator", type=Path)
     parser.add_argument("--state", choices=("compute_incomplete", "compute_error", "verification_incomplete", "verification_error"))
     args = parser.parse_args(argv)
-    if (args.min_length < 0 or args.cache_mib < 0 or min(args.max_pending, args.max_pending_mib, args.compute_workers,
+    if (args.min_length < 0 or args.cache_mib < 0 or args.cache_entries < 0 or min(args.max_pending, args.max_pending_mib, args.compute_workers,
                                   args.certify_workers, args.admit_max) < 1 or args.wall_seconds <= 0):
         parser.error("budgets and worker counts must be positive; cache and minimum length may be zero")
     if args.command == "init":
@@ -219,7 +234,7 @@ def main(argv: list[str] | None = None) -> int:
                 parser.error("retry requires --state")
             queue.retry(args.state)
         elif args.command in ("compute", "certify", "run"):
-            settings = {"cache_bytes": args.cache_mib * 2**20, "max_pending": args.max_pending,
+            settings = {"cache_bytes": args.cache_mib * 2**20, "cache_entries": args.cache_entries, "max_pending": args.max_pending,
                         "max_pending_bytes": args.max_pending_mib * 2**20, "wall_seconds": args.wall_seconds,
                         "once": args.once, "drain": args.drain, "allocator": args.allocator}
             if args.command != "run":

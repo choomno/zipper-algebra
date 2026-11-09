@@ -536,3 +536,124 @@ def test_minimum_length_admission_and_cli(setup, capsys):
         assert error.value.code == 2
     finally:
         work.close()
+
+
+@pytest.mark.parametrize("outcome,expected", [(True, "certified"), (False, "rejected"),
+    (VerifierIncomplete("control", replay_status="control_obligation"), "verification_incomplete"),
+    (RuntimeError("transport"), "verification_error")])
+def test_attempt_telemetry_is_durable_and_never_a_verdict(setup, outcome, expected, monkeypatch):
+    import zipper_algebra.zipping_algorithm.census_queue as module
+    queue, produce, _ = setup
+    queue.enqueue(3, [-1])
+    clock = [0.0]
+    monkeypatch.setattr(module.time, "perf_counter", lambda: clock[0])
+    def timed_produce(n, word):
+        result = produce(n, word)
+        clock[0] += 7
+        return result
+    validate = queue._validate
+    def timed_validate(*args):
+        value = validate(*args)
+        clock[0] += 3
+        return value
+    monkeypatch.setattr(queue, "_validate", timed_validate)
+    metadata = {"cache_bytes": 123, "cache_entries": 8, "worker_session": "one", "attempt_index": 0}
+    queue.compute_one(timed_produce, attempt_metadata=metadata)
+    compute = json.loads(queue.db.execute("SELECT record FROM async_attempts").fetchone()[0])
+    assert compute["timings"] == {"compute_seconds": 7, "publication_seconds": 3}
+    assert compute["attempt_metadata"] == metadata
+    telemetry = {"report": {"ok": outcome is not True, "metrics": {"cache_hits": 17}}}
+    def check(_):
+        clock[0] += 5
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+    queue.certify_one(check, IDENTITY, attempt_metadata=metadata, verification_telemetry=lambda: telemetry)
+    telemetry["report"]["metrics"]["cache_hits"] = 99
+    other = CensusQueue(queue.path, queue.policy)
+    try:
+        record = json.loads(other.db.execute("SELECT record FROM async_attempts ORDER BY id DESC").fetchone()[0])
+        assert other.counts()[expected] == 1
+        assert record["verification_telemetry"]["report"]["metrics"]["cache_hits"] == 17
+        assert record["timings"] == {"candidate_loading_seconds": 3, "verification_seconds": 5}
+        assert record["attempt_metadata"] == metadata
+    finally:
+        other.close()
+
+
+def test_telemetry_failure_preserves_boolean_verdict(setup):
+    queue, produce, verify = setup
+    queue.enqueue(3, [-1])
+    queue.compute_one(produce)
+    def broken():
+        raise RuntimeError("metrics unavailable")
+    queue.certify_one(verify, IDENTITY, verification_telemetry=broken)
+    record = json.loads(queue.db.execute("SELECT record FROM async_attempts ORDER BY id DESC").fetchone()[0])
+    assert queue.counts()["certified"] == 1
+    assert record["telemetry_error"] == "metrics unavailable"
+
+
+def test_corrupt_candidate_does_not_collect_stale_telemetry(setup):
+    queue, produce, _ = setup
+    queue.enqueue(3, [-1])
+    queue.compute_one(produce)
+    queue.db.execute("UPDATE async_candidates SET digest='bad'")
+    def unexpected(*args):
+        pytest.fail("corrupt candidate must not call verifier or telemetry hook")
+    queue.certify_one(unexpected, IDENTITY, verification_telemetry=unexpected)
+    record = json.loads(queue.db.execute("SELECT record FROM async_attempts ORDER BY id DESC").fetchone()[0])
+    assert record["timings"]["verification_seconds"] == 0
+    assert "verification_telemetry" not in record
+
+
+def test_runner_records_per_attempt_verifier_report_and_cache_regime(setup, monkeypatch):
+    import experiments.zipper_async_census as cli
+    queue, produce, _ = setup
+    policy = _worker_policy(queue)
+    work = CensusQueue(queue.path, policy)
+    seen = []
+    class Verifier:
+        metadata = IDENTITY
+        pid = 1
+        last_call_seconds = .25
+        last_result = {}
+        def __init__(self, **kwargs):
+            seen.append(kwargs)
+        def check(self, result):
+            self.last_result = {"ok": True, "metrics": {"cache_hits": len(result["input_word"])}}
+            return True
+        def close(self):
+            pass
+    monkeypatch.setattr(cli, "CppVerifier", Verifier)
+    try:
+        for word in ([-1], [-1, -2]):
+            work.enqueue(3, word)
+            work.compute_one(produce)
+        cli.worker(queue.path, policy, "certify", dict(_worker_settings(), cache_bytes=321, cache_entries=42))
+        records = [json.loads(row[0]) for row in work.db.execute(
+            "SELECT record FROM async_attempts WHERE stage='certify' ORDER BY id")]
+        assert [r["attempt_metadata"]["attempt_index"] for r in records] == [0, 1]
+        assert len({r["attempt_metadata"]["worker_session"] for r in records}) == 1
+        assert all(r["attempt_metadata"]["cache_bytes"] == 321 for r in records)
+        assert all(r["attempt_metadata"]["cache_entries"] == 42 for r in records)
+        assert [r["verification_telemetry"]["report"]["metrics"]["cache_hits"] for r in records] == [1, 2]
+        assert all(r["verification_telemetry"]["native_call_seconds"] == .25 for r in records)
+        assert seen[0]["cache_entries"] == 42
+    finally:
+        work.close()
+
+
+def test_old_attempt_json_survives_new_attempts_without_migration(setup):
+    queue, produce, verify = setup
+    queue.enqueue(3, [-1])
+    queue.compute_one(produce)
+    # Emulate the historical additive JSON record shape in the same v1 schema.
+    old = '{"seconds": 1, "digest": "historical"}'
+    queue.db.execute("UPDATE async_attempts SET record=?", (old,))
+    other = CensusQueue(queue.path, queue.policy)
+    try:
+        assert other.certify_one(verify, IDENTITY)
+        assert other.db.execute("SELECT record FROM async_attempts ORDER BY id").fetchone()[0] == old
+        assert other.counts()["certified"] == 1
+    finally:
+        other.close()

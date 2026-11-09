@@ -138,3 +138,33 @@ separate and does not promote queue candidates to certified status.
 The `status` command uses a read-only SQLite connection and validates the stored
 policy schema and digest. It can inspect historical source epochs without
 loading their executables or modifying their databases.
+
+## Attempt telemetry and timer scopes
+
+New attempt JSON records add `attempt_metadata` and `timings`; existing sidecars
+and historical attempt JSON require no SQL migration. Boolean verifier callbacks
+remain supported. The optional `verification_telemetry` callback supplies
+observations after a verifier call, including refusals and operational failures.
+Its data never determines acceptance. A telemetry exception is recorded as
+`telemetry_error` while retaining the exact check's verdict. Candidate integrity
+failures skip both verifier and telemetry callbacks.
+
+The runner records the independent verifier's full `last_result` report and
+`native_call_seconds` under `verification_telemetry`. Native work and cache
+metrics therefore remain distinct from producer metrics. Each worker records
+its session UUID, zero-based completed-attempt index, cache byte and entry
+budgets, and process-local cache lifetime. This identifies prior worker activity;
+it does not assert that every later attempt has a cache hit. `--cache-entries`
+sets the verifier entry budget (default 262144); producer sessions retain their
+65536-entry default. `--cache-mib` sets each session's byte budget.
+
+`compute_seconds` measures the producer call; `publication_seconds` measures
+source/request/output validation, serialization, compression, SQL lock acquisition
+and candidate insertion up to recording the attempt. Publication excludes the
+final attempt insertion, job update and transaction commit. Certification records
+`candidate_loading_seconds` (including source, lease and digest guards) and
+`verification_seconds` (the verifier callback including its wrapper checks and
+IPC). Legacy compute `seconds` retains its pre-publication scope; certification
+`seconds` includes loading, checking, telemetry capture and final source guards,
+ending before durable finalization. These timers exclude session initialization
+and do not sum to complete worker wall time.
