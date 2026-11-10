@@ -1306,6 +1306,12 @@
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
+      "path": "tests/test_zipping_census_migration.py",
+      "bytes": 5194,
+      "sha256": "f8d31e8ccbed07fc25799edc7d537881f4072291853b7220797c657ef1857f4c",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
       "path": "tests/test_zipping_census_queue.py",
       "bytes": 31725,
       "sha256": "2f172d6c9c59f08768b8720933eeeca9a5792a6eb6a2dc6de2ec920c71005e22",
