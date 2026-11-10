@@ -97,6 +97,8 @@ def inspect(directory):
                        "zipping_algorithm/native_verifier.py",
                        "zipping_algorithm/_verifier_sources/main.cpp",
                        "zipping_algorithm/_verifier_sources/core.hpp",
+                       "zipping_algorithm/_verifier_sources/typed_state.hpp",
+                       "zipping_algorithm/_verifier_sources/typed_algorithm.cpp",
                        "zipping_algorithm/_verifier_sources/vendor/nlohmann/json.hpp",
                        "zipping_algorithm/_verifier_sources/vendor/nlohmann/LICENSE.MIT",
                        "zipping_algorithm/data/full-catalog.json",
@@ -156,6 +158,8 @@ def inspect(directory):
                        "docs/ZIPPING_GPU_PROTOTYPE.md", "docs/ZIPPING_GPU_REWRITE.md",
                        "native/zipper_verifier/main.cpp", "native/zipper_verifier/core.hpp",
                        "native/zipper_verifier/work_size.hpp",
+                       "native/zipper_verifier/typed_state.hpp",
+                       "native/zipper_verifier/typed_algorithm.cpp",
                        "tests/native/frozen_verifier_9c477dd.tar.gz",
                        "tests/native/frozen_verifier_9c477dd.json",
                        "docs/zipper-typed-verifier.md",
@@ -170,6 +174,16 @@ def inspect(directory):
             member = archive.extractfile(name)
             assert member is not None, name
             return member.read()
+        # Bind the separately bundled oracle source to this checkout's curated
+        # inventory, as well as the archive's self-contained fixture manifest.
+        inventory = json.loads((Path(__file__).resolve().parents[1]
+                                / "docs/x3-reproduction-files.json").read_text())
+        indexed = {item["path"]: item for item in inventory["files"]}
+        for name in ("tests/native/frozen_verifier_9c477dd.json",
+                     "tests/native/frozen_verifier_9c477dd.tar.gz"):
+            content = read(f"{root}/{name}")
+            assert len(content) == indexed[name]["bytes"], name
+            assert hashlib.sha256(content).hexdigest() == indexed[name]["sha256"], name
         source_origin = build_provenance(
             read(f"{root}/src/zipper_algebra/_build_provenance.json"), names,
             read, f"{root}/src/zipper_algebra/")

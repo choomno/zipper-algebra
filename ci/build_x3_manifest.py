@@ -19,6 +19,7 @@ FAMILIES = (
     ("src/zipper_algebra/**/*.py", "Maintained implementation used by presentation, production or verification"),
     ("src/zipper_algebra/zipping_algorithm/data/*.json", "Frozen zipper rewrite schemata, syntax and hash manifest"),
     ("native/zipper_verifier/**/*.cpp", "Independent verifier implementation and compatibility diagnostics"),
+    ("native/zipper_verifier/**/*.h", "Independent verifier authenticated headers"),
     ("native/zipper_verifier/**/*.hpp", "Independent verifier types and authenticated parser headers"),
     ("tests/native/frozen_verifier_9c477dd.*", "Authenticated independent JSON verifier differential fixture"),
     ("tests/**/*.py", "Mathematical regression, installation or independent implementation comparison"),

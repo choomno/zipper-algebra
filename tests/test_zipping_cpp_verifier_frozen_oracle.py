@@ -29,6 +29,8 @@ def _frozen_module(destination):
     """Authenticate every frozen input before compiling a separate executable."""
     manifest = json.loads(_FIXTURE.with_suffix(".json").read_text())
     payload = _FIXTURE.with_suffix(".tar.gz").read_bytes()
+    assert manifest["archive_sha256"] == (
+        "7c41dd88004a8f39b595e32b738faa5c54fd50b04b1544620031d648274266ba")
     assert hashlib.sha256(payload).hexdigest() == manifest["archive_sha256"]
     assert manifest["commit"] == "9c477dd404738be0a7133bef75b2d4adc37c2616"
     members = {}
@@ -403,3 +405,10 @@ def test_typed_diagnostic_rejects_unknown_owned_record_keys(candidate, reached_s
                           limits=asdict(Limits()), trace=False)
         assert result.get("ok") is False, (label, result)
 
+
+
+def test_public_typed_diagnostic_uses_real_independent_binary(candidate, oracle):
+    parameters = dict(work=_single(3, [1, -2, 1]), limits=asdict(Limits()),
+                      trace_enabled=True)
+    _equal(candidate.diagnostic("typed_transition", **parameters),
+           oracle.diagnostic("transition", **parameters), "public typed diagnostic")

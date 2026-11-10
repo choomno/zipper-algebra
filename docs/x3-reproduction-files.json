@@ -41,8 +41,8 @@
     },
     {
       "path": "ci/build_x3_manifest.py",
-      "bytes": 5229,
-      "sha256": "f4b398d0bebc80f1a188bcb8d382014df473dc3de26171ef67ec8e86e29cde86",
+      "bytes": 5314,
+      "sha256": "a0425b930ae1d9129c732d1ce3c204773741a6b068446fadb00a5842dc8479a1",
       "role": "Installation, test, coverage, documentation or inventory support"
     },
     {
@@ -53,8 +53,8 @@
     },
     {
       "path": "ci/check_distribution.py",
-      "bytes": 13694,
-      "sha256": "b3b8b1b96b23f7aa2ae1b40946bb01e53d2b160510818eb14bba41ea7959715c",
+      "bytes": 14698,
+      "sha256": "ff175fb2afa67743028c31df3b526b1e8b5e1214cd1cc404eb3ebe072e8ba394",
       "role": "Installation, test, coverage, documentation or inventory support"
     },
     {
@@ -1373,8 +1373,8 @@
     },
     {
       "path": "tests/test_zipping_cpp_verifier_frozen_oracle.py",
-      "bytes": 19677,
-      "sha256": "8f6ce17b4b44c322a68816659df88684bb3c2dbb32497afa68f6b87402f347ed",
+      "bytes": 20150,
+      "sha256": "973d1c48fafca3e3b3b52eeccb49388eb566bbd068ae5d88ca3e4871d245a3e9",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
