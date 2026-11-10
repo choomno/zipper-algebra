@@ -181,7 +181,8 @@ the `counts` diagnostic field and computes detailed counts once on that exit.
 ## Switching the computation policy
 
 `python -m experiments.zipper_census_migrate DATABASE --source-policy OLD_KEY
---expected-literal-count COUNT --completed-layer RANK:LENGTH`
+--expected-literal-count COUNT --completed-layer RANK:LENGTH
+--expected-target PREPARED_KEY`
 requires exhausted enumeration cursors for the declared closed census and
 creates a new policy from the current native build with the old limits and
 execution mode. Authenticate and stop the source worker process group first,
@@ -209,3 +210,33 @@ The original total is the number of source literals. Its current certified
 coverage is the retained source count plus target certified count; summing all
 job counts across policies double-counts recomputed requests. Historical source
 `computing` and `certifying` states describe interrupted attempts, not live work.
+
+A later switch of an already migrated tail uses
+`--inherit-closed-scope` in place of `--completed-layer`. Its
+`--expected-literal-count` is the immediate source policy's job count, which
+excludes certificates retained under earlier policies. The tool validates each
+parent migration's literal partition, unchanged source history, source and
+target policy binding, resource limits, and exact retirement and closure
+triggers. The chain must end at the original exhausted enumeration frontier.
+A missing parent, altered history, lost guard, or coverage inconsistency fails
+before the new epoch is committed.
+
+The new manifest records parent manifest digests, ancestor source histories,
+the origin's completed layers and literal count, and the count of certificates
+retained under ancestors. Origin coverage is the sum of these ancestor
+certificates, certificates retained from the immediate source, and certified
+results in the active target. These sets are disjoint; job counts across epochs
+still overlap. The active target accepts only its immediate source's unfinished
+literal set. Further census admission requires another scope.
+
+Prepare the target key independently with the current production policy
+constructor before stopping workers, and pass it with `--expected-target`.
+For inherited scope, also pass `--expected-origin` and
+`--expected-parent-manifest-sha256`. The latter is SHA-256 over the canonical
+JSON payload of the externally archived immediate parent manifest. Its source
+history should match the external preservation snapshot. The CLI rejects
+inherited scope without these anchors.
+
+The origin check reconstructs every declared enumerated literal and compares
+its request key, rank, and canonical word with the stored origin rows. Equal
+counts and exhausted cursors alone do not establish this membership check.
