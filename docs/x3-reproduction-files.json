@@ -251,8 +251,8 @@
     },
     {
       "path": "native/zipper_verifier/typed_algorithm.cpp",
-      "bytes": 18522,
-      "sha256": "c842fc8a0f01bcbf320c859a4be8cba86094f5aea54f66636db3f07858e17996",
+      "bytes": 18872,
+      "sha256": "3bcc8d18af02f8772aad655316b11b3728fc65b702b000c4b1c3d91eb1352c34",
       "role": "Independent verifier implementation and compatibility diagnostics"
     },
     {
@@ -1373,8 +1373,8 @@
     },
     {
       "path": "tests/test_zipping_cpp_verifier_frozen_oracle.py",
-      "bytes": 20368,
-      "sha256": "d5df8280de01e43269055524b384e1459e8398e5e21098e26f34103ea4a71b4f",
+      "bytes": 21609,
+      "sha256": "dba52155c1d195d4ebda14626a43de00034e43c56e06e22111d2703a8aa61d0d",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
