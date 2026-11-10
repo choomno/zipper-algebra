@@ -47,7 +47,7 @@ def test_report_orients_by_schedule_and_keeps_full_output_parity(tmp_path):
     assert result['status_cross_table'] == {'complete/complete': 1}
 
 
-@pytest.mark.parametrize('change', ['failed', 'running', 'manifest', 'driver', 'identity', 'cpu', 'checked', 'hash', 'payload'])
+@pytest.mark.parametrize('change', ['failed', 'running', 'manifest', 'driver', 'identity', 'cpu', 'checked', 'hash', 'payload', 'duration'])
 def test_report_rejects_unbound_or_corrupted_pairs(tmp_path, change):
     path = database(tmp_path)
     with sqlite3.connect(path) as db:
@@ -65,6 +65,8 @@ def test_report_rejects_unbound_or_corrupted_pairs(tmp_path, change):
             t = json.loads(db.execute('SELECT telemetry FROM reuse_bench_measurements WHERE run=1').fetchone()[0])
             t['stats']['independently_checked'] = False
             db.execute('UPDATE reuse_bench_measurements SET telemetry=? WHERE run=1', (json.dumps(t),))
+        elif change == 'duration':
+            db.execute('UPDATE reuse_bench_measurements SET checker_seconds=NULL WHERE run=1')
         elif change == 'hash':
             db.execute("UPDATE reuse_bench_payloads SET output_sha='bad' WHERE run=1")
         else:
@@ -85,4 +87,7 @@ def test_report_retains_timeout_cost_without_claiming_equal_completion(tmp_path)
     assert result['observed_frontier_over_dag_call_seconds'] is None
     assert result['status_cross_table'] == {'complete/timeout': 1}
     assert result['outcomes'][0]['dag']['seconds'] == 20
+    assert result['outcomes'][0]['dag']['verified_call_seconds'] is None
+    assert result['arms'][1]['verified_call_seconds'] is None
+    assert result['arms'][1]['calls_with_unknown_durations'] == 1
     assert result['outcomes'][0]['dag']['timeout_phase'] == 'unknown'

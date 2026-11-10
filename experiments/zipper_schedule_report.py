@@ -9,6 +9,7 @@ import argparse
 from collections import Counter
 import hashlib
 import json
+import math
 from pathlib import Path
 import sqlite3
 from typing import Any
@@ -80,6 +81,10 @@ def report(database: Path, left_run: int, right_run: int) -> dict[str, Any]:
                     result = json.loads(zlib.decompress(payload['result']))
                     row['producer_diagnostic'] = result.get('producer_result', result).get('diagnostic')
                 if row['status'] == 'complete':
+                    for field in ('seconds', 'producer_seconds', 'checker_seconds', 'store_seconds'):
+                        value = row[field]
+                        if value is None or not math.isfinite(value) or value < 0:
+                            raise ValueError('completed output lacks a valid stage duration')
                     if telemetry.get('stats', {}).get('independently_checked') is not True:
                         raise ValueError('completed output lacks independent acceptance')
                     if payload is None or payload['output'] is None:
@@ -93,8 +98,13 @@ def report(database: Path, left_run: int, right_run: int) -> dict[str, Any]:
             arm = dict(run=int(run['id']), backend=run['backend'],
                        counts=dict(Counter(r['status'] for r in rows.values())),
                        measured_seconds=sum(r['seconds'] for r in rows.values()),
-                       verified_call_seconds=sum((r['producer_seconds'] or 0) + (r['checker_seconds'] or 0)
-                                                 for r in rows.values()),
+                       verified_call_seconds=(sum(r['producer_seconds'] + r['checker_seconds'] for r in rows.values())
+                                              if all(r['producer_seconds'] is not None and r['checker_seconds'] is not None
+                                                     for r in rows.values()) else None),
+                       recorded_stage_seconds=sum((r['producer_seconds'] or 0) + (r['checker_seconds'] or 0)
+                                                  for r in rows.values()),
+                       calls_with_unknown_durations=sum(r['producer_seconds'] is None or r['checker_seconds'] is None
+                                                        for r in rows.values()),
                        store_seconds=sum(r['store_seconds'] or 0 for r in rows.values()),
                        setup_seconds=run['setup_seconds'], process_seconds=epoch['process_seconds'],
                        process_cpu_seconds=epoch['process_cpu_seconds'],
@@ -113,8 +123,9 @@ def report(database: Path, left_run: int, right_run: int) -> dict[str, Any]:
             for name, row in zip(('frontier', 'dag'), (l, r)):
                 outcome[name] = {k: row[k] for k in ('status', 'seconds', 'producer_seconds', 'checker_seconds',
                     'store_seconds', 'session_generation', 'producer_diagnostic')}
-                outcome[name]['verified_call_seconds'] = ((row['producer_seconds'] or 0)
-                                                         + (row['checker_seconds'] or 0))
+                outcome[name]['verified_call_seconds'] = (row['producer_seconds'] + row['checker_seconds']
+                                                         if row['producer_seconds'] is not None and row['checker_seconds'] is not None
+                                                         else None)
                 outcome[name]['timeout_phase'] = 'unknown' if row['status'] == 'timeout' else None
                 outcome[name]['wall_deadline_seconds'] = configs[0]['case_seconds']
             outcomes.append(outcome)
