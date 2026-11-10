@@ -20,12 +20,17 @@ from experiments.zipper_census_reuse_benchmark import encoded, frozen_cases
 from zipper_algebra.zipping_algorithm.output_normal_form import canonical_bytes
 
 
+def file_sha256(path: Path) -> str:
+    with path.open('rb') as stream:
+        return hashlib.file_digest(stream, 'sha256').hexdigest()
+
+
 def report(database: Path, left_run: int, right_run: int, *, cases_file: Path | None = None) -> dict[str, Any]:
     """Validate a same-epoch pair, oriented as frontier then DAG."""
     wal = Path(str(database) + '-wal')
     if wal.exists() and wal.stat().st_size:
         raise ValueError('report requires a consolidated database without pending WAL pages')
-    database_sha = hashlib.sha256(database.read_bytes()).hexdigest()
+    database_sha = file_sha256(database)
     reporter_path = Path(__file__)
     reporter_sha = hashlib.sha256(reporter_path.read_bytes()).hexdigest()
     tests_path = reporter_path.parents[1] / 'tests/test_zipping_schedule_report.py'
@@ -176,7 +181,7 @@ def report(database: Path, left_run: int, right_run: int, *, cases_file: Path | 
                                observed_frontier_over_dag_call_seconds=(times['frontier'] / times['dag'] if times['dag'] > 0 else None),
                                cache_end={name: block[-1][name]['cache'] for name in ('frontier', 'dag')}))
         output_manifest = [{'case_id': o['case_id'], 'output_sha256': o['frontier']['output_sha256']} for o in common]
-        if hashlib.sha256(database.read_bytes()).hexdigest() != database_sha:
+        if file_sha256(database) != database_sha:
             raise ValueError('database changed during report generation')
         if hashlib.sha256(reporter_path.read_bytes()).hexdigest() != reporter_sha:
             raise ValueError('report generator changed during execution')
