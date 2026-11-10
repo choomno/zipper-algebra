@@ -52,3 +52,4 @@ include docs/zipper-reuse-performance.md
 include docs/zipper-async-census.md docs/zipper-census-plan.md docs/zipper-derivation-certificates.md
 include docs/zipper-async-performance.md
 include experiments/zipper_cold_epoch_benchmark.py
+include docs/zipper-scheduling-performance.md docs/benchmarks/schedule-2026-11-09.json

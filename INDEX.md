@@ -36,6 +36,7 @@ The maintained implementation is installed from `src/zipper_algebra/`.
 | `docs/zipper-async-census.md`, `experiments/zipper_async_census.py` | Durable separate computation and independent certification queues, bounded backlog, and restart recovery. |
 | `docs/zipper-census-plan.md` | Finite census checkpoints focused on deeper rank-three and rank-four words, with measured planning budgets. |
 | `docs/zipper-async-performance.md` | Exact comparisons of synchronous and separate-role workers, including elapsed time, CPU work, and memory. |
+| `docs/zipper-scheduling-performance.md`, `experiments/zipper_schedule_report.py` | Same-source frontier/DAG comparisons with exact output parity, resource refusals, and retained or fresh sessions. |
 | `docs/zipper-derivation-certificates.md` | Experimental transition DAG checks and the measured limits of the current diagnostic interface. |
 | `docs/zipper-computation-graph.md` | Intrinsic continuation nodes, context restoration, completed-output equality, and separate producer/verifier caches. |
 | `docs/zipper-reuse-performance.md` | Matched exact benchmarks, cold-input regressions, memory use, and Bloom filter evaluation. |
