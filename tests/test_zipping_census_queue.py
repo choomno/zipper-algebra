@@ -657,3 +657,49 @@ def test_old_attempt_json_survives_new_attempts_without_migration(setup):
         assert other.counts()["certified"] == 1
     finally:
         other.close()
+
+
+@pytest.mark.parametrize("stage", ["compute", "certify"])
+def test_invalid_attempt_metadata_fails_before_claim(setup, stage):
+    queue, produce, verify = setup
+    queue.enqueue(3, [-1])
+    if stage == "certify":
+        queue.compute_one(produce)
+    before = queue.counts()
+    with pytest.raises(TypeError):
+        if stage == "compute":
+            queue.compute_one(produce, attempt_metadata={"invalid": object()})
+        else:
+            queue.certify_one(verify, IDENTITY, attempt_metadata={"invalid": object()})
+    assert queue.counts() == before
+
+
+@pytest.mark.parametrize("phase", ["compute", "publication"])
+def test_compute_failure_retains_separate_stage_timers(setup, monkeypatch, phase):
+    import zipper_algebra.zipping_algorithm.census_queue as module
+    queue, produce, _ = setup
+    queue.enqueue(3, [-1])
+    clock = [0.0]
+    monkeypatch.setattr(module.time, "perf_counter", lambda: clock[0])
+    metadata = {"cache_bytes": 64}
+    def timed_produce(n, word):
+        clock[0] += 7
+        metadata["cache_bytes"] = 999
+        if phase == "compute":
+            raise RuntimeError("compute failed")
+        return produce(n, word)
+    def fail_validation(*args):
+        clock[0] += 3
+        raise RuntimeError("publication failed")
+    if phase == "publication":
+        monkeypatch.setattr(queue, "_validate", fail_validation)
+    with pytest.raises(RuntimeError, match="failed"):
+        queue.compute_one(timed_produce, attempt_metadata=metadata)
+    record = json.loads(queue.db.execute("SELECT record FROM async_attempts").fetchone()[0])
+    assert record["failure_phase"] == phase
+    assert record["seconds"] == 7
+    assert record["timings"]["compute_seconds"] == 7
+    assert record["attempt_metadata"]["cache_bytes"] == 64
+    if phase == "publication":
+        assert record["timings"]["publication_seconds"] == 3
+    assert queue.counts()["compute_error"] == 1

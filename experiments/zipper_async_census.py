@@ -92,7 +92,8 @@ def worker(path: Path, policy: dict[str, Any], role: str, settings: dict[str, An
         if policy["runner_sha256"] != hashlib.sha256(Path(__file__).read_bytes()).hexdigest():
             raise ValueError("runner differs from policy")
         if role == "compute":
-            session = NativeSession(cache_bytes=settings["cache_bytes"])
+            session = NativeSession(cache_bytes=settings["cache_bytes"],
+                                    cache_entries=attempt_metadata["cache_entries"])
             if any(session.metadata.get(key) != policy["producer_metadata"].get(key)
                    for key in ("source_sha256", "binary_sha256", "wrapper_source_sha256", "abi",
                                "compiler", "compiler_version", "flags", "link_libraries")):

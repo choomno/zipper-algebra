@@ -258,6 +258,8 @@ class CensusQueue:
                 attempt_metadata: dict[str, Any] | None = None) -> None:
         if claim.stage != "compute":
             raise ValueError("only a compute claim can publish")
+        attempt_metadata = deepcopy(attempt_metadata or {})
+        _json(attempt_metadata)
         started = time.perf_counter()
         self.assert_sources()
         output_digest = self._validate(result, claim)
@@ -292,11 +294,14 @@ class CensusQueue:
 
     def compute_one(self, produce: Callable[[int, list[int]], dict[str, Any]], *,
                     attempt_metadata: dict[str, Any] | None = None, **claim_options: Any) -> bool:
+        attempt_metadata = deepcopy(attempt_metadata or {})
+        _json(attempt_metadata)
         self.assert_sources()
         claim = self.claim("compute", **claim_options)
         if claim is None:
             return False
-        started = time.perf_counter()
+        compute_seconds: float | None = None
+        publication_started: float | None = None
         with self.keepalive(claim, claim_options.get("lease_seconds", 300)):
             try:
                 started = time.perf_counter()
@@ -308,12 +313,18 @@ class CensusQueue:
                                 "attempt_metadata": deepcopy(attempt_metadata or {}),
                                 "metrics": result.get("metrics", {}), "status": result.get("status"), "diagnostic": result.get("diagnostic")})
                 else:
+                    publication_started = time.perf_counter()
                     self.publish(claim, result, seconds=compute_seconds, attempt_metadata=attempt_metadata)
             except LostLease:
                 raise
             except Exception as exc:
-                self.finish(claim, "compute_error", {"seconds": time.perf_counter() - started, "error": str(exc),
-                            "attempt_metadata": deepcopy(attempt_metadata or {})})
+                elapsed = time.perf_counter() - started
+                timings = {"compute_seconds": elapsed if compute_seconds is None else compute_seconds}
+                if publication_started is not None:
+                    timings["publication_seconds"] = time.perf_counter() - publication_started
+                self.finish(claim, "compute_error", {"seconds": timings["compute_seconds"], "error": str(exc),
+                            "timings": timings, "failure_phase": "compute" if compute_seconds is None else "publication",
+                            "attempt_metadata": attempt_metadata})
                 raise
         return True
 
@@ -322,6 +333,8 @@ class CensusQueue:
                     verification_telemetry: Callable[[], dict[str, Any]] | None = None,
                     **claim_options: Any) -> bool:
         verifier_identity = verifier_binding(verifier_identity)
+        attempt_metadata = deepcopy(attempt_metadata or {})
+        _json(attempt_metadata)
         self.assert_sources()
         claim = self.claim("certify", **claim_options)
         if claim is None:

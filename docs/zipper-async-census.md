@@ -142,7 +142,9 @@ loading their executables or modifying their databases.
 ## Attempt telemetry and timer scopes
 
 New attempt JSON records add `attempt_metadata` and `timings`; existing sidecars
-and historical attempt JSON require no SQL migration. Boolean verifier callbacks
+and historical attempt JSON require no SQL migration. Source authentication still
+requires existing campaigns to use their recorded checkout; changed source or runner
+requires a new policy. Boolean verifier callbacks
 remain supported. The optional `verification_telemetry` callback supplies
 observations after a verifier call, including refusals and operational failures.
 Its data never determines acceptance. A telemetry exception is recorded as
@@ -152,8 +154,8 @@ failures skip both verifier and telemetry callbacks.
 The runner records the independent verifier's full `last_result` report and
 `native_call_seconds` under `verification_telemetry`. Native work and cache
 metrics therefore remain distinct from producer metrics. Each worker records
-its session UUID, zero-based completed-attempt index, cache byte and entry
-budgets, and process-local cache lifetime. This identifies prior worker activity;
+its session UUID, zero-based claimed-attempt index (including integrity failures and lost
+leases), requested cache byte and entry budgets, and process-local cache lifetime. This identifies prior worker activity;
 it does not assert that every later attempt has a cache hit. `--cache-entries`
 sets the verifier entry budget (default 262144); producer sessions retain their
 65536-entry default. `--cache-mib` sets each session's byte budget.
@@ -166,5 +168,8 @@ final attempt insertion, job update and transaction commit. Certification record
 `verification_seconds` (the verifier callback including its wrapper checks and
 IPC). Legacy compute `seconds` retains its pre-publication scope; certification
 `seconds` includes loading, checking, telemetry capture and final source guards,
-ending before durable finalization. These timers exclude session initialization
-and do not sum to complete worker wall time.
+ending before durable finalization. Compute error records retain the producer-call timer and identify whether
+the failure occurred during computation or publication. Publication failures also
+retain their own elapsed timer. These timers exclude session initialization
+and do not sum to complete worker wall time. Attempt JSON, including full verifier
+reports, consumes storage outside the compressed-candidate backlog watermark.
