@@ -407,6 +407,8 @@ def test_typed_diagnostic_rejects_unknown_owned_record_keys(candidate, reached_s
 
 
 def test_public_typed_diagnostic_uses_real_independent_binary(candidate, oracle):
+    assert "-DZIPPER_DISABLE_UNARY_FUSION" in native_verifier.FLAGS
+    assert candidate.metadata["flags"] == list(native_verifier.FLAGS)
     parameters = dict(work=_single(3, [1, -2, 1]), limits=asdict(Limits()),
                       trace=True)
     actual = candidate.diagnostic("typed_transition", **parameters)

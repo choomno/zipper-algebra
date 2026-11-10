@@ -893,8 +893,8 @@
     },
     {
       "path": "src/zipper_algebra/zipping_algorithm/native_verifier.py",
-      "bytes": 26438,
-      "sha256": "01b2bfda492df10f0597add6d3116a8f74782f4143c1eec9c4f4cb5057c6cb88",
+      "bytes": 26480,
+      "sha256": "e9d2f9a849ab6498a6b5010d74932d038503a08ac08fee40336b087479ca2285",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
@@ -1373,8 +1373,8 @@
     },
     {
       "path": "tests/test_zipping_cpp_verifier_frozen_oracle.py",
-      "bytes": 21609,
-      "sha256": "dba52155c1d195d4ebda14626a43de00034e43c56e06e22111d2703a8aa61d0d",
+      "bytes": 21747,
+      "sha256": "f1e171e57a1e0755ec10b370b5dd0a87756a3c1edbed2e3e2a36a200cdcecdcf",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {

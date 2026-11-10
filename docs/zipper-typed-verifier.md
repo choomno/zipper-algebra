@@ -23,9 +23,24 @@ single-child transition with no direct output. Each logical transition retains
 its own key, active-cycle membership, restoration, resource checks, rule count
 and cache admission. Unwinding applies each restoration in order. Standalone
 atomic batches and optional traces retain their existing schedule.
-`ZIPPER_DISABLE_UNARY_FUSION` selects the same typed implementation with fusion
-disabled for controlled comparisons. This is a compile-time macro recorded in
-the build flags; neither the wire protocol nor an environment variable selects it.
+The packaged Python API disables fusion by default with the authenticated
+`-DZIPPER_DISABLE_UNARY_FUSION` build flag. The final finite cohort measured
+fusion about 4.2% slower than the same typed implementation without fusion;
+[the measurements](zipper-reuse-performance.md) record the cohort and order.
+The native scheduler enables fusion when built without this macro. For an
+explicit experiment through the packaged API:
+
+```python
+from zipper_algebra.zipping_algorithm.native_verifier import CppVerifier, FLAGS
+
+fusion_flags = tuple(flag for flag in FLAGS if flag != "-DZIPPER_DISABLE_UNARY_FUSION")
+# Pass producer.metadata from an initialized independent producer session.
+checker = CppVerifier(producer_metadata=producer.metadata, flags=fusion_flags)
+```
+
+The effective flags are recorded in build and session metadata. This is a
+compile-time choice; neither the wire protocol nor an environment variable
+selects it.
 
 ## JSON boundaries
 

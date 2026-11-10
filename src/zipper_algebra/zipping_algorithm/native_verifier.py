@@ -22,7 +22,8 @@ from time import perf_counter
 from typing import Any, TextIO
 
 ABI = "zipper-independent-verifier-v1"
-FLAGS = ("-O3", "-std=c++17", "-pthread", "-Wall", "-Wextra")
+FLAGS = ("-O3", "-std=c++17", "-pthread", "-Wall", "-Wextra",
+         "-DZIPPER_DISABLE_UNARY_FUSION")
 LIBRARIES = ("gmpxx", "gmp", "crypto")
 _REFERENCE_NAMES = ("algorithm.py", "catalog.py", "upward.py", "framed.py", "frames.py",
                     "turnaround.py", "transport.py", "interpreter.py", "extraction.py",

@@ -17,7 +17,9 @@ The Python reference remains available for differential checks.
 The producer retains typed packed states and uses Boost arbitrary-precision
 integers. The verifier owns typed token, controller, context and formal-output records and
 uses GMP integers. Its complete typed state and remaining JSON boundaries are
-described in [the typed verifier contract](zipper-typed-verifier.md). Its
+described in [the typed verifier contract](zipper-typed-verifier.md). The
+packaged API uses typed replay without unary fusion by default; the contract
+documents the authenticated build flag for an optional fusion experiment. Its
 source and object files are separate; it does not include or link the producer's
 rewriting, controller, extraction, collection, or scheduler implementation.
 Only the mathematical catalog and generic libraries, including the pinned JSON
