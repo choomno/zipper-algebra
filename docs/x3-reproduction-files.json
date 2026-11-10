@@ -29,8 +29,8 @@
     },
     {
       "path": "MANIFEST.in",
-      "bytes": 2074,
-      "sha256": "14f906fc568897023b6b8e45be864a93c9836569ddee75f8592ddd0da3224acc",
+      "bytes": 2943,
+      "sha256": "4a32a3fd44799da07421396ffa3236aacf79a92ac4dcf469608f139ba1b6dc00",
       "role": "Source-distribution inclusion rules"
     },
     {
@@ -53,8 +53,8 @@
     },
     {
       "path": "ci/check_distribution.py",
-      "bytes": 12226,
-      "sha256": "225b2b4b309affd1237a7696fa7b5c7a5d13bdc3366ef2e9955517cd8275dad6",
+      "bytes": 13500,
+      "sha256": "4c58dbdffbd57de64e83eed7b1f29b5f681f06e87760f8911a60bdbd8aa89021",
       "role": "Installation, test, coverage, documentation or inventory support"
     },
     {
@@ -65,8 +65,8 @@
     },
     {
       "path": "ci/check_installed.py",
-      "bytes": 4520,
-      "sha256": "7fa44c19f09b4ed20e56bed0b47f98984f745a847fe5f8f052cf3dffeb7dd326",
+      "bytes": 4822,
+      "sha256": "02ea311c15aaec1beb5e497430ab7a15bd4446b7264f00983af2b36800ca748a",
       "role": "Installation, test, coverage, documentation or inventory support"
     },
     {
@@ -520,6 +520,18 @@
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
+      "path": "src/zipper_algebra/zipping_algorithm/census_queue.py",
+      "bytes": 23673,
+      "sha256": "c5d54c8eecfb0a1c1f1ad5dc53dd435f66fca71801a11681144c084f789c45c8",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
+      "path": "src/zipper_algebra/zipping_algorithm/census_reuse.py",
+      "bytes": 21340,
+      "sha256": "80213bf846186954711b08b7b529f00046cab5f91f88db03cde75a8fea532c74",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
       "path": "src/zipper_algebra/zipping_algorithm/collected.py",
       "bytes": 20818,
       "sha256": "fd3d57c5f036ce9d082c73816dd3fa47f469575ebc5234225d16a0bbb54c7b26",
@@ -610,6 +622,12 @@
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
+      "path": "src/zipper_algebra/zipping_algorithm/input_normal_form.py",
+      "bytes": 12177,
+      "sha256": "df13c7df4a57ebaa3fdee59b3c7bc774d4e93daafb2a07070c61a2bf3aa89c66",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
       "path": "src/zipper_algebra/zipping_algorithm/interpreter.py",
       "bytes": 17556,
       "sha256": "2552914a09bea6cb878b28f438337feba018999ae22944d1abf58e0804c4b9e3",
@@ -623,14 +641,38 @@
     },
     {
       "path": "src/zipper_algebra/zipping_algorithm/native.py",
-      "bytes": 27011,
-      "sha256": "b952bc13a72cab586fbd434ded050a85d429036529f44b66d77ca60cc8e88916",
+      "bytes": 30239,
+      "sha256": "5f51f3807f258006b4ad458a0c062f6d4d3ae5fb33ecaa41c41aa023a04cef0c",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/zipping_algorithm/native_verifier.py",
-      "bytes": 23975,
-      "sha256": "87a00feb7f893a15653741c62ce1b2fdb6ce3aacb4be67d09ad77e1707c3c887",
+      "bytes": 26418,
+      "sha256": "6aaa1fee824594ac36cdfbec3b939d079a75e5537f69d4398446b6aa1be76764",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
+      "path": "src/zipper_algebra/zipping_algorithm/normal_form_reconstruction.py",
+      "bytes": 11660,
+      "sha256": "ccd7169cee3e32a8142883b7a7609c13bf0d75f5aab5a6f568672ffded9a3124",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
+      "path": "src/zipper_algebra/zipping_algorithm/output_normal_form.py",
+      "bytes": 13524,
+      "sha256": "bddf72da9fa18a97a4e783c0a4d892838d02f16c18cfb227df8d7589ce1ac645",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
+      "path": "src/zipper_algebra/zipping_algorithm/peeling_enumeration.py",
+      "bytes": 7826,
+      "sha256": "2d2cf4c28a48f1d3f6769702654de123fe3502db82bc49ace2680e473bcdc835",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
+      "path": "src/zipper_algebra/zipping_algorithm/reconstruction_check.py",
+      "bytes": 7532,
+      "sha256": "7a7dfc208a9d2fd563ac926c1e5f8ecc00e7500671fe0ed0aba1dcba56737bba",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
@@ -964,9 +1006,27 @@
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
+      "path": "tests/test_zipper_derivation_dag.py",
+      "bytes": 7665,
+      "sha256": "85d0339ce5e3bd0f2d2bba9ad3d37aa1c2529e4a8483db0406818289ceab21b2",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
       "path": "tests/test_zipping_algorithm.py",
       "bytes": 20486,
       "sha256": "3031060037b83efd5b0741e35e3cc9432e6165c1c5ce28e5bb27499547291b5d",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_artin_baseline_counts.py",
+      "bytes": 4951,
+      "sha256": "5190b91a180897a50ac7698b753508849a4d6f5af54d38e73f2f7e5405fb82cf",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_async_benchmark.py",
+      "bytes": 8035,
+      "sha256": "dd224f9996625ce4a5b5370dd5cecf0a74aa6330fe685e48ece04e695aceccdc",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
@@ -988,9 +1048,33 @@
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
+      "path": "tests/test_zipping_census_queue.py",
+      "bytes": 31725,
+      "sha256": "2f172d6c9c59f08768b8720933eeeca9a5792a6eb6a2dc6de2ec920c71005e22",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_census_reuse.py",
+      "bytes": 20059,
+      "sha256": "556a7de8db2d908d15822525f0102b53f30cee7c02f26138c987b25779bfeab7",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_census_reuse_benchmark.py",
+      "bytes": 21196,
+      "sha256": "a078919e5db7a4f13ea3c71bc39530cdcccbeadb078a8856d4d4401f03602d33",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
       "path": "tests/test_zipping_cli.py",
       "bytes": 13995,
       "sha256": "3e4c377f14df0693cb0bf5b1ee30dc351f3c068e7e8d587143aa8f4a49d0ae92",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_cold_epoch_benchmark.py",
+      "bytes": 7023,
+      "sha256": "459f4d2288714519329b477ebabefa3431e8cf91744e20af67741ac11771c612",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
@@ -1006,6 +1090,18 @@
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
+      "path": "tests/test_zipping_cpp_verifier_bound_cache.py",
+      "bytes": 5883,
+      "sha256": "f3fabd0dfb70edc27145d694f39b334821b386cb52e171f41d1bff8f8c35d5a0",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_cpp_verifier_continuation_key.py",
+      "bytes": 4595,
+      "sha256": "67567fb1165752dccc9b8d3a68fac1b3d672904cfbbb4f74d14bd3914d5c37d9",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
       "path": "tests/test_zipping_cpp_verifier_frame_boundary.py",
       "bytes": 2169,
       "sha256": "d124d5389155eded0ef6d0a6cb90fda6899f0ff051663d5dcbd9b643cf73aa5e",
@@ -1018,9 +1114,27 @@
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
+      "path": "tests/test_zipping_cpp_verifier_reuse.py",
+      "bytes": 10923,
+      "sha256": "e797c7f447e182f8f1249a65790de280331668dcfaaeb216a745f3ece98e4095",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_cpp_verifier_selection_cache.py",
+      "bytes": 4521,
+      "sha256": "dbec9d715db7bf2480020d4aade5c83ea753b1f1dd5c30b0c9e7d89bc9894db1",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
       "path": "tests/test_zipping_cpp_verifier_transitions.py",
       "bytes": 3280,
       "sha256": "00244a03b66de6b8b8e7dde2d1f8448a12f8e3c3801da481f5ace4daeb8737a3",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_cpp_verifier_typed_transport.py",
+      "bytes": 8959,
+      "sha256": "a67a9b3d50c8bd6f73b5a586ec3310f79c142c2e4ec333d040e8b7449b60d701",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
@@ -1069,6 +1183,12 @@
       "path": "tests/test_zipping_exhaustive_native.py",
       "bytes": 11729,
       "sha256": "b0611cdf2bf85f9e96ebd14cdde884e6f6ad09ecbd0d34f9306ee381a31b9b70",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_exhaustive_reuse.py",
+      "bytes": 22198,
+      "sha256": "9db6a7cd2754766a495313a6083629211c380927c350aa60b1c40a5536e6fa16",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
@@ -1150,6 +1270,12 @@
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
+      "path": "tests/test_zipping_input_normal_form.py",
+      "bytes": 7419,
+      "sha256": "229a496dda38682d76931ebe6fe8936d480064ff2a81d01c8cf426d1137105f6",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
       "path": "tests/test_zipping_interpreter.py",
       "bytes": 10996,
       "sha256": "8372c9a4943c213f593ce33aa00389b89203a66ce6df32db887fd8943d642066",
@@ -1171,6 +1297,12 @@
       "path": "tests/test_zipping_memoized.py",
       "bytes": 13835,
       "sha256": "e497befa4384c9d67e63d0f01ab7c60dbbb3177d70ec5c79af04c7a19d254110",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_native_completed_reuse.py",
+      "bytes": 4949,
+      "sha256": "6c37640713dc355f6ad2be4c965b8f5ee66506d9b264cfd97c9bdcb0dd1f597e",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
@@ -1198,6 +1330,18 @@
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
+      "path": "tests/test_zipping_native_json_decode.py",
+      "bytes": 4678,
+      "sha256": "a4969120a407ef6cb207e566ec83fd31e65e61c886c846e4f18b3885ca6932b1",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_native_ordered_map.py",
+      "bytes": 3448,
+      "sha256": "cbd54ee9df1086590790a4dac6398b814ba991292f08289f2b50b75516a80911",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
       "path": "tests/test_zipping_native_replay_adversarial.py",
       "bytes": 2794,
       "sha256": "badbe25257433e4252327d0c62daf527f59f8c02e5c419ef999607d2aa2b41cc",
@@ -1210,9 +1354,27 @@
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
+      "path": "tests/test_zipping_native_selection_cache.py",
+      "bytes": 8619,
+      "sha256": "b34a6d628715840dc7df4cf6b26119df00336f63893866c5f8d9cd804b09c6dd",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
       "path": "tests/test_zipping_native_wrapper.py",
       "bytes": 25522,
       "sha256": "a560640a6dc20d9935f2c9779bcbcc3a83270439cae55aafb07a14d4b8f76a26",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_normal_form_reconstruction.py",
+      "bytes": 6561,
+      "sha256": "a549eee7ad0a73d0a44ac9d1f76461b2aa5977cb34db441c21c727686a7224c2",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_output_normal_form.py",
+      "bytes": 9272,
+      "sha256": "769ac543bf0604ba3a79a448cc20fb5763cfa28efbc075fddbfc77413c30a931",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
@@ -1222,9 +1384,21 @@
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
+      "path": "tests/test_zipping_peeling_enumeration.py",
+      "bytes": 3739,
+      "sha256": "aa3b1093cee8811024c9161ae808a400e3e3b604558816367628e2f907e101b7",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
       "path": "tests/test_zipping_probe_store.py",
       "bytes": 3416,
       "sha256": "add412569b7f50e494760b70b48aa61d02072c3529be56d57d34ac6d0194afb2",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_reduced_trace_counts.py",
+      "bytes": 5153,
+      "sha256": "1db3613a0e9fa0e681e9e42b429b7ab5b67354ae3176b13186137ffde0892409",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
@@ -1243,6 +1417,12 @@
       "path": "tests/test_zipping_runtime_sweep.py",
       "bytes": 9134,
       "sha256": "320469db4b5c4e5fbd6096dec6cb6cb6d5bf54b7d63c68e310ec3a158bf3bd3c",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_schedule_report.py",
+      "bytes": 9889,
+      "sha256": "14fa70c307ca1d0bdf257916aaf85c6344d0e1ee4d3ff74b275dac3ddca9ed07",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
@@ -1279,6 +1459,12 @@
       "path": "tests/test_zipping_verification_benchmark.py",
       "bytes": 1737,
       "sha256": "f2e0182d1d123b94a667fa7cbaff0a483d2b08df56353b07417b26c06d038709",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_verifier_work_size.py",
+      "bytes": 3932,
+      "sha256": "2c3034125737bfebac368acc8189cce379d5987501506def04293bd24db822c6",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
