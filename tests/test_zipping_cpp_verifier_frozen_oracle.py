@@ -93,8 +93,31 @@ def _request(session, op, **parameters):
     return session._request(dict(op=op, **native_verifier._wire(parameters)))
 
 
+def _first_difference(actual, expected, path=""):
+    if type(actual) is not type(expected):
+        return path, type(actual).__name__, type(expected).__name__
+    if isinstance(actual, dict):
+        if actual.keys() != expected.keys():
+            return path, sorted(actual.keys() - expected.keys()), sorted(expected.keys() - actual.keys())
+        for key in actual:
+            difference = _first_difference(actual[key], expected[key], path + "/" + str(key))
+            if difference is not None:
+                return difference
+    elif isinstance(actual, list):
+        if len(actual) != len(expected):
+            return path + "/length", len(actual), len(expected)
+        for index, (left, right) in enumerate(zip(actual, expected)):
+            difference = _first_difference(left, right, path + "/" + str(index))
+            if difference is not None:
+                return difference
+    elif actual != expected:
+        return path, actual, expected
+    return None
+
+
 def _equal(actual, expected, label):
-    assert native_verifier._same(actual, expected), label
+    difference = _first_difference(actual, expected)
+    assert difference is None, (label, difference)
 
 
 _SEED_DRIVER = r"""
