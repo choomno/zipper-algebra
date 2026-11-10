@@ -38,7 +38,7 @@ int main() {
     J tokens=J::array({1,-1,0,lo,hi,slider(1,1),slider(hi,lo),slider(lo,hi),
                       nullptr,true,1.5,"bad",J::array({"slider",1,1,false,false,0})});
     for (int trial=0;trial<12000;++trial) {
-        J work=initial_work(4,J::array({1,-2,3}));
+        J work=initial_work(1+rng()%16,J::array());
         work["phase"]=J::array({"single","zip_up","zip_down","extract","other"})[rng()%5];
         work["position"]=tokens[rng()%(trial<6000?3:5)];
         auto word=[&] {
