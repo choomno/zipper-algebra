@@ -133,7 +133,8 @@ def report(database: Path, left_run: int, right_run: int) -> dict[str, Any]:
         matched = {name: {key: sum(o[name][key] or 0 for o in common)
                           for key in ('seconds', 'producer_seconds', 'checker_seconds', 'verified_call_seconds', 'store_seconds')}
                    for name in ('frontier', 'dag')}
-        ratio = matched['frontier']['verified_call_seconds'] / matched['dag']['verified_call_seconds'] if common else None
+        denominator = matched['dag']['verified_call_seconds']
+        ratio = matched['frontier']['verified_call_seconds'] / denominator if common and denominator > 0 else None
         for arm in arms:
             del arm['rows']
         return dict(scope='single observed traversal under concurrent host load; no replicated causal estimate',

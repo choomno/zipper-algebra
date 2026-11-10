@@ -91,3 +91,12 @@ def test_report_retains_timeout_cost_without_claiming_equal_completion(tmp_path)
     assert result['arms'][1]['verified_call_seconds'] is None
     assert result['arms'][1]['calls_with_unknown_durations'] == 1
     assert result['outcomes'][0]['dag']['timeout_phase'] == 'unknown'
+
+
+def test_report_leaves_zero_denominator_ratio_undefined(tmp_path):
+    path = database(tmp_path)
+    with sqlite3.connect(path) as db:
+        db.execute('UPDATE reuse_bench_measurements SET producer_seconds=0,checker_seconds=0 WHERE run=1')
+    result = report(path, 1, 2)
+    assert result['exact_matching_complete'] == 1
+    assert result['observed_frontier_over_dag_call_seconds'] is None
