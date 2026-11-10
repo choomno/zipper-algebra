@@ -255,6 +255,11 @@ Transition zip_step(const Work &w, Catalog &catalog, const Limits &limits, bool 
     bool down = std::holds_alternative<ZipDown>(w.phase);
     const Branch &br = down ? std::get<ZipDown>(w.phase).branch : std::get<ZipUp>(w.phase).branch;
     const Control &c = br.control;
+    // This recorded successor has no rank geometry. Preserve the historical
+    // hard request refusal rather than converting it into a completed replay
+    // diagnostic through the controller Error handler.
+    if (c.phase == ControlPhase::UnsupportedFrame)
+        throw std::out_of_range("[json.exception.out_of_range.403] key 'i' not found");
     if (c.phase != ControlPhase::UpComplete && c.phase != ControlPhase::FramedComplete) {
         auto next = c.i == 2 ? upward_step(n, br, catalog, limits, trace)
                              : framed_step(n, br, catalog, limits, trace);
