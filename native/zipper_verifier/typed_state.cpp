@@ -1,6 +1,8 @@
 #include "typed_state.hpp"
 namespace zipper_verify::typed {
 Labels decode_labels(const J &j) {
+    if (!j.is_array())
+        throw ReplayError("endpoint labels must be an array");
     Labels r;
     for (const auto &v : j)
         r.push_back(zipper_verify::as_i(v));
@@ -73,6 +75,8 @@ J encode_context(const Context &c) {
             {"record", encode_record(c.record)}};
 }
 std::vector<Factor> decode_factors(const J &j) {
+    if (!j.is_array())
+        throw ReplayError("boundary factors must be an array");
     std::vector<Factor> r;
     for (const auto &f : j)
         r.push_back({zipper_verify::as_i(f.at("growth_size")), decode_word(f.at("word"))});
@@ -96,6 +100,8 @@ std::string phase_name(const Work &w) {
     return "extract";
 }
 Work decode_work(const J &j) {
+    if (!j.at("contexts").is_array())
+        throw ReplayError("contexts must be an array");
     Work w;
     w.rank = zipper_verify::as_i(j.at("rank"));
     w.coefficient = zipper_verify::coefficient(j.at("coefficient"));
@@ -120,8 +126,10 @@ Work decode_work(const J &j) {
     else if (p == "layer")
         w.phase = Layer{decode_word(j.at("word")), zipper_verify::as_i(j.at("payload_length")),
                         zipper_verify::as_i(j.at("completed_sides"))};
-    else
+    else if (p == "extract")
         w.phase = Extract{decode_word(j.at("word"))};
+    else
+        throw ReplayError("unknown typed controller phase");
     return w;
 }
 J encode_work(const Work &w) {
@@ -157,6 +165,8 @@ J encode_work(const Work &w) {
     return j;
 }
 Output decode_output(const J &j) {
+    if (!j.at("components").is_array())
+        throw ReplayError("components must be an array");
     Output o;
     o.coefficient = zipper_verify::coefficient(j.at("coefficient"));
     o.word = decode_word(j.at("word"));
