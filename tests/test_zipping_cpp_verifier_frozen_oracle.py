@@ -415,3 +415,25 @@ def test_public_typed_diagnostic_uses_real_independent_binary(candidate, oracle)
     parameters["work"]["extension"] = True
     with pytest.raises(native_verifier.VerifierError, match="owned schema"):
         candidate.diagnostic("typed_transition", **parameters)
+
+
+@pytest.mark.parametrize("rank", [3, 4])
+@pytest.mark.parametrize("phase", ["zip_up", "zip_down"])
+def test_unsupported_frame_control_preserves_frozen_hard_refusal(oracle, candidate, rank, phase):
+    # upward_successor_control emits this control variant for a higher mirrored
+    # catalog successor. This synthetic state tests its representation boundary;
+    # it makes no claim that a particular literal root reaches that successor.
+    work = _single(rank, [])
+    for field in ("left", "processed", "position"):
+        del work[field]
+    work["phase"] = phase
+    work["branch"] = {
+        "coefficient": [[0, 1]],
+        "word": [["slider", 3, 1, True, False, False]],
+        "control": {"phase": "unsupported_frame", "rule_id": "fixture",
+                    "message": "higher mirrored slider requires transport of retained half twists"},
+    }
+    parameters = dict(work=work, limits=asdict(Limits()), trace=False)
+    frozen = _request(oracle, "transition", **parameters)
+    assert frozen == {"error": "[json.exception.out_of_range.403] key 'i' not found", "ok": False}
+    _equal(_request(candidate, "typed_transition", **parameters), frozen, (rank, phase))
