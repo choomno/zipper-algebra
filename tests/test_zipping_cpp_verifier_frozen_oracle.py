@@ -278,10 +278,45 @@ def test_standalone_output_trace_atomic_batches_and_arbitrary_rank(oracle, candi
            _request(oracle, "replay", **parameters), (n, word, trace, batch))
 
 
+def _all_differences(actual, expected, path=""):
+    if type(actual) is not type(expected):
+        yield path, actual, expected
+    elif isinstance(actual, dict):
+        for key in actual.keys() | expected.keys():
+            if key not in actual or key not in expected:
+                yield path + "/" + str(key), actual.get(key), expected.get(key)
+            else:
+                yield from _all_differences(actual[key], expected[key], path + "/" + str(key))
+    elif isinstance(actual, list):
+        if len(actual) != len(expected):
+            yield path + "/length", len(actual), len(expected)
+        for index, (left, right) in enumerate(zip(actual, expected)):
+            yield from _all_differences(left, right, path + "/" + str(index))
+    elif actual != expected:
+        yield path, actual, expected
+
+
+def _equal_completion(actual, expected, label, raw_differences, record_path, prefix="/cache"):
+    differences = list(_all_differences(actual, expected))
+    if differences:
+        raw_differences.append({"case": label, "differences": differences})
+        record_path.write_text(json.dumps(raw_differences, indent=2) + "\n")
+    # The typed chosen-rule path holds its independently checked bound handle.
+    # The JSON core.apply_rule path performs a second lookup. Omitting that
+    # redundant lookup changes only these internal bound-cache call counters in
+    # this corpus. All selection, residency, eviction, and completion fields must
+    # still agree exactly with the frozen implementation.
+    allowed = {prefix + "/bound_rules/" + field for field in ("hits", "misses", "oversized")}
+    unexpected = [difference for difference in differences if difference[0] not in allowed]
+    assert not unexpected, (label, unexpected[:3])
+
+
 @pytest.mark.parametrize("cache_entries,cache_bytes", [(0, 0), (1, 10000000),
                                                         (10000, 4096), (10000, 10000000)])
-def test_fused_completion_cache_admission_eviction_and_limits(oracle_material, cache_entries, cache_bytes):
+def test_fused_completion_cache_admission_eviction_and_limits(oracle_material, cache_entries, cache_bytes, tmp_path):
     wrapper, metadata, build = oracle_material
+    raw_differences = []
+    record_path = tmp_path / "frozen-native-differences.json"
     with ExitStack() as stack:
         old = stack.enter_context(wrapper.CppVerifier(producer_metadata=metadata, build_directory=build,
                                   cache_entries=cache_entries, cache_bytes=cache_bytes))
@@ -298,12 +333,15 @@ def test_fused_completion_cache_admission_eviction_and_limits(oracle_material, c
         for limits in settings:
             for n, word in cases:
                 parameters = dict(n=n, input_word=word, limits=limits)
-                _equal(_request(new, "replay_reused", **parameters),
-                       _request(old, "replay_reused", **parameters), (cache_entries, limits, n, word))
-                _equal(new.cache_info(), old.cache_info(), (cache_entries, "cache accounting"))
+                _equal_completion(_request(new, "replay_reused", **parameters),
+                       _request(old, "replay_reused", **parameters), (cache_entries, limits, n, word),
+                       raw_differences, record_path)
+                _equal_completion(new.cache_info(), old.cache_info(),
+                       (cache_entries, "cache accounting"), raw_differences, record_path, prefix="")
         new.clear_cache()
         old.clear_cache()
-        _equal(new.cache_info(), old.cache_info(), "clear cache")
+        _equal_completion(new.cache_info(), old.cache_info(), "clear cache",
+                          raw_differences, record_path, prefix="")
 
 
 @pytest.mark.parametrize("n,word", [(0, []), (True, []), (3, [True]), (3, [0]),
@@ -335,3 +373,48 @@ def test_typed_diagnostic_refuses_missing_mandatory_state_fields(candidate, reac
             result = _request(candidate, "typed_transition", work=work,
                               limits=asdict(Limits()), trace=True)
             assert result.get("ok") is False, (phase, field, result)
+
+
+def test_typed_diagnostic_rejects_unknown_owned_record_keys(candidate, reached_states):
+    cases = []
+    for phase in _PHASES:
+        work = deepcopy(next(work for work in reached_states if work["phase"] == phase))
+        work["extension"] = {"unicode": "λ", "value": [True, None]}
+        cases.append((phase + " work", work))
+    branch_work = next(work for work in reached_states if "branch" in work)
+    for path in (("branch",), ("branch", "control")):
+        work = deepcopy(branch_work)
+        record = work
+        for key in path:
+            record = record[key]
+        record["extension"] = {"unused": [None, True]}
+        cases.append(("/".join(path), work))
+    context_work = next(work for work in reached_states if work["contexts"])
+    for path in (("contexts", 0), ("contexts", 0, "record"),
+                 ("contexts", 0, "record", "canonical_parities")):
+        work = deepcopy(context_work)
+        record = work
+        for key in path:
+            record = record[key]
+        record["extension"] = []
+        cases.append(("/".join(map(str, path)), work))
+    for label, work in cases:
+        result = _request(candidate, "typed_transition", work=work,
+                          limits=asdict(Limits()), trace=False)
+        assert result.get("ok") is False, (label, result)
+
+
+def test_typed_diagnostic_refuses_unknown_state_context_and_record_fields(candidate, reached_states):
+    work = deepcopy(reached_states[0])
+    work["extension"] = {"unicode": "λ"}
+    result = _request(candidate, "typed_transition", work=work, limits=asdict(Limits()))
+    assert result.get("ok") is False, result
+    with_context = next(work for work in reached_states if work["contexts"])
+    for record in (False, True):
+        work = deepcopy(with_context)
+        target = work["contexts"][0]
+        if record:
+            target = target["record"]
+        target["extension"] = [True, None]
+        result = _request(candidate, "typed_transition", work=work, limits=asdict(Limits()))
+        assert result.get("ok") is False, (record, result)

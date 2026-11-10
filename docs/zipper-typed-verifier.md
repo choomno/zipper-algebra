@@ -47,7 +47,8 @@ order. This is an explicit compatibility operation. Collected `replay` and
 `typed_transition` decodes the owned typed schema and exposes the production
 controller for differential testing. It rejects malformed typed containers and
 unknown phase names; its accepted input schema does not include arbitrary
-historical extensions.
+historical extensions. A boundary round-trip comparison rejects additional keys
+in work, branch, control, context and component records.
 
 ## Independent verification
 
