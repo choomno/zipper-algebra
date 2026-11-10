@@ -67,3 +67,20 @@ def test_detects_source_mutation_and_coverage_damage(tmp_path):
     with pytest.raises(ValueError, match='source epoch changed'):
         migrate(queue.path, queue.policy_key, new)
     queue.close()
+
+
+def test_refuses_forked_target_and_new_admissions(tmp_path):
+    queue, new = seed(tmp_path)
+    result = migrate(queue.path, queue.policy_key, new)
+    fork = deepcopy(new)
+    fork['producer'] = {'test': 'other'}
+    with pytest.raises(ValueError, match='another target'):
+        migrate(queue.path, queue.policy_key, fork)
+    target = CensusQueue(queue.path, new)
+    with pytest.raises(sqlite3.IntegrityError, match='original uncertified'):
+        target.enqueue(3, [1, 2])
+    with pytest.raises(sqlite3.IntegrityError, match='original uncertified'):
+        target.enqueue(3, [-1])
+    assert target.db.execute('SELECT count(*) FROM async_cursors WHERE policy=?', (result['target'],)).fetchone()[0] == 1
+    target.close()
+    queue.close()

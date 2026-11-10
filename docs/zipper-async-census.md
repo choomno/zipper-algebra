@@ -195,6 +195,9 @@ unchanged. The manifest includes deterministic hashes and counts of each old
 table. Retirement triggers reject subsequent mutations of old-policy rows,
 including accidental worker restarts. An interrupted transaction rolls back;
 repeating a completed migration validates its linkage and original history.
+Each source can migrate to only one target. The target copies admission cursors
+and rejects admission outside the original uncertified literal set; a new
+census interval requires a separate policy.
 
 Start workers with the manifest's explicit target `--policy`; do not enqueue
 the original ordinal interval again. Old provisional candidates are historical

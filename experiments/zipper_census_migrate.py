@@ -34,6 +34,7 @@ def history_digest(db: sqlite3.Connection, policy: str) -> dict[str, Any]:
         for row in db.execute(f'SELECT * FROM {table} WHERE {column}=? ORDER BY rowid', (policy,)):
             for value in row:
                 data = value if isinstance(value, bytes) else _json(value).encode()
+                digest.update(type(value).__name__.encode() + b'\x00')
                 digest.update(len(data).to_bytes(8, 'big'))
                 digest.update(data)
             count += 1
@@ -43,7 +44,7 @@ def history_digest(db: sqlite3.Connection, policy: str) -> dict[str, Any]:
 
 def migrate(path: Path, source: str, policy: dict[str, Any]) -> dict[str, Any]:
     target = _sha(policy)
-    if source == target or policy.get('schema') != SCHEMA or policy.get('package_sources') != reconstruction_sources():
+    if source == target or policy.get('schema') != SCHEMA or policy.get('package_sources') != reconstruction_sources() or not policy.get('producer') or not policy.get('producer_metadata') or not policy.get('limits'):
         raise ValueError('a distinct policy bound to current package sources is required')
     with closing(sqlite3.connect(path, timeout=60, isolation_level=None)) as db:
         db.execute('PRAGMA foreign_keys=ON')
@@ -55,7 +56,7 @@ def migrate(path: Path, source: str, policy: dict[str, Any]) -> dict[str, Any]:
             old_policy = json.loads(stored[0])
             if policy['limits'] != old_policy['limits'] or policy['mode'] != old_policy['mode']:
                 raise ValueError('epoch switch must preserve limits and execution mode')
-            db.execute('CREATE TABLE IF NOT EXISTS async_migrations(source TEXT NOT NULL REFERENCES async_policies(key), target TEXT NOT NULL UNIQUE REFERENCES async_policies(key), manifest TEXT NOT NULL, PRIMARY KEY(source,target))')
+            db.execute('CREATE TABLE IF NOT EXISTS async_migrations(source TEXT NOT NULL UNIQUE REFERENCES async_policies(key), target TEXT NOT NULL UNIQUE REFERENCES async_policies(key), manifest TEXT NOT NULL, PRIMARY KEY(source,target))')
             db.execute('CREATE TABLE IF NOT EXISTS async_migration_coverage(source TEXT NOT NULL,target TEXT NOT NULL,key TEXT NOT NULL,old_state TEXT NOT NULL,disposition TEXT NOT NULL,PRIMARY KEY(source,target,key),FOREIGN KEY(source,target) REFERENCES async_migrations(source,target),FOREIGN KEY(source,key) REFERENCES async_jobs(policy,key))')
             existing = db.execute('SELECT manifest FROM async_migrations WHERE source=? AND target=?', (source, target)).fetchone()
             before = history_digest(db, source)
@@ -66,6 +67,8 @@ def migrate(path: Path, source: str, policy: dict[str, Any]) -> dict[str, Any]:
                 validate_coverage(db, source, target, manifest)
                 db.execute('COMMIT')
                 return manifest
+            if db.execute('SELECT 1 FROM async_migrations WHERE source=?', (source,)).fetchone():
+                raise ValueError('source epoch already migrated to another target')
             if db.execute('SELECT 1 FROM async_policies WHERE key=?', (target,)).fetchone():
                 raise ValueError('target policy already exists without migration linkage')
             now = time.time()
@@ -79,15 +82,18 @@ def migrate(path: Path, source: str, policy: dict[str, Any]) -> dict[str, Any]:
             db.execute('INSERT INTO async_policies VALUES (?,?)', (target, _json(policy)))
             db.execute('INSERT INTO async_migrations VALUES (?,?,?)', (source, target, _json(manifest)))
             db.execute("INSERT INTO async_migration_coverage SELECT policy,?,key,state,CASE WHEN state='certified' THEN 'retained_source_certificate' ELSE 'recompute_target' END FROM async_jobs WHERE policy=?", (target, source))
-            db.execute("INSERT INTO async_jobs SELECT ?,key,n,word,'queued',NULL,NULL,?,? FROM async_jobs WHERE policy=? AND state!='certified'", (target, now, now, source))
+            db.execute("INSERT INTO async_jobs SELECT ?,key,n,word,'queued',NULL,NULL,?,? FROM async_jobs WHERE policy=? AND state!='certified' ORDER BY created,rowid", (target, now, now, source))
+            db.execute('INSERT INTO async_cursors SELECT ?,layer,ordinal FROM async_cursors WHERE policy=?', (target, source))
             validate_coverage(db, source, target, manifest)
             if before != history_digest(db, source):
                 raise ValueError('source history changed during migration')
             retire_source(db, source)
+            db.execute(f"CREATE TRIGGER closed_migration_{target} BEFORE INSERT ON async_jobs WHEN NEW.policy='{target}' AND NOT EXISTS (SELECT 1 FROM async_migration_coverage WHERE source='{source}' AND target=NEW.policy AND key=NEW.key AND disposition='recompute_target') BEGIN SELECT RAISE(ABORT, 'migration target accepts only original uncertified literals'); END")
             db.execute('COMMIT')
             return manifest
         except BaseException:
-            db.execute('ROLLBACK')
+            if db.in_transaction:
+                db.execute('ROLLBACK')
             raise
 
 
