@@ -142,3 +142,25 @@ def test_report_rejects_wrong_cases_file(tmp_path):
     cases.write_text('[]')
     with pytest.raises(ValueError, match='cases file'):
         report(path, 1, 2, cases_file=cases)
+
+
+def test_report_distinguishes_checked_partial_and_unchecked_refusals(tmp_path):
+    path = database(tmp_path)
+    with sqlite3.connect(path) as db:
+        db.execute("UPDATE reuse_bench_measurements SET status='incomplete'")
+        for run, message in ((1, 'intrinsic transition evaluation limit exceeded'), (2, 'collected term limit exceeded')):
+            t = json.loads(db.execute('SELECT telemetry FROM reuse_bench_measurements WHERE run=?', (run,)).fetchone()[0])
+            t['stats']['independently_checked'] = run == 2
+            db.execute('UPDATE reuse_bench_measurements SET telemetry=? WHERE run=?', (json.dumps(t), run))
+            raw = json.dumps({'diagnostic': {'message': message}, 'metrics': {'transition_evaluations': 250000, 'max_terms': 19999}}).encode()
+            db.execute('UPDATE reuse_bench_payloads SET result=? WHERE run=?', (zlib.compress(raw), run))
+    result = report(path, 1, 2)
+    outcome = result['outcomes'][0]
+    assert outcome['dag']['checker_seconds'] is None
+    assert outcome['dag']['reported_checker_seconds'] == .5
+    assert outcome['dag']['verified_call_seconds'] is None
+    assert outcome['frontier']['independently_checked'] is True
+    assert outcome['frontier']['verified_call_seconds'] is None
+    assert result['arms'][1]['verified_call_seconds'] is None
+    assert result['guard_cross_table'] == {'max_terms/max_steps': 1}
+    assert outcome['dag']['refusal_guard']['observed_counter'] == 250000

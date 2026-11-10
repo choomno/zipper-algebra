@@ -97,12 +97,16 @@ def report(database: Path, left_run: int, right_run: int, *, cases_file: Path | 
                 row['cache'] = telemetry.get('cache')
                 row['independently_checked'] = telemetry.get('stats', {}).get('independently_checked', False)
                 row['output_sha256'] = None
+                row['output_bytes_length'] = None
+                row['producer_metrics'] = None
                 payload = db.execute('SELECT * FROM reuse_bench_payloads WHERE run=? AND pass=0 AND case_id=?',
                                      (run['id'], case_id)).fetchone()
                 row['producer_diagnostic'] = None
                 if payload is not None and payload['result'] is not None:
                     result = json.loads(zlib.decompress(payload['result']))
-                    row['producer_diagnostic'] = result.get('producer_result', result).get('diagnostic')
+                    producer_result = result.get('producer_result', result)
+                    row['producer_diagnostic'] = producer_result.get('diagnostic')
+                    row['producer_metrics'] = producer_result.get('metrics')
                 if row['status'] == 'complete':
                     for field in ('seconds', 'producer_seconds', 'checker_seconds', 'store_seconds'):
                         value = row[field]
@@ -119,6 +123,9 @@ def report(database: Path, left_run: int, right_run: int, *, cases_file: Path | 
                         raise ValueError('completed output integrity or canonicalization differs')
                     row['output_bytes'] = raw
                     row['output_sha256'] = payload['output_sha']
+                    row['output_bytes_length'] = len(raw)
+            if run['cache_mode'] == 'fresh' and len({r['session_generation'] for r in rows.values()}) != len(rows):
+                raise ValueError('fresh mode reused a session generation across inputs')
             verification_scope = ('independent full standalone certificate replay, including execution fields'
                                   if run['backend'] == 'standalone' else
                                   'independent full formal-output replay; standalone schedule, trace and producer counters are not certified')
@@ -127,16 +134,18 @@ def report(database: Path, left_run: int, right_run: int, *, cases_file: Path | 
                        counts=dict(Counter(r['status'] for r in rows.values())),
                        measured_seconds=sum(r['seconds'] for r in rows.values()),
                        verified_call_seconds=(sum(r['producer_seconds'] + r['checker_seconds'] for r in rows.values())
-                                              if all(r['producer_seconds'] is not None and r['checker_seconds'] is not None
+                                              if all(r['status'] == 'complete' and r['producer_seconds'] is not None and r['checker_seconds'] is not None
                                                      for r in rows.values()) else None),
                        recorded_stage_seconds=sum((r['producer_seconds'] or 0) + (r['checker_seconds'] or 0)
                                                   for r in rows.values()),
+                       checks_not_performed=sum(not r['independently_checked'] for r in rows.values()),
                        calls_with_unknown_durations=sum(r['producer_seconds'] is None or r['checker_seconds'] is None
                                                         for r in rows.values()),
                        store_seconds=sum(r['store_seconds'] or 0 for r in rows.values()),
                        setup_seconds=run['setup_seconds'], process_seconds=epoch['process_seconds'],
                        process_cpu_seconds=epoch['process_cpu_seconds'],
-                       sampled_peak_tree_rss_bytes=max(r['peak_tree_rss_bytes'] or 0 for r in rows.values()),
+                       sampled_peak_tree_rss_bytes=max((r['peak_tree_rss_bytes'] for r in rows.values() if r['peak_tree_rss_bytes'] is not None), default=None),
+                       missing_memory_samples=sum(r['peak_tree_rss_bytes'] is None for r in rows.values()),
                        session_generations=sorted({r['session_generation'] for r in rows.values()}),
                        conditions_before=json.loads(epoch['conditions_before']),
                        conditions_after=json.loads(epoch['conditions_after']), rows=rows)
@@ -150,10 +159,27 @@ def report(database: Path, left_run: int, right_run: int, *, cases_file: Path | 
             outcome = dict(case_id=case_id, label=c['label'], n=c['n'], length=len(json.loads(c['word'])))
             for name, row in zip(('frontier', 'dag'), (l, r)):
                 outcome[name] = {k: row[k] for k in ('status', 'seconds', 'producer_seconds', 'checker_seconds',
-                    'store_seconds', 'session_generation', 'producer_diagnostic', 'output_sha256', 'cache', 'independently_checked')}
-                outcome[name]['verified_call_seconds'] = (row['producer_seconds'] + row['checker_seconds']
-                                                         if row['producer_seconds'] is not None and row['checker_seconds'] is not None
-                                                         else None)
+                    'store_seconds', 'session_generation', 'producer_diagnostic', 'output_sha256', 'output_bytes_length', 'cache', 'independently_checked', 'peak_tree_rss_bytes')}
+                outcome[name]['producer_checker_seconds'] = (row['producer_seconds'] + row['checker_seconds']
+                                                            if row['producer_seconds'] is not None and row['checker_seconds'] is not None
+                                                            else None)
+                outcome[name]['verified_call_seconds'] = (outcome[name]['producer_checker_seconds']
+                                                         if row['status'] == 'complete' else None)
+                outcome[name]['reported_checker_seconds'] = row['checker_seconds']
+                if not row['independently_checked']:
+                    outcome[name]['checker_seconds'] = None
+                diagnostic = row['producer_diagnostic'] or {}
+                message = diagnostic.get('message')
+                metrics = row['producer_metrics'] or {}
+                guard = None
+                if message == 'intrinsic transition evaluation limit exceeded':
+                    guard = dict(name=message, limit='max_steps', threshold=configs[0]['limits'].get('max_steps'),
+                                 observed_counter=metrics.get('transition_evaluations'), counter_scope='new intrinsic transition evaluations')
+                elif message == 'collected term limit exceeded':
+                    guard = dict(name=message, limit='max_terms', threshold=configs[0]['limits'].get('max_terms'),
+                                 observed_counter=metrics.get('max_terms'),
+                                 counter_scope='largest committed frontier; failing batch rolled back, attempted size not retained')
+                outcome[name]['refusal_guard'] = guard
                 outcome[name]['timeout_phase'] = 'unknown' if row['status'] == 'timeout' else None
                 outcome[name]['wall_deadline_seconds'] = configs[0]['case_seconds']
             outcomes.append(outcome)
@@ -183,6 +209,8 @@ def report(database: Path, left_run: int, right_run: int, *, cases_file: Path | 
         output_manifest = [{'case_id': o['case_id'], 'output_sha256': o['frontier']['output_sha256']} for o in common]
         if file_sha256(database) != database_sha:
             raise ValueError('database changed during report generation')
+        if wal.exists() and wal.stat().st_size:
+            raise ValueError('database acquired pending WAL pages during report generation')
         if hashlib.sha256(reporter_path.read_bytes()).hexdigest() != reporter_sha:
             raise ValueError('report generator changed during execution')
         denominator = matched['dag']['verified_call_seconds']
@@ -202,6 +230,7 @@ def report(database: Path, left_run: int, right_run: int, *, cases_file: Path | 
                     blocks=blocks, per_case_call_ratio_distribution=distribution,
                     observed_frontier_over_dag_call_seconds=ratio,
                     status_cross_table=dict(Counter(o['frontier']['status'] + '/' + o['dag']['status'] for o in outcomes)),
+                    guard_cross_table=dict(Counter('/'.join((o[name]['refusal_guard'] or {}).get('limit', o[name]['status']) for name in ('frontier', 'dag')) for o in outcomes)),
                     outcomes=outcomes)
 
 
