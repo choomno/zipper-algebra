@@ -418,7 +418,7 @@ class CppVerifier:
 
     def diagnostic(self, operation: str, **parameters: Any) -> dict[str, Any]:
         """Execute independent replay/transition diagnostics for differential tests."""
-        if operation not in ("replay", "transition", "replay_reused"):
+        if operation not in ("replay", "transition", "typed_transition", "replay_reused"):
             raise VerifierError("Unknown verifier diagnostic")
         with self._lock:
             self._assert_source()

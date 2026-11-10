@@ -1,0 +1,31 @@
+{
+  "schema": "zipper-frozen-verifier-fixture-v1",
+  "commit": "9c477dd404738be0a7133bef75b2d4adc37c2616",
+  "archive_sha256": "7c41dd88004a8f39b595e32b738faa5c54fd50b04b1544620031d648274266ba",
+  "files": {
+    "native/zipper_verifier/algorithm.cpp": "b55b1ee950146b9e554e1f409e164b5abf4aa532fad5be6f040887c049977633",
+    "native/zipper_verifier/algorithm.hpp": "659f344614a49dfbd2e54faa3d8f3dc01dba46ecf1df05d97ed2d06cb9edbcaf",
+    "native/zipper_verifier/algorithm_extract.cpp": "933c07eebd4b28a88578570cdc8797f7801a60eaea23ef5c52d0c45c70d3282a",
+    "native/zipper_verifier/bands.cpp": "42849928b23b36a7ca5f6bc1c9bcc19a4a4ba14610e2f27ec1744d0c28e87359",
+    "native/zipper_verifier/catalog.cpp": "3fd87512e6f72a83fea9245b36ecc98037db464603e5d7abbcd4b1aceb02c3bb",
+    "native/zipper_verifier/catalog.hpp": "556baedcec3f734abc34290ecf13777ec89d084c0c5c7f4d4b06ce0bea8fdd00",
+    "native/zipper_verifier/controllers.cpp": "fb6936f1125774db5ed7a32a777039e7595f831506f1cefd3bb98b82496aadfe",
+    "native/zipper_verifier/controllers.hpp": "708bf064a5a09c91041634a1a57a9c36af0c559f6fa520e24aaa8d31abe14535",
+    "native/zipper_verifier/core.cpp": "1a187d251dc6045c4452960cc5c3fbb00018e92152d83f23dadb5d3dfafd346f",
+    "native/zipper_verifier/core.hpp": "fd33102c6b72be5bc1663e5fcda6c4b396d77c28f8093e26afe3080fc7ca40f6",
+    "native/zipper_verifier/extraction.cpp": "fb8e7a7d034117c3316dc14f4ac1e46565c632762cfc3d96334abb568e8b230f",
+    "native/zipper_verifier/extraction.hpp": "0cb55042bc51271489fb03ead3da6082ee6ced42aec6ce08721c3f337f45d98d",
+    "native/zipper_verifier/main.cpp": "dedaa378ea4451145279b955a954460834575d452d8c2ce7022a15d51ab3611b",
+    "native/zipper_verifier/ribbons.cpp": "6066e6b46ceb8b4f7d0696ea296e39379378174c0824462058a079946b3d72b2",
+    "native/zipper_verifier/ribbons.hpp": "4387394dc1f7c71d9f54f075342a2c2e84bd6787fc4e9fcc2e366b83fcf11baf",
+    "native/zipper_verifier/scheduler.cpp": "2c45bacf03738522da56a2733c2c7a64b3377548897b0a01a4266286fb358009",
+    "native/zipper_verifier/scheduler.hpp": "4f5a947d1a0012642250522c0739852b651033a5274ff004ef68504064984349",
+    "native/zipper_verifier/transport.cpp": "024e03b81bbe22ad5f286bcc094ec50e5a297e5377c6cff69cff7e4e2fb2eb0e",
+    "native/zipper_verifier/transport.hpp": "f131ce83c4fbf127db2c3021fbb8ed948d7db2fa8da221156256c5bb085733e8",
+    "native/zipper_verifier/upward.cpp": "f344fe5cafb3f2881fac5e67b9151cfd67f5ace382048967e5c97dc6a22e9c2a",
+    "native/zipper_verifier/upward.hpp": "0b90e89999702b30a106f196907e80ce5bf25222b0810a79db2da8fe35c0547b",
+    "native/zipper_verifier/vendor/nlohmann/LICENSE.MIT": "46a65cffd1ea955132d95a8dd921640714a8d6b537d2e4e482d31145ae95b603",
+    "native/zipper_verifier/vendor/nlohmann/json.hpp": "aaf127c04cb31c406e5b04a63f1ae89369fccde6d8fa7cdda1ed4f32dfc5de63",
+    "native/zipper_verifier/work_size.hpp": "3c7c43b12c83f946e2010cfda57a0ef3f7f41b3319adac77e8c36b399b310d84"
+  }
+}
