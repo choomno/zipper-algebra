@@ -47,7 +47,7 @@ def test_report_orients_by_schedule_and_keeps_full_output_parity(tmp_path):
     assert result['status_cross_table'] == {'complete/complete': 1}
 
 
-@pytest.mark.parametrize('change', ['failed', 'running', 'manifest', 'driver', 'identity', 'cpu', 'checked', 'hash', 'payload', 'duration'])
+@pytest.mark.parametrize('change', ['failed', 'running', 'manifest', 'driver', 'identity', 'cpu', 'checked', 'hash', 'payload', 'duration', 'row_identity', 'missing_row', 'cache_mode', 'noncanonical'])
 def test_report_rejects_unbound_or_corrupted_pairs(tmp_path, change):
     path = database(tmp_path)
     with sqlite3.connect(path) as db:
@@ -58,13 +58,29 @@ def test_report_rejects_unbound_or_corrupted_pairs(tmp_path, change):
         elif change == 'driver':
             db.execute("UPDATE cold_epoch_runs SET driver_sha256='other' WHERE run=1")
         elif change == 'identity':
-            db.execute("UPDATE reuse_bench_runs SET identity='{}' WHERE id=1")
+            identity = json.loads(db.execute('SELECT identity FROM reuse_bench_runs WHERE id=1').fetchone()[0])
+            identity['producer']['binary_sha256'] = 'other'
+            db.execute('UPDATE reuse_bench_runs SET identity=? WHERE id=1', (json.dumps(identity),))
         elif change == 'cpu':
-            db.execute("UPDATE reuse_bench_runs SET config=? WHERE id=1", (json.dumps({'passes': 1, 'case_seconds': 20, 'cpu': 7}),))
+            config = json.loads(db.execute('SELECT config FROM reuse_bench_runs WHERE id=1').fetchone()[0])
+            config['cpu'] = 7
+            db.execute('UPDATE reuse_bench_runs SET config=? WHERE id=1', (json.dumps(config),))
         elif change == 'checked':
             t = json.loads(db.execute('SELECT telemetry FROM reuse_bench_measurements WHERE run=1').fetchone()[0])
             t['stats']['independently_checked'] = False
             db.execute('UPDATE reuse_bench_measurements SET telemetry=? WHERE run=1', (json.dumps(t),))
+        elif change == 'row_identity':
+            t = json.loads(db.execute('SELECT telemetry FROM reuse_bench_measurements WHERE run=1').fetchone()[0])
+            t['identity']['producer']['binary_sha256'] = 'other'
+            db.execute('UPDATE reuse_bench_measurements SET telemetry=? WHERE run=1', (json.dumps(t),))
+        elif change == 'missing_row':
+            db.execute('DELETE FROM reuse_bench_measurements WHERE run=1')
+        elif change == 'cache_mode':
+            db.execute("UPDATE reuse_bench_runs SET cache_mode='fresh' WHERE id=1")
+        elif change == 'noncanonical':
+            raw = canonical_bytes(canonical_output([], n=3, complete=True)) + b'\n'
+            db.execute('UPDATE reuse_bench_payloads SET output=?,output_sha=? WHERE run=1',
+                       (zlib.compress(raw), hashlib.sha256(raw).hexdigest()))
         elif change == 'duration':
             db.execute('UPDATE reuse_bench_measurements SET checker_seconds=NULL WHERE run=1')
         elif change == 'hash':
@@ -100,3 +116,29 @@ def test_report_leaves_zero_denominator_ratio_undefined(tmp_path):
     result = report(path, 1, 2)
     assert result['exact_matching_complete'] == 1
     assert result['observed_frontier_over_dag_call_seconds'] is None
+
+
+def test_report_binds_inputs_outputs_generator_and_verification_scope(tmp_path):
+    path = database(tmp_path)
+    cases = tmp_path / 'cases.json'
+    cases.write_text(json.dumps([{'label': 'case', 'n': 3, 'word': [1, 2], 'origin': {}}]))
+    result = report(path, 1, 2, cases_file=cases)
+    assert result['database_file_sha256'] == hashlib.sha256(path.read_bytes()).hexdigest()
+    assert result['cases_file_sha256'] == hashlib.sha256(cases.read_bytes()).hexdigest()
+    assert result['reporter_sha256']
+    assert result['report_tests_sha256']
+    assert result['complete_output_manifest_sha256']
+    assert result['outcomes'][0]['frontier']['output_sha256'] == result['outcomes'][0]['dag']['output_sha256']
+    assert 'certificate' in result['arms'][0]['verification_scope']
+    assert 'counters are not certified' in result['arms'][1]['verification_scope']
+    assert result['blocks'][0]['common_complete'] == 1
+    assert result['per_case_call_ratio_distribution']['median'] == 1
+    assert result['other_runs'] == []
+
+
+def test_report_rejects_wrong_cases_file(tmp_path):
+    path = database(tmp_path)
+    cases = tmp_path / 'cases.json'
+    cases.write_text('[]')
+    with pytest.raises(ValueError, match='cases file'):
+        report(path, 1, 2, cases_file=cases)

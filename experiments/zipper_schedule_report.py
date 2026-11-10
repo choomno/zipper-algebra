@@ -12,6 +12,7 @@ import json
 import math
 from pathlib import Path
 import sqlite3
+import statistics
 from typing import Any
 import zlib
 
@@ -19,11 +20,26 @@ from experiments.zipper_census_reuse_benchmark import encoded, frozen_cases
 from zipper_algebra.zipping_algorithm.output_normal_form import canonical_bytes
 
 
-def report(database: Path, left_run: int, right_run: int) -> dict[str, Any]:
+def report(database: Path, left_run: int, right_run: int, *, cases_file: Path | None = None) -> dict[str, Any]:
     """Validate a same-epoch pair, oriented as frontier then DAG."""
-    with sqlite3.connect(database) as db:
+    wal = Path(str(database) + '-wal')
+    if wal.exists() and wal.stat().st_size:
+        raise ValueError('report requires a consolidated database without pending WAL pages')
+    database_sha = hashlib.sha256(database.read_bytes()).hexdigest()
+    reporter_path = Path(__file__)
+    reporter_sha = hashlib.sha256(reporter_path.read_bytes()).hexdigest()
+    tests_path = reporter_path.parents[1] / 'tests/test_zipping_schedule_report.py'
+    tests_sha = hashlib.sha256(tests_path.read_bytes()).hexdigest() if tests_path.exists() else None
+    with sqlite3.connect(database.resolve().as_uri() + '?mode=ro', uri=True) as db:
         db.row_factory = sqlite3.Row
-        frozen_cases(db)
+        db.execute('BEGIN')
+        frozen = frozen_cases(db)
+        cases_sha = None
+        if cases_file is not None:
+            raw_cases = cases_file.read_bytes()
+            if json.loads(raw_cases) != frozen:
+                raise ValueError('cases file differs from frozen database requests')
+            cases_sha = hashlib.sha256(raw_cases).hexdigest()
         runs = [db.execute('SELECT * FROM reuse_bench_runs WHERE id=?', (r,)).fetchone()
                 for r in (left_run, right_run)]
         if any(r is None or r['status'] != 'complete' for r in runs):
@@ -74,6 +90,8 @@ def report(database: Path, left_run: int, right_run: int) -> dict[str, Any]:
                     raise ValueError('per-measurement identity differs from run identity')
                 row['session_generation'] = telemetry.get('session_generation')
                 row['cache'] = telemetry.get('cache')
+                row['independently_checked'] = telemetry.get('stats', {}).get('independently_checked', False)
+                row['output_sha256'] = None
                 payload = db.execute('SELECT * FROM reuse_bench_payloads WHERE run=? AND pass=0 AND case_id=?',
                                      (run['id'], case_id)).fetchone()
                 row['producer_diagnostic'] = None
@@ -95,7 +113,12 @@ def report(database: Path, left_run: int, right_run: int) -> dict[str, Any]:
                             or canonical_bytes(normal) != raw or normal.get('completion') != 'complete'):
                         raise ValueError('completed output integrity or canonicalization differs')
                     row['output_bytes'] = raw
-            arm = dict(run=int(run['id']), backend=run['backend'],
+                    row['output_sha256'] = payload['output_sha']
+            verification_scope = ('independent full standalone certificate replay, including execution fields'
+                                  if run['backend'] == 'standalone' else
+                                  'independent full formal-output replay; standalone schedule, trace and producer counters are not certified')
+            arm = dict(run=int(run['id']), backend=run['backend'], started_utc=run['started_utc'],
+                       verification_scope=verification_scope,
                        counts=dict(Counter(r['status'] for r in rows.values())),
                        measured_seconds=sum(r['seconds'] for r in rows.values()),
                        verified_call_seconds=(sum(r['producer_seconds'] + r['checker_seconds'] for r in rows.values())
@@ -122,7 +145,7 @@ def report(database: Path, left_run: int, right_run: int) -> dict[str, Any]:
             outcome = dict(case_id=case_id, label=c['label'], n=c['n'], length=len(json.loads(c['word'])))
             for name, row in zip(('frontier', 'dag'), (l, r)):
                 outcome[name] = {k: row[k] for k in ('status', 'seconds', 'producer_seconds', 'checker_seconds',
-                    'store_seconds', 'session_generation', 'producer_diagnostic')}
+                    'store_seconds', 'session_generation', 'producer_diagnostic', 'output_sha256', 'cache', 'independently_checked')}
                 outcome[name]['verified_call_seconds'] = (row['producer_seconds'] + row['checker_seconds']
                                                          if row['producer_seconds'] is not None and row['checker_seconds'] is not None
                                                          else None)
@@ -133,15 +156,45 @@ def report(database: Path, left_run: int, right_run: int) -> dict[str, Any]:
         matched = {name: {key: sum(o[name][key] or 0 for o in common)
                           for key in ('seconds', 'producer_seconds', 'checker_seconds', 'verified_call_seconds', 'store_seconds')}
                    for name in ('frontier', 'dag')}
+        for outcome in common:
+            denominator = outcome['dag']['verified_call_seconds']
+            outcome['observed_frontier_over_dag_call_seconds'] = (outcome['frontier']['verified_call_seconds'] / denominator
+                                                                 if denominator > 0 else None)
+        ratios = sorted(o['observed_frontier_over_dag_call_seconds'] for o in common
+                        if o['observed_frontier_over_dag_call_seconds'] is not None)
+        distribution = (dict(count=len(ratios), minimum=ratios[0], median=statistics.median(ratios), maximum=ratios[-1],
+                             p10=ratios[max(0, math.ceil(.1 * len(ratios)) - 1)],
+                             p90=ratios[max(0, math.ceil(.9 * len(ratios)) - 1)],
+                             quantile_method='nearest rank; descriptive empirical distribution') if ratios else None)
+        blocks = []
+        for start in range(0, len(outcomes), 32):
+            block = outcomes[start:start + 32]
+            completed = [o for o in block if o['frontier']['status'] == o['dag']['status'] == 'complete']
+            times = {name: sum(o[name]['verified_call_seconds'] for o in completed) for name in ('frontier', 'dag')}
+            blocks.append(dict(first_case_id=block[0]['case_id'], last_case_id=block[-1]['case_id'],
+                               common_complete=len(completed), producer_checker_seconds=times,
+                               observed_frontier_over_dag_call_seconds=(times['frontier'] / times['dag'] if times['dag'] > 0 else None),
+                               cache_end={name: block[-1][name]['cache'] for name in ('frontier', 'dag')}))
+        output_manifest = [{'case_id': o['case_id'], 'output_sha256': o['frontier']['output_sha256']} for o in common]
+        if hashlib.sha256(database.read_bytes()).hexdigest() != database_sha:
+            raise ValueError('database changed during report generation')
+        if hashlib.sha256(reporter_path.read_bytes()).hexdigest() != reporter_sha:
+            raise ValueError('report generator changed during execution')
         denominator = matched['dag']['verified_call_seconds']
         ratio = matched['frontier']['verified_call_seconds'] / denominator if common and denominator > 0 else None
         for arm in arms:
             del arm['rows']
         return dict(scope='single observed traversal under concurrent host load; no replicated causal estimate',
+                    database_name=database.name, database_file_sha256=database_sha,
+                    reporter_sha256=reporter_sha, report_tests_sha256=tests_sha, cases_file_sha256=cases_sha,
+                    frozen_cases_sha256=hashlib.sha256(encoded(frozen)).hexdigest(),
+                    complete_output_manifest_sha256=hashlib.sha256(encoded(output_manifest)).hexdigest(),
+                    other_runs=[dict(r) for r in db.execute('SELECT id,backend,cache_mode,status FROM reuse_bench_runs WHERE id NOT IN (?,?)', (left_run, right_run))],
                     cache_mode=runs[0]['cache_mode'], config=configs[0],
                     source_manifest=json.loads(epochs[0]['source_manifest']),
                     driver_sha256=epochs[0]['driver_sha256'], identity=identities[0],
                     exact_matching_complete=len(common), arms=arms, matched=matched,
+                    blocks=blocks, per_case_call_ratio_distribution=distribution,
                     observed_frontier_over_dag_call_seconds=ratio,
                     status_cross_table=dict(Counter(o['frontier']['status'] + '/' + o['dag']['status'] for o in outcomes)),
                     outcomes=outcomes)
@@ -151,8 +204,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('database', type=Path)
     parser.add_argument('runs', type=int, nargs=2)
+    parser.add_argument('--cases-file', type=Path)
     args = parser.parse_args()
-    print(encoded(report(args.database, *args.runs)).decode())
+    print(encoded(report(args.database, *args.runs, cases_file=args.cases_file)).decode())
 
 
 if __name__ == '__main__':
