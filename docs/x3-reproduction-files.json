@@ -1307,8 +1307,8 @@
     },
     {
       "path": "tests/test_zipping_census_migration.py",
-      "bytes": 5194,
-      "sha256": "f8d31e8ccbed07fc25799edc7d537881f4072291853b7220797c657ef1857f4c",
+      "bytes": 19064,
+      "sha256": "81ff3c509831d1cba6f86525656585bf1eafd5bc3e7523da23427e9b1c9b49fe",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {

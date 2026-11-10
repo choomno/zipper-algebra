@@ -417,8 +417,9 @@ redundant checks before attempting their removal.
 The next revision owns tokens, words, branch/controller variants, boundary
 factors, extracted components, exact Laurent coefficients and formal output
 terms in independent verifier types. Production standalone and DAG replay use
-the typed controller. JSON remains at the protocol, catalog and optional
-evidence boundaries. The independent JSON implementation remains available as
+the typed controller. JSON remains at the protocol, catalog, optional evidence,
+final equality comparison and transient bounded-cache byte-accounting boundaries;
+[the typed verifier contract](zipper-typed-verifier.md) lists them explicitly. The independent JSON implementation remains available as
 a diagnostic and differential oracle. No producer mathematical implementation
 is imported by the verifier.
 
