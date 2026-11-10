@@ -84,3 +84,13 @@ def test_refuses_forked_target_and_new_admissions(tmp_path):
     assert target.db.execute('SELECT count(*) FROM async_cursors WHERE policy=?', (result['target'],)).fetchone()[0] == 1
     target.close()
     queue.close()
+
+
+def test_rejects_incomplete_declared_frontier_and_count(tmp_path):
+    queue, new = seed(tmp_path)
+    with pytest.raises(ValueError, match='frontier is incomplete'):
+        migrate(queue.path, queue.policy_key, new, expected_count=4, completed_layers=((3, 9),))
+    with pytest.raises(ValueError, match='literal count'):
+        migrate(queue.path, queue.policy_key, new, expected_count=5)
+    assert queue.db.execute('SELECT count(*) FROM async_policies').fetchone()[0] == 1
+    queue.close()

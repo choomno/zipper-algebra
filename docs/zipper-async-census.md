@@ -180,7 +180,9 @@ the `counts` diagnostic field and computes detailed counts once on that exit.
 
 ## Switching the computation policy
 
-`python -m experiments.zipper_census_migrate DATABASE --source-policy OLD_KEY`
+`python -m experiments.zipper_census_migrate DATABASE --source-policy OLD_KEY
+--expected-literal-count COUNT --completed-layer RANK:LENGTH`
+requires exhausted enumeration cursors for the declared closed census and
 creates a new policy from the current native build with the old limits and
 execution mode. Authenticate and stop the source worker process group first,
 then take a SQLite backup API snapshot and run `PRAGMA integrity_check`.

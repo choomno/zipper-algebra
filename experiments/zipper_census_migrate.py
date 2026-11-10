@@ -20,6 +20,7 @@ from experiments.zipper_async_census import initialize, read_policy
 from zipper_algebra.zipping_algorithm.census_queue import SCHEMA
 from zipper_algebra.zipping_algorithm.census_reuse import _json, _sha, reconstruction_sources
 from zipper_algebra.zipping_algorithm.interpreter import Limits
+from zipper_algebra.zipping_algorithm.peeling_enumeration import NonPeelableWords
 
 TABLES = ('async_policies', 'async_jobs', 'async_candidates', 'async_attempts', 'async_cursors')
 
@@ -42,7 +43,7 @@ def history_digest(db: sqlite3.Connection, policy: str) -> dict[str, Any]:
     return result
 
 
-def migrate(path: Path, source: str, policy: dict[str, Any]) -> dict[str, Any]:
+def migrate(path: Path, source: str, policy: dict[str, Any], *, expected_count: int | None = None, completed_layers: tuple[tuple[int, int], ...] = ()) -> dict[str, Any]:
     target = _sha(policy)
     if source == target or policy.get('schema') != SCHEMA or policy.get('package_sources') != reconstruction_sources() or not policy.get('producer') or not policy.get('producer_metadata') or not policy.get('limits'):
         raise ValueError('a distinct policy bound to current package sources is required')
@@ -56,6 +57,18 @@ def migrate(path: Path, source: str, policy: dict[str, Any]) -> dict[str, Any]:
             old_policy = json.loads(stored[0])
             if policy['limits'] != old_policy['limits'] or policy['mode'] != old_policy['mode']:
                 raise ValueError('epoch switch must preserve limits and execution mode')
+            frontier = []
+            for n, length in completed_layers:
+                layer = NonPeelableWords(n, length)
+                cursor = db.execute('SELECT ordinal FROM async_cursors WHERE policy=? AND layer=?', (source, f'nonpeelable-v1:{n}:{length}')).fetchone()
+                if cursor is None or int(cursor[0]) != layer.count:
+                    raise ValueError('source enumeration frontier is incomplete')
+                frontier.append({'n': n, 'length': length, 'ordinal': layer.count})
+            source_count = db.execute('SELECT count(*) FROM async_jobs WHERE policy=?', (source,)).fetchone()[0]
+            if expected_count is not None and source_count != expected_count:
+                raise ValueError('source literal count differs from declared closed census')
+            if frontier and sum(item['ordinal'] for item in frontier) != source_count:
+                raise ValueError('completed layers do not cover the declared closed census')
             db.execute('CREATE TABLE IF NOT EXISTS async_migrations(source TEXT NOT NULL UNIQUE REFERENCES async_policies(key), target TEXT NOT NULL UNIQUE REFERENCES async_policies(key), manifest TEXT NOT NULL, PRIMARY KEY(source,target))')
             db.execute('CREATE TABLE IF NOT EXISTS async_migration_coverage(source TEXT NOT NULL,target TEXT NOT NULL,key TEXT NOT NULL,old_state TEXT NOT NULL,disposition TEXT NOT NULL,PRIMARY KEY(source,target,key),FOREIGN KEY(source,target) REFERENCES async_migrations(source,target),FOREIGN KEY(source,key) REFERENCES async_jobs(policy,key))')
             existing = db.execute('SELECT manifest FROM async_migrations WHERE source=? AND target=?', (source, target)).fetchone()
@@ -75,7 +88,8 @@ def migrate(path: Path, source: str, policy: dict[str, Any]) -> dict[str, Any]:
             counts = dict(db.execute('SELECT state,count(*) FROM async_jobs WHERE policy=? GROUP BY state', (source,)))
             manifest = {'schema': 'zipper-async-migration-v1', 'source': source, 'target': target,
                         'created': now, 'source_history': before, 'source_states': counts,
-                        'source_retired': True, 'source_guard': 'SQLite triggers reject all old-policy row mutations',
+                        'scope': 'closed source admitted literal set; no further admission',
+                        'completed_layers': frontier, 'source_retired': True, 'source_guard': 'SQLite triggers reject all old-policy row mutations',
                         'literal_requests': sum(counts.values()), 'retained_certified': counts.get('certified', 0),
                         'queued_for_recomputation': sum(v for k, v in counts.items() if k != 'certified'),
                         'coverage': 'Each source literal is retained as source certified evidence or queued once under target; provisional candidates are recomputed.'}
@@ -123,13 +137,18 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('database', type=Path)
     parser.add_argument('--source-policy', required=True)
+    parser.add_argument('--expected-literal-count', required=True, type=int)
+    parser.add_argument('--completed-layer', required=True, action='append', help='fully admitted rank:length layer')
     args = parser.parse_args()
     old = read_policy(args.database, args.source_policy)
     with tempfile.TemporaryDirectory(prefix='zipper-policy-') as directory:
         path = Path(directory) / 'policy.sqlite3'
         key = initialize(path, Limits(**old['limits']), old['mode'], 256 * 2**20)
         policy = read_policy(path, key)
-    print(json.dumps(migrate(args.database, args.source_policy, policy), sort_keys=True))
+    layers = tuple(tuple(map(int, item.split(':'))) for item in args.completed_layer)
+    if any(len(item) != 2 for item in layers):
+        parser.error('completed layers must be rank:length')
+    print(json.dumps(migrate(args.database, args.source_policy, policy, expected_count=args.expected_literal_count, completed_layers=layers), sort_keys=True))
 
 
 if __name__ == '__main__':
