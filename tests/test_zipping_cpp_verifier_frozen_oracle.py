@@ -406,9 +406,12 @@ def test_typed_diagnostic_rejects_unknown_owned_record_keys(candidate, reached_s
         assert result.get("ok") is False, (label, result)
 
 
-
 def test_public_typed_diagnostic_uses_real_independent_binary(candidate, oracle):
     parameters = dict(work=_single(3, [1, -2, 1]), limits=asdict(Limits()),
-                      trace_enabled=True)
-    _equal(candidate.diagnostic("typed_transition", **parameters),
-           oracle.diagnostic("transition", **parameters), "public typed diagnostic")
+                      trace=True)
+    actual = candidate.diagnostic("typed_transition", **parameters)
+    assert actual["unit_evidence"]
+    _equal(actual, oracle.diagnostic("transition", **parameters), "public typed diagnostic")
+    parameters["work"]["extension"] = True
+    with pytest.raises(native_verifier.VerifierError, match="owned schema"):
+        candidate.diagnostic("typed_transition", **parameters)

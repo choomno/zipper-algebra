@@ -181,6 +181,7 @@ def inspect(directory):
         indexed = {item["path"]: item for item in inventory["files"]}
         for name in ("tests/native/frozen_verifier_9c477dd.json",
                      "tests/native/frozen_verifier_9c477dd.tar.gz"):
+            assert name in indexed, name
             content = read(f"{root}/{name}")
             assert len(content) == indexed[name]["bytes"], name
             assert hashlib.sha256(content).hexdigest() == indexed[name]["sha256"], name

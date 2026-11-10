@@ -53,8 +53,8 @@
     },
     {
       "path": "ci/check_distribution.py",
-      "bytes": 14698,
-      "sha256": "ff175fb2afa67743028c31df3b526b1e8b5e1214cd1cc404eb3ebe072e8ba394",
+      "bytes": 14739,
+      "sha256": "680782fb4bacc70baf972a195b0b394fbce025fc0a6515917564d0f7dec401bc",
       "role": "Installation, test, coverage, documentation or inventory support"
     },
     {
@@ -1373,8 +1373,8 @@
     },
     {
       "path": "tests/test_zipping_cpp_verifier_frozen_oracle.py",
-      "bytes": 20150,
-      "sha256": "973d1c48fafca3e3b3b52eeccb49388eb566bbd068ae5d88ca3e4871d245a3e9",
+      "bytes": 20368,
+      "sha256": "d5df8280de01e43269055524b384e1459e8398e5e21098e26f34103ea4a71b4f",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
