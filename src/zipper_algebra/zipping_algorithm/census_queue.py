@@ -323,7 +323,8 @@ class CensusQueue:
                 if publication_started is not None:
                     timings["publication_seconds"] = time.perf_counter() - publication_started
                 self.finish(claim, "compute_error", {"seconds": timings["compute_seconds"], "error": str(exc),
-                            "timings": timings, "failure_phase": "compute" if compute_seconds is None else "publication",
+                            "timings": timings, "failure_phase": ("compute" if compute_seconds is None else
+                                              "publication" if publication_started is not None else "result_recording"),
                             "attempt_metadata": attempt_metadata})
                 raise
         return True

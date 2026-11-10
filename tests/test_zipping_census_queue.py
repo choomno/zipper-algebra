@@ -703,3 +703,51 @@ def test_compute_failure_retains_separate_stage_timers(setup, monkeypatch, phase
     if phase == "publication":
         assert record["timings"]["publication_seconds"] == 3
     assert queue.counts()["compute_error"] == 1
+
+
+@pytest.mark.parametrize("result", [None, [], {"status": "incomplete", "diagnostic": object()}])
+def test_returned_result_failure_is_not_publication(setup, result):
+    queue, _, _ = setup
+    queue.enqueue(3, [-1])
+    with pytest.raises((AttributeError, TypeError)):
+        queue.compute_one(lambda *_: result)
+    record = json.loads(queue.db.execute("SELECT record FROM async_attempts").fetchone()[0])
+    assert record["failure_phase"] == "result_recording"
+    assert "compute_seconds" in record["timings"]
+    assert "publication_seconds" not in record["timings"]
+    assert queue.counts()["compute_error"] == 1
+
+
+def test_blocked_exit_preserves_counts_without_polling_aggregation(setup, monkeypatch, capsys):
+    import experiments.zipper_async_census as cli
+    queue, produce, _ = setup
+    work = CensusQueue(queue.path, _worker_policy(queue))
+    count_calls = []
+    original_counts = CensusQueue.counts
+    def counts(self):
+        count_calls.append(1)
+        return original_counts(self)
+    class Producer:
+        metadata = {}
+        def __init__(self, **kwargs):
+            pass
+        def reduce(self, *args, **kwargs):
+            pytest.fail("uncertified backlog must prevent admission")
+        def close(self):
+            pass
+    try:
+        work.enqueue(3, [-1])
+        work.compute_one(produce)
+        def refuse(_):
+            raise VerifierIncomplete("budget exhausted")
+        work.certify_one(refuse, IDENTITY)
+        work.enqueue(3, [-2])
+        expected = work.counts()
+        monkeypatch.setattr(cli, "NativeSession", Producer)
+        monkeypatch.setattr(CensusQueue, "counts", counts)
+        cli.worker(work.path, work.policy, "compute", dict(_worker_settings(), max_pending=1))
+        answer = json.loads(capsys.readouterr().out)
+        assert answer == {"blocked": "uncertified backlog requires retry", "counts": expected}
+        assert count_calls == [1]
+    finally:
+        work.close()

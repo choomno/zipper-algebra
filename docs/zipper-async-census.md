@@ -169,7 +169,11 @@ final attempt insertion, job update and transaction commit. Certification record
 IPC). Legacy compute `seconds` retains its pre-publication scope; certification
 `seconds` includes loading, checking, telemetry capture and final source guards,
 ending before durable finalization. Compute error records retain the producer-call timer and identify whether
-the failure occurred during computation or publication. Publication failures also
+the failure occurred during computation, recording the returned result
+(`result_recording`), or publication. Publication failures also
 retain their own elapsed timer. These timers exclude session initialization
 and do not sum to complete worker wall time. Attempt JSON, including full verifier
 reports, consumes storage outside the compressed-candidate backlog watermark.
+
+Worker polling uses indexed work-presence probes. A blocked drain exit retains
+the `counts` diagnostic field and computes detailed counts once on that exit.
