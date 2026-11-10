@@ -422,8 +422,8 @@ evidence boundaries. The independent JSON implementation remains available as
 a diagnostic and differential oracle. No producer mathematical implementation
 is imported by the verifier.
 
-A maximal staged single-child/no-output path now executes in one live scheduler
-frame. Each consumed parent contributes its restoration data and exact key to
+With optional unary fusion, a maximal staged single-child/no-output path executes
+in one live scheduler frame. Each consumed parent contributes its restoration data and exact key to
 a continuation chain, bypassing another full-frame allocation, retained child
 and output containers, and generic parent completion scheduling. Every logical
 transition still performs independent dispatch, key construction, cycle and
@@ -440,9 +440,11 @@ The frozen JSON baseline is `9c477dd`; the measured final typed snapshot is
 `ffd8cf9`, including scheduler change `e47d21f` and the unsupported-frame refusal
 compatibility guard `f5552de`. Three modes use the same reviewed benchmark
 worker: JSON baseline, typed with unary fusion disabled, and typed with fusion
-enabled. The typed-only executable is authenticated with the additional compiler
-flag `-DZIPPER_DISABLE_UNARY_FUSION`; the fused executable uses the default.
-Both therefore use the same final typed source and arithmetic.
+enabled. The packaged verifier selects the measured typed-only configuration
+with compiler flag `-DZIPPER_DISABLE_UNARY_FUSION`. An optional fused build removes
+that flag. Both executables authenticate their flags and use the same final
+native source and arithmetic. Fusion remains available as an experiment; the
+measured default uses the faster typed-only mode in this finite cohort.
 
 The final typed modes run in order fused/typed/typed/fused, counterbalancing the
 fusion comparison. Two earlier observations of the unchanged JSON baseline are
