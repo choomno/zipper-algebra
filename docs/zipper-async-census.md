@@ -177,3 +177,30 @@ reports, consumes storage outside the compressed-candidate backlog watermark.
 
 Worker polling uses indexed work-presence probes. A blocked drain exit retains
 the `counts` diagnostic field and computes detailed counts once on that exit.
+
+## Switching the computation policy
+
+`python -m experiments.zipper_census_migrate DATABASE --source-policy OLD_KEY`
+creates a new policy from the current native build with the old limits and
+execution mode. Authenticate and stop the source worker process group first,
+then take a SQLite backup API snapshot and run `PRAGMA integrity_check`.
+Run migration from a clean, frozen checkout and record its commit and command.
+
+The migration uses one write transaction for the new policy, queued literal
+requests, and the `async_migrations` and `async_migration_coverage` tables.
+Every original literal has one disposition: retain its existing certified
+source evidence, or recompute it under the new policy. All old policy rows,
+attempts, compressed candidates, and admission cursors remain byte-for-byte
+unchanged. The manifest includes deterministic hashes and counts of each old
+table. Retirement triggers reject subsequent mutations of old-policy rows,
+including accidental worker restarts. An interrupted transaction rolls back;
+repeating a completed migration validates its linkage and original history.
+
+Start workers with the manifest's explicit target `--policy`; do not enqueue
+the original ordinal interval again. Old provisional candidates are historical
+records and receive fresh computation and independent verification in the new
+policy. Old certified rows retain their original producer and verifier binding.
+The original total is the number of source literals. Its current certified
+coverage is the retained source count plus target certified count; summing all
+job counts across policies double-counts recomputed requests. Historical source
+`computing` and `certifying` states describe interrupted attempts, not live work.
