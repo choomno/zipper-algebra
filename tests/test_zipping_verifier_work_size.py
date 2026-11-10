@@ -69,9 +69,10 @@ int main() {
     assert(observe([&] {return work_expression_size(work);})=="overflow");
     // Inner then outer shifts also preserve intermediate overflow.
     work=initial_work(3,J::array());work["left"]=J::array({hi});
-    for (I size:{I(1),I(-1)}) work["contexts"].push_back({{"size",size},
+    for (I size:{I(-1),I(1)}) work["contexts"].push_back({{"size",size},
         {"top_route",J::array()},{"component_word",J::array()},{"bottom_route",J::array()}});
     compare(work);
+    assert(observe([&] {return work_expression_size(work);})=="overflow");
 }
 ''', encoding="utf-8")
     binary = tmp_path / "work_size"
