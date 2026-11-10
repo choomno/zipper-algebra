@@ -37,8 +37,12 @@ JSON remains in the following explicit places:
   is constructed. Catalog code remains independent of the producer.
 - Exact Artin image digest serialization in ribbon recognition, preserving the
   established certificate digest bytes.
-- String escaping in the direct canonical encoder. It does not construct a JSON
-  work-state tree.
+- Canonical serialization for bounded-cache byte accounting. Transition payloads
+  and collected formal outputs are transiently encoded as JSON to preserve their
+  established byte charges. These encodings do not own mathematical state or
+  determine controller dispatch.
+- String escaping in the direct canonical work encoder. That encoder does not
+  construct a JSON work-state tree.
 
 The historical `transition` operation retains the unrestricted JSON diagnostic
 contract, including malformed or extended records and their original rejection
