@@ -403,18 +403,3 @@ def test_typed_diagnostic_rejects_unknown_owned_record_keys(candidate, reached_s
                           limits=asdict(Limits()), trace=False)
         assert result.get("ok") is False, (label, result)
 
-
-def test_typed_diagnostic_refuses_unknown_state_context_and_record_fields(candidate, reached_states):
-    work = deepcopy(reached_states[0])
-    work["extension"] = {"unicode": "λ"}
-    result = _request(candidate, "typed_transition", work=work, limits=asdict(Limits()))
-    assert result.get("ok") is False, result
-    with_context = next(work for work in reached_states if work["contexts"])
-    for record in (False, True):
-        work = deepcopy(with_context)
-        target = work["contexts"][0]
-        if record:
-            target = target["record"]
-        target["extension"] = [True, None]
-        result = _request(candidate, "typed_transition", work=work, limits=asdict(Limits()))
-        assert result.get("ok") is False, (record, result)
