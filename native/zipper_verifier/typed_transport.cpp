@@ -1,6 +1,5 @@
 #include "typed_transport.hpp"
 #include "catalog.hpp"
-#include "controllers.hpp"
 #include <algorithm>
 #include <sstream>
 namespace zipper_verify::typed {
@@ -160,6 +159,10 @@ J BandWitness::json() const {J encoded=J::array();for(const auto&s:steps)encoded
 
 
 namespace {
+std::vector<J> flatten_catalog(const J&node){if(node.at("type")!="concat")return {node};std::vector<J> result;for(const auto&child:node.at("items")){auto children=flatten_catalog(child);result.insert(result.end(),children.begin(),children.end());}return result;}
+struct RuleHandle{std::shared_ptr<const J> derived;const J*ordinary=nullptr;const J&get()const{return derived?*derived:*ordinary;}};
+RuleHandle held_rule_for_event(Catalog&catalog,const J&event){std::string id=event.at("rule_id").get<std::string>();if(id.size()>=3&&id.compare(id.size()-3,3,".BM")==0)return {catalog.semilinear_rule_handle(id.substr(0,id.size()-3)+".M",event.at("parameters")),nullptr};return {nullptr,&catalog.get(id)};}
+std::tuple<I,I,bool,I,I> branch_shape(const J&base,const J&env,bool mirrored){auto nodes=flatten_catalog(base.at("word"));std::size_t at=0;while(at<nodes.size()&&nodes[at].at("type")!="slider")++at;if(at==nodes.size())throw ControlError("catalog branch has no slider");const J&sl=nodes[at];I j=integer(sl.at("start"),env);bool m=sl.value("orientation",std::string("normal"))=="mirrored";I k=0;if(at&&nodes[at-1].at("type")=="block")k=integer(nodes[at-1].at("count"),env);auto exponent=[](const J&node)->I{if(node.at("type")=="half_twist")return 1;if(node.at("type")=="inverse"&&node.at("word").at("type")=="half_twist")return -1;return 0;};I a=at?exponent(nodes[0]):0,b=at+1<nodes.size()?exponent(nodes[at+1]):0;return {mirrored?checked_add(checked_sub(checked_sub(zipper_verify::as_i(env.at("n")),zipper_verify::as_i(env.at("i"))),j),2):j,k,m!=mirrored,a,b};}
 J encode_event(const ProcessedEvent&e){return {{"rule_id",e.rule_id},{"parameters",e.parameters},{"rhs_index",e.rhs_index},{"mirror_policy",e.mirror_policy}};}
 bool suffix(const std::string &text, const std::string &ending) {
     return text.size() >= ending.size() && text.compare(text.size()-ending.size(), ending.size(), ending)==0;
