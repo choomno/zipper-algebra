@@ -12,6 +12,7 @@ import io
 import json
 from pathlib import Path
 import tarfile
+import subprocess
 from types import ModuleType
 
 import pytest
@@ -96,15 +97,67 @@ def _equal(actual, expected, label):
     assert native_verifier._same(actual, expected), label
 
 
+_SEED_DRIVER = r"""
+#include "algorithm.hpp"
+#include "controllers.hpp"
+#include <iostream>
+using namespace zipper_verify;
+int main() {
+    J result=J::array();
+    for(I n:{5,9}) for(I size:{3,4}) for(bool mirror:{false,true})
+        for(const auto &[out,in]:std::vector<std::pair<I,I>>{{0,0},{1,-1},{-2,2}}) {
+            I start=2;
+            J state=framed_initialize(n,J::array({1,-(n-1)}),size,start,0,mirror,
+                         out,in,J::array({1}),J::array({-1}),J::array(),"bar_mirror",Limits());
+            J work=initial_work(n,J::array());
+            work.erase("left");work.erase("processed");work.erase("position");
+            work["phase"]="zip_up";work["branch"]=state.at("branches").at(0);
+            result.push_back(std::move(work));
+        }
+    std::cout<<result<<'\n';
+}
+"""
+
+
 @pytest.fixture(scope="module")
-def reached_states(oracle):
-    """Explore only the frozen controller; keep states from each observed rule."""
+def framed_seeds(oracle_material):
+    wrapper, _, build = oracle_material
+    # All objects are authenticated by the frozen wrapper build. The seed
+    # generator links that complete legacy implementation, never current helpers.
+    _, metadata, _ = wrapper.build_verifier(build_directory=build)
+    source = build.parent / "frozen-seeds.cpp"
+    source.write_text(_SEED_DRIVER)
+    binary = build.parent / "frozen-seeds"
+    objects = []
+    for name in sorted(wrapper.SOURCE_DIRECTORY.glob("*.cpp")):
+        if name.name != "main.cpp":
+            matches = list((build / "objects").rglob(name.stem + ".o"))
+            assert len(matches) == 1
+            objects.extend(matches)
+    subprocess.run([metadata["compiler"], *wrapper.FLAGS, "-I", str(wrapper.SOURCE_DIRECTORY),
+                    str(source), *map(str, objects),
+                    *("-l" + name for name in wrapper.LIBRARIES), "-o", str(binary)],
+                   check=True, capture_output=True, text=True)
+    seeds = json.loads(subprocess.run([str(binary)], check=True, capture_output=True, text=True).stdout)
+    assert len(seeds) == 24
+    return seeds
+
+
+def _geometry(work):
+    control = work.get("branch", {}).get("control", {})
+    return tuple(control.get(key) for key in ("i", "mirrored", "output_power", "input_power", "phase")) + (
+        len(work["contexts"]), work["world_phi"])
+
+
+@pytest.fixture(scope="module")
+def reached_states(oracle, framed_seeds):
+    """Explore only the frozen controller; retain rule and geometry diversity."""
     starts = [(3, [1, -2, 1]), (4, [-3, -2, -1]),
               (5, [4, -3, 2, -1]), (5, [-4, -3, 1, 2, 3, 4])]
-    queue = deque(_single(n, word) for n, word in starts)
+    queue = deque([*(_single(n, word) for n, word in starts), *framed_seeds])
     seen = set()
     selected = {}
-    for _ in range(600):
+    for _ in range(1800):
         if not queue:
             break
         work = queue.popleft()
@@ -114,12 +167,17 @@ def reached_states(oracle):
         seen.add(identity)
         result = _request(oracle, "transition", work=work, limits=asdict(Limits()), trace=True)
         assert result.get("ok") is not False, result
-        assert "error" not in result, result
-        key = (work["phase"], result.get("event", {}).get("rule_id"))
+        key = (work["phase"], result.get("unit_evidence", {}).get("rule_id"), _geometry(work))
         selected.setdefault(key, work)
-        queue.extend(result["children"])
+        if "children" in result:
+            queue.extend(result["children"])
     states = list(selected.values())
     assert {work["phase"] for work in states} == _PHASES
+    controls = [work["branch"]["control"] for work in states if "branch" in work]
+    assert {control["i"] for control in controls} >= {2, 3, 4}
+    assert {control.get("mirrored") for control in controls} >= {False, True}
+    assert {control.get("output_power") for control in controls} >= {-2, 0, 1}
+    assert {control.get("input_power") for control in controls} >= {-1, 0, 2}
     return states
 
 
@@ -133,11 +191,11 @@ def test_reached_phase_transitions_equal_frozen_json(oracle, candidate, reached_
         if "branch" in work:
             work["branch"]["coefficient"] = coefficient
         parameters = dict(work=work, limits=asdict(Limits()), trace=trace)
-        _equal(_request(candidate, "transition", **parameters),
+        _equal(_request(candidate, "typed_transition", **parameters),
                _request(oracle, "transition", **parameters), (work["phase"], trace))
 
 
-def test_phase_malformed_fields_and_resource_refusals(oracle, candidate, reached_states):
+def test_legacy_phase_malformed_fields_and_resource_refusals(oracle, candidate, reached_states):
     by_phase = {work["phase"]: work for work in reached_states}
     for phase, original in by_phase.items():
         mutations = []
@@ -154,7 +212,7 @@ def test_phase_malformed_fields_and_resource_refusals(oracle, candidate, reached
             bad[field] = value
             mutations.append((field, bad))
         # JSON control records can retain extension data and skip fields on a
-        # zero branch. Eager typed decoding must preserve that observation order.
+        # zero branch. These cases check the explicit legacy compatibility API.
         zero = deepcopy(original)
         zero["coefficient"] = []
         zero["contexts"] = [None]
@@ -182,7 +240,7 @@ def test_phase_malformed_fields_and_resource_refusals(oracle, candidate, reached
             limits = asdict(Limits())
             limits[bound] = 0
             parameters = dict(work=original, limits=limits, trace=False)
-            _equal(_request(candidate, "transition", **parameters),
+            _equal(_request(candidate, "typed_transition", **parameters),
                    _request(oracle, "transition", **parameters), (phase, bound))
 
 
@@ -227,10 +285,30 @@ def test_fused_completion_cache_admission_eviction_and_limits(oracle_material, c
 
 @pytest.mark.parametrize("n,word", [(0, []), (True, []), (3, [True]), (3, [0]),
                                     (3, [3]), (3, [-(2**63)]),
-                                    (3, [["S", 1, 2]]), (3, [1.0])])
+                                    (3, [["S", 1, 2]]), (3, [1.0]),
+                                    (0, [0]), (0, [["S", 1, 2]]),
+                                    (3, {}), (3, None), (3, True)])
 def test_public_literal_input_refusals_equal_frozen(oracle, candidate, n, word):
     for op in ("replay", "replay_reused"):
         parameters = dict(n=n, input_word=word, limits=asdict(Limits()),
                           batch_size=4, trace_enabled=True)
         _equal(_request(candidate, op, **parameters),
                _request(oracle, op, **parameters), (op, n, word))
+
+
+def test_typed_diagnostic_refuses_missing_mandatory_state_fields(candidate, reached_states):
+    # The legacy diagnostic has a wider domain. These checks concern the typed
+    # diagnostic's own mandatory state schema, without requiring legacy errors.
+    by_phase = {work["phase"]: work for work in reached_states}
+    for phase, original in by_phase.items():
+        fields = {"rank", "coefficient", "contexts", "depth", "bottom_labels", "top_labels"}
+        fields |= {"single": {"left", "processed", "position"},
+                   "zip_up": {"branch"}, "zip_down": {"branch"},
+                   "layer": {"word", "payload_length", "completed_sides"},
+                   "extract": {"word"}}[phase]
+        for field in fields:
+            work = deepcopy(original)
+            del work[field]
+            result = _request(candidate, "typed_transition", work=work,
+                              limits=asdict(Limits()), trace=True)
+            assert result.get("ok") is False, (phase, field, result)
