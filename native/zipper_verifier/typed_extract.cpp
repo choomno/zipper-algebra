@@ -1,7 +1,6 @@
-// Independent typed extraction controller. JSON witnesses are transient values
-// returned by the independent ribbon recognizer, never retained as work state.
+// Independent typed extraction controller with owned typed ribbon witnesses.
 #include "typed_state.hpp"
-#include "extraction.hpp"
+#include "typed_extraction.hpp"
 #include <algorithm>
 #include <set>
 namespace zipper_verify::typed {
@@ -38,7 +37,7 @@ Big choose(I n,unsigned r){if(n<0)throw ControlObligation("component size cannot
 void check_generated_fans(const std::vector<Factor> &factors,I size){std::set<I> tags;Big total(0);for(const auto &factor:factors){I growth=factor.growth_size;if(growth<3 || growth>size || tags.count(growth))throw ControlObligation("projected endpoint fan exceeds its recorded growth-size bound");Big bound=Big(std::to_string(growth-2))*Big(std::to_string(size-growth+1));Big count(std::to_string(length(factor.word)));if(count>bound)throw ControlObligation("projected endpoint fan exceeds its recorded growth-size bound");tags.insert(growth);total+=count;}if(total>choose(size,3))throw ControlObligation("projected endpoint collar exceeds its size bound");}
 std::vector<Factor> reflected_factors(const std::vector<Factor> &factors,I rank){std::vector<Factor> result;for(auto it=factors.rbegin();it!=factors.rend();++it)result.push_back({it->growth_size,phi(it->word,rank)});return result;}
 Word flatten_factors(const std::vector<Factor> &factors){Word result;for(const auto &f:factors)append(result,f.word);return result;}
-Labels parity_flags(const J &ribbon){Labels result;const auto &counts=ribbon.at("crossing_counts");for(I p=1;p<zipper_verify::length(counts);++p){I value=zipper_verify::as_i(counts.at(static_cast<std::size_t>(p)));result.push_back(value%2==0?0:1);}return result;}
+Labels parity_flags(const RibbonWitness &ribbon){Labels result;for(std::size_t p=1;p<ribbon.crossing_counts.size();++p){I value=ribbon.crossing_counts[p];result.push_back(value%2==0?0:1);}return result;}
 Labels selected_labels(const Labels &labels,const Labels &ports,bool complement){Labels result;if(!complement){for(I p:ports){if(p<1 || p>static_cast<I>(labels.size()))throw ControlObligation("component endpoint label lies outside its active rank");result.push_back(labels.at(static_cast<std::size_t>(p-1)));}return result;}std::set<I> selected(ports.begin(),ports.end());for(I p=1;p<=static_cast<I>(labels.size());++p)if(!selected.count(p))result.push_back(labels.at(static_cast<std::size_t>(p-1)));return result;}
 }
 Word lift_contexts(const Word &input,const std::vector<Context> &contexts){Word word=input;for(auto c=contexts.rbegin();c!=contexts.rend();++c)word=concat({c->top_route,c->component_word,shifted(word,c->size),c->bottom_route});return word;}
@@ -50,18 +49,18 @@ Transition extraction_transition(const Work &work,const Limits &limits,bool trac
  auto [source_left,source_slider,source_right]=slider_parts(local);(void)source_left;(void)source_right;
  if(source_slider.reversed || source_slider.barred)throw ControlObligation("component extraction requires a coupon without reversed or barred flags");
  Labels selected=bottom_ports(local,n);
- J split=zipper_verify::split_layered(encode_word(local),n,encode_labels(selected));zipper_verify::check_split(split);
- Word component=decode_word(split.at("component_word"));I size=static_cast<I>(selected.size());
- Labels bp=decode_labels(split.at("bottom_ports")),tp=decode_labels(split.at("top_ports"));
+ LayeredSplit split=split_layered(local,n,selected);
+ Word component=split.component_word;I size=static_cast<I>(selected.size());
+ Labels bp=split.bottom_ports,tp=split.top_ports;
  ComponentRecord record;record.bottom_ports=bp;record.top_ports=tp;
  record.original_bottom_ports=selected_labels(work.bottom_labels,bp,false);record.original_top_ports=selected_labels(work.top_labels,tp,false);
  J canonical=nullptr;
  if(size==1)component.clear();
  else if(size==2){I power=0;for(const auto &token:component)if(is_int(token))power=checked_add(power,as_i(token));component.clear();I count=abs_i(power);for(I p=0;p<count;++p)component.push_back(power>=0?1:-1);component.push_back(slider(2,1));record.twist_powers={power};}
  else {
-  J inner_split=zipper_verify::split_layered(encode_word(body),n,encode_labels(bottom_ports(body,n)));
+  LayeredSplit inner_split=split_layered(body,n,bottom_ports(body,n));
   auto [whole_left,whole_slider,whole_right]=slider_parts(component);
-  auto [inner_left,inner_slider,inner_right]=slider_parts(decode_word(inner_split.at("component_word")));
+  auto [inner_left,inner_slider,inner_right]=slider_parts(inner_split.component_word);
   I boundary=checked_sub(length(whole_left),length(inner_left));
   if(!(whole_slider==inner_slider) || slice(whole_left,boundary)!=inner_left || slice(whole_right,0,length(inner_right))!=inner_right)throw ControlObligation("inherited endpoint routes do not delimit the component body");
   Word route_left=slice(whole_left,0,boundary),route_right=slice(whole_right,length(inner_right));
@@ -71,22 +70,22 @@ Transition extraction_transition(const Work &work,const Limits &limits,bool trac
   auto inherited_top=projected_factors(top_factors,member);
   if(flatten_factors(inherited_top)!=route_left || flatten_factors(inherited_bottom)!=route_right)throw ControlObligation("projected endpoint fan factors disagree with the full component");
   check_generated_fans(inherited_top,size);check_generated_fans(inherited_bottom,size);
-  J witness=zipper_verify::normalize_canonical_slider(encode_word(component),encode_factors(inherited_top),encode_factors(inherited_bottom),limits.expansion_budget,checked_mul(100,limits.expansion_budget));
+  CanonicalSlider witness=normalize_canonical_slider(component,inherited_top,inherited_bottom,limits.expansion_budget,checked_mul(100,limits.expansion_budget));
   Big route_bound=choose(size,3)+choose(size,2)-1;
-  I route_length=std::max(zipper_verify::length(witness.at("top_route")),zipper_verify::length(witness.at("bottom_route")));
+  I route_length=std::max(length(witness.top_route),length(witness.bottom_route));
   if(Big(std::to_string(route_length))>route_bound)throw ControlObligation("terminal finite route exceeds its size bound");
-  component=decode_word(witness.at("normalized_word"));record.twist_powers=decode_labels(witness.at("twist_powers"));record.inherited_top_route=route_left;record.inherited_bottom_route=route_right;
-  record.mirrored=witness.at("slider").at(3).get<bool>();record.top_route=decode_word(witness.at("top_route"));record.bottom_route=decode_word(witness.at("bottom_route"));
+  component=witness.normalized_word;record.twist_powers=witness.twist_powers;record.inherited_top_route=route_left;record.inherited_bottom_route=route_right;
+  record.mirrored=witness.slider.mirrored;record.top_route=witness.top_route;record.bottom_route=witness.bottom_route;
   record.canonical_top_route=slice(record.top_route,length(route_left));record.canonical_bottom_route=slice(record.bottom_route,0,checked_sub(length(record.bottom_route),length(route_right)));
-  record.upper_parities=parity_flags(witness.at("upper"));record.lower_inverse_parities=parity_flags(witness.at("lower_inverse"));record.output_hierarchy=decode_labels(witness.at("upper").at("labels"));record.input_hierarchy=decode_labels(witness.at("lower_inverse").at("labels"));
-  if(trace)canonical=std::move(witness);
+  record.upper_parities=parity_flags(witness.upper);record.lower_inverse_parities=parity_flags(witness.lower_inverse);record.output_hierarchy=witness.upper.labels;record.input_hierarchy=witness.lower_inverse.labels;
+  if(trace)canonical=encode_canonical(witness);
  }
- Context context{n,size,std::move(component),decode_word(split.at("top_route")),decode_word(split.at("bottom_route")),record};
+ Context context{n,size,std::move(component),split.top_route,split.bottom_route,record};
  auto contexts=work.contexts;contexts.push_back(std::move(context));I remaining=checked_sub(n,size);
  J event={{"rule_id","control.extract"},{"component",encode_record(record)},{"rank_decrease",J::array({n,remaining})}};
- if(trace){event["boundary_split"]=split;if(!canonical.is_null())event["nested_slider"]=std::move(canonical);}
+ if(trace){event["boundary_split"]=encode_split(split);if(!canonical.is_null())event["nested_slider"]=std::move(canonical);}
  Transition result;result.evidence=std::move(event);
- if(remaining!=0){Work following;following.rank=remaining;following.coefficient=work.coefficient;following.depth=work.depth;following.bottom_labels=selected_labels(work.bottom_labels,bp,true);following.top_labels=selected_labels(work.top_labels,tp,true);following.phase=Single{decode_word(split.at("complement_word")),{},remaining};following.contexts=std::move(contexts);result.children.push_back(std::move(following));}
+ if(remaining!=0){Work following;following.rank=remaining;following.coefficient=work.coefficient;following.depth=work.depth;following.bottom_labels=selected_labels(work.bottom_labels,bp,true);following.top_labels=selected_labels(work.top_labels,tp,true);following.phase=Single{split.complement_word,{},remaining};following.contexts=std::move(contexts);result.children.push_back(std::move(following));}
  else {Output out;out.coefficient=work.coefficient;out.word=lift_contexts({},contexts);out.components=std::move(contexts);result.output.push_back(std::move(out));}
  return result;
 }
