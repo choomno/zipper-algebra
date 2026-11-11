@@ -225,6 +225,7 @@ class TestFreshDiscovery(DiscoveryFixture):
         from zipper_algebra.verification.linear import KernelCertificate, verify_kernel
         report = self.discover()
         assert report['status'] == 'verified' and report['in_ideal'] is True
+        assert report['schema'] == 'zipper-discovery-result-v2'
         assert report['basis_complete'] is False
         assert report['method'] == 'proof-contexts-finiteflow'
         assert report['points'] == len(report['runs']) == 1
@@ -253,6 +254,7 @@ class TestFreshDiscovery(DiscoveryFixture):
 
     def test_truncated_output_cannot_establish_nonmembership(self):
         report = self.discover(config=self.configuration('omit'))
+        assert report['schema'] == 'zipper-discovery-result-v2'
         assert (report['status']) == ('inconclusive')
         assert (report['in_ideal']) is None
         assert (report['remainder_terms']) > (0)
