@@ -17,7 +17,8 @@ jobs:
   test:
     name: ${{ matrix.os }} / Python ${{ matrix.python }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    # Python 3.13 also rebuilds the source archive and repeats the native suite.
+    timeout-minutes: ${{ matrix.python == '3.13' && 35 || 25 }}
     strategy:
       fail-fast: false
       matrix:
