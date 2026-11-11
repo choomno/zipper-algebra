@@ -175,6 +175,9 @@ assert report["pass"]
 
 ## Tests and development
 
+See the [pull request guidelines](https://github.com/choomno/zipper-algebra/blob/main/docs/PULL_REQUESTS.md)
+for branch targets, review scope, and how to report evidence.
+
 Install the development tools and optional inference dependency, then run the
 same static checks and test suite used in CI:
 
