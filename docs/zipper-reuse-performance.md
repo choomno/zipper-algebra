@@ -410,3 +410,137 @@ work is still dominated by checking; no profile here assigns that cost to a
 particular JSON operation. Future performance work includes avoiding quadratic
 context-map setup, exposing valid-state fallback frequency, and auditing
 redundant checks before attempting their removal.
+
+
+## Full typed controller and unary continuation execution
+
+The next revision owns tokens, words, branch/controller variants, boundary
+factors, extracted components, exact Laurent coefficients and formal output
+terms in independent verifier types. Production standalone and DAG replay use
+the typed controller. JSON remains at the protocol, catalog, optional evidence,
+final equality comparison and transient bounded-cache byte-accounting boundaries;
+[the typed verifier contract](zipper-typed-verifier.md) lists them explicitly. The independent JSON implementation remains available as
+a diagnostic and differential oracle. No producer mathematical implementation
+is imported by the verifier.
+
+With optional unary fusion, a maximal staged single-child/no-output path executes
+in one live scheduler frame. Each consumed parent contributes its restoration data and exact key to
+a continuation chain, bypassing another full-frame allocation, retained child
+and output containers, and generic parent completion scheduling. Every logical
+transition still performs independent dispatch, key construction, cycle and
+cache lookup, staging, resource accounting and checks. Completion restores
+scalars, contexts and endpoint labels separately at every link, checks every
+intermediate result, and admits completed keys in the original order. No
+algebraic composition removes an intermediate overflow or resource refusal.
+Logical step and depth metrics retain their original meaning; fusion does not
+reduce their counts.
+
+### Final-source full-controller measurements
+
+The frozen JSON baseline is `9c477dd`; the measured final typed snapshot is
+`ffd8cf9`, including scheduler change `e47d21f` and the unsupported-frame refusal
+compatibility guard `f5552de`. Three modes use the same reviewed benchmark
+worker: JSON baseline, typed with unary fusion disabled, and typed with fusion
+enabled. The packaged verifier selects the measured typed-only configuration
+with compiler flag `-DZIPPER_DISABLE_UNARY_FUSION`. An optional fused build removes
+that flag. Both executables authenticate their flags and use the same final
+native source and arithmetic. Fusion remains available as an experiment; the
+measured default uses the faster typed-only mode in this finite cohort.
+
+The final typed modes run in order fused/typed/typed/fused, counterbalancing the
+fusion comparison. Two earlier observations of the unchanged JSON baseline are
+retained. The final JSON-versus-typed comparison does not counterbalance build
+order; timestamps, host conditions and unchanged producer timings are retained
+as controls. Candidate timings from before the refusal guard are excluded.
+
+- baseline, run 1: started 2026-11-10T01:09:52.697101+00:00.
+- baseline, run 6: started 2026-11-10T01:19:31.997005+00:00.
+- fused, run 7: started 2026-11-10T01:26:57.048338+00:00.
+- typed, run 8: started 2026-11-10T01:28:36.872799+00:00.
+- typed, run 9: started 2026-11-10T01:30:20.122700+00:00.
+- fused, run 10: started 2026-11-10T01:31:55.219997+00:00.
+
+The ten inputs are the same previously frozen long-word/hard cohort above:
+one sample of B3 and B4 at each length 10, 12, 16 and 24, plus the hard B5 and B8
+words. Each input starts fresh producer and verifier sessions, on CPU 6, with
+256 MiB / 262,144-entry cache budgets, 250,000 transition evaluations, 20,000
+terms, expansion budget 1,000,000, a 60-second deadline and a 4 GiB per-process
+virtual-address-space guard. The verifier uses the same authenticated tcmalloc
+library in every mode. Build/session setup is recorded separately and excluded
+from per-input timings. The census and other work continued on the shared host;
+CPU affinity does not establish exclusive use of the core.
+
+Each table entry is the median of two observations. Checker time includes
+request encoding, transfer, independent replay and exact comparison. Elapsed
+time additionally includes production, output normalization/serialization,
+compression and committed SQLite storage.
+
+| Input | Checker JSON / typed / fused, seconds | Elapsed JSON / typed / fused, seconds |
+|---|---:|---:|
+| B3 length 10 | 0.823 / 0.487 / 0.454 | 1.028 / 0.703 / 0.671 |
+| B3 length 12 | 2.539 / 1.435 / 1.349 | 3.123 / 2.084 / 1.948 |
+| B3 length 16 | 14.389 / 7.743 / 7.754 | 17.577 / 11.171 / 11.005 |
+| B4 length 10 | 7.375 / 4.277 / 4.684 | 9.193 / 6.272 / 6.794 |
+| B4 length 12 | 1.240 / 0.634 / 0.733 | 1.524 / 0.928 / 1.068 |
+| Hard B5 | 21.123 / 11.886 / 12.229 | 26.339 / 17.442 / 18.054 |
+| Hard B8 | 8.130 / 7.296 / 7.966 | 16.402 / 15.664 / 16.965 |
+
+The B8 result contains 8,994 output terms and a 21.71 MB canonical payload.
+Its fused checker takes 7.966 seconds of 16.965 seconds elapsed; production
+accounts for 2.925 seconds and committed compression/storage for 1.966 seconds.
+Output normalization, serialization and other driver overhead remain in the
+elapsed remainder and are not split further by these timers. B8's fused elapsed
+time slightly exceeds its 16.402-second JSON baseline in these observations.
+The longer B3 sample's checker falls from 14.389 to 7.754 seconds at length 16.
+
+All seven completed inputs have byte-identical full canonical output payloads
+across the two baseline and four final candidate observations: 42 independently
+checked completions. B3 length 24 and B4 lengths 16 and 24 are incomplete in
+every arm, with the same producer intrinsic transition-evaluation refusal.
+They are excluded from completed-case ratios. No input reaches the wall-clock
+deadline or an allocation/address-space refusal. The measurement database passes
+`PRAGMA quick_check`.
+
+Sums of the seven per-input checker medians are 55.619 / 33.757 / 35.169 seconds;
+elapsed sums are 75.184 / 54.264 / 56.504 seconds. The typed-only mode is 1.648
+times as fast as the JSON baseline for checking and 1.386 times as fast for
+elapsed time. Including fusion gives ratios of 1.581 and 1.331 respectively.
+The isolated typed/fused ratio is 0.960 for checking and 0.960 for elapsed time:
+fusion takes 1.042 times as long for checking and 1.041 times as long for
+elapsed time in this cohort. It shows no measured fusion benefit. Individual
+words and host conditions vary; these finite observations do not establish a
+population confidence interval or a uniform ordering on other inputs.
+The unchanged producer controls sum to 13.767 / 14.734 / 14.933 seconds;
+storage sums are 1.946 / 1.920 / 2.064 seconds. The earlier-baseline ordering
+remains an additional limitation of the JSON-versus-typed comparison.
+
+| Input | Peak sampled tree RSS JSON / typed / fused, GiB |
+|---|---:|
+| B3 length 10 | 0.112 / 0.105 / 0.106 |
+| B3 length 12 | 0.180 / 0.163 / 0.163 |
+| B3 length 16 | 0.593 / 0.538 / 0.538 |
+| B4 length 10 | 0.465 / 0.405 / 0.405 |
+| B4 length 12 | 0.140 / 0.133 / 0.132 |
+| Hard B5 | 1.345 / 1.145 / 1.145 |
+| Hard B8 | 2.940 / 2.520 / 2.511 |
+
+The typed representation reduces sampled residency on this cohort; fusion adds
+no material measured memory reduction. Tree RSS includes the Python driver,
+producer and verifier and can count shared pages more than once. It differs
+from the per-process virtual-address-space guard. These results neither predict
+the hard tail of the census nor establish exhaustive feasibility at longer
+word lengths.
+
+The frozen-oracle suite compares exact transitions, standalone traces/batches,
+resource refusals and completed-cache accounting, including the explicit
+unsupported-frame hard refusal in both zipper directions and trace modes.
+The only accepted cross-representation telemetry change is internal bound-rule
+hits/misses/oversized accounting: the typed application uses the already-held
+validated rule instead of a second lookup. A native constructor-flag corpus
+makes more than 1,000 exact fused/unfused replay-and-cache comparisons, including
+uncached and tiny-budget modes, near resource limits, repeated requests and
+shared payload aliases. A separate observer corpus compares 12,002 count and
+exception outcomes against the frozen JSON implementation, including signed
+coordinate extrema and cancelling maps with intermediate overflow. Independent
+source reviews found no confirmed scheduler/fusion correctness defect. These
+checks cover the declared finite corpora and inspected invariants.

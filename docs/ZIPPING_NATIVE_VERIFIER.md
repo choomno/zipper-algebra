@@ -15,7 +15,11 @@ The Python reference remains available for differential checks.
 ## Independence
 
 The producer retains typed packed states and uses Boost arbitrary-precision
-integers. The verifier uses complete JSON state records and GMP integers. Its
+integers. The verifier owns typed token, controller, context and formal-output records and
+uses GMP integers. Its complete typed state and remaining JSON boundaries are
+described in [the typed verifier contract](zipper-typed-verifier.md). The
+packaged API uses typed replay without unary fusion by default; the contract
+documents the authenticated build flag for an optional fusion experiment. Its
 source and object files are separate; it does not include or link the producer's
 rewriting, controller, extraction, collection, or scheduler implementation.
 Only the mathematical catalog and generic libraries, including the pinned JSON
@@ -83,8 +87,9 @@ and complete versus bounded-prefix outcomes. Repeated measurements under an
 active census may vary with contention. A speedup measured for one input family
 is not a bound for arbitrary strand counts or word lengths.
 
-The transition cache's byte budget measures canonical keys and serialized
-payloads; resident JSON objects require additional memory. Compare measured
+The transition cache's byte budget measures canonical keys and canonical
+payload sizes; resident typed records and container allocations require additional
+memory. Compare measured
 process memory when sizing workers.
 
 The benchmark captures certificates from the census through a read-only

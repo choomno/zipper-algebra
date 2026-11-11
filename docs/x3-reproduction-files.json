@@ -29,8 +29,8 @@
     },
     {
       "path": "MANIFEST.in",
-      "bytes": 2622,
-      "sha256": "7ab7d144c12c2464a3ab72f8294690af2aac2f5b96720010e5328c9a68f97a6e",
+      "bytes": 2756,
+      "sha256": "ee51ab4c9788ca67f5bac3e3a343a4b45d8c042a4e37847ea4974d6fbf236d35",
       "role": "Source-distribution inclusion rules"
     },
     {
@@ -41,8 +41,8 @@
     },
     {
       "path": "ci/build_x3_manifest.py",
-      "bytes": 4441,
-      "sha256": "433fa23a77c718d49488e94d716e0be2821b06ef79ec713df60acf370dea4b5b",
+      "bytes": 4963,
+      "sha256": "ea46c161100b11db3dd7261769edfea0199fcfc40b0cc03242156f070f05a2a7",
       "role": "Installation, test, coverage, documentation or inventory support"
     },
     {
@@ -53,8 +53,8 @@
     },
     {
       "path": "ci/check_distribution.py",
-      "bytes": 12060,
-      "sha256": "3e6982fa156c38f1afe2b90d94d90e0ce0b2ed25afc80598e8e0116af7d93ad8",
+      "bytes": 13299,
+      "sha256": "a4c279bcd94af547bddb4ede64837132f8b2f66c86d0f25c983c5620e1f1a1d8",
       "role": "Installation, test, coverage, documentation or inventory support"
     },
     {
@@ -116,6 +116,252 @@
       "bytes": 3348,
       "sha256": "4456486d559e1e41cf5d02efca1c6ff7bfd6faffd7974133a476fb9d5ed69afe",
       "role": "Ignore markers for generated research output directories"
+    },
+    {
+      "path": "native/zipper_verifier/algorithm.cpp",
+      "bytes": 18679,
+      "sha256": "b55b1ee950146b9e554e1f409e164b5abf4aa532fad5be6f040887c049977633",
+      "role": "Independent verifier implementation and compatibility diagnostics"
+    },
+    {
+      "path": "native/zipper_verifier/algorithm.hpp",
+      "bytes": 629,
+      "sha256": "659f344614a49dfbd2e54faa3d8f3dc01dba46ecf1df05d97ed2d06cb9edbcaf",
+      "role": "Independent verifier types and authenticated parser headers"
+    },
+    {
+      "path": "native/zipper_verifier/algorithm_extract.cpp",
+      "bytes": 13636,
+      "sha256": "933c07eebd4b28a88578570cdc8797f7801a60eaea23ef5c52d0c45c70d3282a",
+      "role": "Independent verifier implementation and compatibility diagnostics"
+    },
+    {
+      "path": "native/zipper_verifier/bands.cpp",
+      "bytes": 21556,
+      "sha256": "42849928b23b36a7ca5f6bc1c9bcc19a4a4ba14610e2f27ec1744d0c28e87359",
+      "role": "Independent verifier implementation and compatibility diagnostics"
+    },
+    {
+      "path": "native/zipper_verifier/catalog.cpp",
+      "bytes": 27698,
+      "sha256": "3fd87512e6f72a83fea9245b36ecc98037db464603e5d7abbcd4b1aceb02c3bb",
+      "role": "Independent verifier implementation and compatibility diagnostics"
+    },
+    {
+      "path": "native/zipper_verifier/catalog.hpp",
+      "bytes": 3975,
+      "sha256": "556baedcec3f734abc34290ecf13777ec89d084c0c5c7f4d4b06ce0bea8fdd00",
+      "role": "Independent verifier types and authenticated parser headers"
+    },
+    {
+      "path": "native/zipper_verifier/controllers.cpp",
+      "bytes": 19161,
+      "sha256": "fb6936f1125774db5ed7a32a777039e7595f831506f1cefd3bb98b82496aadfe",
+      "role": "Independent verifier implementation and compatibility diagnostics"
+    },
+    {
+      "path": "native/zipper_verifier/controllers.hpp",
+      "bytes": 1463,
+      "sha256": "708bf064a5a09c91041634a1a57a9c36af0c559f6fa520e24aaa8d31abe14535",
+      "role": "Independent verifier types and authenticated parser headers"
+    },
+    {
+      "path": "native/zipper_verifier/core.cpp",
+      "bytes": 20837,
+      "sha256": "1a187d251dc6045c4452960cc5c3fbb00018e92152d83f23dadb5d3dfafd346f",
+      "role": "Independent verifier implementation and compatibility diagnostics"
+    },
+    {
+      "path": "native/zipper_verifier/core.hpp",
+      "bytes": 4112,
+      "sha256": "fd33102c6b72be5bc1663e5fcda6c4b396d77c28f8093e26afe3080fc7ca40f6",
+      "role": "Independent verifier types and authenticated parser headers"
+    },
+    {
+      "path": "native/zipper_verifier/extraction.cpp",
+      "bytes": 10292,
+      "sha256": "fb8e7a7d034117c3316dc14f4ac1e46565c632762cfc3d96334abb568e8b230f",
+      "role": "Independent verifier implementation and compatibility diagnostics"
+    },
+    {
+      "path": "native/zipper_verifier/extraction.hpp",
+      "bytes": 709,
+      "sha256": "0cb55042bc51271489fb03ead3da6082ee6ced42aec6ce08721c3f337f45d98d",
+      "role": "Independent verifier types and authenticated parser headers"
+    },
+    {
+      "path": "native/zipper_verifier/main.cpp",
+      "bytes": 12176,
+      "sha256": "52f868ed9f52ffe6090dc1d030fbe58820cb8c7e6f2be48add19fe24e8243c71",
+      "role": "Independent verifier implementation and compatibility diagnostics"
+    },
+    {
+      "path": "native/zipper_verifier/ribbons.cpp",
+      "bytes": 8589,
+      "sha256": "6066e6b46ceb8b4f7d0696ea296e39379378174c0824462058a079946b3d72b2",
+      "role": "Independent verifier implementation and compatibility diagnostics"
+    },
+    {
+      "path": "native/zipper_verifier/ribbons.hpp",
+      "bytes": 538,
+      "sha256": "4387394dc1f7c71d9f54f075342a2c2e84bd6787fc4e9fcc2e366b83fcf11baf",
+      "role": "Independent verifier types and authenticated parser headers"
+    },
+    {
+      "path": "native/zipper_verifier/scheduler.cpp",
+      "bytes": 39589,
+      "sha256": "a79d8e8867a4d94f9726d33336d6a955a4c9bc6d9e85d428228f13e2fba88e17",
+      "role": "Independent verifier implementation and compatibility diagnostics"
+    },
+    {
+      "path": "native/zipper_verifier/scheduler.hpp",
+      "bytes": 2861,
+      "sha256": "5eb727dcc91317a5b303ff96a3681e1ddd06e010cb302821e21c302a5822aa70",
+      "role": "Independent verifier types and authenticated parser headers"
+    },
+    {
+      "path": "native/zipper_verifier/transport.cpp",
+      "bytes": 14027,
+      "sha256": "024e03b81bbe22ad5f286bcc094ec50e5a297e5377c6cff69cff7e4e2fb2eb0e",
+      "role": "Independent verifier implementation and compatibility diagnostics"
+    },
+    {
+      "path": "native/zipper_verifier/transport.hpp",
+      "bytes": 1609,
+      "sha256": "f131ce83c4fbf127db2c3021fbb8ed948d7db2fa8da221156256c5bb085733e8",
+      "role": "Independent verifier types and authenticated parser headers"
+    },
+    {
+      "path": "native/zipper_verifier/typed_algorithm.cpp",
+      "bytes": 18872,
+      "sha256": "3bcc8d18af02f8772aad655316b11b3728fc65b702b000c4b1c3d91eb1352c34",
+      "role": "Independent verifier implementation and compatibility diagnostics"
+    },
+    {
+      "path": "native/zipper_verifier/typed_canonical.cpp",
+      "bytes": 11322,
+      "sha256": "65bb7dfaf91266dd914a80531cd11054b7e48138054a98963eff864feded8364",
+      "role": "Independent verifier implementation and compatibility diagnostics"
+    },
+    {
+      "path": "native/zipper_verifier/typed_canonical.hpp",
+      "bytes": 468,
+      "sha256": "0c8894c2ff888c501dd9fc01f49833c78fb085724f1969943848422a7a63c4ed",
+      "role": "Independent verifier types and authenticated parser headers"
+    },
+    {
+      "path": "native/zipper_verifier/typed_controller.cpp",
+      "bytes": 43762,
+      "sha256": "4b8785e6b7afc034cfdfef6b16f21d747cbd48ecdbee73bcecccb71de95fd048",
+      "role": "Independent verifier implementation and compatibility diagnostics"
+    },
+    {
+      "path": "native/zipper_verifier/typed_controller.hpp",
+      "bytes": 3586,
+      "sha256": "7a9e4862c3d54ccaabcbf6d76ff1c87d17604de581f3c399a34f7f49c53e222d",
+      "role": "Independent verifier types and authenticated parser headers"
+    },
+    {
+      "path": "native/zipper_verifier/typed_extract.cpp",
+      "bytes": 11636,
+      "sha256": "88eb14c2a5d00c8adcd07340c9d28ab288d1dde9671e9790b42604e12c66f51c",
+      "role": "Independent verifier implementation and compatibility diagnostics"
+    },
+    {
+      "path": "native/zipper_verifier/typed_extraction.cpp",
+      "bytes": 9380,
+      "sha256": "152ebc73f23ef1590b519186a06a1bd56b26e042aa37dbb8747608f822aee7b7",
+      "role": "Independent verifier implementation and compatibility diagnostics"
+    },
+    {
+      "path": "native/zipper_verifier/typed_extraction.hpp",
+      "bytes": 1037,
+      "sha256": "f1e9aa8dc8485b759721346878a55c31e3aa0b4e35607b32da6d47ce1b73ec9d",
+      "role": "Independent verifier types and authenticated parser headers"
+    },
+    {
+      "path": "native/zipper_verifier/typed_ribbons.cpp",
+      "bytes": 8719,
+      "sha256": "06664b28f52b26062229468006fbaab373b1d8cc202f19a0c53687328b9f873b",
+      "role": "Independent verifier implementation and compatibility diagnostics"
+    },
+    {
+      "path": "native/zipper_verifier/typed_ribbons.hpp",
+      "bytes": 1003,
+      "sha256": "a54ca5b55b1a76cdc97815d7406a4b0ff2f41b7f8a7032541c093a6a073c56e6",
+      "role": "Independent verifier types and authenticated parser headers"
+    },
+    {
+      "path": "native/zipper_verifier/typed_state.cpp",
+      "bytes": 8666,
+      "sha256": "b5253facbffe3dcf70a25736df77e900e61bbed58c667daeb9813b822313fb5b",
+      "role": "Independent verifier implementation and compatibility diagnostics"
+    },
+    {
+      "path": "native/zipper_verifier/typed_state.hpp",
+      "bytes": 2486,
+      "sha256": "8872997b4755de096c9486c198775342dc32bf6913697db2e7fb8f18d22a2441",
+      "role": "Independent verifier types and authenticated parser headers"
+    },
+    {
+      "path": "native/zipper_verifier/typed_transport.cpp",
+      "bytes": 30938,
+      "sha256": "5658c47dea826751477c666fe10baf2e9c13eb3b56eb0d0c97129fcdde269dff",
+      "role": "Independent verifier implementation and compatibility diagnostics"
+    },
+    {
+      "path": "native/zipper_verifier/typed_transport.hpp",
+      "bytes": 1225,
+      "sha256": "677dfb6704aed0d662d1f7924c98bec856ff6f25dddc0fd24f8898b00fc7db9d",
+      "role": "Independent verifier types and authenticated parser headers"
+    },
+    {
+      "path": "native/zipper_verifier/typed_word.cpp",
+      "bytes": 5266,
+      "sha256": "3abdc7bbd7256f858702d2f471f63a7b15ddab96992f53be36faac3541538b1d",
+      "role": "Independent verifier implementation and compatibility diagnostics"
+    },
+    {
+      "path": "native/zipper_verifier/typed_word.hpp",
+      "bytes": 1527,
+      "sha256": "f9ef6672870acec922be27b5c6234f75fe92e794648ed24cabca48d102239f5a",
+      "role": "Independent verifier types and authenticated parser headers"
+    },
+    {
+      "path": "native/zipper_verifier/typed_work_size.hpp",
+      "bytes": 3719,
+      "sha256": "ebc2e4d3192f35540151192b180e024936ce7dbbf40c0f79871e5f2d26390c49",
+      "role": "Independent verifier types and authenticated parser headers"
+    },
+    {
+      "path": "native/zipper_verifier/upward.cpp",
+      "bytes": 11968,
+      "sha256": "f344fe5cafb3f2881fac5e67b9151cfd67f5ace382048967e5c97dc6a22e9c2a",
+      "role": "Independent verifier implementation and compatibility diagnostics"
+    },
+    {
+      "path": "native/zipper_verifier/upward.hpp",
+      "bytes": 910,
+      "sha256": "0b90e89999702b30a106f196907e80ce5bf25222b0810a79db2da8fe35c0547b",
+      "role": "Independent verifier types and authenticated parser headers"
+    },
+    {
+      "path": "native/zipper_verifier/vendor/nlohmann/LICENSE.MIT",
+      "bytes": 1076,
+      "sha256": "46a65cffd1ea955132d95a8dd921640714a8d6b537d2e4e482d31145ae95b603",
+      "role": "License for the independently bundled JSON parser"
+    },
+    {
+      "path": "native/zipper_verifier/vendor/nlohmann/json.hpp",
+      "bytes": 953436,
+      "sha256": "aaf127c04cb31c406e5b04a63f1ae89369fccde6d8fa7cdda1ed4f32dfc5de63",
+      "role": "Independent verifier types and authenticated parser headers"
+    },
+    {
+      "path": "native/zipper_verifier/work_size.hpp",
+      "bytes": 3421,
+      "sha256": "3c7c43b12c83f946e2010cfda57a0ef3f7f41b3319adac77e8c36b399b310d84",
+      "role": "Independent verifier types and authenticated parser headers"
     },
     {
       "path": "patches/f4ncgb/LICENSE",
@@ -497,8 +743,8 @@
     },
     {
       "path": "src/zipper_algebra/zipping_algorithm/native_verifier.py",
-      "bytes": 26418,
-      "sha256": "6aaa1fee824594ac36cdfbec3b939d079a75e5537f69d4398446b6aa1be76764",
+      "bytes": 26480,
+      "sha256": "e9d2f9a849ab6498a6b5010d74932d038503a08ac08fee40336b087479ca2285",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
@@ -632,6 +878,18 @@
       "bytes": 5312,
       "sha256": "61dcdb6f7b1b341054258273918c7262106cb7c3c05459ccb0bbb079e0734afb",
       "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/native/frozen_verifier_9c477dd.json",
+      "bytes": 2907,
+      "sha256": "b27f93bf7eec5ad24bf70e4c907822f9571a0bf87cdce1443c91e157d226aeb0",
+      "role": "Authenticated independent JSON verifier differential fixture"
+    },
+    {
+      "path": "tests/native/frozen_verifier_9c477dd.tar.gz",
+      "bytes": 195088,
+      "sha256": "7c41dd88004a8f39b595e32b738faa5c54fd50b04b1544620031d648274266ba",
+      "role": "Authenticated independent JSON verifier differential fixture"
     },
     {
       "path": "tests/support.py",
@@ -880,6 +1138,12 @@
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
+      "path": "tests/test_zipping_cpp_verifier_frozen_oracle.py",
+      "bytes": 21747,
+      "sha256": "f1e171e57a1e0755ec10b370b5dd0a87756a3c1edbed2e3e2a36a200cdcecdcf",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
       "path": "tests/test_zipping_cpp_verifier_replay.py",
       "bytes": 3319,
       "sha256": "c48a7f6dd2050d72de2b12702d7263f3b8275b42f1f86b7eb2064bd01dcfc810",
@@ -904,15 +1168,27 @@
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
+      "path": "tests/test_zipping_cpp_verifier_typed_observer.py",
+      "bytes": 7259,
+      "sha256": "53da25cf31b818951d7a7591976a180dfe17a4eaba6139c7866dce3a3e1a9d88",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
       "path": "tests/test_zipping_cpp_verifier_typed_transport.py",
       "bytes": 8959,
       "sha256": "a67a9b3d50c8bd6f73b5a586ec3310f79c142c2e4ec333d040e8b7449b60d701",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
+      "path": "tests/test_zipping_cpp_verifier_unary_fusion.py",
+      "bytes": 6932,
+      "sha256": "c8747620cfbad032373bb811afce7e5da576b868a787746c7f03a64a6aaf9954",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
       "path": "tests/test_zipping_cpp_verifier_wrapper.py",
-      "bytes": 20043,
-      "sha256": "5f05e2b9fe132418e7267a97fe065b468c386bbc77144610eebe0fd432f2974d",
+      "bytes": 20141,
+      "sha256": "05447c67982d578213adf92c7d2b19437480b454120133eaf338759f1c2066a7",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
@@ -1219,6 +1495,12 @@
       "path": "tests/test_zipping_two_strand.py",
       "bytes": 11361,
       "sha256": "82b9dfd139cfbf9ef55e7dcbc9a191effd5e138ff4263cc2985a2f4f96fdc5e0",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_typed_state.py",
+      "bytes": 3822,
+      "sha256": "453d457be42e8cfe857c22e10794dee1a9c86a76536ec118d2985a1bf2e618eb",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {

@@ -225,7 +225,7 @@ def test_constructor_rejects_invalid_cache_budgets(budget: Any) -> None:
 
 def test_public_operations_use_independent_protocol(monkeypatch: pytest.MonkeyPatch) -> None:
     process = FakeProcess('{"ok":true}\n{"states":2}\n{"cleared":true}\n'
-                          '{"payload":1}\n{"ok":false,"error":"diagnostic rejected"}\n'
+                          '{"payload":1}\n{"typed":true}\n{"ok":false,"error":"diagnostic rejected"}\n'
                           '{"ok":false,"error":"certificate rejected"}\n{"cleared":false}\n')
     session = session_with_process(process)
     monkeypatch.setattr(session, "_assert_source", lambda: None)
@@ -234,6 +234,7 @@ def test_public_operations_use_independent_protocol(monkeypatch: pytest.MonkeyPa
         assert session.cache_info() == {"states": 2}
         session.clear_cache()
         assert session.diagnostic("replay", n=2) == {"payload": 1}
+        assert session.diagnostic("typed_transition", work={}) == {"typed": True}
         with pytest.raises(verifier.VerifierError, match="diagnostic rejected"):
             session.diagnostic("transition")
         with pytest.raises(verifier.VerifierError, match="certificate rejected"):
