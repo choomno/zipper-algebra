@@ -3,6 +3,7 @@
 from copy import deepcopy
 import hashlib
 import json
+from itertools import product
 
 import pytest
 
@@ -44,6 +45,56 @@ def test_frozen_snapshot_and_independent_copies():
     for name, digest in manifest["files"].items():
         assert hashlib.sha256(mod._data(name)).hexdigest() == digest
     assert b"/home/" not in mod._data("full-catalog.json")
+
+
+def test_filtered_rules_match_full_catalog_filter_in_the_same_order():
+    catalog = Catalog.bundled()
+    records = catalog.rules
+    for size, friends, index, sign in product((2, 3, 4), (0, 1, 2), range(1, 6), (-1, 1)):
+        env = dict(ENV, i=size, k=friends, l=index, eps=sign)
+        for suffix in (".I", ".M"):
+            excluded = ("zip.flype.",) if size == 2 else ()
+            expected = tuple(
+                rule for rule in records
+                if rule["id"].startswith("zip.") and rule["id"].endswith(suffix)
+                and not rule["id"].startswith(excluded)
+                and condition(rule["condition"], env)
+            )
+            assert catalog.select_rules(
+                env, prefix="zip.", suffix=suffix, exclude_prefixes=excluded
+            ) == expected
+
+
+def test_filtered_rules_copy_only_matches_and_preserve_mutation_isolation(monkeypatch):
+    catalog = Catalog.bundled()
+    records = catalog.rules
+    expected = tuple(
+        rule for rule in records
+        if rule["id"].startswith("zip.") and rule["id"].endswith(".I")
+        and condition(rule["condition"], ENV)
+    )
+    copied = []
+    original_copy = mod.deepcopy
+
+    def observed_copy(value):
+        copied.append(value["id"])
+        return original_copy(value)
+
+    monkeypatch.setattr(mod, "deepcopy", observed_copy)
+    selected = catalog.select_rules(ENV, prefix="zip.", suffix=".I")
+    assert copied == [rule["id"] for rule in expected]
+    assert selected == expected and selected
+    copied.clear()
+    # No condition evaluation or copying is needed when the ID cannot match.
+    assert catalog.select_rules({}, prefix="absent.") == ()
+    assert copied == []
+    with pytest.raises(CatalogError, match="Missing integer parameter"):
+        catalog.select_rules({}, prefix="zip.", suffix=".I")
+    assert copied == []
+    selected[0]["condition"].clear()
+    selected[0]["rhs"][0]["coefficient"][0]["integer"] = 999
+    assert catalog.select_rules(ENV, prefix="zip.", suffix=".I") == expected
+    assert catalog.get(expected[0]["id"]) == expected[0]
 
 
 @pytest.mark.parametrize("name", ["full-catalog.json", "schema.json"])

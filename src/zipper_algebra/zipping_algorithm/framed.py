@@ -17,10 +17,9 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 from . import upward
-from .catalog import Catalog, CatalogError, condition, expand_polynomial, integer
+from .catalog import Catalog, CatalogError, expand_polynomial, integer
 from .frames import FrameError, check_frame, transport_frame
 from .interpreter import Branch, Limits, LimitExceeded, Request, RunState, apply_rule, metrics
-from .semilinear import semilinear_zip_rule
 
 ControlError = upward.ControlError
 
@@ -53,7 +52,7 @@ def rule_for_event(catalog: Catalog, event: Mapping[str, Any]) -> dict[str, Any]
     """Recover an original or semilinearly derived local identity."""
     rid = event["rule_id"]
     if rid.endswith(".BM"):
-        return semilinear_zip_rule(catalog.get(rid[:-3] + ".M"), dict(event["parameters"]))
+        return catalog.semilinear_rule(rid[:-3] + ".M", dict(event["parameters"]))
     return catalog.get(rid)
 
 
@@ -259,13 +258,8 @@ def _step(state: RunState, branch: int, *, catalog: Catalog | None,
     core = _core(state.n, i, j, k, mirror, policy)
     variant = ".M" if mirror else ".I"
     candidates = []
-    for rule in catalog.rules:
-        if not rule["id"].startswith("zip.") or not rule["id"].endswith(variant):
-            continue
-        if not condition(rule["condition"], env):
-            continue
-        if bar_mirror:
-            rule = semilinear_zip_rule(rule, env)
+    for rule_id in catalog.select_rule_ids(env, prefix="zip.", suffix=variant):
+        rule = catalog.semilinear_rule(rule_id, env) if bar_mirror else catalog.get(rule_id)
         lhs = expand_polynomial(rule["lhs"], env, max_terms=limits.expansion_budget)
         occurrence = next(iter(lhs))[1]
         if occurrence[-len(core):] != core:

@@ -26,6 +26,49 @@ evidence about the implementation.
 
 ## Run a literal braid word
 
+For calculations with collection after every rewrite batch, use the collected
+executor. It combines identical continuation states over $\mathbb Z[q,q^{-1}]$
+and removes zero coefficients before further rewriting. Independent terms
+within each batch can run in separate processes:
+
+```sh
+python -m zipper_algebra.zipping_algorithm run-collected --n 3 --word '[1,2,1,2]' --workers 4 --batch-size 64 > collected.json
+python -m zipper_algebra.zipping_algorithm check collected.json
+```
+
+In Python, `CollectedSession` in `zipper_algebra.zipping_algorithm.collected`
+provides `reduce` and `check`; `reduce_word` is the one-shot entry point. Use a
+standard `if __name__ == "__main__":` guard around a script that starts workers.
+`trace=True` records the actual batch rewrites and collection updates.
+
+For bounded reuse across terms and inputs, use `MemoizedSession` in
+`zipper_algebra.zipping_algorithm.memoized`, or:
+
+```sh
+python -m zipper_algebra.zipping_algorithm run-memoized --n 3 --word '[1,2,1,2]' --cache-bytes 67108864 --cache-entries 4096 > memoized.json
+python -m zipper_algebra.zipping_algorithm check memoized.json
+```
+
+The session reuses coefficient-free local transitions of complementary
+subproblems. It retains active words, rank, frames, boundary factors, and control
+history in the key. Previously extracted outer contexts and endpoint names are
+restored by explicit lifting and relabeling; incoming coefficients are multiplied
+afterward. This caches intrinsic transition results, rather than entire completed
+complement normal forms. Results from distinct input words are never added
+together. The recursive rule-family cache shares parameterized BM syntax across
+band widths while preserving exact size-dependent coefficients and exceptional
+two-strand cases.
+
+`cache_info()` reports runtime hits, misses, actual evaluations, evictions, and
+retained bytes separately from the certificate's logical rule counts. Unit and
+rule caches have independent byte/entry budgets. Those budgets count encoded
+cache storage, not process RSS or temporary calculation memory. Eviction causes
+recomputation; it never deletes a calculation term. All eligible slider sizes
+through the input rank remain enabled. The memoized checker executes unfactored
+states with both acceleration caches disabled.
+
+The uncollected reference example is:
+
 ```python
 import json
 from zipper_algebra.zipping_algorithm.algorithm import AlgorithmSession
@@ -148,6 +191,14 @@ before completion; the bound describes the procedure with sufficient budgets.
 Exact replay has the same asymptotic bound. Collection and shared structures
 require their own analysis; timing fits are separate from the bound.
 
+The collected executor uses the same local transitions. Unfolding a merged
+state into its contributing histories recovers the corresponding reference
+branches; scalar collection creates no new geometric transition. Its
+conservative fixed-rank upper bound remains exponential in input length,
+including the cost of keyed collection. The specific numerical expression
+$12^{D+1}\operatorname{poly}(n,D)$ above describes the uncollected reference
+cost model. No polynomial bound on intermediate collected states is established.
+
 The linear retained-word bound and terminal compression give
 $O_n((L+1)^{n-1})$ possible compressed terminal value records for words of
 length at most $L$. This counts boundary words, endpoint subsets, component
@@ -155,6 +206,56 @@ order, and twist vectors; it does not count saved histories or uncollected
 occurrences. It gives no polynomial bound on intermediate states or runtime.
 Exhaustive enumeration additionally visits every word in the signed alphabet:
 there are $[2(n-1)]^\ell$ inputs of length $\ell$, including unreduced words.
+
+### Runtime and parallel execution
+
+The collected executor keys pending terms by their complete continuation state,
+including phase, word, frames, endpoint labels, boundary factors, and extraction
+contexts. It excludes the scalar coefficient and keeps maximum path depth as
+diagnostic data. Identical completed records are collected too. Coefficients
+are exact sparse Laurent polynomials; addition retains negative coefficients
+and deletes zeros. Collection uses an incremental dictionary, updating affected
+states after each bounded batch.
+
+Each worker applies one transition to a unit-coefficient state. Its result is
+scaled by the incoming coefficient before collection. This uses linearity over
+$\mathbb Z[q,q^{-1}]$; the semilinear transformation used to derive a local BM
+rule does not act on the incoming coefficient. A fixed batch size determines
+the schedule independently of worker count. The coordinator commits a whole
+batch only after all transitions and collected limits pass; refusal retains
+the preceding formal sum exactly. `max_steps` counts committed term
+transitions. Term-count and coefficient-support limits apply after collection;
+primitive transitions retain word, integer-bit, and expansion limits and use
+local term/support floors of four/two. Batch traces retain unit rewrite
+evidence, weighted successors, and collection updates. Serial replay verifies
+the same certificate produced by multiple workers.
+
+This follows the term-processing architecture described for
+[FORM's parallel implementations](https://arxiv.org/html/1006.2099v1): independent
+term chunks followed by collection. The
+[FORM manual](https://tueda.github.io/form-doc/latest/manual/) discusses early
+cancellation, worker buffers, and the cost of dispatch and final merging.
+The implementation here reuses the zipper transition functions and adds no
+external rewriting-engine dependency.
+
+Runtime depends strongly on the word as well as its length and strand count.
+Record completion status, transition count, output and pending term counts,
+and producer and checker times together. A stopped prefix is not a timing for
+the complete calculation. CPU time measures computation in a worker; wall time
+also reflects contention, startup, and transfer. Comparisons should retain the
+source hashes, limits, trace mode, and number of workers.
+
+Independent input words can also run in separate processes without changing the
+arithmetic. Coefficients remain sparse Laurent polynomials with arbitrary-size
+integer coefficients. The uncollected executor processes one word sequentially;
+the collected executor also supports workers within one word. More workers can
+increase campaign throughput, subject to memory, certificate transfer, and
+the single database writer. This does not improve the per-word complexity bound.
+
+Rule selection filters the validated catalog before copying matching rules.
+It preserves rule order and returns independent copies, avoiding repeated
+copies of all 128 catalog records at each dispatch. This reduces interpreter
+overhead without changing the rewrite schedule, coefficients, or trace.
 
 ## Frozen rules and independent local verification
 
@@ -309,6 +410,138 @@ source or catalog changes. The separate `enumeration.exhaust` and CLI `exhaust`
 retain their ranks-one-and-two procedure and database format; they report
 unsupported requested ranks explicitly. Higher-rank enumeration uses
 `exhaust_general` or `exhaust-general`.
+
+### Parallel experiments with one SQLite writer
+
+On Unix, the repository runner computes independent words in worker processes
+and commits them through one writer in the same length/rank/ordinal order:
+
+```sh
+python experiments/zipper_exhaustive_parallel.py runs/literal-words --ranks 2 3 4 5 6 7 8 --workers 4 --wall-seconds 1800 --max-words 8463
+```
+
+`--max-words` caps the total stored rows, including earlier invocations; omit
+it to continue until the time budget or first unresolved word. `--max-length`
+is optional. `--limits` accepts the same JSON `Limits` fields as the sequential
+driver, and `--trace` retains full traces. The default is compact certificates.
+
+The runner can extend an existing `exhaust_general` database with matching
+rank order, trace mode, source, and catalog identity. Every saved row is audited
+before new work begins. Both producer and checker timings are stored, and each
+worker JSON-reloads and replays its result before it reaches the writer. A
+worker exception or incomplete result leaves the exact checked prefix; later
+speculative results are discarded. At most twice the worker count is in flight.
+The soft time limit excludes the initial audit and may be exceeded while
+bounded in-flight calculations finish.
+
+The runner records its own source hash, checks source identities before commits,
+and uses an exclusive file lock to reject a second parallel writer. Do not run
+the sequential driver concurrently against that database: it does not use the
+parallel runner's lock. Source changes require a new campaign. SQLite WAL permits
+read-only progress queries while computation continues:
+
+```sql
+SELECT n, length, count(*) AS visited,
+       sum(status = 'complete') AS complete
+FROM words GROUP BY n, length ORDER BY length, n;
+```
+
+Selected longer-word calculations can share the same SQLite file without being
+counted as exhaustive coverage. `experiments/zipper_probe_store.py` imports
+reports into the separate `long_word_probes` and `probe_imports` tables. It
+replays certificates by default, checks their source and summary identities,
+and imports the batch atomically. The explicit `--trust-recorded-replay` option
+is for reports already JSON-reloaded and replay-checked in a trusted run; the
+database records that distinction. Attempts that ended without a checkpoint
+remain metadata and are never counted as checked probe rows.
+
+The process runner is a repository experiment, rather than an installed-package
+entry point. Its tests cover out-of-order worker completion, interruption at an
+incomplete word, exceptions, resume, source binding, exclusive writer ownership,
+and a real process-pool run. The Unix-lock tests are skipped on Windows.
+
+### Exhaustive collected campaigns
+
+```sh
+python experiments/zipper_exhaustive_collected.py runs/collected --targets '{"2":10,"3":10,"4":10,"5":10,"6":10,"7":10,"8":10}' --workers 8 --wall-seconds 86400
+```
+
+This runner enumerates every literal signed word in increasing length and
+ordinal within each rank, including unreduced inputs. Eight independent-word
+workers each use the collected executor with one term worker. Each rank has
+its own consecutive cursor; its first incomplete word pauses that rank while
+other ranks continue. Increasing computation limits retries that exact word.
+Targets can be extended on resume without changing the source identity.
+
+One parent writes `words.sqlite3`, with compressed JSON certificates, hashes,
+inputs, timings, limits, replay provenance, and per-rank cursors. Every new
+certificate undergoes JSON reload and exact serial replay before storage.
+Resume checks all saved hashes and input/configuration/cursor bindings;
+`--replay-audit` additionally repeats the saved arithmetic. `summary.json` is
+updated during the run and distinguishes completed layers from partial ones.
+The wall budget stops admission between words; bounded in-flight work may
+finish afterward. An exclusive lock prevents a second writer. Unregistered
+source changes are refused; explicit version migration is described below.
+
+The versioned runner also supports `--execution memoized`, the unit-cache
+options above, and `--rule-cache-bytes` / `--rule-cache-entries`. It limits
+speculative occupancy per rank as well as globally. At the wall deadline it
+stops submissions and drains admitted consecutive results before exiting.
+Snapshots distinguish running, paused, and completed campaigns. `--status`
+and `--audit-only` are read-only.
+
+To upgrade an existing database, first stop its writer. Explicit `--migrate`
+audits its saved bindings, creates a backup, and registers a new source version
+atomically. Historical identities, configurations, and completed certificates
+are retained. A retried unresolved certificate is archived before replacement.
+Every row is checked against its own source version; an old certificate is not
+silently attributed to the new executor. An arithmetic replay of historical
+certificates requires their matching source implementation.
+
+`experiments/zipper_rule_statistics.py` produces JSON and CSV distributions
+from a consistent read-only SQLite snapshot. Its primary strata are exact
+strand count and word length, with layer coverage and source-version counts.
+It separates control actions, transport moves, and catalog rewrites. Logical
+rule counts describe committed term transitions; actual evaluations and cache
+reuse are separate runtime measurements. Frequencies alone do not measure
+time spent in a rule.
+
+### Selected runtime sweeps across source versions
+
+```sh
+python experiments/zipper_runtime_sweep.py runs/literal-words/words.sqlite3 --ranks 2 3 4 5 6 7 8 --lengths 4 10 12 --workers 4 --per-word-wall 30 --wall-seconds 1800
+```
+
+For collected calculations with parallel terms within each word:
+
+```sh
+python experiments/zipper_runtime_sweep.py runs/literal-words/words.sqlite3 --execution collected --ranks 3 --lengths 10 --workers 1 --term-workers 4 --batch-size 64 --per-word-wall 300
+```
+
+Outer workers handle independent words; term workers belong to one collected
+calculation. Collected mode defaults to one outer worker. Its recorded CPU
+time includes the coordinator and reaped term-worker processes. A per-word
+timeout terminates that word's process group, including its term workers.
+
+This deterministic sample includes positive, negative, alternating, and seeded
+random signed words. It visits length 10 first and records whether every
+generator position occurs. It does not extend the exhaustive prefix.
+The `runtime_campaigns` and `runtime_cases` tables bind each campaign to its
+algorithm, catalog, runner, configuration, and exact input words, so new source
+versions can share a database with historical results. Resume verifies that
+identity and the saved certificate hashes, then visits pending cases only.
+
+Each input runs in a fresh spawned process. Workers retain exact arithmetic
+and JSON-reload and replay their certificates before storage. The parent
+alone writes SQLite, with at most `--workers` inputs in flight. Producer and
+checker CPU and wall times are recorded separately. The per-word wall cap
+includes startup, setup, replay, and transfer. A timeout records its phase and
+does not supply an accepted certificate or completed-word timing. A producer
+that completed before a replay timeout is recorded as such in the diagnostic.
+The campaign wall budget stops new submissions; running cases can continue to
+their individual caps. Use a new campaign for a different budget or worker
+count. The runner's JSON summary reports completion fractions and censored
+attempts separately.
 
 ## Validation
 
