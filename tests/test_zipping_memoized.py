@@ -74,7 +74,7 @@ def test_spawned_miss_workers_and_serial_execution_are_identical():
 
 
 @pytest.mark.parametrize("rule_bytes,rule_entries", [(0, 0), (4096, 2)])
-def test_spawned_workers_use_worktree_sources_and_requested_family_cache_caps(
+def test_spawned_workers_use_parent_sources_and_requested_family_cache_caps(
     rule_bytes, rule_entries
 ):
     session = memoized.MemoizedSession(
@@ -83,7 +83,7 @@ def test_spawned_workers_use_worktree_sources_and_requested_family_cache_caps(
     with session._new_pool(2, 4) as pool:
         info, source = pool.submit(_worker_snapshot).result(timeout=20)
     assert info["max_bytes"] == rule_bytes and info["max_entries"] == rule_entries
-    assert Path(source).resolve().is_relative_to(Path(__file__).resolve().parents[1])
+    assert Path(source).resolve() == Path(collected.__file__).resolve()
 
 
 def test_both_cache_layers_can_be_disabled_without_changing_certificate():
