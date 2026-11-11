@@ -175,26 +175,36 @@ def verify_kernel(matrix: ExactMatrix, certificate: KernelCertificate, *, max_pr
 
     # Evaluate every stored coefficient, including those outside the selected
     # minor. This certifies a well-defined specialization of the input matrix.
-    specialized = {(i, j): _evaluate(c, point, prime) for i, j, c in matrix.entries}
-    minor = [[specialized.get((i, j), 0) for j in certificate.pivot_columns]
-             for i in certificate.pivot_rows]
-    for i in range(rank):
-        for j in range(rank):
-            total = 0
-            for k in range(rank):
-                tick()
-                total = (total + inverse[i][k] * minor[k][j]) % prime
-            if total != int(i == j):
-                raise ValueError("the selected modular minor inverse identity fails")
+    pivot_rows = {row: i for i, row in enumerate(certificate.pivot_rows)}
+    pivot_columns = {column: j for j, column in enumerate(certificate.pivot_columns)}
+    minor: list[list[tuple[int, int]]] = [[] for _ in range(rank)]
+    for i, j, coefficient in matrix.entries:
+        value = _evaluate(coefficient, point, prime)
+        if value and i in pivot_rows and j in pivot_columns:
+            minor[pivot_rows[i]].append((pivot_columns[j], value))
+    for i, inverse_row in enumerate(inverse):
+        total: dict[int, int] = {}
+        for k, scale in enumerate(inverse_row):
+            if scale:
+                for j, value in minor[k]:
+                    tick()
+                    total[j] = (total.get(j, 0) + scale * value) % prime
+        if total.pop(i, 0) != 1 or any(total.values()):
+            raise ValueError("the selected modular minor inverse identity fails")
+
     working = WorkingField(matrix.field)
-    native_kernel = {(i, j): working.from_element(c) for i, j, c in kernel.entries}
-    for i, row in enumerate(certificate.identity_rows):
-        for j in range(kernel.ncols):
-            if native_kernel.get((row, j), working.zero) - int(i == j) != 0:
-                raise ValueError("the kernel free-coordinate block is not the identity")
+    identity_rows = {row: j for j, row in enumerate(certificate.identity_rows)}
     rows: dict[int, list[tuple[int, Any]]] = {}
-    for (i, j), c in native_kernel.items():
-        rows.setdefault(i, []).append((j, c))
+    identity_entries = 0
+    for i, j, coefficient in kernel.entries:
+        native = working.from_element(coefficient)
+        rows.setdefault(i, []).append((j, native))
+        if i in identity_rows:
+            if j != identity_rows[i] or native - 1 != 0:
+                raise ValueError("the kernel free-coordinate block is not the identity")
+            identity_entries += 1
+    if identity_entries != kernel.ncols:
+        raise ValueError("the kernel free-coordinate block is not the identity")
     residual: dict[int, Any] = {}
     current_row = None
     for i, k, coefficient in matrix.entries:

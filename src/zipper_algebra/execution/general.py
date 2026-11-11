@@ -12,7 +12,7 @@ from fractions import Fraction
 from ..algebra import AlgebraPresentation
 from ..provenance import capture_provenance, validate_provenance
 from ..verification.derivations import DerivationGraph, DerivationTerm, verify_derivations
-from ..verification.f4ncgb import certificate_from_solver
+from ..verification.f4ncgb import _decode_solver_certificate
 from ..verification.groebner import GroebnerCertificate, ProofTerm
 from .artifacts import ArtifactError, digest_bytes, file_identity, validate_source_snapshot
 from .config import RunConfig
@@ -34,9 +34,16 @@ def _specialize(presentation, values):
     return point, presentation.specialize(values)
 
 
-def _input(presentation):
-    algebra = presentation.algebra
-    if not algebra.generators:
+def _solver_names(presentation):
+    names = list(presentation.algebra.generators)
+    # The pinned msolve parser rejects a two-character identifier followed
+    # immediately by the header newline. Encode it under a safe name at
+    # the same word index.
+    return ["z01"] if len(names) == 1 and len(names[0]) == 2 else names
+
+
+def _input(presentation, names):
+    if not names:
         raise ValueError("numerical solver acquisition requires at least one generator")
     indices = [index for index, relation in enumerate(presentation.relations) if not relation.is_zero()]
     if not indices:
@@ -48,18 +55,18 @@ def _input(presentation):
             # Specialization gives constants. Division retains exact rational
             # input even if the stored field expression is not normalized.
             scalar = Fraction(coefficient.numerator[0][1]) / Fraction(coefficient.denominator[0][1])
-            terms.append(str(scalar) + ("*" + "*".join(algebra.generators[i - 1] for i in word)
+            terms.append(str(scalar) + ("*" + "*".join(names[i - 1] for i in word)
                                         if word else ""))
         lines.append("+".join(terms).replace("+-", "-"))
-    text = ",".join(algebra.generators) + "\n0\n" + ",\n".join(lines) + "\n"
+    text = ",".join(names) + "\n0\n" + ",\n".join(lines) + "\n"
     return indices, text.encode()
 
 
-def _decode(presentation, files, indices, limits):
+def _decode(presentation, files, indices, limits, names):
     """Map native compact relation indices back to the literal ordered inputs."""
     try:
-        parsed = certificate_from_solver(presentation, files["basis.txt"].decode("utf-8"),
-                                         files["proof.txt"].decode("utf-8"))
+        parsed = _decode_solver_certificate(presentation, files["basis.txt"].decode("utf-8"),
+                                           files["proof.txt"].decode("utf-8"), names)
         if not parsed.basis:
             raise ValueError("nonempty input requires a nonempty candidate basis")
         derivations = []
@@ -98,7 +105,8 @@ def run_algebra_point(presentation: AlgebraPresentation, values: Mapping[str, in
         if type(limit) is not int or limit < 1:
             raise ValueError("proof validation limits must be positive integers")
     point, specialized = _specialize(presentation, values)
-    indices, input_bytes = _input(specialized)
+    names = _solver_names(specialized)
+    indices, input_bytes = _input(specialized, names)
     producer = capture_provenance() if producer is None else validate_provenance(producer)
     validate_source_snapshot(producer)
     limits = {"max_operations": max_operations, "max_nodes": max_nodes}
@@ -116,7 +124,7 @@ def run_algebra_point(presentation: AlgebraPresentation, values: Mapping[str, in
                    "flags": list(config.arguments()), "timeout_seconds": config.timeout_seconds},
     }
     def validate(files):
-        return len(_decode(specialized, files, indices, limits).basis)
+        return len(_decode(specialized, files, indices, limits, names).basis)
     return _run_request(config, input_bytes, request, validate, refresh=refresh)
 
 
@@ -135,12 +143,18 @@ def solver_certificate(run: SolverRun, presentation: AlgebraPresentation) -> Gro
     try:
         values = {name: Fraction(value) for name, value in request["point"]}
         point, specialized = _specialize(presentation, values)
-        indices, input_bytes = _input(specialized)
+        names = _solver_names(specialized)
+        indices, input_bytes = _input(specialized, names)
+        original_names = list(specialized.algebra.generators)
+        if names != original_names and run.files["input.ms"] != input_bytes:
+            # Older v4 runs may have used a solver that accepted the literal name.
+            names = original_names
+            indices, input_bytes = _input(specialized, names)
         if (point != request["point"] or indices != request["input_relation_indices"]
                 or specialized.content_hash() != request["specialized_presentation_hash"]
                 or digest_bytes(input_bytes) != request["input_sha256"]
                 or run.files["input.ms"] != input_bytes):
             raise ValueError("sample's specialized input differs from its declared presentation")
-        return _decode(specialized, run.files, indices, request["proof_limits"])
+        return _decode(specialized, run.files, indices, request["proof_limits"], names)
     except (KeyError, ValueError, TypeError, ZeroDivisionError) as error:
         raise ArtifactError(f"invalid algebra sample: {error}") from error

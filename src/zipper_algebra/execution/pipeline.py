@@ -198,7 +198,7 @@ def run(pres: Presentation, target: str, anchor: Anchor, config: RunConfig, *,
     stage = "solver"
 
     def finish(status, reason=None, **data):
-        report = {"schema": "zipper-discovery-result-v1", "status": status,
+        report = {"schema": "zipper-discovery-result-v2", "status": status,
                   "verified": status == "verified", "in_ideal": True if status == "verified" else None,
                   "basis_complete": False, "method": "proof-contexts-finiteflow",
                   "producer": producer,

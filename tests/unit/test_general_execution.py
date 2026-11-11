@@ -120,6 +120,20 @@ def test_full_ascii_alphabet_and_constant_field_are_preserved(setup):
     assert solver_certificate(run, presentation).basis == elements
 
 
+def test_replay_accepts_older_literal_single_generator_input(setup):
+    _, config = setup
+    algebra = FreeAlgebra(RationalFunctionField(()), ("x1",))
+    relation = algebra.generator("x1") - 1
+    presentation = AlgebraPresentation(algebra, (relation,), ("linear",))
+    with patch("zipper_algebra.execution.general._solver_names", return_value=["x1"]):
+        old = run_algebra_point(presentation, {}, config)
+    new = run_algebra_point(presentation, {}, config)
+    assert old.files["input.ms"] == b"x1\n0\n-1+1*x1\n"
+    assert new.files["input.ms"] == b"z01\n0\n-1+1*z01\n"
+    assert old.key != new.key
+    assert solver_certificate(old, presentation) == solver_certificate(new, presentation)
+
+
 @pytest.mark.parametrize("values", [{}, {"c0": 3}, {"c0": 3, "c1": 4, "x": 0},
                                      {"c0": True, "c1": 4}, {"c0": 3.0, "c1": 4}, []])
 def test_requires_complete_exact_rational_point(setup, values):

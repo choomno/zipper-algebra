@@ -249,6 +249,9 @@ those, along with bounded retries and resumable case records.
 
 Empty alphabets and inputs whose specialized relations are all zero currently
 require a direct certificate route rather than native acquisition.
+A two-character name for a sole generator is encoded under a solver alias.
+The request hashes the exact solver input, and proof decoding uses the original
+generator's word index.
 
 `result.json` records acquisition, reconstruction, actions/certification and
 publication timings. Its immutable `production.json` records the stages completed
