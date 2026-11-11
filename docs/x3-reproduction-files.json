@@ -294,7 +294,7 @@
     {
       "path": "src/zipper_algebra/execution/pipeline.py",
       "bytes": 14685,
-      "sha256": "b007337bb89d722dd6a3ffc4b0b0f7efe23a360fe3383e0cbb3dd6ead23d66a7",
+      "sha256": "3498aa90544933872dc4f1c511f85386b766b8b37e269ac54499c01bf8de0e0b",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
@@ -413,8 +413,8 @@
     },
     {
       "path": "src/zipper_algebra/verification/linear.py",
-      "bytes": 9784,
-      "sha256": "ccca0fac784a47f78a3edc337fd4414c0e5e5f2319d0848925f7d7b7cb21c0c8",
+      "bytes": 10284,
+      "sha256": "fa2b06abe754ac6b628f2ab12499ab3281a4ecbd3d66a1efa86724746fb0be57",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
@@ -521,8 +521,8 @@
     },
     {
       "path": "tests/test_discovery_pipeline.py",
-      "bytes": 38781,
-      "sha256": "37ef12eccd31e7db23de0eeffd7e31ba6d677d1d84236cf4fc71898894644be7",
+      "bytes": 38909,
+      "sha256": "f07bbb6571f9c39dc6f50f430a98a55622ef27c8bf2af79077fc759d4772ccc2",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
@@ -767,8 +767,8 @@
     },
     {
       "path": "tests/unit/test_reconstruction.py",
-      "bytes": 38221,
-      "sha256": "f8ec823b56caa9dd56e34ddaf5c255d978106d2088d22e710c640ed6543b441b",
+      "bytes": 39657,
+      "sha256": "c1df4912fef90541e6acc97042749d92db1c7d6fc7f17dbd8bb3c2deabd935d2",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {

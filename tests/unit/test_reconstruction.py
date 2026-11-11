@@ -55,6 +55,34 @@ def test_dependent_incomplete_and_wrong_shape_kernels_are_rejected():
     reject(original, proof, identity_rows=(3, 2))
 
 
+def test_sparse_modular_inverse_counts_only_nonzero_products():
+    field = RationalFunctionField()
+    size = 256
+    original = ExactMatrix(field, size, size, tuple((i, i, 2) for i in range(size)))
+    inverse = tuple(tuple(3 if i == j else 0 for j in range(size)) for i in range(size))
+    pivots = tuple(range(size))
+    proof = KernelCertificate(original.content_hash(), ExactMatrix(field, size, 0),
+                              (), pivots, pivots, 5, (), inverse)
+    assert verify_kernel(original, proof, max_products=size) is proof
+    with pytest.raises(RuntimeError, match='budget'):
+        verify_kernel(original, proof, max_products=size - 1)
+
+
+def test_wide_zero_matrix_requires_every_identity_entry_and_no_off_diagonal_entries():
+    field = RationalFunctionField()
+    size = 2048
+    original = ExactMatrix(field, 0, size)
+    coordinates = tuple(range(size))
+    entries = tuple((i, i, 1) for i in coordinates)
+    proof = KernelCertificate(original.content_hash(), ExactMatrix(field, size, size, entries),
+                              coordinates, (), (), 5, (), ())
+    assert verify_kernel(original, proof, max_products=0) is proof
+    for bad_entries in (entries[:-1], entries + ((size - 1, 0, 1),)):
+        bad = replace(proof, kernel=ExactMatrix(field, size, size, bad_entries))
+        with pytest.raises(ValueError, match='free-coordinate block'):
+            verify_kernel(original, bad, max_products=0)
+
+
 def test_false_full_rank_is_rejected_even_when_upper_bound_is_vacuous():
     field = RationalFunctionField()
     original = matrix(field, [[1, 2], [2, 4]])
