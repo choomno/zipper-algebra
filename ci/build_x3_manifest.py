@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 # index, caches, an enclosing workspace or an unversioned generator.
 FAMILIES = (
     ("src/zipper_algebra/**/*.py", "Maintained implementation used by presentation, production or verification"),
+    ("src/zipper_algebra/zipping_algorithm/data/*.json", "Frozen zipper rewrite schemata, syntax and hash manifest"),
     ("tests/**/*.py", "Mathematical regression, installation or independent implementation comparison"),
     ("ci/*.py", "Installation, test, coverage, documentation or inventory support"),
     ("examples/x3/*", "Sparse current X3 output example and its reproduction instructions"),

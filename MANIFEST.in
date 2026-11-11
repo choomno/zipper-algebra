@@ -2,6 +2,8 @@ include README.md LICENSE pyproject.toml setup.py .coveragerc
 include INDEX.md WORKFLOW.md .gitignore .gitattributes
 include .github/workflows/ci.yml
 recursive-include src/zipper_algebra *.py
+recursive-include src/zipper_algebra/zipping_algorithm/data *.json
+include docs/ZIPPING_REFERENCE.md
 include docs/TESTING.md docs/X3_REPRODUCTION.md docs/x3-reproduction-files.json
 include docs/PROVENANCE.md
 include docs/mathematical-specification/README.md docs/mathematical-specification/main.tex

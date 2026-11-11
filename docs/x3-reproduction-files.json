@@ -29,8 +29,8 @@
     },
     {
       "path": "MANIFEST.in",
-      "bytes": 1079,
-      "sha256": "3ff292e8718ff4ae7b797f89cfeec299ac044c995668bc5c58fae85ce503f0ec",
+      "bytes": 1180,
+      "sha256": "1e4cab878f6b27beb3ef1c98256f5c872268e0e567b0f8ade01f05cb7cf3d024",
       "role": "Source-distribution inclusion rules"
     },
     {
@@ -41,8 +41,8 @@
     },
     {
       "path": "ci/build_x3_manifest.py",
-      "bytes": 4323,
-      "sha256": "e0acd43afd6590b7a025324718df00dd2dbdfdeb5864fd60583b722d8ac61e5e",
+      "bytes": 4441,
+      "sha256": "433fa23a77c718d49488e94d716e0be2821b06ef79ec713df60acf370dea4b5b",
       "role": "Installation, test, coverage, documentation or inventory support"
     },
     {
@@ -53,8 +53,8 @@
     },
     {
       "path": "ci/check_distribution.py",
-      "bytes": 7134,
-      "sha256": "e0c1b7fd9bc7180bea50f2bfe29c83ba23abe1fd55230d63b7152f93d049a784",
+      "bytes": 8235,
+      "sha256": "4b017979d12ac26b5014f0820a8ab273f5c9b0342913de394ca5bc029529916e",
       "role": "Installation, test, coverage, documentation or inventory support"
     },
     {
@@ -65,8 +65,8 @@
     },
     {
       "path": "ci/check_installed.py",
-      "bytes": 2326,
-      "sha256": "b4921cc5d0aa908244300d73a73b35ac31570e4da2378ef09c60087e2662fea1",
+      "bytes": 2661,
+      "sha256": "6ed2842e539b2e31f1820b7379857388006729612962a0dab67074dff800fe9d",
       "role": "Installation, test, coverage, documentation or inventory support"
     },
     {
@@ -131,8 +131,8 @@
     },
     {
       "path": "pyproject.toml",
-      "bytes": 1690,
-      "sha256": "f9ff345c80129925ba33753f2210333153b63a9a0df2b565b47c19b2d65d1083",
+      "bytes": 1743,
+      "sha256": "0af731d37b6359b8af60c2d929c38a5296d84197516015a02b4c9454d57526cd",
       "role": "Package dependencies and installed commands"
     },
     {
@@ -346,6 +346,120 @@
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
+      "path": "src/zipper_algebra/zipping_algorithm/__init__.py",
+      "bytes": 325,
+      "sha256": "eabff82125e7e3c7a3b2600e0d6bda2a48fe1419e34fed60439c0dd38e219b73",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
+      "path": "src/zipper_algebra/zipping_algorithm/__main__.py",
+      "bytes": 11561,
+      "sha256": "6829d6a692270146e451043775a901047c7f30fcf86671815332cb65284623e6",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
+      "path": "src/zipper_algebra/zipping_algorithm/algorithm.py",
+      "bytes": 39893,
+      "sha256": "a95c4e16b756c76b95f433189550e18385d1cf3d75211bc72cb010a142d55561",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
+      "path": "src/zipper_algebra/zipping_algorithm/catalog.py",
+      "bytes": 18675,
+      "sha256": "392ab4e655decbae88fceb156ab5628b7d5b0e974b5b4ff81c562efe6f22f41e",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
+      "path": "src/zipper_algebra/zipping_algorithm/data/full-catalog.json",
+      "bytes": 1401859,
+      "sha256": "27c5dd71d09718a5561d18c802f714e07abac87890dc87169215369541462470",
+      "role": "Frozen zipper rewrite schemata, syntax and hash manifest"
+    },
+    {
+      "path": "src/zipper_algebra/zipping_algorithm/data/manifest.json",
+      "bytes": 945,
+      "sha256": "6432ac9361bc7ed93a19c96e5991da3659e5036421a3c93c15d5a02ba32129b4",
+      "role": "Frozen zipper rewrite schemata, syntax and hash manifest"
+    },
+    {
+      "path": "src/zipper_algebra/zipping_algorithm/data/schema.json",
+      "bytes": 10647,
+      "sha256": "ec586a1b9c4ff3ebc21d17688f46bd683a90e88b082e0f1ac11d945cd8334906",
+      "role": "Frozen zipper rewrite schemata, syntax and hash manifest"
+    },
+    {
+      "path": "src/zipper_algebra/zipping_algorithm/enumeration.py",
+      "bytes": 12756,
+      "sha256": "6c97fbfde805f15850ff55a5c30e8bc7bf1e86822daeb61813e4df1e8bde8dd9",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
+      "path": "src/zipper_algebra/zipping_algorithm/extraction.py",
+      "bytes": 30020,
+      "sha256": "c8bf00ed5f1af64a08f39f0db8fa4aede6de4885dc83371d62a5f59ff5011135",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
+      "path": "src/zipper_algebra/zipping_algorithm/framed.py",
+      "bytes": 23458,
+      "sha256": "f957be40316e6ce226d474298bca826eb74b77d3447ecdb72ea11a5cb4d6bcbf",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
+      "path": "src/zipper_algebra/zipping_algorithm/frames.py",
+      "bytes": 7742,
+      "sha256": "1ef39c558b26d430744578259450204c8f5dff10ce420f5ddff1c0420ba511b4",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
+      "path": "src/zipper_algebra/zipping_algorithm/general_enumeration.py",
+      "bytes": 11062,
+      "sha256": "f81fdad0b67ca907a91d4feaf8e19bbcec2fb15f68c9808a04e963aa0f89959e",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
+      "path": "src/zipper_algebra/zipping_algorithm/interpreter.py",
+      "bytes": 17556,
+      "sha256": "2552914a09bea6cb878b28f438337feba018999ae22944d1abf58e0804c4b9e3",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
+      "path": "src/zipper_algebra/zipping_algorithm/semilinear.py",
+      "bytes": 5962,
+      "sha256": "8dd8fe31e191b8e8c2612813c709aa0f303d0b2dadb86771e4385c629f7a59cd",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
+      "path": "src/zipper_algebra/zipping_algorithm/transport.py",
+      "bytes": 7573,
+      "sha256": "5bd0831f637abece13a9540d7aa5c0384f6a28ca15df45edcc39ae5b81e9280f",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
+      "path": "src/zipper_algebra/zipping_algorithm/turnaround.py",
+      "bytes": 16002,
+      "sha256": "25a66e465f5a7da44328b487a312ccf21fc1a2eb8a6652e02de63ecaf55ae2a2",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
+      "path": "src/zipper_algebra/zipping_algorithm/two_strand.py",
+      "bytes": 15958,
+      "sha256": "c093fc6ea7e64e8c0b05a75aa189ffe7805053b2bc5202017b50cc070d00b9e7",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
+      "path": "src/zipper_algebra/zipping_algorithm/upward.py",
+      "bytes": 15913,
+      "sha256": "44b0eeba083dc8c95a91e6f0d848d2d9eb5db176400df9a61446ddd549403d46",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
+      "path": "src/zipper_algebra/zipping_algorithm/verification.py",
+      "bytes": 17335,
+      "sha256": "1e7c35cafb875647480182706217c739b3edb1867f559e8b656ae131d2fb9e50",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
       "path": "tests/__init__.py",
       "bytes": 50,
       "sha256": "b3c6811b8cd2d4150a2a427fb306ae4968ffc608c97a91c956b30715ae87df1d",
@@ -535,6 +649,108 @@
       "path": "tests/test_survey_domains.py",
       "bytes": 13043,
       "sha256": "0bf3d382de47cb7f910291de8476857877455d1d17bdb924a8a83779b3fba1bf",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_algorithm.py",
+      "bytes": 19754,
+      "sha256": "8984408f263a048e1efb90a81fe55e9cc28447c742999becd8dadd80693eb725",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_catalog.py",
+      "bytes": 12943,
+      "sha256": "65b19fa7be6e69fd97e2610956577ea9cc11619f20cd1fe014a13b484e5e0349",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_cli.py",
+      "bytes": 11789,
+      "sha256": "1abc26864c9877521bde1c53029e8350ebad1db423f1823efba86baa0f080d4a",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_enumeration.py",
+      "bytes": 6478,
+      "sha256": "067e2f2e4908da56d0fed920215e9a2d592d6115ecefdac286cc202e081bd1e8",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_extraction.py",
+      "bytes": 27460,
+      "sha256": "8e7907dcb5eb95184291b0b9bec477cd4f2f0fed8da4db34e7ccbb94f41ee214",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_frame_catalog.py",
+      "bytes": 9124,
+      "sha256": "d190b6e0a07646f3fc6db1e7ab860ba24e13903532a1acb5c8b47311a7080c7b",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_framed.py",
+      "bytes": 23798,
+      "sha256": "c8b4610fd4d2ecfe2cfa4f5abd83796f408a513ceb778a615b946f4d9239f5bb",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_frames.py",
+      "bytes": 5979,
+      "sha256": "168ac3f7806f3987ef438a1416aba9a4cee4e31b1be4cf6ec6726a6817ce608d",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_general_enumeration.py",
+      "bytes": 4608,
+      "sha256": "c77971487a7cbf1b9348daef8ff12c478d123dedce3fa7d34852ea3acc8d0836",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_interpreter.py",
+      "bytes": 10996,
+      "sha256": "8372c9a4943c213f593ce33aa00389b89203a66ce6df32db887fd8943d642066",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_interpreter_review.py",
+      "bytes": 2042,
+      "sha256": "e953b8c0bcd6a5c66780e16b8dcfa742eeff71d753fe6694559c7dabf7741fa5",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_local_verification.py",
+      "bytes": 12260,
+      "sha256": "9dcd33755ef15a3a0f638d78d9d77197daf8e7577b93f6c00e7d0721337b1f89",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_semilinear.py",
+      "bytes": 7096,
+      "sha256": "51a26d380beda157ae059897d298f2a4f6ff3c9a19dfe63731cf385041e16bd4",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_transport.py",
+      "bytes": 8316,
+      "sha256": "2411fe4e050b73e3171514be833776fcf6d3b13369af0677406959ccc51f0c4a",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_turnaround.py",
+      "bytes": 16718,
+      "sha256": "3da671be6e18d85c4c227253053e49ea8ec8a090b99fbe85a54b8717a660aeac",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_two_strand.py",
+      "bytes": 11361,
+      "sha256": "82b9dfd139cfbf9ef55e7dcbc9a191effd5e138ff4263cc2985a2f4f96fdc5e0",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_upward.py",
+      "bytes": 14663,
+      "sha256": "e59ef18988a8b6b2c8c34234bddfd4c0210b996f7cdca45fabf611286241e9d1",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {

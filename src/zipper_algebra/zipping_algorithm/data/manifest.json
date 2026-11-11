@@ -1,0 +1,17 @@
+{
+  "version": "2026-11-05.1",
+  "schema_version": "1.0",
+  "base_rules": 32,
+  "oriented_rules": 128,
+  "author_review": "partial",
+  "review_scope": "Descending friend order, full tape crossing, exceptional i=2 branches, and delimiter interpretation confirmed; remaining catalog entries are subject to review. Band transport through processed words requires its own control invariant.",
+  "files": {
+    "full-catalog.json": "27c5dd71d09718a5561d18c802f714e07abac87890dc87169215369541462470",
+    "schema.json": "ec586a1b9c4ff3ebc21d17688f46bd683a90e88b082e0f1ac11d945cd8334906"
+  },
+  "coefficient_ring": "Z[q,q^-1]",
+  "word_order": "algebraic_left_to_right",
+  "parameter_policy": "Symmetry images retain original upward parameter bindings.",
+  "original_catalog_sha256": "f1a51fd2ad3584ffd9f926f04c75de04fa3cb869b95f301878d23ee1246e50d9",
+  "source_path_policy": "Source metadata uses filenames; absolute workstation paths are omitted."
+}
