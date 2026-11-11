@@ -14,6 +14,16 @@ The maintained implementation is installed from `src/zipper_algebra/`.
 | `verification/gap.py` | Export standalone generic cofactor identities for independent expansion in GAP. |
 | `zipping_algorithm/`, `native/zipper_engine/` | Literal-word zipper engines, exact collection, packed C++ execution, and independent Python replay. See the [native engine guide](docs/ZIPPING_NATIVE.md). |
 | `native/zipper_verifier/`, `zipping_algorithm/native_verifier.py` | Separate C++ replay verifier using GMP and complete JSON states. See the [independent verifier guide](docs/ZIPPING_NATIVE_VERIFIER.md). |
+| `zipping_algorithm/essential_enumeration.py`, `zipping_algorithm/word_coverage.py` | Direct enumeration of full-support signed trace representatives and independently checked input decompositions. See [scope and proof obligations](docs/essential-enumeration.md). |
+| `docs/TRACE_EXECUTION_COUNTEREXAMPLE.md` | Exact counterexample to trace-invariance of the existing procedure's formal output and computation cost. |
+| `docs/zipper-block-separation.md` | Separation proof for disconnected inputs, with packet and catalog lemmas, normalization, exact collection, and inclusion corollaries. |
+| `docs/zipper-output-identifications.md` | Proved output identifications for already layered strands, exact cost formulas, and explicitly unproved candidates. |
+| `docs/zipper-descending-peeling.md` | Initial singleton peeling, arbitrary retained cores, exact transition count, and a repeated-index far-commutation corollary. |
+| `docs/zipper-geometric-layer-persistence.md` | Geometric layer counterexample with exact expansion and the separate completed-slider preservation statement. |
+| `docs/zipper-current-normal-forms.md` | Current-algorithm input/output conventions, verified reconstruction interfaces, and current-only identifications. |
+| `docs/zipper-rank-two-identification.md` | Proof of exponent-sum invariance of full rank-two outputs, including recursive complements. |
+| `docs/zipper-inverse-cancellation.md` | Open arbitrary-rank cancellation conjecture, precise proof obligations, and conditional workload count. |
+| `docs/zipper-census-baselines.md` | Separate research comparisons with modified representative procedures; not current-output invariances. |
 | `execution/` | Solver configuration, execution, sampling, SQLite storage and verified publication. |
 | `provenance.py` | Source revisions, local changes and input/source hashes for outputs. |
 | `cli.py` | Installed commands and their exit statuses. |
