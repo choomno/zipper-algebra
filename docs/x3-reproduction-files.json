@@ -389,8 +389,8 @@
     },
     {
       "path": "src/zipper_algebra/verification/working_field.py",
-      "bytes": 5075,
-      "sha256": "74afc1855facb52ec13d9e5ea34991724bbb634b8205589d407808385186798d",
+      "bytes": 5204,
+      "sha256": "21da4a4b1877c144d98ca935196f4abcb49dcd434545df5b6b874268f6e18195",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
@@ -743,8 +743,8 @@
     },
     {
       "path": "tests/unit/test_working_field.py",
-      "bytes": 10641,
-      "sha256": "1b3f69ee55f7240ccc1caab3d78067e10efe56bf0d39d3da4f80882c01e52132",
+      "bytes": 11807,
+      "sha256": "e9b9ee68162148381002088cad160da9271897387b0cf11bc64e1f841b8f0d50",
       "role": "Mathematical regression, installation or independent implementation comparison"
     }
   ]

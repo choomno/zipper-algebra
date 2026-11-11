@@ -1,9 +1,12 @@
 """Exact normalization for working coefficients, preserving literal inputs."""
 import builtins
+from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor
 from fractions import Fraction as F
 import json
 import subprocess
 import sys
+from threading import Event
 
 import pytest
 
@@ -242,3 +245,29 @@ assert 'sympy' not in sys.modules
 print('exact ground fields available')
 '''], cwd=tmp_path, text=True, capture_output=True, check=True, timeout=10)
     assert result.stdout.strip() == 'exact ground fields available'
+
+
+def test_parameter_cache_hit_survives_concurrent_eviction():
+    pytest.importorskip('sympy')
+    field = RationalFunctionField(('s',))
+    working = WorkingField(field, cache_size=1)
+    hit_started = Event()
+    eviction_finished = Event()
+
+    class PausingCache(OrderedDict):
+        def move_to_end(self, key, last=True):
+            hit_started.set()
+            # Let a concurrent conversion attempt to evict this hit.
+            eviction_finished.wait(timeout=0.5)
+            super().move_to_end(key, last)
+
+    working._cache = PausingCache()
+    parameter = field.parameter('s')
+    expected = working.from_element(parameter)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        hit = pool.submit(working.from_element, parameter)
+        assert hit_started.wait(timeout=5)
+        eviction = pool.submit(working.from_element, field.one)
+        eviction.add_done_callback(lambda _: eviction_finished.set())
+        assert hit.result(timeout=5) is expected
+        assert working.to_element(eviction.result(timeout=5)) == field.one
