@@ -443,8 +443,8 @@
     },
     {
       "path": "tests/integration/test_four_strand_square_zero_example.py",
-      "bytes": 15292,
-      "sha256": "35337abdeaf2794a44f8d00b345afc389d2e3c3e440b3831766b7e0fa790b2ef",
+      "bytes": 17149,
+      "sha256": "57c396f26da20668ba2b9a25c0b238ccee81db62545bc191a9db7454ce1e35c0",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
