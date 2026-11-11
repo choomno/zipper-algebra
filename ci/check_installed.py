@@ -23,7 +23,12 @@ def check():
     with tempfile.TemporaryDirectory(prefix="zipper-installed-") as directory:
         probe = subprocess.run(
             [sys.executable, "-I", "-c",
-             "import pathlib, zipper_algebra; print(pathlib.Path(zipper_algebra.__file__).resolve())"],
+             "import pathlib, zipper_algebra; "
+             "from zipper_algebra.zipping_algorithm import Catalog; "
+             "from zipper_algebra.zipping_algorithm.two_strand import reduce_two_strand, check_two_strand; "
+             "assert len(Catalog.bundled().rules) == 128; "
+             "assert check_two_strand(reduce_two_strand([1, -1, 1]))['pass']; "
+             "print(pathlib.Path(zipper_algebra.__file__).resolve())"],
             cwd=directory, text=True, capture_output=True, check=True,
         )
         package = Path(probe.stdout.strip())

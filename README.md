@@ -22,6 +22,20 @@ identities.
 Read the [mathematical reference](docs/mathematical-specification/mathematical-specification.pdf) for the definitions,
 finite-generation theorem, connection with BMW algebras, and precise input requirements and verification guarantees. It distinguishes the general polynomial family from the selected presentations currently implemented.
 
+The [zipper algorithm implementation](docs/ZIPPING_REFERENCE.md) executes the
+variant that continues layering after a same-size correction and restarts
+zipping after slider growth. Its analysis establishes uniform dispatch,
+whole-band transport, the packetwise ribbon hierarchy, termination, and a
+fixed-rank exponential reference bound for this variant and its enriched
+terminal output. The printed restart schedule and a further compression stage
+are outside that bound. Output retains orientation, routing, and finite
+boundary collars. The standard reconstruction from unordered endpoint sets
+and full nested lassos with a fixed canonical coupon cannot generally replace
+those records. Alternative encodings and dimension counts require separate
+arguments. Runs support optional traces and checked exhaustive enumeration,
+with exact pending states on limits or defensive control refusals. Finite
+execution checks provide separate implementation evidence.
+
 ## Install
 
 Use Linux with Python 3.11 or newer. From a checkout:

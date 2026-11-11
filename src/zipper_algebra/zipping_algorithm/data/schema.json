@@ -1,0 +1,487 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/zipper-rewrite-catalog.schema.json",
+  "title": "Symbolic zipper rewrite catalog",
+  "description": "Word factors are written in algebraic left-to-right order. Block order is explicit. Structural validity does not certify mathematical correctness.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "rules"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "rules": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/rule"
+      }
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "integerExpression": {
+      "oneOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "enum": [
+            "n",
+            "i",
+            "j",
+            "k",
+            "l",
+            "eps"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "enum": [
+                "add",
+                "mul"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/integerExpression"
+              },
+              "minItems": 2
+            }
+          },
+          "required": [
+            "op",
+            "args"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "sub"
+            },
+            "args": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/integerExpression"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "op",
+            "args"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "condition": {
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "enum": [
+                "eq",
+                "ne",
+                "lt",
+                "le",
+                "gt",
+                "ge"
+              ]
+            },
+            "left": {
+              "$ref": "#/$defs/integerExpression"
+            },
+            "right": {
+              "$ref": "#/$defs/integerExpression"
+            }
+          },
+          "required": [
+            "op",
+            "left",
+            "right"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "enum": [
+                "and",
+                "or"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/condition"
+              }
+            }
+          },
+          "required": [
+            "op",
+            "args"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "not"
+            },
+            "arg": {
+              "$ref": "#/$defs/condition"
+            }
+          },
+          "required": [
+            "op",
+            "arg"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "word": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "identity"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "sigma"
+            },
+            "index": {
+              "$ref": "#/$defs/integerExpression"
+            },
+            "sign": {
+              "$ref": "#/$defs/integerExpression"
+            }
+          },
+          "required": [
+            "type",
+            "index"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "slider"
+            },
+            "size": {
+              "$ref": "#/$defs/integerExpression"
+            },
+            "start": {
+              "$ref": "#/$defs/integerExpression"
+            },
+            "orientation": {
+              "enum": [
+                "normal",
+                "mirrored"
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "size",
+            "start"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "fat"
+            },
+            "length": {
+              "$ref": "#/$defs/integerExpression"
+            },
+            "start": {
+              "$ref": "#/$defs/integerExpression"
+            },
+            "sign": {
+              "$ref": "#/$defs/integerExpression"
+            }
+          },
+          "required": [
+            "type",
+            "length",
+            "start"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "block"
+            },
+            "length": {
+              "$ref": "#/$defs/integerExpression"
+            },
+            "start": {
+              "$ref": "#/$defs/integerExpression"
+            },
+            "count": {
+              "$ref": "#/$defs/integerExpression"
+            },
+            "order": {
+              "enum": [
+                "ascending",
+                "descending"
+              ]
+            },
+            "sign": {
+              "$ref": "#/$defs/integerExpression"
+            }
+          },
+          "required": [
+            "type",
+            "length",
+            "start",
+            "count",
+            "order"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "half_twist"
+            },
+            "size": {
+              "$ref": "#/$defs/integerExpression"
+            },
+            "start": {
+              "$ref": "#/$defs/integerExpression"
+            }
+          },
+          "required": [
+            "type",
+            "size",
+            "start"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "concat"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/word"
+              }
+            }
+          },
+          "required": [
+            "type",
+            "items"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "inverse"
+            },
+            "word": {
+              "$ref": "#/$defs/word"
+            }
+          },
+          "required": [
+            "type",
+            "word"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "bar"
+            },
+            "word": {
+              "$ref": "#/$defs/word"
+            }
+          },
+          "required": [
+            "type",
+            "word"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "reverse"
+            },
+            "word": {
+              "$ref": "#/$defs/word"
+            }
+          },
+          "required": [
+            "type",
+            "word"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "reflect"
+            },
+            "word": {
+              "$ref": "#/$defs/word"
+            },
+            "n": {
+              "$ref": "#/$defs/integerExpression"
+            }
+          },
+          "required": [
+            "type",
+            "word"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "word_ref"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "type",
+            "name"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "coefficient": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "integer": {
+            "type": "integer"
+          },
+          "q_power": {
+            "$ref": "#/$defs/integerExpression"
+          }
+        },
+        "required": [
+          "integer",
+          "q_power"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "polynomial": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "coefficient": {
+            "$ref": "#/$defs/coefficient"
+          },
+          "word": {
+            "$ref": "#/$defs/word"
+          }
+        },
+        "required": [
+          "coefficient",
+          "word"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "rule": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "condition": {
+          "$ref": "#/$defs/condition"
+        },
+        "lhs": {
+          "$ref": "#/$defs/polynomial"
+        },
+        "rhs": {
+          "$ref": "#/$defs/polynomial"
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "n",
+              "i",
+              "j",
+              "k",
+              "l",
+              "eps"
+            ]
+          }
+        },
+        "state": {
+          "type": "object"
+        },
+        "stages": {
+          "type": "array"
+        },
+        "status": {
+          "type": "string"
+        },
+        "source": {
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "condition",
+        "lhs",
+        "rhs"
+      ],
+      "additionalProperties": true
+    }
+  }
+}
