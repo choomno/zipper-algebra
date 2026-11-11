@@ -28,9 +28,15 @@ def certificate_from_solver(presentation: AlgebraPresentation, basis_text: str,
     """
     if not isinstance(presentation, AlgebraPresentation):
         raise TypeError("solver certificate decoding requires an AlgebraPresentation")
+    return _decode_solver_certificate(presentation, basis_text, proof_text,
+                                      list(presentation.algebra.generators))
+
+
+def _decode_solver_certificate(presentation: AlgebraPresentation, basis_text: str,
+                               proof_text: str, names: list[str]) -> GroebnerCertificate:
+    """Read solver names in the order of the original presentation's generators."""
     if not isinstance(basis_text, str) or not isinstance(proof_text, str):
         raise TypeError("basis and proof data must be decoded text")
-    names = list(presentation.algebra.generators)
     _check_syntax(basis_text, names, proof=False)
     _check_syntax(proof_text, names, proof=True)
     basis = Basis.from_text(basis_text, 0, names)

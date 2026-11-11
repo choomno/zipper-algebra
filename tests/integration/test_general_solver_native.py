@@ -47,3 +47,27 @@ def test_native_literal_generic_family_reloads_both_certificates(tmp_path, io_mo
     assert vu == algebra.coordinates(-u*v+c)
     assert vu != algebra.coordinates(u*v)
     assert config.output_root.joinpath('.gitignore').read_text() == '*\n!.gitignore\n'
+
+
+@pytest.mark.parametrize('io_mode', ['files', 'sqlite'])
+def test_native_single_two_character_generator_preserves_original_name(tmp_path, io_mode):
+    binary = os.environ.get('F4NCGB_BINARY')
+    if not binary:
+        pytest.skip('set F4NCGB_BINARY to the pinned SQLite-enabled solver')
+    pytest.importorskip('fflow')
+    pytest.importorskip('sympy')
+    field = RationalFunctionField(('a',))
+    parent = FreeAlgebra(field, ('x1',))
+    generator = parent.generator('x1')
+    parameter = field.parameter('a')
+    presentation = AlgebraPresentation(parent, (generator - parameter,), ('linear',))
+    config = RunConfig(Path(binary), tmp_path / io_mode, timeout_seconds=15, solver_io=io_mode)
+    report = produce_algebra(presentation, {'a': 1}, config)
+    assert report['verified'], report
+    assert report['dimension'] == 1
+    saved = AlgebraPresentation.from_json(json.loads(Path(report['artifacts']['presentation.json']).read_text()))
+    certificate = WordBasisCertificate.from_json(
+        json.loads(Path(report['artifacts']['word-basis-certificate.json']).read_text()))
+    assert saved == presentation
+    algebra = verify_word_basis(saved, certificate)
+    assert algebra.coordinates(generator) == algebra.coordinates(parent.element({(): parameter}))
