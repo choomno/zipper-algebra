@@ -1037,8 +1037,8 @@
     },
     {
       "path": "tests/test_zipping_algorithm.py",
-      "bytes": 20486,
-      "sha256": "3031060037b83efd5b0741e35e3cc9432e6165c1c5ce28e5bb27499547291b5d",
+      "bytes": 23876,
+      "sha256": "1bb8eed410fc3463b743cd1c570d28ef60c97f6ca2a6fdaf694a4d4f66afab27",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
@@ -1265,8 +1265,8 @@
     },
     {
       "path": "tests/test_zipping_general_enumeration.py",
-      "bytes": 4608,
-      "sha256": "c77971487a7cbf1b9348daef8ff12c478d123dedce3fa7d34852ea3acc8d0836",
+      "bytes": 6079,
+      "sha256": "ebd0c23253ea7d7207de9ea0a1a1916dbc29dea503d16b9f45fbe62dd6b403db",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
