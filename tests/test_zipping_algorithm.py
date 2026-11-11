@@ -2,6 +2,7 @@
 
 from collections import defaultdict
 from copy import deepcopy
+from dataclasses import replace
 from itertools import product
 import json
 from math import comb
@@ -22,7 +23,7 @@ from zipper_algebra.zipping_algorithm.algorithm import (
     resume,
     work_expression,
 )
-from zipper_algebra.zipping_algorithm import framed
+from zipper_algebra.zipping_algorithm import algorithm, framed
 from zipper_algebra.zipping_algorithm.catalog import Catalog
 from zipper_algebra.zipping_algorithm.interpreter import Limits
 from zipper_algebra.zipping_algorithm.extraction import RibbonLimit
@@ -501,3 +502,84 @@ def test_actual_five_strand_staircase_terminal_gathering_and_refusal():
     assert event["nested_slider"]["upper"]["gathering"] is not None
     with pytest.raises(RibbonLimit):
         _extract_step(state, limits=Limits(expansion_budget=1), trace=False)
+
+
+@pytest.mark.parametrize("powers", [(1, 0), (0, -1)])
+def test_two_strand_scheduler_requires_identity_framing(powers):
+    output_power, input_power = powers
+    with pytest.raises(ControlObligation, match="two-strand framing must be the identity"):
+        algorithm._new_zip(
+            _root_common(2), left=(), right=(), size=2, start=1,
+            output_power=output_power, input_power=input_power, limits=Limits(),
+        )
+
+
+def test_turnaround_refuses_a_framed_pass_with_a_protected_processed_word():
+    branch = framed.initialize(3, (), processed=(1,)).branches[0]
+    work = _pass_work(_root_common(3), "zip_up", branch)
+    original = deepcopy(work)
+    with pytest.raises(ControlObligation, match="empty processed word"):
+        _zip_step(work, Catalog.bundled(), Limits(), False)
+    assert work == original
+
+
+def test_turnaround_cannot_advance_after_losing_an_endpoint_fan(monkeypatch):
+    branch = framed.initialize(4, (), friends=1).branches[0]
+    work = _pass_work(_root_common(4), "zip_up", branch)
+    original = deepcopy(work)
+    parts = algorithm.turnaround_parts
+
+    def drop_fan(turned, **kwargs):
+        control, exterior, protected, tail = parts(turned, **kwargs)
+        assert exterior[:2] == framed.friend_word(4, branch.control)
+        return control, exterior[2:], protected, tail
+
+    monkeypatch.setattr(algorithm, "turnaround_parts", drop_fan)
+    with pytest.raises(ControlObligation, match="preserve its endpoint friend fan"):
+        _zip_step(work, Catalog.bundled(), Limits(), False)
+    assert work == original
+
+
+@pytest.mark.parametrize(
+    "word,message",
+    [
+        ([1], "exactly one slider"),
+        ([["slider", 2, 1, False, False, False]] * 2, "exactly one slider"),
+        ([1, ["slider", 3, 2, False, False, False]], "complete active-band crossing"),
+    ],
+)
+def test_layering_refuses_missing_slider_or_partial_band(word, message):
+    work = dict(_root_common(4), phase="layer", word=word, payload_length=0, completed_sides=0)
+    original = deepcopy(work)
+    with pytest.raises(ControlObligation, match=message):
+        _layer_step(work, Limits())
+    assert work == original
+
+
+def test_extraction_cannot_advance_with_disagreeing_component_projections(monkeypatch):
+    slider = ("slider", 3, 1, False, False, False)
+    work = dict(_root_common(3), phase="extract", word=[list(slider)], boundary_left=[1])
+    original = deepcopy(work)
+    split_layered = algorithm.split_layered
+
+    def change_inner_projection(word, **kwargs):
+        split = split_layered(word, **kwargs)
+        if tuple(word) == (slider,):
+            return replace(split, component_word=(2, slider))
+        return split
+
+    monkeypatch.setattr(algorithm, "split_layered", change_inner_projection)
+    with pytest.raises(ControlObligation, match="do not delimit the component body"):
+        _extract_step(work, limits=Limits(), trace=False)
+    assert work == original
+
+
+def test_extraction_rejects_an_unrecorded_inherited_endpoint_crossing():
+    work = dict(
+        _root_common(4), phase="extract", boundary_left=[-2],
+        word=[["slider", 3, 1, False, False, False]],
+    )
+    original = deepcopy(work)
+    with pytest.raises(ControlObligation, match="fan factors disagree with the full component"):
+        _extract_step(work, limits=Limits(), trace=False)
+    assert work == original
