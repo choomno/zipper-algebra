@@ -106,14 +106,19 @@ def test_nonempty_output_is_rejected_without_changing_existing_files(tmp_path, e
     assert {path.name: path.read_bytes() for path in output.iterdir()} == before
 
 
-@pytest.mark.parametrize('failure', ['representative', 'cofactor', 'source-change'])
+@pytest.mark.parametrize('failure', ['representative', 'cofactor', 'coordinated', 'source-change'])
 def test_failed_saved_output_binding_removes_unverified_artifacts(tmp_path, monkeypatch, capsys, failure):
     module = load_example()
     presentation, u, v, paths = inputs(tmp_path)
-    paths['target.json'].write_text(json.dumps((v*u*v+u).to_json()))
+    target = v*u*v-v if failure == 'coordinated' else v*u*v+u
+    paths['target.json'].write_text(json.dumps(target.to_json()))
     write = module.write_json_atomic
 
     def corrupt(path, document):
+        if failure == 'coordinated' and path.name in ('representative.json', 'cofactor.json'):
+            # The zero proof is valid for target minus itself, but target reduces to zero.
+            document = (target.to_json() if path.name == 'representative.json' else
+                        CofactorIdentity(presentation.content_hash(), presentation.algebra.zero, ()).to_json())
         if path.name == failure+'.json':
             if failure == 'representative':
                 document = presentation.algebra.zero.to_json()
@@ -135,7 +140,9 @@ def test_failed_saved_output_binding_removes_unverified_artifacts(tmp_path, monk
     report = json.loads(capsys.readouterr().out)
     assert code == 3 and report['status'] == 'inconclusive' and not report['verified']
     assert 'in_ideal' not in report and 'artifacts' not in report
-    reason = 'source changed' if failure == 'source-change' else 'target minus representative'
+    reason = ('source changed' if failure == 'source-change' else
+              'verified normal form' if failure in ('representative', 'coordinated') else
+              'target minus representative')
     assert reason in report['reason']
     assert not (output/'representative.json').exists() and not (output/'cofactor.json').exists()
     provenance = json.loads((output/'provenance.json').read_text())

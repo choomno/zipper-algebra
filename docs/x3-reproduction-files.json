@@ -545,8 +545,8 @@
     },
     {
       "path": "tests/integration/test_general_cofactor_example.py",
-      "bytes": 7355,
-      "sha256": "c7fa85a670e86c5cce925cc5579b2600d91ccd0ab0f5d2c16b079f7e882e528a",
+      "bytes": 7917,
+      "sha256": "ba6e3a63e0a40de38e562823f88422ad9df210ceacd765898524bc2af529249e",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {

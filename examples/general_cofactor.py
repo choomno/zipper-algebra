@@ -53,11 +53,14 @@ def main(argv=None):
         result = cofactor_representation(presentation, certificate, target,
                     max_operations=args.max_operations, max_contexts=args.max_contexts,
                     max_nodes=args.max_nodes, max_dimension=args.max_dimension)
-        write_json_atomic(output / 'representative.json', result.remainder.to_json())
+        expected_representative = result.remainder
+        write_json_atomic(output / 'representative.json', expected_representative.to_json())
         write_json_atomic(output / 'cofactor.json', result.identity.to_json())
-        # Bind both serialized outputs to the consumed target before acceptance.
+        # Check that the saved representative is the verified normal form.
         representative = AlgebraElement.from_json(json.loads((output / 'representative.json').read_text()))
         saved = CofactorIdentity.from_json(json.loads((output / 'cofactor.json').read_text()))
+        if representative != expected_representative:
+            raise ValueError('saved representative differs from the verified normal form')
         if saved.target != target-representative:
             raise ValueError('saved cofactor target differs from target minus representative')
         if not verify_cofactor(presentation, saved, max_operations=args.max_operations):
