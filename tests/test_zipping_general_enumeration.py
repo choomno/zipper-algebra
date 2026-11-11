@@ -89,3 +89,32 @@ def test_general_failed_checker_cannot_commit_a_word(tmp_path, monkeypatch):
         exhaust_general(tmp_path, ranks=(3,), max_length=0)
     with sqlite3.connect(tmp_path / "words.sqlite3") as db:
         assert db.execute("SELECT count(*) FROM words").fetchone()[0] == 0
+
+
+def test_general_census_reopens_at_a_verified_control_obligation(tmp_path, monkeypatch):
+    from zipper_algebra.zipping_algorithm import algorithm
+
+    single_step = algorithm._single_step
+
+    def unsupported_word(work, catalog, limits):
+        if work["left"] == [-2]:
+            raise algorithm.ControlObligation("test control obligation")
+        return single_step(work, catalog, limits)
+
+    monkeypatch.setattr(algorithm, "_single_step", unsupported_word)
+    first = exhaust_general(tmp_path, ranks=(3,), max_length=1)
+    assert first["stop_reason"] == "control_obligation"
+    assert first["new_or_resumed_words"] == 2
+    assert first["next_cursor"] == {"length": 1, "rank_index": 0, "ordinal": 0}
+
+    with sqlite3.connect(tmp_path / "words.sqlite3") as db:
+        rows = db.execute("SELECT word,status,certificate_sha FROM words ORDER BY length").fetchall()
+        assert [(json.loads(word), status) for word, status, _ in rows] == [
+            ([], "complete"), ([-2], "control_obligation"),
+        ]
+        reopened = exhaust_general(tmp_path, ranks=(3,), max_length=1, limits=Limits(max_steps=20_000))
+        assert reopened["stop_reason"] == "control_obligation"
+        assert reopened["audited_words"] == len(rows)
+        assert reopened["new_or_resumed_words"] == 0
+        assert reopened["next_cursor"] == first["next_cursor"]
+        assert db.execute("SELECT word,status,certificate_sha FROM words ORDER BY length").fetchall() == rows
