@@ -7,6 +7,11 @@ reviewable change, with tests and documentation where they belong. Separate
 unrelated formatting and mechanical refactors from behavior changes. Open a
 draft while the scope or validation is incomplete.
 
+Apply a GitHub label for the primary type of change: `enhancement` for a new
+feature or capability, `bug` for a fix, `refactor` for an internal restructuring,
+`dependencies` for a dependency update, or `documentation` for a docs-only change.
+Update the label if the PR changes scope.
+
 For a stack, target each dependent PR at its immediate prerequisite branch.
 Explain the merge order and final integration branch. As prerequisites land,
 retarget the next PR and verify that its diff still contains only the intended

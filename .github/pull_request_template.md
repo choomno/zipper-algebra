@@ -1,6 +1,8 @@
 <!--
 Use docs/PULL_REQUESTS.md. Verify the current base and head, and inspect
 git diff <base>...<head>. In a stack, use the immediate prerequisite branch.
+Apply the primary GitHub label: enhancement, bug, refactor, dependencies, or
+documentation.
 Remove the guidance comments and omit unused Dependencies or Migration sections.
 -->
 
