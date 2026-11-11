@@ -13,7 +13,7 @@ The maintained implementation is installed from `src/zipper_algebra/`.
 | `cofactor/ncpoly.py`, `cofactor/verify.py` | Symbolic and degree-bounded grid checks of free-algebra identities. |
 | `verification/gap.py` | Export standalone generic cofactor identities for independent expansion in GAP. |
 | `zipping_algorithm/`, `native/zipper_engine/` | Literal-word zipper engines, exact collection, packed C++ execution, and independent Python replay. See the [native engine guide](docs/ZIPPING_NATIVE.md). |
-| `native/zipper_verifier/`, `zipping_algorithm/native_verifier.py` | Separate C++ replay verifier using GMP and complete JSON states. See the [independent verifier guide](docs/ZIPPING_NATIVE_VERIFIER.md). |
+| `native/zipper_verifier/`, `zipping_algorithm/native_verifier.py` | Separate C++ replay verifier using GMP, typed internal transport records, and exact output comparison. See the [independent verifier guide](docs/ZIPPING_NATIVE_VERIFIER.md). |
 | `zipping_algorithm/essential_enumeration.py`, `zipping_algorithm/word_coverage.py` | Direct enumeration of full-support signed trace representatives and independently checked input decompositions. See [scope and proof obligations](docs/essential-enumeration.md). |
 | `docs/TRACE_EXECUTION_COUNTEREXAMPLE.md` | Exact counterexample to trace-invariance of the existing procedure's formal output and computation cost. |
 | `docs/zipper-block-separation.md` | Separation proof for disconnected inputs, with packet and catalog lemmas, normalization, exact collection, and inclusion corollaries. |
@@ -24,6 +24,11 @@ The maintained implementation is installed from `src/zipper_algebra/`.
 | `docs/zipper-rank-two-identification.md` | Proof of exponent-sum invariance of full rank-two outputs, including recursive complements. |
 | `docs/zipper-inverse-cancellation.md` | Open arbitrary-rank cancellation conjecture, precise proof obligations, and conditional workload count. |
 | `docs/zipper-census-reuse.md`, `experiments/zipper_exhaustive_reuse.py` | Resumable SQLite census using checked input reconstruction, completed native calculations, and independent verification. |
+| `docs/zipper-async-census.md`, `experiments/zipper_async_census.py` | Durable separate computation and independent certification queues, bounded backlog, and restart recovery. |
+| `docs/zipper-census-plan.md` | Finite census checkpoints focused on deeper rank-three and rank-four words, with measured planning budgets. |
+| `docs/zipper-async-performance.md` | Exact comparisons of synchronous and separate-role workers, including elapsed time, CPU work, and memory. |
+| `docs/zipper-scheduling-performance.md`, `experiments/zipper_schedule_report.py` | Same-source frontier/DAG comparisons with exact output parity, resource refusals, and retained or fresh sessions. |
+| `docs/zipper-derivation-certificates.md` | Experimental transition DAG checks and the measured limits of the current diagnostic interface. |
 | `docs/zipper-computation-graph.md` | Intrinsic continuation nodes, context restoration, completed-output equality, and separate producer/verifier caches. |
 | `docs/zipper-reuse-performance.md` | Matched exact benchmarks, cold-input regressions, memory use, and Bloom filter evaluation. |
 | `experiments/zipper_cold_epoch_benchmark.py` | Paired source-epoch benchmarks with exact output comparison, fresh or retained caches, and process-tree memory measurements. |

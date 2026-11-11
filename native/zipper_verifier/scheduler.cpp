@@ -1,5 +1,6 @@
 #include "scheduler.hpp"
 #include "algorithm.hpp"
+#include "work_size.hpp"
 #include "catalog.hpp"
 #include <algorithm>
 #include <memory>
@@ -35,11 +36,11 @@ public:
         auto it = lookup_.find(key);
         if (it != lookup_.end()) { sequence_.erase(it->second); lookup_.erase(it); }
     }
-    std::vector<std::pair<std::string,J>> prefix(I count) const {
-        std::vector<std::pair<std::string,J>> result;
+    std::vector<const std::pair<std::string,J> *> prefix(I count) const {
+        std::vector<const std::pair<std::string,J> *> result;
         for (const auto &item : sequence_) {
             if (static_cast<I>(result.size()) == count) break;
-            result.push_back(item);
+            result.push_back(&item);
         }
         return result;
     }
@@ -115,7 +116,7 @@ I item_size(const J &item, bool pending) {
     return count;
 }
 void check_item(const J &item, const Limits &limits, bool pending) {
-    if ((pending ? length(work_expression(item)) : length(item.at("word"))) > limits.max_word_size) throw LimitExceeded("word size limit exceeded");
+    if ((pending ? work_expression_size(item) : length(item.at("word"))) > limits.max_word_size) throw LimitExceeded("word size limit exceeded");
     auto coef = coefficient(item.at("coefficient"));
     if (static_cast<I>(coef.size()) > limits.max_coefficient_support) throw LimitExceeded("coefficient support limit exceeded");
     for (const auto &term : coef) if (integer_bits(term.second) > limits.max_integer_bits)
@@ -149,13 +150,13 @@ std::string event_name(const J &event) {
 
 // Retain the whole control state. Only the scalar, depth, extracted outer
 // components, and the names of the local endpoint ports are external data.
-J intrinsic_state(const J &work) {
-    J state=work;
+J intrinsic_state(J work) {
+    J state=std::move(work);
     set_coefficient(state,one());
     state["depth"]=0;
     state["contexts"]=J::array();
     J ports=J::array();
-    for (I k=1;k<=as_i(work.at("rank"));++k) ports.push_back(k);
+    for (I k=1;k<=as_i(state.at("rank"));++k) ports.push_back(k);
     state["bottom_labels"]=ports;
     state["top_labels"]=std::move(ports);
     return state;
@@ -169,20 +170,40 @@ J endpoint_names(const J &ports,const J &names) {
     }
     return result;
 }
-void name_record(J &record,const J &caller) {
-    record["original_bottom_ports"]=endpoint_names(record.at("original_bottom_ports"),caller.at("bottom_labels"));
-    record["original_top_ports"]=endpoint_names(record.at("original_top_ports"),caller.at("top_labels"));
+// Only these fields act on a completed intrinsic result. The active word,
+// controller payload, boundary factors, and depth belong to the unit frame.
+struct Restoration {
+    I rank;
+    J coefficient, contexts, bottom_labels, top_labels;
+    explicit Restoration(J &work): rank(as_i(work.at("rank"))),
+        coefficient(std::move(work.at("coefficient"))), contexts(std::move(work.at("contexts"))),
+        bottom_labels(std::move(work.at("bottom_labels"))), top_labels(std::move(work.at("top_labels"))) {}
+};
+// Borrow the same fields during standalone evaluation; no ownership transfer.
+struct RestorationView {
+    I rank;
+    const J &coefficient, &contexts, &bottom_labels, &top_labels;
+    RestorationView(const J &work): rank(as_i(work.at("rank"))),
+        coefficient(work.at("coefficient")), contexts(work.at("contexts")),
+        bottom_labels(work.at("bottom_labels")), top_labels(work.at("top_labels")) {}
+    RestorationView(const Restoration &work): rank(work.rank),
+        coefficient(work.coefficient), contexts(work.contexts),
+        bottom_labels(work.bottom_labels), top_labels(work.top_labels) {}
+};
+void name_record(J &record,const RestorationView &caller) {
+    record["original_bottom_ports"]=endpoint_names(record.at("original_bottom_ports"),caller.bottom_labels);
+    record["original_top_ports"]=endpoint_names(record.at("original_top_ports"),caller.top_labels);
 }
-void restore_components(J &components,const J &caller) {
+void restore_components(J &components,const RestorationView &caller) {
     for (J &component:components) name_record(component.at("record"),caller);
-    J all=caller.at("contexts");
+    J all=caller.contexts;
     for (J &component:components) all.push_back(std::move(component));
     components=std::move(all);
 }
-J restore_output(J output,const J &caller) {
+J restore_output(J output,const RestorationView &caller) {
     restore_components(output["components"],caller);
-    output["word"]=lift_contexts(output.at("word"),caller.at("contexts"));
-    set_coefficient(output,multiply(caller.at("coefficient"),output.at("coefficient")));
+    output["word"]=lift_contexts(output.at("word"),caller.contexts);
+    set_coefficient(output,multiply(caller.coefficient,output.at("coefficient")));
     return output;
 }
 void collect_output(OrderedStates &output,J term,const Limits &limits) {
@@ -338,7 +359,7 @@ J ReplaySession::replay_reused(I n,const Word &word,const Limits &limits) {
     J initial=initial_work(n,word);
     input_=checked_add(input_,1);
     struct Frame {
-        J caller;
+        Restoration caller;
         J unit;
         std::string key;
         J children=J::array();
@@ -346,6 +367,7 @@ J ReplaySession::replay_reused(I n,const Word &word,const Limits &limits) {
         OrderedStates output;
         std::shared_ptr<const CompleteOutput> sole_result;
         bool expanded=false;
+        explicit Frame(Restoration value): caller(std::move(value)) {}
     };
     std::vector<std::unique_ptr<Frame>> stack;
     std::unordered_set<std::string> active;
@@ -353,13 +375,13 @@ J ReplaySession::replay_reused(I n,const Word &word,const Limits &limits) {
     J counts=J::object(), answer=J::array(), diagnostic=nullptr;
     std::string status="complete";
     const std::string limits_key=canonical_json(limits.json());
-    auto push=[&](const J &caller) {
+    auto push=[&](J caller) {
         check_item(caller,limits,true);
-        J unit=intrinsic_state(caller);
+        Restoration restoration(caller);
+        J unit=intrinsic_state(std::move(caller));
         std::string key=limits_key+"\n"+continuation_key(unit);
         if (active.count(key)) throw ControlObligation("intrinsic completion encountered a control cycle");
-        auto frame=std::make_unique<Frame>();
-        frame->caller=caller;
+        auto frame=std::make_unique<Frame>(std::move(restoration));
         frame->unit=std::move(unit);
         frame->key=std::move(key);
         active.insert(frame->key);
@@ -375,7 +397,7 @@ J ReplaySession::replay_reused(I n,const Word &word,const Limits &limits) {
     auto finish=[&](const std::shared_ptr<const CompleteOutput> &local) {
         // Detach the caller before popping. Every local result is rechecked
         // after exact scalar multiplication and endpoint/context restoration.
-        J caller=std::move(stack.back()->caller);
+        Restoration caller=std::move(stack.back()->caller);
         account(-stack.back()->output.size());
         active.erase(stack.back()->key);
         stack.pop_back();
@@ -385,11 +407,11 @@ J ReplaySession::replay_reused(I n,const Word &word,const Limits &limits) {
             answer=root.values();
         } else {
             auto &parent=*stack.back();
-            bool identity=caller.at("contexts").empty() && caller.at("coefficient")==one() &&
-                caller.at("top_labels")==caller.at("bottom_labels") &&
-                length(caller.at("bottom_labels"))==as_i(caller.at("rank"));
+            bool identity=caller.contexts.empty() && caller.coefficient==one() &&
+                caller.top_labels==caller.bottom_labels &&
+                length(caller.bottom_labels)==caller.rank;
             I port=1;
-            for (const J &name:caller.at("bottom_labels")) identity=identity && as_i(name)==port++;
+            for (const J &name:caller.bottom_labels) identity=identity && as_i(name)==port++;
             if (identity && parent.children.size()==1 && parent.output.empty()) {
                 for (const J &term:local->terms) check_item(term,limits,false);
                 parent.sole_result=local;
@@ -404,7 +426,7 @@ J ReplaySession::replay_reused(I n,const Word &word,const Limits &limits) {
         }
     };
     try {
-        push(initial);
+        push(std::move(initial));
         while (!stack.empty()) {
             Frame &frame=*stack.back();
             if (!frame.expanded) {
@@ -447,11 +469,14 @@ J ReplaySession::replay_reused(I n,const Word &word,const Limits &limits) {
                 }
                 if (checked_add(length(frame.children),frame.output.size())>limits.max_terms)
                     throw LimitExceeded("local transition term limit exceeded");
+                // The complete unit state has been consumed; descendants need
+                // its key, restoration map, and staged children only.
+                frame.unit=nullptr;
                 frame.expanded=true;
             }
             if (frame.next<frame.children.size()) {
                 J child=std::move(frame.children.at(frame.next++));
-                push(child);
+                push(std::move(child));
             } else {
                 std::shared_ptr<const CompleteOutput> local=frame.sole_result;
                 if (!local) {
@@ -494,27 +519,28 @@ J ReplaySession::replay(I n, const Word &word, const Limits &limits, I batch_siz
     std::string status="complete"; J diagnostic=nullptr;
     while (!frontier.empty()) {
         auto selected=frontier.prefix(batch_size);
-        J before=selected.front().second, results=J::array();
+        const J *before=&selected.front()->second;
+        J results=J::array();
         Staged pending, completed;
         I terms=0;
         std::unordered_set<std::string> removed;
         try {
             if (checked_add(as_i(metrics["steps"]),static_cast<I>(selected.size()))>limits.max_steps)
                 throw LimitExceeded("step limit would be exceeded by the next atomic batch");
-            for (const auto &item : selected) check_item(item.second,limits,true);
+            for (const auto &item : selected) check_item(item->second,limits,true);
             metrics["attempted_steps"]=checked_add(as_i(metrics["attempted_steps"]),static_cast<I>(selected.size()));
-            for (const auto &item : selected) results.push_back(evaluate(item.second,limits,trace));
+            for (const auto &item : selected) results.push_back(evaluate(item->second,limits,trace));
             bool failed=false;
             for (std::size_t i=0;i<selected.size();++i) if (results[i].contains("error")) {
-                before=selected[i].second;
+                before=&selected[i]->second;
                 status=results[i].at("error").get<std::string>();
-                diagnostic={{"message",results[i].at("message")},{"phase",before.at("phase")},
-                            {"state",before},{"batch_rolled_back",true}};
+                diagnostic={{"message",results[i].at("message")},{"phase",before->at("phase")},
+                            {"state",*before},{"batch_rolled_back",true}};
                 failed=true; break;
             }
             if (failed) break;
             std::vector<const J *> children, added;
-            for (const auto &item : selected) removed.insert(item.first);
+            for (const auto &item : selected) removed.insert(item->first);
             for (const auto &result : results) {
                 for (const auto &child:result.at("children")) children.push_back(&child);
                 for (const auto &term:result.at("output")) added.push_back(&term);
@@ -527,7 +553,7 @@ J ReplaySession::replay(I n, const Word &word, const Limits &limits, I batch_siz
             for (const auto &item : completed.updates.items()) if (!item.second.is_null()) check_item(item.second,limits,false);
         } catch (const LimitExceeded &error) {
             status="incomplete";
-            diagnostic={{"message",error.what()},{"phase","batch"},{"batch_representative",before},{"batch_rolled_back",true}};
+            diagnostic={{"message",error.what()},{"phase","batch"},{"batch_representative",*before},{"batch_rolled_back",true}};
             break;
         }
         metrics["steps"]=checked_add(as_i(metrics["steps"]),static_cast<I>(selected.size()));
@@ -538,13 +564,13 @@ J ReplaySession::replay(I n, const Word &word, const Limits &limits, I batch_siz
         for (std::size_t i=0;i<selected.size();++i) {
             auto name=event_name(results[i].at("unit_evidence"));
             counts[name]=checked_add(counts.contains(name)?as_i(counts[name]):0,1);
-            update_max(metrics,"maximum_depth",checked_add(as_i(selected[i].second.at("depth")),1));
+            update_max(metrics,"maximum_depth",checked_add(as_i(selected[i]->second.at("depth")),1));
             update_max(metrics,"max_branch_count",checked_add(length(results[i].at("children")),length(results[i].at("output"))));
         }
         for (const auto &item : pending.updates.items()) if (!item.second.is_null()) update_item_metrics(metrics,item.second,true);
         for (const auto &item : completed.updates.items()) if (!item.second.is_null()) update_item_metrics(metrics,item.second,false);
         if (trace) {
-            J predecessors=J::array(); for (const auto &item : selected) predecessors.push_back(item.second);
+            J predecessors=J::array(); for (const auto &item : selected) predecessors.push_back(item->second);
             transitions.push_back({{"batch",checked_sub(as_i(metrics["batches"]),1)},{"predecessors",predecessors},
                 {"rewrites",results},{"pending_updates",pending.updates.object()},{"output_updates",completed.updates.object()}});
         }

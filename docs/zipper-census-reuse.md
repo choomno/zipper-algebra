@@ -1,5 +1,10 @@
 # Census reuse with independent verification
 
+The [asynchronous census](zipper-async-census.md) provides separate durable
+computation and certification queues. The [depth-focused census plan](zipper-census-plan.md)
+sets finite checkpoints in ranks three and four. This page documents the
+existing synchronous reconstruction backend, which remains available.
+
 See [the computation graph](zipper-computation-graph.md) for the node and edge
 definitions, exact-output invariant, and independent verification argument.
 The [performance measurements](zipper-reuse-performance.md) include distinct
