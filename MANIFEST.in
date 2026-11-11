@@ -4,6 +4,7 @@ include .github/workflows/ci.yml
 recursive-include src/zipper_algebra *.py
 recursive-include src/zipper_algebra/zipping_algorithm/data *.json
 include docs/ZIPPING_REFERENCE.md
+include docs/ZIPPING_GPU_PROTOTYPE.md docs/ZIPPING_GPU_REWRITE.md
 include docs/TESTING.md docs/X3_REPRODUCTION.md docs/x3-reproduction-files.json
 include docs/PROVENANCE.md
 include docs/mathematical-specification/README.md docs/mathematical-specification/main.tex
@@ -15,6 +16,7 @@ recursive-include examples *.py
 include examples/x3/README.md
 include examples/x3/certificate.txt
 recursive-include experiments *.py
+include experiments/native/zipper_rewrite_cpu.cpp
 recursive-include singular_run *.sing
 include singular_run/README.md
 include experiments/research/README.md experiments/variants/README.md

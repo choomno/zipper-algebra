@@ -89,6 +89,8 @@ def inspect(directory):
                        "experiments/research/theta_min_poly.py",
                        "experiments/variants/square_zero_regular_rep_qt.py",
                        "ci/build_x3_manifest.py", "docs/ZIPPING_REFERENCE.md",
+                       "docs/ZIPPING_GPU_PROTOTYPE.md", "docs/ZIPPING_GPU_REWRITE.md",
+                       "experiments/native/zipper_rewrite_cpu.cpp",
                        "src/zipper_algebra/zipping_algorithm/data/full-catalog.json",
                        "src/zipper_algebra/zipping_algorithm/data/schema.json",
                        "src/zipper_algebra/zipping_algorithm/data/manifest.json"):
