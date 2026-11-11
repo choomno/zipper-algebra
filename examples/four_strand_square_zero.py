@@ -350,6 +350,9 @@ def produce(binary, output, *, timeout=180, memory_mib=6144, max_nodes=600, degr
     proved, derivations = parse_output(proof_text, inputs=len(subset))
     if not any(re.fullmatch(r'FINISH\|[0-9]+\|0\|[0-9]+', line) for line in proof_text.splitlines()):
         raise RuntimeError('derivation did not cover every candidate leading word within its limits')
+    proof_nodes = len(proved) + len(candidate)
+    if proof_nodes > max_nodes:
+        raise RuntimeError(f'the certificate needs {proof_nodes} proof nodes, exceeding the limit of {max_nodes}')
     bridge_source = common+engine_prefix+engine+'\n'
     for index, terms in sorted(proved.items()):
         bridge_source += f'B[{index}]={polynomial_source(terms)};Words[{index}]=wstr(B[{index}]);\n'
@@ -361,7 +364,7 @@ def produce(binary, output, *, timeout=180, memory_mib=6144, max_nodes=600, degr
     # Contiguity is checked over the complete stream; the bridge extends the DAG.
     all_proved, all_derivations = parse_bridge(
         proof_text, bridge_text, proved_count=len(proved), inputs=len(subset))
-    if f'BRIDGE_DONE|{len(candidate)}' not in bridge_text.splitlines():
+    if len(all_proved) != proof_nodes or f'BRIDGE_DONE|{len(candidate)}' not in bridge_text.splitlines():
         raise RuntimeError('candidate ideal-membership bridge failed')
     certificate = make_certificate(full, candidate, all_proved, all_derivations, subset=subset)
     (output/'certificate.json').write_text(json.dumps(certificate.to_json(), separators=(',', ':'))+'\n')
@@ -389,7 +392,7 @@ def main(argv=None):
     parser.add_argument('--output', type=Path, default=Path('runs/four-strand-square-zero'))
     parser.add_argument('--timeout', type=int, default=180, help='wall-clock seconds per solver stage')
     parser.add_argument('--memory-mib', type=int, default=6144, help='solver virtual-memory cap')
-    parser.add_argument('--max-nodes', type=int, default=600)
+    parser.add_argument('--max-nodes', type=int, default=600, help='total proof-node cap, including bridge nodes')
     parser.add_argument('--degree', type=int, default=24)
     args = parser.parse_args(argv)
     executable = shutil.which(args.singular)
