@@ -18,7 +18,7 @@ class TestProducedProvenance(DiscoveryFixture):
         assert result['status'] == 'verified'
         producer = validate_provenance(result['producer'])
         assert 'src/zipper_algebra/provenance.py' in producer['source_files']
-        assert len(result['files']) == 6
+        assert len(result['files']) == 7
         directory = Path(result['certificate']).parent
         assert set((path.name for path in directory.iterdir())) == set(result['files'])
         assert not list(directory.glob('*.provenance.json'))
@@ -27,13 +27,25 @@ class TestProducedProvenance(DiscoveryFixture):
         assert set(bundle['outputs']) == set(result['files']) - {'provenance.json'}
         for name, identity in bundle['outputs'].items():
             assert identity == file_identity(directory / name)
+        links = json.loads((directory / 'solver-runs.json').read_text())
+        assert links['schema'] == 'zipper-solver-links-v1'
+        assert links['presentation'] == result['presentation']
+        assert links['target'] == result['target']
+        assert links['recorded'] is True
+        assert links['store_path_base'] == 'output-root'
+        assert links['runs'] == [
+            {**{name: run[name] for name in ('point', 'key', 'generation', 'files')},
+             'store': 'samples.sqlite3'}
+            for run in sorted(result['runs'], key=lambda run: run['point'])]
+        assert all('request' not in run for run in links['runs'])
         for name in ('lift.json', 'skeleton.json', 'certificate.json'):
             document = json.loads((directory / name).read_text())
             assert document['schema'] == mathematical.SCHEMA
             assert document['provenance'] == producer
         for run in result['runs']:
             _, record = store.read(run['store'], run['key'], generation=run['generation'])
-            assert record['request']['schema'] == 'zipper-solver-request-v2'
+            assert record['request']['schema'] == 'zipper-solver-request-v3'
+            assert {'target', 'target_polynomial'}.isdisjoint(record['request'])
             assert record['request']['producer'] == producer
             assert run['request']['producer'] == producer
 
@@ -123,11 +135,102 @@ class TestProducedProvenance(DiscoveryFixture):
                                                  kind='cofactor')
         from zipper_algebra.cofactor.compose import load_multipliers
         multipliers = load_multipliers(directory / 'multipliers.json', skeleton, fitted.atoms, self.pres)
+        rejected = self.root / 'foreign-output'
+        with pytest.raises(artifacts.ArtifactError, match='invalid solver links'):
+            pipeline._publish_verified(rejected, self.pres, self.target, skeleton,
+                                       fitted, multipliers, certificate, order,
+                                       solver_runs=result['runs'])
+        assert not rejected.exists()
         with patch.object(artifacts, 'current_source_files', return_value={}):
             with pytest.raises(artifacts.ArtifactError, match='source files changed'):
                 pipeline._publish_verified(self.root / 'other', self.pres, self.target, skeleton,
                                            fitted, multipliers, certificate, order)
         assert not any((path.name == 'provenance.json' for path in (self.root / 'other').rglob('*')))
+
+    def test_solver_link_metadata_are_checked_against_retained_generations(self, subtests):
+        result = self.discover()
+        original = result['runs'][0]
+        changes = [
+            lambda run: run.update(key='invalid'),
+            lambda run: run.update(generation='0' * 64),
+            lambda run: run.update(store=str(self.config.output_root / 'missing.sqlite3')),
+            lambda run: run.update(store=str(self.config.cache_root / 'samples.sqlite3')),
+            lambda run: run.update(store=17),
+            lambda run: run.update(point=[True, 7]),
+            lambda run: run.update(point=[5]),
+            lambda run: run.update(point=(5, 7)),
+            lambda run: run.update(point=[13, 17]),
+            lambda run: run.update(request=None),
+            lambda run: run['request'].update(point=[13, 17, 0]),
+            lambda run: run['files']['basis.txt'].update(sha256='0' * 64),
+            lambda run: run.pop('generation'),
+        ]
+        for change in changes:
+            record = deepcopy(original)
+            change(record)
+            with subtests.test(record=record), pytest.raises(artifacts.ArtifactError):
+                pipeline._solver_links(self.config.output_root, self.pres, self.target,
+                                       [record], result['producer'])
+        for records in (True, [original, original]):
+            with subtests.test(records=records), pytest.raises(artifacts.ArtifactError):
+                pipeline._solver_links(self.config.output_root, self.pres, self.target,
+                                       records, result['producer'])
+        omitted = pipeline._solver_links(self.config.output_root, self.pres, self.target,
+                                         None, result['producer'])
+        empty = pipeline._solver_links(self.config.output_root, self.pres, self.target,
+                                       [], result['producer'])
+        assert omitted['recorded'] is False and empty['recorded'] is True
+        assert omitted['runs'] == empty['runs'] == []
+
+    def test_solver_links_reject_other_presentations_producers_and_saved_domain_claims(self, subtests):
+        from zipper_algebra import Presentation
+        result = self.discover()
+        other = Presentation(2, untwist='square-zero', zero_from=2)
+        recipe = Path(__file__).resolve().parents[1] / 'experiments' / 'output.py'
+        recipe_producer = capture_provenance(extra_sources=(recipe,))
+        samples = [
+            runner.run_point(other, self.target, (5, 7, 0), self.config),
+            runner.run_point(self.pres, self.target, (5, 7, 0), self.config,
+                             producer=recipe_producer),
+        ]
+        for sample in samples:
+            record = {'point': [5, 7], 'key': sample.key, 'store': str(sample.store),
+                      'generation': sample.record['generation'], 'files': sample.record['files'],
+                      'request': sample.record['request']}
+            with subtests.test(request=record['request']), pytest.raises(artifacts.ArtifactError):
+                pipeline._solver_links(self.config.output_root, self.pres, self.target,
+                                       [record], result['producer'])
+        # A third-party record can have coherent byte hashes but incorrect
+        # domain metadata. Its own request must not be enough to endorse it.
+        original = result['runs'][0]
+        files, saved = store.read(original['store'], original['key'], original['generation'])
+        for changes in ({'point': [5.0, 7, 0]}, {'specialized_domain': 'GF(7)'}):
+            request = {**saved['request'], **changes}
+            key = artifacts.digest_bytes(artifacts.canonical_json(request))
+            published = store.publish(original['store'], key, files, request, saved['basis_entries'])
+            record = {**original, 'key': key, 'request': request,
+                      'generation': published['generation']}
+            with subtests.test(changes=changes), pytest.raises(artifacts.ArtifactError):
+                pipeline._solver_links(self.config.output_root, self.pres, self.target,
+                                       [record], result['producer'])
+
+    def test_moving_the_output_tree_preserves_solver_link_resolution(self):
+        result = self.discover()
+        moved = self.root / 'moved-output'
+        self.config.output_root.rename(moved)
+        assert not self.config.output_root.exists()
+        directory = moved / 'verified' / result['generation']
+        links_path = directory / 'solver-runs.json'
+        assert file_identity(links_path) == result['files']['solver-runs.json']
+        links = json.loads(links_path.read_text())
+        assert links['recorded'] is True and links['store_path_base'] == 'output-root'
+        for link in links['runs']:
+            assert link['store'] == 'samples.sqlite3'
+            files, saved = store.read(moved / link['store'], link['key'], link['generation'])
+            assert saved['files'] == link['files']
+            assert saved['request']['producer'] == result['producer']
+            for name, identity in link['files'].items():
+                assert {'bytes': len(files[name]), 'sha256': artifacts.digest_bytes(files[name])} == identity
 
     def test_retired_schema_and_invalid_current_source_metadata_are_rejected(self):
         result = self.discover()

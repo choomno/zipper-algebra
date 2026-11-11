@@ -50,6 +50,13 @@ byte-exact exports. Native-adapter tests check database job isolation, process
 failure and cleanup, and rejection of changed or incomplete solver output.
 Cached samples are independently rechecked as polynomial proof identities.
 
+Solver-reuse tests run distinct targets against one presentation and check that
+only one external calculation occurs, including through a shared cache and
+separate output roots. Invalid targets fail before cache lookup; rehashed false
+proofs remain unusable. Changes to input, solver configuration, executable bytes
+or source provenance prevent reuse. Earlier target-bound records remain readable
+without being treated as current cache entries.
+
 The current example is checked as a free-algebra identity using symbolic
 accumulation and a degree-bounded product grid. Proof-graph regressions use
 independently specified polynomial identities, including forward references.

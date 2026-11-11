@@ -298,19 +298,94 @@ class TestFreshDiscovery(DiscoveryFixture):
 
     def test_old_verified_result_binds_immutable_solver_generations_after_refresh(self):
         from zipper_algebra.execution.store import read
-        from zipper_algebra.execution.artifacts import digest_bytes
+        from zipper_algebra.execution.artifacts import canonical_json, digest_bytes, file_identity
         configuration = self.configuration('logged')
         prior = self.discover(config=configuration)
+        links_path = Path(prior['artifacts']['solver-runs.json'])
+        original_links = links_path.read_bytes()
         refreshed = self.discover(config=configuration, refresh=True)
+        assert prior['generation'] != refreshed['generation']
         assert (prior['runs'][0]['key']) == (refreshed['runs'][0]['key'])
         assert (prior['runs'][0]['generation']) != (refreshed['runs'][0]['generation'])
-        for run in prior['runs']:
-            _, selected = read(run['store'], run['key'])
+        assert links_path.read_bytes() == original_links
+        assert file_identity(links_path) == prior['files']['solver-runs.json']
+        assert digest_bytes(canonical_json(prior['files'])) == prior['generation']
+        durable_links = json.loads(links_path.read_text())
+        assert durable_links['presentation'] == prior['presentation']
+        assert durable_links['target'] == prior['target']
+        assert durable_links['recorded'] is True
+        assert durable_links['store_path_base'] == 'output-root'
+        assert durable_links['runs'] == [
+            {**{name: run[name] for name in ('point', 'key', 'generation', 'files')},
+             'store': 'samples.sqlite3'}
+            for run in sorted(prior['runs'], key=lambda run: run['point'])]
+        for run in durable_links['runs']:
+            database = configuration.output_root / run['store']
+            _, selected = read(database, run['key'])
             assert (selected['generation']) != (run['generation'])
-            files, _ = read(run['store'], run['key'], generation=run['generation'])
+            files, _ = read(database, run['key'], generation=run['generation'])
             for name, identity in run['files'].items():
                 assert ({'bytes':len(files[name]), 'sha256':digest_bytes(files[name])}) == (identity)
-            assert (run['request']) == (selected['request'])
+            assert selected['request']['producer'] == prior['producer']
+
+    def test_two_targets_keep_durable_solver_links_when_the_result_marker_is_replaced(self):
+        from zipper_algebra.execution.artifacts import canonical_json, digest_bytes, file_identity
+        presentation = Presentation(3, zero_from=2)
+        indices = [index for index, label in enumerate(presentation.labels())
+                   if label.startswith('ZERO_')]
+        counter = self.root / 'solver-count'
+        # Return the explicitly imposed sliders with their input identities.
+        # This fixture produces bounded, exact examples for two distinct targets.
+        (self.root / 'producer.py').write_text('''
+import argparse
+from pathlib import Path
+import re
+p = argparse.ArgumentParser()
+p.add_argument('-i'); p.add_argument('-o'); p.add_argument('-p')
+a, _ = p.parse_known_args()
+relations = Path(a.i).read_text().splitlines()[2:]
+''' + f'indices = {indices!r}\ncounter = Path({str(counter)!r})\n' + '''
+counter.write_text(str(int(counter.read_text()) + 1 if counter.exists() else 1))
+Path(a.o).write_text('\\n'.join(re.sub(r'(?<!^)([+-])', r' \\1 ',
+    relations[index].rstrip(',')) for index in indices) + '\\n')
+Path(a.p).write_text('\\n'.join('[i%d]' % index for index in indices) + '\\n')
+''')
+
+        def discover(target):
+            return pipeline.run(presentation, target, (5, 7, 0), self.config,
+                                start=7, step=6, maxpts=19, atoms=self.atoms, verbose=False)
+
+        first = discover('X_2')
+        assert first['verified'], first
+        first_bytes = {name: Path(path).read_bytes() for name, path in first['artifacts'].items()}
+        second = discover('X_3')
+        assert second['verified'], second
+        assert json.loads((self.config.output_root / 'result.json').read_text()) == second
+        assert first['target'] != second['target']
+        assert first['generation'] != second['generation']
+        for name, path in first['artifacts'].items():
+            assert Path(path).read_bytes() == first_bytes[name]
+            assert file_identity(Path(path)) == first['files'][name]
+        assert digest_bytes(canonical_json(first['files'])) == first['generation']
+        for report in (first, second):
+            links = json.loads(Path(report['artifacts']['solver-runs.json']).read_text())
+            assert links['presentation'] == report['presentation']
+            assert links['target'] == report['target']
+            assert links['recorded'] is True
+            assert links['store_path_base'] == 'output-root'
+            assert links['runs'] == [
+                {**{name: run[name] for name in ('point', 'key', 'generation', 'files')},
+                 'store': 'samples.sqlite3'}
+                for run in sorted(report['runs'], key=lambda run: run['point'])]
+            bundle = json.loads(Path(report['artifacts']['provenance.json']).read_text())
+            assert bundle['producer'] == report['producer']
+            assert bundle['outputs']['solver-runs.json'] == report['files']['solver-runs.json']
+        previous = {tuple(run['point']): run for run in first['runs']}
+        later = {tuple(run['point']): run for run in second['runs']}
+        for point in previous.keys() & later.keys():
+            assert previous[point]['key'] == later[point]['key']
+            assert previous[point]['generation'] == later[point]['generation']
+        assert int(counter.read_text()) == len(previous.keys() | later.keys())
 
     def test_existing_verified_generation_is_checked_before_reuse(self):
         from zipper_algebra.execution.artifacts import ArtifactError
@@ -323,12 +398,14 @@ class TestFreshDiscovery(DiscoveryFixture):
         certificate=load_artifact(paths['certificate.json'],self.pres,self.target,kind='cofactor')
         multipliers=load_multipliers(paths['multipliers.json'],skeleton,fitted.atoms,self.pres)
         repeated=pipeline._publish_verified(self.config.output_root,self.pres,self.target,skeleton,
-                                           fitted,multipliers,certificate,order)
+                                           fitted,multipliers,certificate,order,
+                                           solver_runs=list(reversed(report['runs'])))
         assert (repeated['generation']) == (report['generation'])
         paths['certificate.txt'].write_text('corrupt')
         with pytest.raises(ArtifactError, match='different content'):
             pipeline._publish_verified(self.config.output_root,self.pres,self.target,skeleton,
-                                       fitted,multipliers,certificate,order)
+                                       fitted,multipliers,certificate,order,
+                                       solver_runs=report['runs'])
 
     def test_nonzero_remainder_at_new_anchor_is_inconclusive(self):
         # G(q)=X3+(q-5)*INV_1_p belongs to the defining ideal and equals X3
@@ -571,6 +648,9 @@ class TestConcurrentVerifiedPublication(DiscoveryFixture):
                 results = [first.result(timeout=15),second.result(timeout=15)]
         assert (len(rename_failures)) == (1)
         assert (results[0]['generation']) == (results[1]['generation'])
+        links = json.loads(Path(results[0]['artifacts']['solver-runs.json']).read_text())
+        assert links['recorded'] is False
+        assert links['runs'] == []
         for name,path in results[0]['artifacts'].items():
             assert (file_identity(Path(path))) == (results[0]['files'][name])
         assert ((self.config.output_root/'result.json').read_bytes()) == (prior_record)

@@ -257,8 +257,8 @@
     },
     {
       "path": "src/zipper_algebra/execution/__init__.py",
-      "bytes": 286,
-      "sha256": "e392b624ec8c94f30db96395f11a799b47ed78e268add58ef7c204b49ca18b21",
+      "bytes": 322,
+      "sha256": "e52793adbc754ffbe3a39e04a1d4695f94fa91366f70bb1c62d8703bbdd52d12",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
@@ -281,14 +281,14 @@
     },
     {
       "path": "src/zipper_algebra/execution/pipeline.py",
-      "bytes": 10451,
-      "sha256": "7bb2f91f7f0f34fab15c22cffa7698521d0632be9ddaecb42023de4b785ce5d9",
+      "bytes": 13194,
+      "sha256": "3a7aa0a3e04b2af65d831a45e79275d20ae28087f0ebefb99cab67988a36a190",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/execution/runner.py",
-      "bytes": 6683,
-      "sha256": "48cac595d0dfc6ae2fd77d1540913f9673a911b0fb035185bfb10ca8bb4e66cc",
+      "bytes": 7353,
+      "sha256": "7f864d40b110632843456309498136a06ba4889374e7fd928e66c7da5ab6c86a",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
@@ -299,8 +299,8 @@
     },
     {
       "path": "src/zipper_algebra/execution/store.py",
-      "bytes": 13647,
-      "sha256": "1b7ec71be89e88edc5e0c51c74b716d43b8ee3422ea4b9c69b1202a4c86d9077",
+      "bytes": 14051,
+      "sha256": "361784a707c6b3bce513b804f52f833c1cf9e6fbb3548bde7f244ab8bed290fb",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
@@ -443,8 +443,8 @@
     },
     {
       "path": "tests/test_discovery_pipeline.py",
-      "bytes": 34323,
-      "sha256": "39a2ab8c65b365529332b97c91bf35ead912ac96d71af18ec71e2510dd0f4aed",
+      "bytes": 39106,
+      "sha256": "1da3fb6d96b1356b7c929f5e37546bbe0f1886605f76f4b9918f0ed6691b5f99",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
@@ -455,8 +455,8 @@
     },
     {
       "path": "tests/test_execution_runner.py",
-      "bytes": 24039,
-      "sha256": "93b0b7337fe30ccf3cd908c00a3fe15e0f5f5256615de1ff0a1609babe04154c",
+      "bytes": 31124,
+      "sha256": "9bea744113def6a28d4cff6b6d1539551e9014b68f44584c2e433c52e85232c4",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
@@ -509,8 +509,8 @@
     },
     {
       "path": "tests/test_produced_provenance.py",
-      "bytes": 8572,
-      "sha256": "7fb9924eab127ae7b47a13c276a08b3a53b382c6a9be668ac3c8fa08a1affbd9",
+      "bytes": 14943,
+      "sha256": "eba2b9aee2942aaf3051fd279be18c0f9a4220d16a25d58d0614e048bdf16871",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
