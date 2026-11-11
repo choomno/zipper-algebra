@@ -73,6 +73,25 @@ def semilinear_word(word: Mapping[str, Any]) -> dict[str, Any]:
     raise CatalogError("unknown word in semilinear zipper transformation")
 
 
+def validate_semilinear_bindings(rule: Mapping[str, Any], parameters: Mapping[str, int]) -> None:
+    """Check a mirrored source and its bindings without copying its AST."""
+    rid = rule.get("id")
+    env = dict(parameters)
+    if (not isinstance(rid, str) or not rid.startswith("zip.") or not rid.endswith(".M")
+            or rule.get("execution", {}).get("algebra_verified") is not True):
+        raise CatalogError("an accepted frozen mirrored zipper rule is required")
+    if (type(env.get("i")) is not int or env["i"] < 2
+            or not condition(rule["condition"], env)):
+        raise CatalogError("valid original bindings and a true zipper guard are required")
+    for side in ("lhs", "rhs"):
+        if not rule[side]:
+            raise CatalogError("nonempty zipper polynomial required")
+        for term in rule[side]:
+            ranks = _sliders(term["word"])
+            if len(ranks) != 1 or integer(ranks[0], env) != env["i"]:
+                raise CatalogError("every zipper term must contain one slider of the same rank")
+
+
 def semilinear_zip_rule(rule: Mapping[str, Any], parameters: Mapping[str, int]) -> dict[str, Any]:
     """Derive a same-rank BM upward identity from an accepted frozen M record.
 
@@ -83,23 +102,37 @@ def semilinear_zip_rule(rule: Mapping[str, Any], parameters: Mapping[str, int]) 
     """
     source = deepcopy(dict(rule))
     env = dict(parameters)
+    validate_semilinear_bindings(source, env)
+    return _bind_semilinear_template(_semilinear_template(source), env)
+
+
+def _bind_semilinear_template(result: dict[str, Any], env: Mapping[str, int]) -> dict[str, Any]:
+    """Bind a fresh family template; it must not be shared with another caller."""
+    i = env["i"]
+    result["semilinear"].update(
+        parameters=dict(env),
+        common_slider_unit={"integer": (-1) ** (i - 1), "q_power": -i * (i - 1) // 2},
+        normalized_relator_unit={"integer": -1, "q_power": -(i - 1)},
+    )
+    return result
+
+
+def _semilinear_template(rule: Mapping[str, Any]) -> dict[str, Any]:
+    """Transform a validated source AST without choosing widths or coordinates.
+
+    The guard and one-slider condition must be checked for each binding,
+    including cache hits. Only the template's proof-unit metadata requires
+    numerical i; word and coefficient ASTs retain their symbolic parameters.
+    """
+    source = dict(rule)
     rid = source.get("id")
-    if (not isinstance(rid, str) or not rid.startswith("zip.") or not rid.endswith(".M")
-            or source.get("execution", {}).get("algebra_verified") is not True):
-        raise CatalogError("an accepted frozen mirrored zipper rule is required")
-    if (type(env.get("i")) is not int or env["i"] < 2
-            or not condition(source["condition"], env)):
-        raise CatalogError("valid original bindings and a true zipper guard are required")
-    for side in ("lhs", "rhs"):
-        if not source[side]:
-            raise CatalogError("nonempty zipper polynomial required")
-        for term in source[side]:
-            ranks = _sliders(term["word"])
-            if len(ranks) != 1 or integer(ranks[0], env) != env["i"]:
-                raise CatalogError("every zipper term must contain one slider of the same rank")
-    source_hash = hashlib.sha256(json.dumps(source, sort_keys=True, separators=(",", ":"),
-                                           allow_nan=False).encode()).hexdigest()
-    result = deepcopy(source)
+    assert isinstance(rid, str)
+    encoded = json.dumps(source, sort_keys=True, separators=(",", ":"), allow_nan=False)
+    source_hash = hashlib.sha256(encoded.encode()).hexdigest()
+    # Catalog syntax has JSON value semantics. A programmatic input may share
+    # mutable AST nodes; deepcopy preserves those aliases and would negate a
+    # coefficient twice if its node occurs in both sides of the identity.
+    result = json.loads(encoded)
     result["id"] = rid[:-2] + ".BM"
     result["source_record_id"] = rid
     result["source_rule_sha256"] = source_hash
@@ -108,14 +141,11 @@ def semilinear_zip_rule(rule: Mapping[str, Any], parameters: Mapping[str, int]) 
             term["word"] = semilinear_word(term["word"])
             for coefficient in term["coefficient"]:
                 coefficient["q_power"] = _negative(coefficient["q_power"])
-    i = env["i"]
     result["semilinear"] = {
         "proof_version": PROOF_VERSION, "source_record_id": rid,
-        "source_rule_sha256": source_hash, "parameters": env,
+        "source_rule_sha256": source_hash,
         "coefficient_map": "q -> q^-1", "crossing_map": "sigma_l -> sigma_l^-1",
         "preserves_product_order": True,
-        "common_slider_unit": {"integer": (-1) ** (i - 1), "q_power": -i * (i - 1) // 2},
-        "normalized_relator_unit": {"integer": -1, "q_power": -(i - 1)},
         "half_twist_identity": "bar(Delta) = inverse(Delta)",
         "author_review": "inherits partial source review; semilinear derivation recorded separately",
     }

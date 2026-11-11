@@ -14,7 +14,7 @@ import json
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
-from .catalog import Catalog, CatalogError, condition, expand_polynomial, expand_word, integer
+from .catalog import Catalog, CatalogError, expand_polynomial, expand_word, integer
 from .interpreter import (
     Branch, Limits, LimitExceeded, ReplayError, Request, RunState, apply_rule, metrics,
 )
@@ -154,13 +154,10 @@ def _step(state: RunState, branch: int, *, catalog: Catalog | None,
            "l": abs(u[-1]), "eps": 1 if u[-1] > 0 else -1}
     prefix_end = len(u) + (c["i"] - 1) * c["k"] + 1
     candidates = []
-    for rule in catalog.rules:
-        rid = rule["id"]
-        if (not rid.startswith("zip.") or not rid.endswith(".I")
-                or (c["i"] == 2 and rid.startswith("zip.flype."))):
-            continue
-        if not condition(rule["condition"], env):
-            continue
+    for rule in catalog.select_rules(
+        env, prefix="zip.", suffix=".I",
+        exclude_prefixes=("zip.flype.",) if c["i"] == 2 else (),
+    ):
         lhs = expand_polynomial(rule["lhs"], env, max_terms=limits.expansion_budget)
         occurrence = next(iter(lhs))[1]
         offset = prefix_end - len(occurrence)
