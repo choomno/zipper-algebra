@@ -61,6 +61,13 @@ examples, deliberate false certificates, and storage/publication failures. Expec
 values are specified independently rather than obtained by calling the operation
 under test a second time.
 
+The parameter-field tests compare independently expanded three-parameter
+polynomials, reject mixed domains even for zero, and test denominator zeros and
+characteristic changes. The small [worked quotients](PARAMETER_FIELDS.md) combine
+free-algebra cofactor identities with cyclic companion representations to prove
+matching upper and lower dimension bounds. They include repeated roots, a
+nonzero square-zero element, and two different exceptional specializations.
+
 Degree-bound regressions include false identities with target, numerator and common
 denominator factors vanishing on an undersized grid. A mixed-denominator identity
 and its perturbed version test the clearing complements. These guard the reason

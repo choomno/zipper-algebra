@@ -22,6 +22,10 @@ identities.
 Read the [mathematical reference](docs/mathematical-specification/mathematical-specification.pdf) for the definitions,
 finite-generation theorem, connection with BMW algebras, and precise input requirements and verification guarantees. It distinguishes the general polynomial family from the selected presentations currently implemented.
 
+The [parameter-field examples](docs/PARAMETER_FIELDS.md) construct and verify
+small quotients with three independent parameters, repeated roots and dimension
+changes under specialization. They run with the Python package alone.
+
 ## Install
 
 Use Linux with Python 3.11 or newer. From a checkout:
@@ -172,6 +176,13 @@ certificate = Cofactor.load(
 report = check(certificate, presentation, target="X_3", verbose=False)
 assert report["pass"]
 ```
+
+## Explicit polynomial untwistings
+
+Use `Presentation.from_untwistings` to supply independent exact polynomials at
+selected strand levels. The [polynomial-input guide](docs/POLYNOMIAL_UNTWISTINGS.md)
+explains rational coefficients, omitted relations, specialization and verification.
+The existing preset presentations and certificate route remain available.
 
 ## Tests and development
 
