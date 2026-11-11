@@ -1,5 +1,11 @@
 # Independent native zipper verifier
 
+For census results, `CppVerifier.check_reused` independently evaluates the
+completed continuation graph and compares exact formal outputs. It maintains
+its own completed-result cache. `VerifierIncomplete` distinguishes a resource
+refusal from a different completed replay. Standalone `check` continues to
+verify full execution certificates. See [census reuse](zipper-census-reuse.md).
+
 The C++ verifier replays literal-word calculations with a separate implementation
 of the catalog evaluator, control phases, transport and ribbon extraction,
 collection, and scheduling. It compares the entire result: terminal terms,

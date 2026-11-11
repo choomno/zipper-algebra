@@ -13,6 +13,9 @@ class EngineSession {
     EngineSession &operator=(const EngineSession &) = delete;
     Json reduce(const Work &initial, const Limits &limits, bool trace = false,
                 size_t batch_size = 64);
+    // Mathematical completion with memoized intrinsic subcomputations.
+    // Resource metrics describe this evaluator, never the standalone schedule.
+    Json reduce_reused(const Work &initial, const Limits &limits);
     Json cache_info() const;
     Json last_telemetry() const;
     void record_timing(const char *phase, double seconds);

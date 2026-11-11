@@ -9,6 +9,12 @@ std::pair<I,I> anchors(I i,I j,I k,bool mirrored);
 Word frame_power(I size,I start,I exponent,I budget);
 Word framed_core(I n,I i,I j,I k,bool mirrored,const std::string &policy="M");
 Word friend_word(I n,const J &control);
+struct EventRule {
+    std::shared_ptr<const J> derived;
+    const J *ordinary=nullptr;
+    const J &get() const { return derived?*derived:*ordinary; }
+};
+EventRule held_rule_for_event(Catalog &catalog,const J &event);
 J rule_for_event(Catalog &catalog,const J &event);
 J framed_control(I i,I j,I k,bool mirrored,I output_power,I input_power,I left,I processed,I tail);
 Word framed_expression(I n,const J &control,const Word &left,const Word &processed,const Word &tail,I budget);

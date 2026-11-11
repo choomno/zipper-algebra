@@ -25,7 +25,14 @@ Word packet_word(const J &terms, const J &env, I budget) {
     if (term.q!=0 || term.coefficient!=1) throw TurnaroundError("packet word must have coefficient one");
     return term.word;
 }
-J typed_event(const J &event, I n, I i, Catalog &catalog, const Limits &limits) {
+struct ProcessedEvent {
+    J env;
+    I pre_j, post_j, output_delta, input_delta;
+    bool pre_mirrored, post_mirrored;
+    Word tail;
+    std::string mirror_policy;
+};
+ProcessedEvent typed_event(const J &event, I n, I i, Catalog &catalog, const Limits &limits) {
     if (!fields(event,{"rule_id","parameters","rhs_index","mirror_policy"}) ||
         !event["rule_id"].is_string() ||
         !fields(event["parameters"],{"n","i","j","k","l","eps"}) ||
@@ -42,7 +49,8 @@ J typed_event(const J &event, I n, I i, Catalog &catalog, const Limits &limits) 
         (barred && event["mirror_policy"]!="bar_mirror") ||
         (suffix(name,".M") && event["mirror_policy"]!="M"))
         throw TurnaroundError("tail event has incompatible rank or orientation");
-    const J rule=rule_for_event(catalog,event);
+    const auto held_rule=held_rule_for_event(catalog,event);
+    const J &rule=held_rule.get();
     const I index=as_i(event["rhs_index"]);
     if (!rule.contains("execution") || !rule["execution"].is_object() ||
         !rule["execution"].contains("algebra_verified") ||
@@ -51,7 +59,7 @@ J typed_event(const J &event, I n, I i, Catalog &catalog, const Limits &limits) 
         !condition(rule["condition"],env) || index<0 || index>=length(rule["rhs"]))
         throw TurnaroundError("tail event lacks a valid accepted rule branch");
     const I old_j=mirrored ? checked_add(checked_sub(checked_sub(n,i),as_i(env["j"])),2) : as_i(env["j"]);
-    const J base=catalog.get(rule["base_id"].get<std::string>()+".I");
+    const J &base=catalog.get(rule["base_id"].get<std::string>()+".I");
     auto [jj,kk,mm,aa,bb]=branch_shape(base["rhs"][index],env,mirrored);
     if (barred) {aa=neg(aa);bb=neg(bb);}
     const auto [output,inp]=anchors(i,jj,kk,mm);
@@ -61,9 +69,7 @@ J typed_event(const J &event, I n, I i, Catalog &catalog, const Limits &limits) 
         framed_core(n,i,jj,kk,mm,event["mirror_policy"].get<std::string>()),
         frame_power(checked_sub(i,1),inp,bb,limits.max_word_size)});
     if (slice(local,0,length(prefix))!=prefix) throw TurnaroundError("tail event does not have the catalog frame shape");
-    return J{{"env",env},{"pre_j",old_j},{"pre_mirrored",mirrored},
-        {"post_j",jj},{"post_mirrored",mm},{"output_delta",aa},{"input_delta",bb},
-        {"tail",slice(local,length(prefix))},{"mirror_policy",event["mirror_policy"]}};
+    return {env,old_j,jj,aa,bb,mirrored,mm,slice(local,length(prefix)),event["mirror_policy"].get<std::string>()};
 }
 J turnaround_certificate(const J &before,const J &after,I n,Catalog &catalog,
                         const Limits &limits,bool trace,const J &events,I event_count) {
@@ -115,18 +121,18 @@ std::pair<J,J> turnaround(const J &initial,I n,Catalog &catalog,const Limits &li
     if (start_control.contains("i") && start_control["i"]==2) {
         const auto [c,u,p,tail]=upward_parts(initial,n);
         if (!u.empty()) throw TurnaroundError("completed upward pass required");
-        const J band=transport_band(p,n,2,as_i(c["j"]));
+        const auto band=typed_transport_band(p,n,2,as_i(c["j"]));
         check_transport(band);
         const Word exterior=concat({upward_friends(2,as_i(c["j"]),as_i(c["k"])),p});
-        const I end=as_i(band["end"]);
+        const I end=band.end;
         const J cc={{"phase","turnaround_complete"},{"i",2},{"j",end},{"mirrored",false},
             {"mirror_policy","M"},{"output_power",0},{"input_power",0},
             {"exterior_length",length(exterior)},{"payload_length",0},{"routing_length",c["k"]},
             {"transported_length",length(p)},{"processed_length",0},{"tail_length",length(tail)}};
         const J following=branch(concat({exterior,J::array({slider(2,end)}),tail}),initial["coefficient"],cc);
         if (!(trace || want_certificate)) return {following,J::object()};
-        const J events=trace ? J::array({J{{"band_transport",band}}}) : J::array();
-        return {following,turnaround_certificate(initial,following,n,catalog,limits,trace,events,length(band["steps"]))};
+        const J events=trace ? J::array({J{{"band_transport",band.json()}}}) : J::array();
+        return {following,turnaround_certificate(initial,following,n,catalog,limits,trace,events,static_cast<I>(band.steps.size()))};
     }
     auto [c,u,p,tail]=framed_parts(initial,n,limits.max_word_size);
     if (!u.empty() || c["phase"]!="framed_upper_pass_complete") throw TurnaroundError("completed framed upward pass required");
@@ -142,14 +148,14 @@ std::pair<J,J> turnaround(const J &initial,I n,Catalog &catalog,const Limits &li
     if (length(processed_events)>limits.max_steps) throw LimitExceeded("turnaround event limit exceeded");
     J evidence=J::array();
     for (const auto &event:processed_events) {
-        const J typed=typed_event(event,n,i,catalog,limits);
-        const Word T=typed["tail"];
-        if (as_i(typed["post_j"])!=j || typed["post_mirrored"]!=mirror || typed["mirror_policy"]!=policy ||
+        const auto typed=typed_event(event,n,i,catalog,limits);
+        const Word &T=typed.tail;
+        if (typed.post_j!=j || typed.post_mirrored!=mirror || typed.mirror_policy!=policy ||
             slice(p,0,length(T))!=T)
             throw TurnaroundError("tail event disagrees with current slider or word");
         p=slice(p,length(T));
-        const I aa=as_i(typed["output_delta"]),bb=as_i(typed["input_delta"]);
-        const bool pre_mirrored=typed["pre_mirrored"].get<bool>();
+        const I aa=typed.output_delta,bb=typed.input_delta;
+        const bool pre_mirrored=typed.pre_mirrored;
         J packet_id=nullptr;
         Word W=J::array(),R;
         if (aa!=0 || bb!=0) {
@@ -159,10 +165,11 @@ std::pair<J,J> turnaround(const J &initial,I n,Catalog &catalog,const Limits &li
             const std::string sign=aa==(barred?1:-1) ? "positive" : "negative";
             const std::string variant=barred?".BM":pre_mirrored?".M":".I";
             packet_id="zip.flype."+sign+variant;
-            J env=typed["env"];
+            J env=typed.env;
             env["j"]=pre_mirrored?checked_add(checked_sub(checked_sub(n,i),j),2):j;
             env["k"]=0;
-            const J packet=rule_for_event(catalog,J{{"rule_id",packet_id},{"parameters",env},{"rhs_index",0},{"mirror_policy",policy}});
+            const auto held_packet=held_rule_for_event(catalog,J{{"rule_id",packet_id},{"parameters",env},{"rhs_index",0},{"mirror_policy",policy}});
+            const J &packet=held_packet.get();
             const Word incoming=packet_word(packet["lhs"],env,limits.expansion_budget);
             if (slice(incoming,checked_sub(length(incoming),1))!=J::array({slider(i,j,pre_mirrored)}))
                 throw TurnaroundError("flype packet has an invalid input slider");
@@ -182,12 +189,12 @@ std::pair<J,J> turnaround(const J &initial,I n,Catalog &catalog,const Limits &li
             if (pre_mirrored!=mirror) throw TurnaroundError("orientation change requires an explicit flype packet");
             R=T;
         }
-        const J band=transport_band(R,n,i,j,mirror);
+        const auto band=typed_transport_band(R,n,i,j,mirror);
         check_transport(band);
-        if (band["end"]!=typed["pre_j"])
+        if (band.end!=typed.pre_j)
             throw TurnaroundError("residual tail does not return to the previous band anchor");
-        append(exterior,W);append(exterior,R);j=as_i(band["end"]);
-        if (trace) evidence.push_back(J{{"event",event},{"packet_rule",packet_id},{"band_transport",band},
+        append(exterior,W);append(exterior,R);j=band.end;
+        if (trace) evidence.push_back(J{{"event",event},{"packet_rule",packet_id},{"band_transport",band.json()},
             {"output_power",a},{"input_power",b},{"j",j},{"mirrored",mirror}});
     }
     const J &original=c["initial_slider"];

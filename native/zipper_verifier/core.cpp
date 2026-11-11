@@ -153,7 +153,7 @@ void append(Word &target,const Word &word) {
     if(!target.is_array()||!word.is_array()) throw ReplayError("word must be an array");
     for(const auto &token:word) target.push_back(token);
 }
-Word concat(std::initializer_list<Word> words) { Word out=J::array();for(const auto &word:words)append(out,word);return out; }
+Word concat(std::initializer_list<WordView> words) { Word out=J::array();for(const auto &word:words)append(out,word.value);return out; }
 Word inverse(const Word &word) {
     Word out=J::array();for(auto it=word.rbegin();it!=word.rend();++it) {
         if(!is_int(*it)) throw ReplayError("inverse requires a pure braid word");
@@ -240,6 +240,39 @@ J metrics(const J &state) {
     return J{{"uncollected_terms",length(state.at("branches"))},{"collected_terms",count},{"word_tokens",tokens},{"max_word_tokens",max_tokens},{"coefficient_support",support},{"q_exponent_min",min_q},{"q_exponent_max",max_q},{"max_integer_bits",max_bits}};
 }
 std::string canonical_json(const J &value) {std::string out;emit_json(out,value);return out;}
+std::string continuation_json(const J &value, bool pending) {
+    // Keep the old error behavior for malformed non-object records. Normal
+    // scheduler states avoid allocating a modified JSON tree below.
+    if (!value.is_object() || (pending && value.contains("branch") && !value.at("branch").is_object())) {
+        J identity=value; identity.erase("coefficient");
+        if (pending) {
+            identity.erase("depth");
+            if (identity.contains("branch")) identity["branch"].erase("coefficient");
+        }
+        return canonical_json(identity);
+    }
+    std::string out;
+    out.push_back('{'); bool first=true;
+    for (auto it=value.begin();it!=value.end();++it) {
+        if (it.key()=="coefficient" || (pending && it.key()=="depth")) continue;
+        if (!first) out.push_back(',');
+        first=false;
+        out+=J(it.key()).dump(-1,' ',true); out.push_back(':');
+        if (pending && it.key()=="branch") {
+            out.push_back('{'); bool branch_first=true;
+            for (auto part=it.value().begin();part!=it.value().end();++part) {
+                if (part.key()=="coefficient") continue;
+                if (!branch_first) out.push_back(',');
+                branch_first=false;
+                out+=J(part.key()).dump(-1,' ',true); out.push_back(':');
+                emit_json(out,part.value());
+            }
+            out.push_back('}');
+        } else emit_json(out,it.value());
+    }
+    out.push_back('}'); return out;
+}
+
 std::string sha256(const std::string &text) {
     unsigned char value[EVP_MAX_MD_SIZE];unsigned int size=0;
     if(EVP_Digest(text.data(),text.size(),value,&size,EVP_sha256(),nullptr)!=1)throw Error("SHA256 digest failed");
@@ -274,7 +307,9 @@ J apply_rule(const J &state,const J &req,Catalog &catalog,const Limits &limits,b
     const J &env=req["parameters"];
     if(!env.contains("n")||as_i(env["n"])!=n)throw ReplayError("rule ambient rank differs from state rank");
     std::string rid=req["rule_id"];
-    J rule=rid.size()>=3 && rid.compare(rid.size()-3,3,".BM")==0 ? catalog.semilinear_rule(rid.substr(0,rid.size()-3)+".M",env) : catalog.get(rid);
+    std::shared_ptr<const J> derived;
+    const J &rule=rid.size()>=3 && rid.compare(rid.size()-3,3,".BM")==0 ?
+        *(derived=catalog.semilinear_rule_handle(rid.substr(0,rid.size()-3)+".M",env)) : catalog.get(rid);
     if(!rule.contains("execution")||!rule["execution"].contains("algebra_verified")||rule["execution"]["algebra_verified"]!=J(true))throw ReplayError("rule lacks accepted algebraic verification");
     if(!condition(rule.at("condition"),env))throw ReplayError("rule guard is false");
     Polynomial lhs,rhs;

@@ -62,6 +62,15 @@ template <class Value> class OrderedMap {
         auto found = index_.find(key);
         return found == index_.end() ? nullptr : &found->second->second;
     }
+    // Return and promote an existing node without allocating or invalidating
+    // either the index iterator or pointers to the stored value.
+    Value *touch(const std::string &key) {
+        auto found = index_.find(key);
+        if (found == index_.end())
+            return nullptr;
+        items_.splice(items_.end(), items_, found->second);
+        return &found->second->second;
+    }
     void set(std::string key, Value value) {
         auto found = index_.find(key);
         if (found != index_.end()) {
@@ -70,7 +79,14 @@ template <class Value> class OrderedMap {
         }
         items_.emplace_back(std::move(key), std::move(value));
         auto last = std::prev(items_.end());
-        index_.emplace(last->first, last);
+        try {
+            index_.emplace(last->first, last);
+        } catch (...) {
+            // Keep list/index membership identical if hashing, key copying,
+            // or allocation fails after the list node has been appended.
+            items_.pop_back();
+            throw;
+        }
     }
     void erase(const std::string &key) {
         auto found = index_.find(key);
