@@ -82,7 +82,9 @@ The producer supports the rationals and rational-function fields over the
 rationals. Parameter names and coefficients are passed as structured monomial
 data, without expression parsing. Its settings include `threads`, `max_primes`,
 `max_degree`, `start_prime`, and an optional explicit `shift`. `max_products`
-bounds scalar products in independent verification. Search bounds do not impose
+bounds scalar products in independent verification. The modular inverse check
+multiplies only nonzero entries of the inverse and specialized minor. The
+identity block is checked from its stored coefficients. Search bounds do not impose
 wall-time or resident-memory limits; census workers need separate process
 resource limits. Exhausted reconstruction or witness searches raise an error
 rather than return a partial result.
