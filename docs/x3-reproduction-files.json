@@ -1181,8 +1181,8 @@
     },
     {
       "path": "tests/test_zipping_cpp_verifier_unary_fusion.py",
-      "bytes": 6932,
-      "sha256": "c8747620cfbad032373bb811afce7e5da576b868a787746c7f03a64a6aaf9954",
+      "bytes": 7055,
+      "sha256": "7f06dcd6dc504c487c6893e19de55a918607c64a001b9843231a4d4664751b5a",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {

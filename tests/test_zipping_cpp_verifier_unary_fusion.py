@@ -1,4 +1,5 @@
 """Compare fused DAG execution with its retained unfused schedule in one build."""
+from importlib.resources import as_file, files
 from pathlib import Path
 import shutil
 import subprocess
@@ -141,6 +142,8 @@ def test_unary_fusion_preserves_microsteps_limits_and_cache(tmp_path: Path) -> N
          *map(str, objects), "-pthread", "-lgmpxx", "-lgmp", "-lcrypto", "-o", str(binary)],
         check=True, capture_output=True, text=True, timeout=120,
     )
-    catalog = source.parents[1] / "src/zipper_algebra/zipping_algorithm/data/full-catalog.json"
-    subprocess.run([str(binary), str(catalog)], check=True, capture_output=True,
-                   text=True, timeout=120)
+    catalog = files(verifier.__package__).joinpath("data/full-catalog.json")
+    with as_file(catalog) as path:
+        result = subprocess.run([str(binary), str(path)], capture_output=True,
+                                text=True, timeout=120)
+    assert result.returncode == 0, result.stderr
