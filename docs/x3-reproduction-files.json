@@ -294,7 +294,7 @@
     {
       "path": "src/zipper_algebra/execution/pipeline.py",
       "bytes": 14685,
-      "sha256": "b007337bb89d722dd6a3ffc4b0b0f7efe23a360fe3383e0cbb3dd6ead23d66a7",
+      "sha256": "3498aa90544933872dc4f1c511f85386b766b8b37e269ac54499c01bf8de0e0b",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
@@ -425,14 +425,14 @@
     },
     {
       "path": "src/zipper_algebra/verification/linear.py",
-      "bytes": 10149,
-      "sha256": "09c3496fee4a4e427cbbdd25e6519f6da981f29907c6be3c84ff1370a3faa267",
+      "bytes": 10649,
+      "sha256": "8af3b9a02a3cbf8fac1fa5d5cc10c37121ff825d5b7a742f621d6d2951e7f6af",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/verification/working_field.py",
-      "bytes": 5159,
-      "sha256": "2e30da99b460b6b72243f138b522bec71bde1aac0b49bfe983324d4a0e391c88",
+      "bytes": 5288,
+      "sha256": "16f01505be206bcd5e3ad85011a0847ca75d77341376ccdca794449f26dd553d",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
@@ -491,8 +491,8 @@
     },
     {
       "path": "tests/integration/test_four_strand_square_zero_example.py",
-      "bytes": 15292,
-      "sha256": "35337abdeaf2794a44f8d00b345afc389d2e3c3e440b3831766b7e0fa790b2ef",
+      "bytes": 17149,
+      "sha256": "57c396f26da20668ba2b9a25c0b238ccee81db62545bc191a9db7454ce1e35c0",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
@@ -539,8 +539,8 @@
     },
     {
       "path": "tests/test_discovery_pipeline.py",
-      "bytes": 38781,
-      "sha256": "37ef12eccd31e7db23de0eeffd7e31ba6d677d1d84236cf4fc71898894644be7",
+      "bytes": 38909,
+      "sha256": "f07bbb6571f9c39dc6f50f430a98a55622ef27c8bf2af79077fc759d4772ccc2",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
@@ -797,8 +797,8 @@
     },
     {
       "path": "tests/unit/test_reconstruction.py",
-      "bytes": 39185,
-      "sha256": "b26e0893c6e8e4cd830b04a739ffa4bd36275fa8698550cc850a2580dce6749c",
+      "bytes": 40621,
+      "sha256": "ce56b85fa95717ac80a895eabf33741a1f8ce0d08ad19c1cdaf9b4896a0dff80",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
@@ -827,8 +827,8 @@
     },
     {
       "path": "tests/unit/test_working_field.py",
-      "bytes": 10641,
-      "sha256": "1b3f69ee55f7240ccc1caab3d78067e10efe56bf0d39d3da4f80882c01e52132",
+      "bytes": 11807,
+      "sha256": "e9b9ee68162148381002088cad160da9271897387b0cf11bc64e1f841b8f0d50",
       "role": "Mathematical regression, installation or independent implementation comparison"
     }
   ]
