@@ -52,13 +52,15 @@ def inspect(directory):
                    for name in names):
             raise AssertionError("the wheel contains material outside the public package")
         for needed in ("__init__.py", "cli.py", "presentation.py", "provenance.py", "core.py",
-                       "coefficients.py", "polynomial.py", "relations.py", "msolve.py",
+                       "coefficients.py", "fields.py", "algebra.py", "untwisting.py",
+                       "polynomial.py", "relations.py", "msolve.py",
                        "linear.py", "cofactor/verify.py", "cofactor/lift.py",
                        "cofactor/inference.py", "cofactor/univariate.py",
                        "cofactor/artifacts.py", "execution/config.py",
                        "execution/runner.py", "execution/artifacts.py",
                        "execution/sampling.py", "execution/pipeline.py",
-                       "verification/gap.py"):
+                       "verification/gap.py", "verification/groebner.py",
+                       "verification/f4ncgb.py"):
             assert f"zipper_algebra/{needed}" in names, needed
         assert metadata + "licenses/LICENSE" in names, "the wheel must include the license"
         assert b"License-Expression: MIT" in archive.read(metadata + "METADATA")
@@ -70,15 +72,20 @@ def inspect(directory):
         roots = {PurePosixPath(name).parts[0] for name in names}
         assert len(roots) == 1, "source distribution must have one enclosing directory"
         relative = {str(PurePosixPath(*PurePosixPath(name).parts[1:])) for name in names}
-        for needed in ("pyproject.toml", "setup.py", "README.md", "INDEX.md", "WORKFLOW.md",
+        for needed in ("pyproject.toml", "setup.py", "README.md", "INDEX.md", "WORKFLOW.md", "LICENSE",
                        ".github/workflows/ci.yml", "singular_run/x3-membership-Q.sing",
                        "singular_run/README.md",
-                       "docs/TESTING.md",
+                       "docs/TESTING.md", "docs/GROEBNER_VERIFICATION.md",
+                       "docs/FOUR_STRAND_SQUARE_ZERO.md", "docs/PARAMETER_FIELDS.md",
+                       "docs/POLYNOMIAL_UNTWISTINGS.md", "examples/polynomial_quotients.py",
                        "docs/X3_REPRODUCTION.md", "docs/PROVENANCE.md", "docs/x3-reproduction-files.json",
                        "patches/f4ncgb/msolve-parser-fix.patch", "patches/f4ncgb/LICENSE",
                        "docs/mathematical-specification/main.tex",
                        "docs/mathematical-specification/mathematical-specification.pdf",
                        "tests/test_proof_graphs.py", "examples/infer_denominators.py",
+                       "examples/four_strand_square_zero.py",
+                       "examples/four_strand_square_zero.sing",
+                       "examples/verify_four_strand_square_zero.g",
                        "examples/x3/certificate.txt", "examples/x3/README.md",
                        "experiments/survey/pointalg.py",
                        "experiments/research/theta_min_poly.py",

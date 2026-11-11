@@ -70,10 +70,22 @@ under test a second time.
 
 The parameter-field tests compare independently expanded three-parameter
 polynomials, reject mixed domains even for zero, and test denominator zeros and
-characteristic changes. The small [worked quotients](PARAMETER_FIELDS.md) combine
+characteristic changes. Small [acceptance controls](PARAMETER_FIELDS.md) combine
 free-algebra cofactor identities with cyclic companion representations to prove
 matching upper and lower dimension bounds. They include repeated roots, a
 nonzero square-zero element, and two different exceptional specializations.
+
+Completed-basis tests check independent finite-algebra answers, both ideal
+inclusions, inclusion ambiguities, equal leading words and proper overlaps,
+including self-overlaps. Deliberately incomplete rewrite systems must fail even
+when every displayed basis polynomial has an honest input derivation. Proof
+graph tests reject cycles, missing references and invalid references with zero
+coefficients; a heavily shared acyclic graph checks that validation uses local
+identities without expanding the graph into a cofactor list. Domain mismatches,
+the unit ideal, optional rule pruning, work-budget exhaustion and incomplete
+standard-word enumeration have distinct expected outcomes. Numeric solver-text
+decoding is tested separately from the completion verdict. See the
+[completed-basis guide](GROEBNER_VERIFICATION.md).
 
 Degree-bound regressions include false identities with target, numerator and common
 denominator factors vanishing on an undersized grid. A mixed-denominator identity
@@ -192,6 +204,13 @@ implementation used by each current route. Retired material remains in Git histo
 
 
 ## Independent algebra-system checks
+
+The [four-strand square-zero example](FOUR_STRAND_SQUARE_ZERO.md) produces a
+generic derivation certificate with Singular, then uses GAP/GBNP to check the
+original presentation, every local proof identity, completion, dimension and
+the square-zero ideal calculation over `Q(q,t)`. This research run stays local.
+Its bounded parser, proof-mutation and process tests run with the software
+suite; the small GAP tests skip when GAP/GBNP is unavailable.
 
 The GAP exporter has small tests for exact coefficient emission, generator and
 context ordering, atom polynomials, invalid inputs and provenance. The
