@@ -36,6 +36,10 @@ arguments. Runs support optional traces and checked exhaustive enumeration,
 with exact pending states on limits or defensive control refusals. Finite
 execution checks provide separate implementation evidence.
 
+The optional [exact GPU collection prototype](docs/ZIPPING_GPU_PROTOTYPE.md)
+captures real rewrite batches and compares CPU, OpenCL, and CUDA coefficient
+collection with transfer and independent verification time included.
+
 ## Install
 
 Use Linux with Python 3.11 or newer. From a checkout:

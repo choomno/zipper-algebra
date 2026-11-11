@@ -29,8 +29,8 @@
     },
     {
       "path": "MANIFEST.in",
-      "bytes": 1180,
-      "sha256": "1e4cab878f6b27beb3ef1c98256f5c872268e0e567b0f8ade01f05cb7cf3d024",
+      "bytes": 1296,
+      "sha256": "9d7ae2162a03477305baf8542c73e6ff7ee5769f04d4cf525c06f3ab422d1664",
       "role": "Source-distribution inclusion rules"
     },
     {
@@ -53,8 +53,8 @@
     },
     {
       "path": "ci/check_distribution.py",
-      "bytes": 8235,
-      "sha256": "4b017979d12ac26b5014f0820a8ab273f5c9b0342913de394ca5bc029529916e",
+      "bytes": 8390,
+      "sha256": "2c85c52ff2252ea9844f3a427eeef83180374aa54d9fef018b9388a8f744ff30",
       "role": "Installation, test, coverage, documentation or inventory support"
     },
     {
@@ -131,8 +131,8 @@
     },
     {
       "path": "pyproject.toml",
-      "bytes": 1743,
-      "sha256": "0af731d37b6359b8af60c2d929c38a5296d84197516015a02b4c9454d57526cd",
+      "bytes": 1854,
+      "sha256": "cd3fd72b96ee2c2814e6141440799acfe85994e7c4483ad1ad8fcf85444e6eed",
       "role": "Package dependencies and installed commands"
     },
     {
@@ -421,6 +421,30 @@
       "path": "src/zipper_algebra/zipping_algorithm/general_enumeration.py",
       "bytes": 11062,
       "sha256": "f81fdad0b67ca907a91d4feaf8e19bbcec2fb15f68c9808a04e963aa0f89959e",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
+      "path": "src/zipper_algebra/zipping_algorithm/gpu_collection.py",
+      "bytes": 14666,
+      "sha256": "bdaeb725cc510c27f39f663a2ac5199bb5334497522d00fadc4a1bce7d58f4a0",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
+      "path": "src/zipper_algebra/zipping_algorithm/gpu_rewrite.py",
+      "bytes": 29138,
+      "sha256": "3f2782d8b0c91bfb280bd06cce95fabdda10ce269cf2e87dbd04057c0fe2c6ea",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
+      "path": "src/zipper_algebra/zipping_algorithm/gpu_rewrite_host.py",
+      "bytes": 8276,
+      "sha256": "77b3d5c260d7c118dc8847fd7b8709e013086aa1e99a8c475977c3590227ab91",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
+      "path": "src/zipper_algebra/zipping_algorithm/gpu_rewrite_program.py",
+      "bytes": 9606,
+      "sha256": "275107fb0f90a1dee381e159bcecd10fe1a018c7db1407782dac068051ea638f",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
@@ -742,6 +766,48 @@
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
+      "path": "tests/test_zipping_gpu_benchmark.py",
+      "bytes": 8000,
+      "sha256": "32f14d4682de702ef72aa59bb306fadecb0622f16a01bbe822a4cacd8b8edd29",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_gpu_collection.py",
+      "bytes": 12466,
+      "sha256": "3f7b3e6d63e18d4f67f13a49cc53ff1e53c0e1d355ac4312744b3433c86d2b90",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_gpu_rewrite.py",
+      "bytes": 7675,
+      "sha256": "0b9159b2339171ccc666653a8cffcf3a33261b35cdbeaeb81f128a4e11913a32",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_gpu_rewrite_benchmark.py",
+      "bytes": 17944,
+      "sha256": "f8ce5b303d99ecd786e4f8d1277aa106d1f9bb3297c503ae46a4d00f02ea5bf0",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_gpu_rewrite_contracts.py",
+      "bytes": 20473,
+      "sha256": "cfdb5c4dd9100ad8c8b076ed0169ff72c7f893e163977745a03eafc81a5d30ff",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_gpu_rewrite_host.py",
+      "bytes": 6081,
+      "sha256": "1dd5f4163af90118a5ec42f2d0db1b0fc38049322789748f865eecc197a6a722",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_gpu_rewrite_program.py",
+      "bytes": 9194,
+      "sha256": "165015a78235d8fcfe12cac50cb21240063c39b2bee3719100ea0392b5f83142",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
       "path": "tests/test_zipping_interpreter.py",
       "bytes": 10996,
       "sha256": "8372c9a4943c213f593ce33aa00389b89203a66ce6df32db887fd8943d642066",
@@ -763,6 +829,12 @@
       "path": "tests/test_zipping_memoized.py",
       "bytes": 13819,
       "sha256": "f53210a34128a182e4adafb4ffe05565470ac2e9db4c54220e27f9211b105aec",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/test_zipping_native_rewrite.py",
+      "bytes": 5898,
+      "sha256": "e98fb9ad6bdeb96210dfb0bf65490eb103c63134385c4031ce9a6e5539a1523c",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
