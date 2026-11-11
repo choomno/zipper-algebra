@@ -10,11 +10,14 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from fractions import Fraction
+from threading import Lock
 from typing import Any
 
 from ..fields import FieldElement, RationalFunctionField, Terms
 
 __all__ = ["WorkingField"]
+
+_CACHE_LOCK = Lock()
 
 
 class WorkingField:
@@ -70,9 +73,10 @@ class WorkingField:
             # FieldElement normalizes constant denominators to one at construction.
             return Fraction(value.numerator[0][1]) if value.numerator else Fraction(0)
         key = (value.numerator, value.denominator)
-        if key in self._cache:
-            self._cache.move_to_end(key)
-            return self._cache[key]
+        with _CACHE_LOCK:
+            if key in self._cache:
+                self._cache.move_to_end(key)
+                return self._cache[key]
         ring = self._native.ring
         ground = self._native.domain
         top = ring.from_dict({monomial: ground.convert(coefficient)
@@ -81,9 +85,10 @@ class WorkingField:
                                  for monomial, coefficient in value.denominator})
         native = self._native.new(top, bottom)
         if self._cache_size:
-            self._cache[key] = native
-            if len(self._cache) > self._cache_size:
-                self._cache.popitem(last=False)
+            with _CACHE_LOCK:
+                self._cache[key] = native
+                if len(self._cache) > self._cache_size:
+                    self._cache.popitem(last=False)
         return native
 
     def to_element(self, value) -> FieldElement:

@@ -64,6 +64,11 @@ integration case, not a new structural theorem.
 
 ### Read the result
 
+The FiniteFlow discovery report uses schema `zipper-discovery-result-v2`.
+Earlier reports with schema `zipper-discovery-result-v1` describe the sampled
+coefficient-fitting workflow and its lift artifacts. Readers should use the
+schema to interpret the fields and artifact list.
+
 A verified result has exit code `0` and `"status": "verified"` in
 `result.json`. The report names the certificate and the immutable product
 files, with their hashes. They are published together under

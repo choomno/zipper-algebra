@@ -146,6 +146,43 @@ def test_resource_limits_are_validated_before_creating_outputs(tmp_path, limits)
     assert not (tmp_path/'run').exists()
 
 
+@pytest.mark.parametrize(('max_nodes', 'extra_bridge_node'), [(31, False), (32, False), (32, True)])
+def test_proof_node_limit_includes_candidate_bridges(tmp_path, monkeypatch, max_nodes, extra_bridge_node):
+    module = load_example()
+    mock_environment(module, tmp_path, monkeypatch)
+    def node(index):
+        return f'G|{index}|1|1,4,|0|\nG|{index}|-1||0|\n'
+    outputs = {
+        'candidate': node(1)+node(2)+'CANDIDATE_DONE|2\n',
+        'derivation': ''.join(node(i)+f'D|{i}|1||0|1|\n' for i in range(1, 31))+'FINISH|30|0|0\n',
+        'bridge': node(31)+node(32)+'D|31|1||1|1|\nD|32|1||1|2|\n',
+    }
+    if extra_bridge_node:
+        outputs['bridge'] += node(33)+'D|33|1||1|3|\n'
+    outputs['bridge'] += 'BRIDGE_DONE|2\n'
+    stages = []
+    def run(binary, source, directory, stage, **limits):
+        stages.append(stage)
+        return outputs[stage], 0
+    monkeypatch.setattr(module, 'run_singular', run)
+    output = tmp_path/'run'
+    if max_nodes == 31:
+        with pytest.raises(RuntimeError, match='32 proof nodes.*limit of 31'):
+            module.produce(Path(sys.executable), output, max_nodes=max_nodes)
+        assert stages == ['candidate', 'derivation']
+        assert not (output/'certificate.json').exists()
+        assert not (output/'report.json').exists()
+    elif extra_bridge_node:
+        with pytest.raises(RuntimeError, match='candidate ideal-membership bridge failed'):
+            module.produce(Path(sys.executable), output, max_nodes=max_nodes)
+        assert stages == ['candidate', 'derivation', 'bridge']
+        assert not (output/'certificate.json').exists()
+    else:
+        report = module.produce(Path(sys.executable), output, max_nodes=max_nodes)
+        assert stages == ['candidate', 'derivation', 'bridge']
+        assert report['proof_nodes'] == report['limits']['maximum_proof_nodes'] == 32
+
+
 def test_actual_subprocess_wrapper_captures_failures_and_bounds_runtime(tmp_path):
     module = load_example()
     text, seconds = module.run_singular(Path(sys.executable), 'print("bounded check")', tmp_path,
