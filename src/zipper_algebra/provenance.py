@@ -23,6 +23,18 @@ BUILD_SCHEMA = "zipper-build-provenance-v1"
 OUTPUT_SCHEMA = "zipper-output-provenance-v1"
 PREFIX = "src/zipper_algebra/"
 BUILD_SOURCES = ("MANIFEST.in", "pyproject.toml", "setup.py")
+NATIVE_PREFIX = "native/zipper_engine/"
+NATIVE_PACKAGE = "zipping_algorithm/_native_sources"
+NATIVE_BUNDLES = ((NATIVE_PREFIX, NATIVE_PACKAGE),
+                  ("native/zipper_verifier/", "zipping_algorithm/_verifier_sources"))
+
+
+def native_source_name(name):
+    """Recognize only native compilation inputs and their vendored license."""
+    return any(name.startswith(prefix) and (
+        name.endswith((".cpp", ".hpp", ".h"))
+        or name == prefix + "vendor/nlohmann/LICENSE.MIT"
+    ) for prefix, _ in NATIVE_BUNDLES)
 
 
 def _canonical(value):
@@ -112,7 +124,7 @@ def validate_provenance(value):
     for name, identity in value["source_files"].items():
         _relative(name)
         computation = name.endswith(".py") and (name.startswith(PREFIX) or name.startswith("experiments/"))
-        if not (computation or name in BUILD_SOURCES) or not _identity(identity):
+        if not (computation or native_source_name(name) or name in BUILD_SOURCES) or not _identity(identity):
             raise ValueError("invalid provenance source identity")
     if value["source_sha256"] != _digest(value["source_files"]):
         raise ValueError("source provenance digest mismatch")
@@ -223,23 +235,37 @@ def _extra_sources(paths, project, baseline):
 
 
 def current_source_files(names=None):
-    """Hash package source files without Git; optionally rehash only declared names."""
+    """Hash Python and native sources, preserving checkout names in wheels."""
     package = Path(__file__).resolve().parent
+    candidate = package.parent.parent
+    checkout = package.parent.name == "src" and _project(candidate)
+    bundles = {prefix: candidate / prefix if checkout else package / payload
+               for prefix, payload in NATIVE_BUNDLES}
+    paths: list[tuple[str, Path, Path]] = []
     if names is None:
-        paths = sorted(package.rglob("*.py"))
+        paths.extend((PREFIX + path.relative_to(package).as_posix(), path, package)
+                     for path in sorted(package.rglob("*.py")))
+        for prefix, native in bundles.items():
+            paths.extend((prefix + path.relative_to(native).as_posix(), path, native)
+                         for path in sorted(native.rglob("*"))
+                         if native_source_name(prefix + path.relative_to(native).as_posix()))
     else:
-        paths = []
         for name in names:
             _relative(name)
-            if not name.startswith(PREFIX) or not name.endswith(".py"):
-                raise ValueError("source rehash names must identify package Python files")
-            paths.append(package / name[len(PREFIX):])
+            if name.startswith(PREFIX) and name.endswith(".py"):
+                paths.append((name, package / name[len(PREFIX):], package))
+            elif native_source_name(name):
+                prefix = next(prefix for prefix in bundles if name.startswith(prefix))
+                native = bundles[prefix]
+                paths.append((name, native / name[len(prefix):], native))
+            else:
+                raise ValueError("source rehash names must identify package Python or native files")
     sources = {}
-    for path in paths:
-        if not path.resolve().is_relative_to(package):
+    for name, path, boundary in paths:
+        if not path.resolve().is_relative_to(boundary):
             raise ValueError("package source path leaves its source tree")
         if path.is_file():
-            sources[PREFIX + path.relative_to(package).as_posix()] = file_identity(path)
+            sources[name] = file_identity(path)
     return sources
 
 
@@ -283,7 +309,7 @@ def capture_provenance(*, extra_sources=()):
     if baseline is not None:
         state, origin = baseline["git"], "build"
         before = baseline["source_files"]
-        compared = {name for name in before.keys() | sources.keys() if name.startswith(PREFIX)} | requested
+        compared = {name for name in before.keys() | sources.keys() if name.startswith((PREFIX, *(prefix for prefix, _ in NATIVE_BUNDLES)))} | requested
         if project is not None:
             compared.update(BUILD_SOURCES)
         changes = [{"path": name, "status": "added" if name not in before else "deleted" if name not in sources else "modified"}

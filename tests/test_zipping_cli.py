@@ -60,6 +60,23 @@ def test_memoized_run_replay_and_checkpoint(capsys, tmp_path):
     assert invoke(capsys, args + ["--cache-entries", "-1"], 2)
 
 
+
+@pytest.mark.parametrize("command", ["run", "run-native"])
+def test_native_default_run_replay_and_checkpoint(capsys, tmp_path, command):
+    args = [command, "--n", "3", "--word", "[1,2]", "--batch-size", "8"]
+    certificate = invoke(capsys, args + ["--trace"])
+    assert certificate["schema"] == "zipper-native-run-v1"
+    assert certificate["status"] == "complete"
+    assert certificate["source_sha256"]["algorithm.cpp"]
+    assert invoke(capsys, ["check", save(tmp_path, certificate)])["pass"]
+    checkpoint = invoke(capsys, args + ["--limits", '{"max_steps":1}'], 3)
+    assert checkpoint["status"] == "incomplete"
+    assert invoke(capsys, ["check", save(tmp_path, checkpoint)])["pass"]
+    assert invoke(capsys, args + ["--cache-entries", "-1"], 2)
+    certificate["metrics"]["steps"] += 1
+    assert invoke(capsys, ["check", save(tmp_path, certificate)], 2)["status"] == "invalid"
+
+
 def test_instantiate(capsys):
     parameters = {"n": 5, "i": 3, "j": 1, "k": 2, "l": 1}
     value = invoke(
@@ -327,7 +344,7 @@ def test_exhaust_literal_words(capsys, tmp_path):
 
 
 def test_general_run_compact_trace_and_checkpoint(capsys, tmp_path):
-    args = ["run", "--n", "3", "--word", "[1,2]"]
+    args = ["run-reference", "--n", "3", "--word", "[1,2]"]
     compact = invoke(capsys, args)
     traced = invoke(capsys, args + ["--trace"])
     assert compact["status"] == traced["status"] == "complete"
@@ -347,12 +364,12 @@ def test_general_run_compact_trace_and_checkpoint(capsys, tmp_path):
     assert checkpoint["pending"]
     assert invoke(capsys, ["check", save(tmp_path, checkpoint)])["pass"]
     assert (
-        invoke(capsys, ["run", "--n", "3", "--word", "[3]"], 2)["status"] == "invalid"
+        invoke(capsys, ["run-reference", "--n", "3", "--word", "[3]"], 2)["status"] == "invalid"
     )
 
 
 def test_general_run_four_strand_staircase(capsys, tmp_path):
-    certificate = invoke(capsys, ["run", "--n", "4", "--word", "[1,2,3]"])
+    certificate = invoke(capsys, ["run-reference", "--n", "4", "--word", "[1,2,3]"])
     assert certificate["status"] == "complete"
     assert certificate["input_word"] == [1, 2, 3]
     assert certificate["metrics"]["steps"] > 3

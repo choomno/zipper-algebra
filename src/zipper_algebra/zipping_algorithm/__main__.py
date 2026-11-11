@@ -44,6 +44,11 @@ def _read(path: str) -> dict[str, Any]:
 
 def _check(certificate: dict[str, Any]) -> dict[str, Any]:
     schema = certificate.get("schema")
+    if schema == "zipper-native-run-v1":
+        from .native import NativeSession
+
+        with NativeSession() as session:
+            return {"pass": session.check(certificate), "scope": certificate["scope"]}
     if schema == "zipper-memoized-run-v1":
         from .memoized import check_certificate as check_memoized
 
@@ -101,11 +106,19 @@ def _parser() -> argparse.ArgumentParser:
     )
     verify.add_argument("--words", default="{}", help="JSON named braid words")
     verify.add_argument("--limits", default="{}", help="JSON exact verification limits")
-    run = commands.add_parser("run", help="Run the literal-word zipper procedure")
-    run.add_argument("--n", type=int, required=True)
-    run.add_argument("--word", required=True, help="JSON literal signed braid word")
-    run.add_argument("--limits", default="{}", help="JSON exact computation limits")
-    run.add_argument("--trace", action="store_true")
+    for name in ("run", "run-native", "run-reference"):
+        run = commands.add_parser(
+            name, help=("Run the uncollected Python reference" if name == "run-reference"
+                        else "Run the packed C++ literal-word zipper procedure"),
+        )
+        run.add_argument("--n", type=int, required=True)
+        run.add_argument("--word", required=True, help="JSON literal signed braid word")
+        run.add_argument("--limits", default="{}", help="JSON exact computation limits")
+        run.add_argument("--trace", action="store_true")
+        if name != "run-reference":
+            run.add_argument("--batch-size", type=int, default=64)
+            run.add_argument("--cache-bytes", type=int, default=256 * 1024**2)
+            run.add_argument("--cache-entries", type=int, default=65536)
     collected = commands.add_parser(
         "run-collected", help="Collect exact formal sums and rewrite terms in parallel"
     )
@@ -222,7 +235,17 @@ def _execute(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
             expand_sliders=args.expand_sliders,
             max_terms=args.max_terms,
         ), 0
-    if args.command == "run":
+    if args.command in ("run", "run-native"):
+        from .native import NativeSession
+
+        with NativeSession(cache_bytes=args.cache_bytes, cache_entries=args.cache_entries) as native_session:
+            result = native_session.reduce(
+                json.loads(args.word), n=args.n,
+                limits=Limits(**_object(json.loads(args.limits))), trace=args.trace,
+                batch_size=args.batch_size,
+            )
+        return result, 0 if result["status"] == "complete" else 3
+    if args.command == "run-reference":
         result = AlgorithmSession().reduce(
             json.loads(args.word),
             n=args.n,
