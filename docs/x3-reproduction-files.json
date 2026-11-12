@@ -17,8 +17,8 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "bytes": 8405,
-      "sha256": "eeecd22dc5a5c07705eba3ebe0d3faabd5d5622f6677aa5ad1f6b40948068f26",
+      "bytes": 8480,
+      "sha256": "4e993e5316b11c1039173529747c4a14937e5792e89d63027ef8d818a0e1c706",
       "role": "Hosted software tests, small solver integration and documentation checks"
     },
     {
@@ -1217,8 +1217,8 @@
     },
     {
       "path": "tests/test_zipping_two_strand.py",
-      "bytes": 11361,
-      "sha256": "82b9dfd139cfbf9ef55e7dcbc9a191effd5e138ff4263cc2985a2f4f96fdc5e0",
+      "bytes": 11365,
+      "sha256": "ba5d0d782568956c70c696a1b368464f6192e242216fa4b426794be374126f83",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {

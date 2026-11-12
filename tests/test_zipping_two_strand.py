@@ -56,16 +56,18 @@ def test_inverse_cancellation_and_exact_collection():
     assert run["metrics"]["uncollected_output_terms"] > run["metrics"]["collected_output_terms"]
 
 
-def test_exhaustive_small_words_independently_expand_in_group_algebra():
-    for length in range(6):
-        for word in product((-1, 1), repeat=length):
-            run = reduce_two_strand(word)
-            assert run["status"] == "complete"
-            assert not run["pending"]
-            assert check_two_strand(json.loads(json.dumps(run)))["pass"]
-            assert all(t["sigma_power"] in (-1, 0) for t in run["output"] if t["kind"] == "singletons")
-            assert run["metrics"]["steps"] <= 3*2**length-2
-            assert run["metrics"]["max_stored_braid_length"] <= length
+@pytest.mark.parametrize("word", [
+    word for length in range(6) for word in product((-1, 1), repeat=length)
+])
+def test_exhaustive_small_words_independently_expand_in_group_algebra(word):
+    length = len(word)
+    run = reduce_two_strand(word)
+    assert run["status"] == "complete"
+    assert not run["pending"]
+    assert check_two_strand(json.loads(json.dumps(run)))["pass"]
+    assert all(t["sigma_power"] in (-1, 0) for t in run["output"] if t["kind"] == "singletons")
+    assert run["metrics"]["steps"] <= 3*2**length-2
+    assert run["metrics"]["max_stored_braid_length"] <= length
 
 
 def test_step_and_term_limits_resume_exact_queue():
