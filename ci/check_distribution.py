@@ -37,6 +37,23 @@ def build_provenance(content, files, read, prefix):
         identity = origin["source_files"][package_prefix + name]
         assert len(actual) == identity["bytes"], name
         assert hashlib.sha256(actual).hexdigest() == identity["sha256"], name
+    for native_prefix, package_bundle in (
+            ("native/zipper_engine/", "zipping_algorithm/_native_sources/"),
+            ("native/zipper_verifier/", "zipping_algorithm/_verifier_sources/")):
+        payload_prefix = (prefix + package_bundle if prefix == "zipper_algebra/"
+                          else prefix.removesuffix("src/zipper_algebra/") + native_prefix)
+        native_files = {name[len(payload_prefix):] for name in files
+                        if name.startswith(payload_prefix)
+                        and (name.endswith((".cpp", ".hpp", ".h"))
+                             or name.endswith("vendor/nlohmann/LICENSE.MIT"))}
+        recorded_native = {name[len(native_prefix):] for name in origin["source_files"]
+                           if name.startswith(native_prefix)}
+        assert native_files == recorded_native, native_files ^ recorded_native
+        for name in native_files:
+            actual = read(payload_prefix + name)
+            identity = origin["source_files"][native_prefix + name]
+            assert len(actual) == identity["bytes"], name
+            assert hashlib.sha256(actual).hexdigest() == identity["sha256"], name
     return metadata
 
 
@@ -62,7 +79,17 @@ def inspect(directory):
                        "zipping_algorithm/__init__.py", "zipping_algorithm/__main__.py",
                        "zipping_algorithm/catalog.py", "zipping_algorithm/interpreter.py",
                        "zipping_algorithm/transport.py", "zipping_algorithm/upward.py",
-                       "zipping_algorithm/two_strand.py", "zipping_algorithm/data/full-catalog.json",
+                       "zipping_algorithm/two_strand.py", "zipping_algorithm/native.py",
+                       "zipping_algorithm/_native_sources/main.cpp",
+                       "zipping_algorithm/_native_sources/engine.hpp",
+                       "zipping_algorithm/_native_sources/vendor/nlohmann/json.hpp",
+                       "zipping_algorithm/_native_sources/vendor/nlohmann/LICENSE.MIT",
+                       "zipping_algorithm/native_verifier.py",
+                       "zipping_algorithm/_verifier_sources/main.cpp",
+                       "zipping_algorithm/_verifier_sources/core.hpp",
+                       "zipping_algorithm/_verifier_sources/vendor/nlohmann/json.hpp",
+                       "zipping_algorithm/_verifier_sources/vendor/nlohmann/LICENSE.MIT",
+                       "zipping_algorithm/data/full-catalog.json",
                        "zipping_algorithm/data/schema.json", "zipping_algorithm/data/manifest.json"):
             assert f"zipper_algebra/{needed}" in names, needed
         assert metadata + "licenses/LICENSE" in names, "the wheel must include the license"
@@ -88,9 +115,16 @@ def inspect(directory):
                        "experiments/survey/pointalg.py",
                        "experiments/research/theta_min_poly.py",
                        "experiments/variants/square_zero_regular_rep_qt.py",
-                       "ci/build_x3_manifest.py", "docs/ZIPPING_REFERENCE.md",
+                       "ci/build_x3_manifest.py", "docs/ZIPPING_REFERENCE.md", "docs/ZIPPING_NATIVE.md",
                        "docs/ZIPPING_GPU_PROTOTYPE.md", "docs/ZIPPING_GPU_REWRITE.md",
                        "experiments/native/zipper_rewrite_cpu.cpp",
+                       "native/zipper_engine/main.cpp", "native/zipper_engine/engine.hpp",
+                       "native/zipper_engine/vendor/nlohmann/json.hpp",
+                       "native/zipper_engine/vendor/nlohmann/LICENSE.MIT",
+                       "docs/ZIPPING_NATIVE_VERIFIER.md",
+                       "native/zipper_verifier/main.cpp", "native/zipper_verifier/core.hpp",
+                       "native/zipper_verifier/vendor/nlohmann/json.hpp",
+                       "native/zipper_verifier/vendor/nlohmann/LICENSE.MIT",
                        "src/zipper_algebra/zipping_algorithm/data/full-catalog.json",
                        "src/zipper_algebra/zipping_algorithm/data/schema.json",
                        "src/zipper_algebra/zipping_algorithm/data/manifest.json"):

@@ -1,8 +1,10 @@
 """Exhaust literal words with collected arithmetic and independent rank prefixes.
 
-One parent writes one SQLite database. Spawned workers share a CollectedSession
-within each process, reduce one literal word, JSON-reload it and serially replay
-its certificate before returning it. Certificates are stored as zlib-compressed
+One parent writes one SQLite database. Each spawned worker retains a C++
+NativeSession and a separate Python or C++ verification session. It reduces one literal
+word, JSON-reloads it and independently replays the complete calculation before
+returning it. Python production modes remain available for historical replay.
+Certificates are stored as zlib-compressed
 UTF-8 JSON, with their uncompressed SHA-256 and byte length. No word is removed
 by cancellation or isotopy. Ambient strand count and output slider size are
 reported separately.
@@ -16,7 +18,10 @@ first incomplete word. The wall budget stops admissions, then drains checked
 rank prefixes already admitted. Per-rank windows prevent a slow rank from
 occupying the entire worker queue. This bounds queued work per rank; it does
 not reserve a physical worker for each rank. Draining may exceed the admission
-deadline by the cost of all already admitted computations.
+deadline by the cost of all already admitted computations. SIGUSR1 requests the
+same graceful admission stop and drain; the prior signal handler is restored.
+An optional absolute UTC admission deadline also applies during startup audits,
+so migration time cannot extend a previously scheduled admission window.
 
 Explicit --migrate audits and backs up the existing database before registering
 a new source epoch. Legacy identities and configurations remain immutable;
@@ -44,6 +49,9 @@ import math
 import multiprocessing
 import os
 import resource
+import signal
+import threading
+from multiprocessing.util import Finalize
 from pathlib import Path
 import sqlite3
 import sys
@@ -53,61 +61,202 @@ from typing import Any
 
 from zipper_algebra.zipping_algorithm import collected, enumeration
 from zipper_algebra.zipping_algorithm.catalog import Catalog, _data, SCHEMA_SHA256
-from zipper_algebra.zipping_algorithm.enumeration import _json, _sha, _word_at, word_count
+from zipper_algebra.zipping_algorithm.enumeration import _sha, _word_at, word_count
 from zipper_algebra.zipping_algorithm.interpreter import Limits
 
 CODEC = 'zlib-utf8-json-v1'
 CHECK = 'json-roundtrip-exact-serial-replay-v2'
+NATIVE_CHECK = 'json-roundtrip-independent-python-cached-replay-v1'
+CPP_CHECK = 'json-roundtrip-independent-cpp-cached-replay-v1'
+VERIFIER_BUILD_FIELDS = ('abi','binary_sha256','compiler','compiler_version','flags',
+                         'wrapper_source_sha256','link_libraries','libraries')
+NATIVE_BUILD_FIELDS = ('abi','binary_sha256','compiler','compiler_version','flags',
+                       'wrapper_source_sha256','link_libraries')
 DEFAULT_TARGETS = {n:10 for n in range(2,9)}
 _session = None
+_verifier = None
 _worker_limits = None
 _worker_identity = None
 _worker_sequence = 0
 
 
+def _integer_text(value):
+    try:return str(value)
+    except ValueError:
+        from zipper_algebra.zipping_algorithm.native import _integer_decimal
+        return _integer_decimal(value)
+
+
+def _json(value):
+    """Keep canonical JSON numeric integers exact beyond Python's digit limit."""
+    try:return enumeration._json(value)
+    except ValueError as error:
+        if 'Exceeds the limit' not in str(error):raise
+    active=set()
+    def encode(item):
+        if item is None or isinstance(item,(str,bool,float)):
+            return json.dumps(item,allow_nan=False)
+        if isinstance(item,int):return _integer_text(item)
+        if isinstance(item,(list,tuple,dict)):
+            marker=id(item)
+            if marker in active:raise ValueError('Circular reference detected')
+            active.add(marker)
+            try:
+                if isinstance(item,dict):
+                    entries=[]
+                    for key,child in sorted(item.items()):
+                        if isinstance(key,str):label=key
+                        elif key is None:label='null'
+                        elif isinstance(key,bool):label='true' if key else 'false'
+                        elif isinstance(key,int):label=_integer_text(key)
+                        elif isinstance(key,float):label=json.dumps(key,allow_nan=False)
+                        else:raise TypeError('JSON object keys must be primitive values')
+                        entries.append(json.dumps(label)+':'+encode(child))
+                    return '{'+','.join(entries)+'}'
+                return '['+','.join(encode(child) for child in item)+']'
+            finally:active.remove(marker)
+        raise TypeError('Object is not JSON serializable')
+    return encode(value)
+
+
+def _loads(value):
+    def integer(text):
+        try:return int(text)
+        except ValueError:
+            from zipper_algebra.zipping_algorithm.native import _decimal_integer
+            return _decimal_integer(text)
+    return json.loads(value,parse_int=integer)
+
+
 def _hash(path):
-    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+    with Path(path).open('rb') as stream:
+        return hashlib.file_digest(stream,'sha256').hexdigest()
 
 
 def _engine(execution):
+    if execution == 'native':
+        from zipper_algebra.zipping_algorithm import native
+        return native
     if execution == 'memoized':
         from zipper_algebra.zipping_algorithm import memoized
         return memoized
     return collected
 
 
-def identity(batch_size, execution='memoized'):
+def _source(execution):
     engine = _engine(execution)
+    return engine.source_identity() if execution == 'native' else engine._source()
+
+
+def _verifier_source(backend):
+    if backend == 'cpp':
+        from zipper_algebra.zipping_algorithm import native_verifier
+        return {**native_verifier.source_identity(), 'native_verifier.py':_hash(native_verifier.__file__)}
+    from zipper_algebra.zipping_algorithm import independent_replay
+    return independent_replay.source_identity()
+
+
+def _verifier_build(metadata):
+    return {key:metadata[key] for key in VERIFIER_BUILD_FIELDS}
+
+
+def _verifier_allocator(path):
+    if path is None:return None
+    from zipper_algebra.zipping_algorithm.native_verifier import _allocator_identity
+    return _allocator_identity(Path(path))
+
+
+def _allocator_runtime(identity):
+    return None if identity is None else dict(identity,mapped_verified=True)
+
+
+def identity(batch_size, execution='native', verifier='python', verifier_allocator=None):
+    engine = _engine(execution)
+    extra = {}
+    if execution == 'native':
+        _, build, _ = engine.build_engine()
+        build['wrapper_source_sha256'] = _hash(engine.__file__)
+        extra = {'native_build':{key:build[key] for key in NATIVE_BUILD_FIELDS},
+                 'python_reference_source_sha256':collected._source(),
+                 'verifier_source_sha256':_verifier_source(verifier)}
+        if verifier == 'cpp':
+            from zipper_algebra.zipping_algorithm import native_verifier
+            _, verifier_build, _ = native_verifier.build_verifier()
+            verifier_build['wrapper_source_sha256']=_hash(native_verifier.__file__)
+            extra.update(verifier_backend='cpp',verifier_build=_verifier_build(verifier_build))
+            if verifier_allocator is not None:
+                extra['verifier_allocator']=_verifier_allocator(verifier_allocator)
     return {'schema':'zipper-versioned-literal-enumeration-v2',
-            'algorithm_source_sha256':engine._source(),
-            'certificate_schema':'zipper-memoized-run-v1' if execution=='memoized' else 'zipper-collected-run-v1',
+            'algorithm_source_sha256':_source(execution),
+            'certificate_schema':{'native':'zipper-native-run-v1','memoized':'zipper-memoized-run-v1',
+                                  'collected':'zipper-collected-run-v1'}[execution],
             'execution':execution,
             'catalog_sha256':Catalog.bundled().sha256,'catalog_schema_sha256':SCHEMA_SHA256,
             'runner_sha256':_hash(__file__),'enumeration_sha256':_hash(enumeration.__file__),
             'batch_size':batch_size,'coefficient_ring':'Z[q,q^-1]',
-            'codec':CODEC,'production_check':CHECK,'trace':False,'term_workers':1}
+            'codec':CODEC,'production_check':(CPP_CHECK if verifier=='cpp' else NATIVE_CHECK) if execution=='native' else CHECK,
+            'trace':False,'term_workers':1,**extra}
 
 
 def _assert_source(expected):
-    if (_engine(expected.get('execution','collected'))._source()!=expected['algorithm_source_sha256']
+    if (_source(expected.get('execution','collected'))!=expected['algorithm_source_sha256']
             or _hash(__file__)!=expected['runner_sha256']
             or _hash(enumeration.__file__)!=expected['enumeration_sha256']
             or hashlib.sha256(_data('full-catalog.json')).hexdigest()!=expected['catalog_sha256']
             or hashlib.sha256(_data('schema.json')).hexdigest()!=expected['catalog_schema_sha256']):
         raise ValueError('enumeration source or catalog changed')
+    if expected.get('execution') == 'native':
+        from zipper_algebra.zipping_algorithm import native
+        if (collected._source()!=expected['python_reference_source_sha256']
+                or _verifier_source(expected.get('verifier_backend','python'))!=expected['verifier_source_sha256']
+                or _hash(native.__file__)!=expected['native_build']['wrapper_source_sha256']):
+            raise ValueError('native wrapper or independent verifier source changed')
+        allocator=expected.get('verifier_allocator')
+        if allocator is not None and _verifier_allocator(allocator['path'])!=allocator:
+            raise ValueError('independent verifier allocator identity changed')
 
 
 def _new_session(expected, cache_bytes=64*1024*1024, cache_entries=4096, rule_cache_bytes=4*1024*1024, rule_cache_entries=256):
     engine = _engine(expected.get('execution','collected'))
+    if expected.get('execution') == 'native':
+        session=engine.NativeSession(cache_bytes=cache_bytes,cache_entries=cache_entries)
+        if {key:session.metadata[key] for key in NATIVE_BUILD_FIELDS} != expected['native_build']:
+            session.close()
+            raise ValueError('native executable build differs from campaign identity')
+        return session
     if expected.get('execution') == 'memoized':
         return engine.MemoizedSession(cache_bytes=cache_bytes,cache_entries=cache_entries,rule_cache_bytes=rule_cache_bytes,rule_cache_entries=rule_cache_entries)
     return collected.CollectedSession()
 
 
-def _initialize(limits, expected, cache_bytes, cache_entries, rule_cache_bytes, rule_cache_entries):
-    global _session, _worker_limits, _worker_identity, _worker_sequence
+def _initialize(limits, expected, cache_bytes, cache_entries, rule_cache_bytes, rule_cache_entries,
+                verifier_cache_bytes=256*1024*1024, verifier_cache_entries=262144):
+    global _session, _verifier, _worker_limits, _worker_identity, _worker_sequence
     _worker_sequence=0
     _session=_new_session(expected,cache_bytes,cache_entries,rule_cache_bytes,rule_cache_entries)
+    _verifier=None
+    if expected.get('execution')=='native':
+        try:
+            if expected.get('verifier_backend','python') == 'cpp':
+                from zipper_algebra.zipping_algorithm.native_verifier import CppVerifier
+                _verifier=CppVerifier(producer_metadata=_session.metadata,
+                                      cache_bytes=verifier_cache_bytes,cache_entries=verifier_cache_entries,
+                                      allocator_library=(Path(expected['verifier_allocator']['path']) if expected.get('verifier_allocator') else None))
+                if _verifier_build(_verifier.metadata)!=expected['verifier_build']:
+                    raise ValueError('independent verifier build differs from campaign identity')
+                if _verifier.metadata.get('allocator_library')!=_allocator_runtime(expected.get('verifier_allocator')):
+                    raise ValueError('independent verifier allocator differs from campaign identity')
+                Finalize(_verifier,_verifier.close,exitpriority=20)
+            else:
+                from zipper_algebra.zipping_algorithm.independent_replay import IndependentVerifier
+                _verifier=IndependentVerifier(cache_bytes=verifier_cache_bytes,cache_entries=verifier_cache_entries,
+                                              rule_cache_bytes=rule_cache_bytes,rule_cache_entries=rule_cache_entries)
+            Finalize(_session,_session.close,exitpriority=10)
+        except BaseException:
+            try:
+                if _verifier is not None and hasattr(_verifier,'close'):_verifier.close()
+            finally:_session.close()
+            raise
     _worker_limits=Limits(**limits)
     _worker_identity=expected
 
@@ -122,6 +271,17 @@ def _certificate_identity(certificate,n,word,limits,expected):
             or certificate['execution']['batch_size']!=expected['batch_size']
             or certificate['status'] not in ('complete','incomplete','control_obligation')):
         raise ValueError('certificate identity does not match literal input/configuration')
+    if expected.get('execution')=='native':
+        from zipper_algebra.zipping_algorithm.native import _strict_equal
+        if (not _strict_equal(certificate.get('n'),n)
+                or not _strict_equal(certificate.get('input_word'),word)
+                or not _strict_equal(certificate.get('limits'),limits)
+                or not _strict_equal(certificate['execution'].get('batch_size'),expected['batch_size'])
+                or not _strict_equal(certificate.get('source_sha256'),expected['algorithm_source_sha256'])
+                or not _strict_equal(certificate.get('native_build'),expected['native_build'])
+                or not _strict_equal(certificate.get('python_reference_source_sha256'),
+                                     expected['python_reference_source_sha256'])):
+            raise ValueError('native certificate build or reference/input identity differs')
 
 
 def _slider_size(certificate):
@@ -154,12 +314,22 @@ def _memory_info():
     return {'process_peak_rss_bytes':peak,'process_current_rss_bytes':current}
 
 
+def _native_memory_info(pid):
+    try:
+        fields=dict(line.split(':',1) for line in Path(f'/proc/{pid}/status').read_text().splitlines() if ':' in line)
+        return {name:int(fields[key].split()[0])*1024 for key,name in
+                (('VmRSS','native_process_current_rss_bytes'),('VmHWM','native_process_peak_rss_bytes'))}
+    except (OSError,ValueError,KeyError,IndexError):
+        return {'native_process_current_rss_bytes':None,'native_process_peak_rss_bytes':None}
+
+
 def _compute(n,word):
     global _worker_sequence
     _worker_sequence+=1
     sequence=_worker_sequence
     assert _session is not None and _worker_limits is not None and _worker_identity is not None
     before=_cache_info(_session)
+    verifier_before=_cache_info(_verifier)
     start=time.perf_counter_ns()
     certificate=_session.reduce(word,n=n,limits=_worker_limits,trace=False,
                                 workers=1,batch_size=_worker_identity['batch_size'])
@@ -167,17 +337,32 @@ def _compute(n,word):
     after_reduce=_cache_info(_session)
     encoded=_json(certificate)
     start=time.perf_counter_ns()
-    if _session.check(json.loads(encoded)) is not True:
+    reloaded=_loads(encoded)
+    if _worker_identity.get('verifier_backend')=='cpp':accepted=_verifier.check(reloaded)
+    else:accepted=(_verifier.check_native(_session,reloaded) if _verifier is not None else _session.check(reloaded))
+    if accepted is not True:
         raise ValueError('certificate failed exact replay')
     checker=time.perf_counter_ns()-start
     after_check=_cache_info(_session)
-    _certificate_identity(certificate,n,word,asdict(_worker_limits),_worker_identity)
+    _certificate_identity(reloaded,n,word,asdict(_worker_limits),_worker_identity)
     telemetry={'schema':'zipper-worker-telemetry-v1','worker_pid':os.getpid(),'worker_sequence':sequence,'before':before,'after_reduce':after_reduce,
                'after_check':after_check,'producer_delta':_numeric_delta(before,after_reduce),
                'checker_producer_cache_delta':_numeric_delta(after_reduce,after_check),
                'checker_evaluation_counters':None,
                'checker_mode':'independent-cold-replay' if _worker_identity.get('execution')=='memoized' else 'collected-serial-replay',
                'evaluation_scope':'producer-attempted-transitions-including-rolled-back-batches',**_memory_info()}
+    if _verifier is not None:
+        verifier_after=_cache_info(_verifier)
+        telemetry.update(checker_mode=('independent-cpp-cached-replay' if _worker_identity.get('verifier_backend')=='cpp' else 'independent-python-cached-replay'),
+                         verifier_before=verifier_before,verifier_after=verifier_after,
+                         verifier_delta=_numeric_delta(verifier_before,verifier_after),
+                         verifier_source_sha256=_worker_identity['verifier_source_sha256'],
+                         native_pid=_session.pid,native_runtime=_session.last_runtime_info,
+                         **_native_memory_info(_session.pid))
+        if _worker_identity.get('verifier_backend')=='cpp':
+            telemetry.update(verifier_pid=_verifier.pid,verifier_build=_verifier_build(_verifier.metadata),
+                             verifier_allocator=_verifier.metadata.get('allocator_library'),
+                             verifier_process_memory=_native_memory_info(_verifier.pid))
     return encoded,producer,checker,telemetry
 
 
@@ -208,7 +393,7 @@ def _has_table(db,name):
 
 def _load_versions(db):
     metadata=dict(db.execute('SELECT key,value FROM metadata'))
-    legacy_raw=metadata['identity'];legacy=json.loads(legacy_raw)
+    legacy_raw=metadata['identity'];legacy=_loads(legacy_raw)
     if _json(legacy)!=legacy_raw:
         raise ValueError('legacy identity is not canonical JSON')
     legacy_sha=_sha(legacy_raw)
@@ -216,12 +401,12 @@ def _load_versions(db):
         versions={}
         for digest,encoded,_ in db.execute('SELECT hash,identity,registered_utc FROM versions'):
             if _sha(encoded)!=digest:raise ValueError('version identity hash mismatch')
-            versions[digest]=json.loads(encoded)
+            versions[digest]=_loads(encoded)
         if versions.get(legacy_sha)!=legacy or metadata.get('active_version') not in versions:
             raise ValueError('version history does not retain its legacy/active identity')
         if _has_table(db,'migration_events'):
             for old,new,snapshot in db.execute('SELECT old_version,new_version,metadata_snapshot FROM migration_events'):
-                saved=json.loads(snapshot)
+                saved=_loads(snapshot)
                 if old not in versions or new not in versions or saved.get('identity')!=legacy_raw or saved.get('active_version',legacy_sha)!=old:
                     raise ValueError('migration history version/metadata binding mismatch')
         return versions,metadata['active_version']
@@ -242,9 +427,16 @@ def _extended_schema(db):
 def _configuration_map(db,versions):
     configs={}
     for digest,encoded in db.execute('SELECT hash,config FROM configurations'):
-        config=json.loads(encoded)
+        config=_loads(encoded)
         if not isinstance(config,dict) or _sha(encoded)!=digest or config.get('identity_sha256') not in versions:
             raise ValueError('saved configuration hash/version binding mismatch')
+        expected=versions[config['identity_sha256']]
+        if expected.get('execution')=='native' and (config.get('execution')!='native'
+                or config.get('verifier_source_sha256')!=expected['verifier_source_sha256']
+                or config.get('verifier_backend','python')!=expected.get('verifier_backend','python')
+                or config.get('verifier_build')!=expected.get('verifier_build')
+                or config.get('verifier_allocator')!=expected.get('verifier_allocator')):
+            raise ValueError('native configuration verifier identity differs from epoch')
         configs[digest]=config
     return configs
 
@@ -268,7 +460,7 @@ def _validate_record(row,configs,versions):
         raw=zlib.decompress(blob)
         if len(raw)!=size or hashlib.sha256(raw).hexdigest()!=digest:
             raise ValueError('saved certificate length/hash mismatch')
-        certificate=json.loads(raw)
+        certificate=_loads(raw)
     except (zlib.error,UnicodeError,json.JSONDecodeError,TypeError) as error:
         raise ValueError('saved compressed certificate is invalid') from error
     _certificate_identity(certificate,n,word,config['limits'],expected)
@@ -281,7 +473,7 @@ def _validate_record(row,configs,versions):
 
 def _validate_runtime(encoded,digest,config=None):
     if not isinstance(encoded,str) or not isinstance(digest,str) or _sha(encoded)!=digest:raise ValueError('worker telemetry hash mismatch')
-    value=json.loads(encoded)
+    value=_loads(encoded)
     if type(value.get('worker_pid')) is not int or value['worker_pid']<1:
         raise ValueError('worker telemetry PID is invalid')
     if value.get('schema')=='zipper-worker-telemetry-v1':
@@ -297,6 +489,41 @@ def _validate_runtime(encoded,digest,config=None):
                     or rule['max_bytes']!=config['rule_cache_bytes'] or rule['max_entries']!=config['rule_cache_entries']
                     or rule['retained_bytes']>config['rule_cache_bytes'] or rule['entries']>config['rule_cache_entries']):
                 raise ValueError('worker cache telemetry exceeds or differs from configured budgets')
+    if config and config.get('execution')=='native':
+        for stage in ('before','after_reduce','after_check'):
+            info=value[stage]
+            if (info['max_bytes']!=config['cache_bytes'] or info['max_entries']!=config['cache_entries']
+                    or info['bytes']>config['cache_bytes'] or info['entries']>config['cache_entries']):
+                raise ValueError('native cache telemetry differs from configured budgets')
+        backend=config.get('verifier_backend','python')
+        mode='independent-cpp-cached-replay' if backend=='cpp' else 'independent-python-cached-replay'
+        if (backend not in ('python','cpp') or value.get('checker_mode')!=mode
+                or value.get('verifier_source_sha256')!=config['verifier_source_sha256']
+                or value['verifier_delta']!=_numeric_delta(value['verifier_before'],value['verifier_after'])
+                or type(value.get('native_pid')) is not int or value['native_pid']<1):
+            raise ValueError('independent verifier telemetry identity or delta differs')
+        if backend=='cpp' and (type(value.get('verifier_pid')) is not int or value['verifier_pid']<1
+                or value.get('verifier_build')!=config['verifier_build']):
+            raise ValueError('independent C++ verifier build or PID differs')
+        if backend=='cpp':
+            allocator=value.get('verifier_allocator')
+            if (allocator!=_allocator_runtime(config.get('verifier_allocator'))
+                    or allocator is not None and allocator.get('mapped_verified') is not True):
+                raise ValueError('independent C++ verifier allocator identity differs')
+        for stage in ('verifier_before','verifier_after'):
+            info=value[stage]
+            if (info['max_bytes']!=config['verifier_cache_bytes']
+                    or info['max_entries']!=config['verifier_cache_entries']
+                    or info['bytes']>config['verifier_cache_bytes']
+                    or info['entries']>config['verifier_cache_entries']):
+                raise ValueError('independent verifier cache differs from configured budgets')
+            if backend=='python':
+                rule=info['rule_cache']
+                if (rule['max_bytes']!=config['rule_cache_bytes']
+                    or rule['max_entries']!=config['rule_cache_entries']
+                    or rule['retained_bytes']>config['rule_cache_bytes']
+                    or rule['entries']>config['rule_cache_entries']):
+                    raise ValueError('independent verifier rule cache differs from configured budgets')
     return value
 
 
@@ -373,10 +600,7 @@ def audit(db,expected=None,*,replay=False):
 
 
 def _file_sha(path):
-    result=hashlib.sha256()
-    with Path(path).open('rb') as stream:
-        for chunk in iter(lambda:stream.read(1024*1024),b''):result.update(chunk)
-    return result.hexdigest()
+    return _hash(path)
 
 
 def register_version(db,expected,output,*,migrate=False,backup_path=None):
@@ -435,8 +659,8 @@ def _update_evaluations(db,version,n,telemetry,sign):
 
 
 def _commit_word(db,n,cursor,word,encoded,producer,checker,telemetry,config_sha,expected):
-    config=json.loads(db.execute('SELECT config FROM configurations WHERE hash=?',(config_sha,)).fetchone()[0])
-    certificate=json.loads(encoded);_certificate_identity(certificate,n,word,config['limits'],expected)
+    config=_loads(db.execute('SELECT config FROM configurations WHERE hash=?',(config_sha,)).fetchone()[0])
+    certificate=_loads(encoded);_certificate_identity(certificate,n,word,config['limits'],expected)
     status=certificate['status'];following=_advance(n,cursor) if status=='complete' else cursor
     raw=encoded.encode();runtime=_json(telemetry);runtime_sha=_sha(runtime);version=_sha(_json(expected));stamp=datetime.now(timezone.utc).isoformat()
     _validate_runtime(runtime,runtime_sha,config)
@@ -447,17 +671,17 @@ def _commit_word(db,n,cursor,word,encoded,producer,checker,telemetry,config_sha,
             previous_runtime=db.execute('SELECT runtime,runtime_sha FROM word_runtime WHERE n=? AND length=? AND ordinal=?',(n,*cursor)).fetchone()
             db.execute('INSERT OR IGNORE INTO word_attempts VALUES('+','.join('?' for _ in range(20))+')',
                        (*previous,*(previous_runtime or (None,None)),stamp))
-            old_certificate=json.loads(zlib.decompress(previous[8]))
-            old_version=json.loads(db.execute('SELECT config FROM configurations WHERE hash=?',(previous[12],)).fetchone()[0])['identity_sha256']
+            old_certificate=_loads(zlib.decompress(previous[8]))
+            old_version=_loads(db.execute('SELECT config FROM configurations WHERE hash=?',(previous[12],)).fetchone()[0])['identity_sha256']
             _update_histogram(db,old_version,n,old_certificate,-1)
-            if previous_runtime:_update_evaluations(db,old_version,n,json.loads(previous_runtime[0]),-1)
+            if previous_runtime:_update_evaluations(db,old_version,n,_loads(previous_runtime[0]),-1)
         db.execute('INSERT OR REPLACE INTO words VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
                    (n,*cursor,_json(word),_sha(_json({'n':n,'word':word})),status,
                     _json(certificate['diagnostic']),_json(certificate['metrics']),zlib.compress(raw),_sha(encoded),len(raw),CODEC,
                     config_sha,producer,checker,_slider_size(certificate),expected['production_check']))
         db.execute('INSERT OR REPLACE INTO word_runtime VALUES(?,?,?,?,?,?)',(n,*cursor,config_sha,runtime,runtime_sha))
         prior=db.execute('SELECT runtime FROM worker_state WHERE worker_pid=? AND config_sha=?',(telemetry['worker_pid'],config_sha)).fetchone()
-        if prior is None or json.loads(prior[0]).get('worker_sequence',0)<telemetry['worker_sequence']:
+        if prior is None or _loads(prior[0]).get('worker_sequence',0)<telemetry['worker_sequence']:
             db.execute('INSERT OR REPLACE INTO worker_state VALUES(?,?,?,?,?)',(telemetry['worker_pid'],config_sha,runtime,runtime_sha,stamp))
         _update_histogram(db,version,n,certificate,1)
         _update_evaluations(db,version,n,telemetry,1)
@@ -485,7 +709,7 @@ def summarize(db,targets,reasons):
             'visited_words':totals[0],'complete_words':totals[1] or 0,'maximum_output_slider_size':totals[2] or 0,
             'compressed_certificate_bytes':totals[3] or 0,'raw_certificate_bytes':totals[4] or 0,
             'next_cursor':{'length':length,'ordinal':ordinal},'stop_reason':reasons.get(n),
-            'first_unresolved':None if not unresolved else {'word':json.loads(unresolved[0]),'status':unresolved[1],'diagnostic':json.loads(unresolved[2])},'layers':layers,
+            'first_unresolved':None if not unresolved else {'word':_loads(unresolved[0]),'status':unresolved[1],'diagnostic':_loads(unresolved[2])},'layers':layers,
             'version_counts':version_counts,
             'actual_evaluation_counts_by_version':[{'version':v,'kind':kind,'rule':rule,'count':count} for v,kind,rule,count in db.execute(
                 'SELECT version,kind,rule,count FROM prefix_evaluation_totals WHERE n=? ORDER BY version,kind,rule',(n,))] if _has_table(db,'prefix_evaluation_totals') else None,
@@ -548,42 +772,80 @@ def _goals_complete(db,targets):
     return all(n in cursors and cursors[n]>target for n,target in targets.items())
 
 
+def _install_drain_handler(requested):
+    """SIGUSR1 stops admissions and drains checked prefixes; restore on exit."""
+    if threading.current_thread() is not threading.main_thread():return None
+    previous=signal.getsignal(signal.SIGUSR1)
+    def request_drain(signum,frame):
+        requested[0]=True
+    signal.signal(signal.SIGUSR1,request_drain)
+    return previous
+
+
+def _restore_drain_handler(previous):
+    if previous is not None:signal.signal(signal.SIGUSR1,previous)
+
+
 def exhaust(output,*,targets=None,workers=8,batch_size=64,wall_seconds=86400,limits=None,
             max_new_words=None,replay_audit=False,audit_only=False,migrate=False,
-            migration_backup=None,execution='memoized',cache_bytes=64*1024*1024,
-            cache_entries=4096,rule_cache_bytes=4*1024*1024,rule_cache_entries=256,_executor_factory=_process_pool):
+            migration_backup=None,execution='native',verifier='python',verifier_allocator=None,cache_bytes=256*1024*1024,
+            cache_entries=262144,rule_cache_bytes=4*1024*1024,rule_cache_entries=256,
+            verifier_cache_bytes=256*1024*1024,verifier_cache_entries=262144,
+            admission_deadline_utc=None,_executor_factory=_process_pool):
     targets=DEFAULT_TARGETS.copy() if targets is None else dict(targets)
     if not targets or any(type(n) is not int or n<2 or type(L) is not int or L<0 for n,L in targets.items()):
         raise ValueError('integer rank >=2 and nonnegative target length required')
     if type(workers) is not int or workers<1 or type(batch_size) is not int or batch_size<1:
         raise ValueError('positive integer workers and batch_size required')
-    if execution not in ('memoized','collected'):raise ValueError('execution must be memoized or collected')
-    if any(type(v) is not int or v<0 for v in (cache_bytes,cache_entries,rule_cache_bytes,rule_cache_entries)):
+    if execution not in ('native','memoized','collected'):raise ValueError('execution must be native, memoized or collected')
+    if any(type(v) is not int or v<0 for v in (cache_bytes,cache_entries,rule_cache_bytes,rule_cache_entries,verifier_cache_bytes,verifier_cache_entries)):
         raise ValueError('cache budgets must be nonnegative integers')
     if type(wall_seconds) not in (int,float) or not math.isfinite(wall_seconds) or wall_seconds<=0:
         raise ValueError('positive finite wall_seconds required')
     if max_new_words is not None and (type(max_new_words) is not int or max_new_words<0):
         raise ValueError('nonnegative max_new_words required')
+    if verifier not in ('python','cpp') or (execution!='native' and verifier!='python'):
+        raise ValueError('C++ verification requires native execution; verifier must be python or cpp')
+    if verifier_allocator is not None and (execution!='native' or verifier!='cpp'):
+        raise ValueError('verifier allocator requires native execution with C++ verification')
+    deadline=None
+    if admission_deadline_utc is not None:
+        try:
+            if not isinstance(admission_deadline_utc,str):raise ValueError
+            deadline=datetime.fromisoformat(admission_deadline_utc)
+            if deadline.utcoffset() is None or deadline.utcoffset().total_seconds()!=0:
+                raise ValueError
+        except (TypeError,ValueError) as error:
+            raise ValueError('admission deadline must be a timezone-aware UTC timestamp') from error
+        admission_deadline_utc=deadline.isoformat()
     limits=Limits(max_steps=200000,max_terms=100000,expansion_budget=1000000) if limits is None else limits
     if not isinstance(limits,Limits):raise ValueError('limits must be a Limits record')
     if audit_only:
         if migrate:raise ValueError('audit-only cannot migrate a database')
-        expected=identity(batch_size,execution) if replay_audit else None
+        expected=(identity(batch_size,execution) if verifier=='python' else identity(batch_size,execution,verifier,verifier_allocator)) if replay_audit else None
         return _read_only_audit(output,expected=expected,replay=replay_audit)
-    expected=identity(batch_size,execution)
+    expected=(identity(batch_size,execution) if verifier=='python' else identity(batch_size,execution,verifier,verifier_allocator))
     output=Path(output);output.mkdir(parents=True,exist_ok=True);database=output/'words.sqlite3'
     config={'targets':targets,'workers':workers,'max_in_flight':2*workers,
             'per_rank_window':'ceil_global_window_over_active_ranks','limits':asdict(limits),
-            'wall_seconds':wall_seconds,'max_new_words':max_new_words,'identity_sha256':_sha(_json(expected)),
+            'wall_seconds':wall_seconds,'admission_deadline_utc':admission_deadline_utc,
+            'max_new_words':max_new_words,'identity_sha256':_sha(_json(expected)),
             'execution':execution,'cache_bytes':cache_bytes,'cache_entries':cache_entries,
             'rule_cache_bytes':rule_cache_bytes,'rule_cache_entries':rule_cache_entries,
+            'verifier_cache_bytes':verifier_cache_bytes,'verifier_cache_entries':verifier_cache_entries,
             'python':sys.version,'created_utc':datetime.now(timezone.utc).isoformat()}
+    if execution=='native':
+        config['verifier_source_sha256']=expected['verifier_source_sha256']
+        if verifier=='cpp':
+            config.update(verifier_backend='cpp',verifier_build=expected['verifier_build'])
+            if 'verifier_allocator' in expected:config['verifier_allocator']=expected['verifier_allocator']
     config_sha=_sha(_json(config));lock=(output/'.parallel.lock').open('a+')
     try:fcntl.flock(lock.fileno(),fcntl.LOCK_EX|fcntl.LOCK_NB)
     except BlockingIOError as error:
         lock.close();raise ValueError('another writer owns this campaign') from error
     db=sqlite3.connect(database);pool=None;new=0;peak=0;run_started=False
     queues: dict[int, deque[Any]] = {};discarded: set[Any] = set()
+    drain_requested=[False];previous_handler=_install_drain_handler(drain_requested)
     try:
         audit_start=time.perf_counter();pre_replayed=None
         if replay_audit and _has_table(db,'metadata') and db.execute("SELECT 1 FROM metadata WHERE key='identity'").fetchone():
@@ -610,8 +872,8 @@ def exhaust(output,*,targets=None,workers=8,batch_size=64,wall_seconds=86400,lim
         for n,cursor in cursors.items():
             old=db.execute('SELECT status,certificate,config_sha FROM words WHERE n=? AND length=? AND ordinal=?',(n,*cursor)).fetchone()
             if old:
-                before=json.loads(zlib.decompress(old[1]))['limits'];after=asdict(limits)
-                old_version=json.loads(db.execute('SELECT config FROM configurations WHERE hash=?',(old[2],)).fetchone()[0])['identity_sha256']
+                before=_loads(zlib.decompress(old[1]))['limits'];after=asdict(limits)
+                old_version=_loads(db.execute('SELECT config FROM configurations WHERE hash=?',(old[2],)).fetchone()[0])['identity_sha256']
                 # A new source epoch may retry the old checkpoint even with equal limits.
                 if old_version==_sha(_json(expected)):
                     if old[0]=='control_obligation':reasons[n]='control_obligation'
@@ -619,8 +881,11 @@ def exhaust(output,*,targets=None,workers=8,batch_size=64,wall_seconds=86400,lim
             if cursor[0]>targets[n]:reasons[n]='target_length'
             if n in reasons:active.discard(n)
         started=time.perf_counter();last_snapshot=started;rotation=deque(sorted(targets))
-        admitting=bool(active) and max_new_words!=0
-        stop='running' if admitting else ('word_budget' if max_new_words==0 else 'rank_limits')
+        deadline_reached=deadline is not None and datetime.now(timezone.utc)>=deadline
+        admitting=bool(active) and max_new_words!=0 and not drain_requested[0] and not deadline_reached
+        stop=('signal_drain' if drain_requested[0] else
+              'admission_deadline' if deadline_reached else
+              'running' if admitting else ('word_budget' if max_new_words==0 else 'rank_limits'))
         peak_per_rank={n:0 for n in targets}
         def snapshot(state='running',phase='computing'):
             stamp=datetime.now(timezone.utc).isoformat()
@@ -628,9 +893,9 @@ def exhaust(output,*,targets=None,workers=8,batch_size=64,wall_seconds=86400,lim
                        'config_sha':config_sha,'recorded_utc':stamp}
             with db:db.execute("INSERT OR REPLACE INTO metadata VALUES('run_state',?)",(_json(run_state),))
             versions,active_version=_load_versions(db)
-            states=[json.loads(row[0]) for row in db.execute('SELECT runtime FROM worker_state WHERE config_sha=?',(config_sha,))]
+            states=[_loads(row[0]) for row in db.execute('SELECT runtime FROM worker_state WHERE config_sha=?',(config_sha,))]
             data={'schema':expected['schema'],'identity':expected,'active_version':active_version,
-                  'versions':versions,'legacy_identity':json.loads(db.execute("SELECT value FROM metadata WHERE key='identity'").fetchone()[0]),
+                  'versions':versions,'legacy_identity':_loads(db.execute("SELECT value FROM metadata WHERE key='identity'").fetchone()[0]),
                   'identity_scope':'active_version','coverage_scope':'all_registered_versions',
                   'database':str(database.resolve()),'status':state,'phase':phase,
                   'config':config,'audit':audited,'audit_seconds':audit_seconds,'migration':migration,
@@ -643,10 +908,15 @@ def exhaust(output,*,targets=None,workers=8,batch_size=64,wall_seconds=86400,lim
         snapshot(phase='starting')
         if admitting:
             pool=_executor_factory(max_workers=workers,initializer=_initialize,
-                                   initargs=(asdict(limits),expected,cache_bytes,cache_entries,rule_cache_bytes,rule_cache_entries))
+                                   initargs=(asdict(limits),expected,cache_bytes,cache_entries,rule_cache_bytes,rule_cache_entries,
+                                             verifier_cache_bytes,verifier_cache_entries))
         while (active and admitting) or any(queues.values()) or discarded:
             assert pool is not None
             discarded={future for future in discarded if not future.done()}
+            if admitting and drain_requested[0]:
+                admitting=False;stop='signal_drain'
+            if admitting and deadline is not None and datetime.now(timezone.utc)>=deadline:
+                admitting=False;stop='admission_deadline'
             if admitting and time.perf_counter()-started>=wall_seconds:
                 admitting=False;stop='wall_budget'
             if admitting and max_new_words is not None and new>=max_new_words:
@@ -655,6 +925,8 @@ def exhaust(output,*,targets=None,workers=8,batch_size=64,wall_seconds=86400,lim
             per_rank_cap=max(1,math.ceil(2*workers/max(1,len(active))))
             if admitting:
                 for _ in range(2*workers):
+                    if deadline is not None and datetime.now(timezone.utc)>=deadline:
+                        admitting=False;stop='admission_deadline';break
                     if occupancy>=2*workers or (max_new_words is not None and new+occupancy>=max_new_words):break
                     chosen=None
                     for _ in range(len(rotation)):
@@ -709,10 +981,15 @@ def exhaust(output,*,targets=None,workers=8,batch_size=64,wall_seconds=86400,lim
                 pass  # The original failure remains primary if the database is unusable.
         raise
     finally:
-        for q in queues.values():
-            for _,_,future in q:future.cancel()
-        if pool is not None:pool.shutdown(wait=True,cancel_futures=True)
-        db.close();fcntl.flock(lock.fileno(),fcntl.LOCK_UN);lock.close()
+        try:
+            for q in queues.values():
+                for _,_,future in q:future.cancel()
+            if pool is not None:pool.shutdown(wait=True,cancel_futures=True)
+        finally:
+            try:
+                db.close();fcntl.flock(lock.fileno(),fcntl.LOCK_UN);lock.close()
+            finally:
+                _restore_drain_handler(previous_handler)
 
 
 def status(output):
@@ -724,15 +1001,15 @@ def status(output):
         db.execute('BEGIN')
         metadata=dict(db.execute('SELECT key,value FROM metadata'))
         versions,active_version=_load_versions(db);expected=versions[active_version]
-        config=json.loads(metadata['last_config']);config_sha=_sha(metadata['last_config'])
+        config=_loads(metadata['last_config']);config_sha=_sha(metadata['last_config'])
         targets={int(n):L for n,L in config['targets'].items()}
-        states=[json.loads(row[0]) for row in db.execute('SELECT runtime FROM worker_state WHERE config_sha=?',(config_sha,))] if _has_table(db,'worker_state') else []
+        states=[_loads(row[0]) for row in db.execute('SELECT runtime FROM worker_state WHERE config_sha=?',(config_sha,))] if _has_table(db,'worker_state') else []
         return {'schema':expected['schema'],'identity':expected,'database':str(database),
                 'active_version':active_version,'versions':versions,
-                'legacy_identity':json.loads(metadata['identity']),'identity_scope':'active_version',
+                'legacy_identity':_loads(metadata['identity']),'identity_scope':'active_version',
                 'coverage_scope':'all_registered_versions',
                 'snapshot_utc':datetime.now(timezone.utc).isoformat(),'config':config,
-                'recorded_run_state':json.loads(metadata['run_state']) if 'run_state' in metadata else None,
+                'recorded_run_state':_loads(metadata['run_state']) if 'run_state' in metadata else None,
                 'prefix_audited_by_this_read':False,'process_liveness_verified':False,
                 'worker_memory_and_cache':states,'ranks':summarize(db,targets,{})}
     finally:db.close()
@@ -743,20 +1020,25 @@ def main():
     parser.add_argument('output');parser.add_argument('--targets',type=json.loads)
     parser.add_argument('--workers',type=int,default=8);parser.add_argument('--batch-size',type=int,default=64)
     parser.add_argument('--wall-seconds',type=float,default=86400);parser.add_argument('--limits',type=json.loads)
+    parser.add_argument('--admission-deadline-utc')
     parser.add_argument('--max-new-words',type=int);parser.add_argument('--replay-audit',action='store_true')
     parser.add_argument('--audit-only',action='store_true');parser.add_argument('--status',action='store_true')
     parser.add_argument('--migrate',action='store_true');parser.add_argument('--migration-backup')
-    parser.add_argument('--execution',choices=('memoized','collected'),default='memoized')
-    parser.add_argument('--cache-bytes',type=int,default=64*1024*1024)
-    parser.add_argument('--cache-entries',type=int,default=4096)
+    parser.add_argument('--execution',choices=('native','memoized','collected'),default='native')
+    parser.add_argument('--verifier',choices=('python','cpp'),default='python')
+    parser.add_argument('--verifier-allocator')
+    parser.add_argument('--cache-bytes',type=int,default=256*1024*1024)
+    parser.add_argument('--cache-entries',type=int,default=262144)
+    parser.add_argument('--verifier-cache-bytes',type=int,default=256*1024*1024)
+    parser.add_argument('--verifier-cache-entries',type=int,default=262144)
     parser.add_argument('--rule-cache-bytes',type=int,default=4*1024*1024)
     parser.add_argument('--rule-cache-entries',type=int,default=256)
     args=vars(parser.parse_args())
     if args.pop('status'):
-        print(json.dumps(status(args['output']),indent=2),flush=True);return
+        print(_json(status(args['output'])),flush=True);return
     if args['targets'] is not None:args['targets']={int(n):L for n,L in args['targets'].items()}
     if args['limits'] is not None:args['limits']=Limits(**args['limits'])
-    print(json.dumps(exhaust(**args),indent=2),flush=True)
+    print(_json(exhaust(**args)),flush=True)
 
 
 if __name__=='__main__':main()

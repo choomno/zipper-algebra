@@ -60,6 +60,28 @@ class TestDistributionProvenance:
             self.check(forged)
 
 
+    @pytest.mark.parametrize("native_prefix,payload", provenance.NATIVE_BUNDLES)
+    def test_native_payload_is_bound_and_extra_changed_or_missing_source_is_rejected(self, native_prefix, payload):
+        path = "zipper_algebra/" + payload + "/engine.cpp"
+        content = b"int engine() { return 0; }\n"
+        self.files[path] = content
+        key = native_prefix + "engine.cpp"
+        self.metadata["origin"]["source_files"][key] = {
+            "bytes": len(content), "sha256": hashlib.sha256(content).hexdigest()}
+        self.metadata["origin"]["source_sha256"] = hashlib.sha256(json.dumps(
+            self.metadata["origin"]["source_files"], sort_keys=True,
+            separators=(",", ":")).encode()).hexdigest()
+        assert self.check() == self.metadata
+        with pytest.raises(AssertionError):
+            self.check(files={**self.files, path: b"changed"})
+        missing = dict(self.files)
+        del missing[path]
+        with pytest.raises(AssertionError):
+            self.check(files=missing)
+        with pytest.raises(AssertionError):
+            self.check(files={**self.files, path.replace("engine.cpp", "extra.cpp"): b"extra"})
+
+
 def current_setuptools_available():
     return (importlib.util.find_spec("setuptools") is not None
             and int(importlib.metadata.version("setuptools").split(".", 1)[0]) >= 77)
@@ -154,6 +176,27 @@ class TestSourceArchiveProvenance:
     def test_changed_source_cannot_inherit_the_old_clean_origin(self):
         (self.package / "__init__.py").write_text('"""Changed source."""\n')
         with pytest.raises(ValueError, match='package files differ'):
+            self.read_metadata()
+
+    @pytest.mark.parametrize("mutation", ["modified", "deleted", "added"])
+    @pytest.mark.parametrize("native_prefix,payload", provenance.NATIVE_BUNDLES)
+    def test_native_archive_drift_cannot_inherit_original_origin(self, mutation, native_prefix, payload):
+        path = self.root / native_prefix / "engine.cpp"
+        path.parent.mkdir(parents=True)
+        path.write_text("int engine() { return 0; }\n")
+        sources = self.metadata["origin"]["source_files"]
+        sources[native_prefix + "engine.cpp"] = provenance.file_identity(path)
+        self.metadata["origin"]["source_sha256"] = hashlib.sha256(json.dumps(
+            sources, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+        (self.package / "_build_provenance.json").write_text(json.dumps(self.metadata))
+        assert self.read_metadata() == self.metadata
+        if mutation == "modified":
+            path.write_text("int engine() { return 1; }\n")
+        elif mutation == "deleted":
+            path.unlink()
+        else:
+            path.with_name("extra.hpp").write_text("int extra();\n")
+        with pytest.raises(ValueError, match="package files differ"):
             self.read_metadata()
 
     def test_deleted_source_cannot_inherit_the_old_clean_origin(self):

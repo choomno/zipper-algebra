@@ -35,6 +35,11 @@ those records. Alternative encodings and dimension counts require separate
 arguments. Runs support optional traces and checked exhaustive enumeration,
 with exact pending states on limits or defensive control refusals. Finite
 execution checks provide separate implementation evidence.
+The default [C++ zipper engine](docs/ZIPPING_NATIVE.md) retains packed states and
+exact arbitrary-precision coefficients across rewriting, collection, and
+scheduling. Saved results undergo independent Python replay with a separate
+cache of verifier-computed transitions. The versioned SQLite census preserves
+historical certificates when switching execution engines.
 
 The optional [exact GPU collection prototype](docs/ZIPPING_GPU_PROTOTYPE.md)
 captures real rewrite batches and compares CPU, OpenCL, and CUDA coefficient

@@ -183,6 +183,7 @@ def turnaround(
     catalog: Catalog | None = None,
     limits: Limits | None = None,
     trace: bool = False,
+    _want_certificate: bool = True,
 ) -> tuple[Branch, dict[str, Any]]:
     """Unwind mandatory processed events of one completed framed pass.
 
@@ -229,6 +230,8 @@ def turnaround(
         evidence: list[dict[str, Any]] = (
             [{"band_transport": asdict(band)}] if trace else []
         )
+        if not (trace or _want_certificate):
+            return following, {}
         return following, _certificate(
             branch, following, n, catalog, limits, trace, evidence, len(band.steps)
         )
@@ -367,6 +370,8 @@ def turnaround(
     following = Branch(word, branch.coefficient, _json(cc))
     limits.check(RunState(n, (following,)))
     parts(following, n=n, budget=limits.max_word_size)
+    if not (trace or _want_certificate):
+        return following, {}
     return following, _certificate(
         branch, following, n, catalog, limits, trace, evidence, len(events)
     )
