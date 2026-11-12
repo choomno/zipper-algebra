@@ -4,12 +4,14 @@ include .github/workflows/ci.yml
 recursive-include src/zipper_algebra *.py
 include docs/TESTING.md docs/X3_REPRODUCTION.md docs/x3-reproduction-files.json
 include docs/PROVENANCE.md docs/POLYNOMIAL_UNTWISTINGS.md docs/PARAMETER_FIELDS.md
+include docs/GROEBNER_VERIFICATION.md docs/FOUR_STRAND_SQUARE_ZERO.md
 include docs/mathematical-specification/README.md docs/mathematical-specification/main.tex
 include docs/mathematical-specification/mathematical-specification.pdf
 recursive-include ci *.py
 include patches/f4ncgb/README.md patches/f4ncgb/msolve-parser-fix.patch patches/f4ncgb/LICENSE
 recursive-include tests *.py
 recursive-include examples *.py
+include examples/four_strand_square_zero.sing examples/verify_four_strand_square_zero.g
 include examples/x3/README.md
 include examples/x3/certificate.txt
 recursive-include experiments *.py
