@@ -18,12 +18,17 @@ ROOT = Path(__file__).resolve().parents[1]
 FAMILIES = (
     ("src/zipper_algebra/**/*.py", "Maintained implementation used by presentation, production or verification"),
     ("src/zipper_algebra/zipping_algorithm/data/*.json", "Frozen zipper rewrite schemata, syntax and hash manifest"),
+    ("native/zipper_verifier/**/*.cpp", "Independent verifier implementation and compatibility diagnostics"),
+    ("native/zipper_verifier/**/*.h", "Independent verifier authenticated headers"),
+    ("native/zipper_verifier/**/*.hpp", "Independent verifier types and authenticated parser headers"),
+    ("tests/native/frozen_verifier_9c477dd.*", "Authenticated independent JSON verifier differential fixture"),
     ("tests/**/*.py", "Mathematical regression, installation or independent implementation comparison"),
     ("ci/*.py", "Installation, test, coverage, documentation or inventory support"),
     ("examples/x3/*", "Sparse current X3 output example and its reproduction instructions"),
 )
 
 EXACT = {
+    "native/zipper_verifier/vendor/nlohmann/LICENSE.MIT": "License for the independently bundled JSON parser",
     ".coveragerc": "Complete line and branch measurement, including Python subprocesses",
     ".gitattributes": "Canonical line endings and solver-input classification",
     ".gitignore": "Generated computation files and caches stay untracked",

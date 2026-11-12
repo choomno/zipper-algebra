@@ -1,4 +1,5 @@
 #include "algorithm.hpp"
+#include "typed_state.hpp"
 #include "catalog.hpp"
 #include "scheduler.hpp"
 #include <chrono>
@@ -87,6 +88,22 @@ public:
         if (op=="replay") return reconstruct(request);
         if (op=="replay_reused")
             return session_->replay_reused(as_i(request.at("n")),request.at("input_word"),Limits(request.at("limits")));
+        // The typed diagnostic accepts the owned controller schema. The legacy
+        // operation below preserves unrestricted historical diagnostic inputs;
+        // replay and replay_reused use the typed controller exclusively.
+        if (op=="typed_transition") {
+            bool trace=request.contains("trace_enabled")?bool_field(request,"trace_enabled"):
+                       request.contains("trace")?bool_field(request,"trace"):false;
+            const J normalized=normalize_coefficients(request.at("work"));
+            auto work=typed::decode_work(normalized);
+            // A typed diagnostic has a closed schema at every owned record.
+            // Round-trip equality also checks nested contexts and component
+            // records without introducing JSON fields into the owned state.
+            if (!strict_equal(normalized,typed::encode_work(work)))
+                throw ReplayError("typed controller state differs from its owned schema");
+            return typed::encode_transition(typed::algorithm_transition(work,*catalog_,
+                                          Limits(request.at("limits")),trace));
+        }
         if (op=="transition") {
             bool trace=request.contains("trace_enabled")?bool_field(request,"trace_enabled"):
                        request.contains("trace")?bool_field(request,"trace"):false;
