@@ -25,8 +25,9 @@ class WorkingField:
 
     Native values stay inside a single computation and are not certificate
     encodings. Conversion back can remove denominator factors. A converted
-    value therefore carries its own specialization locus, independently of the
-    literal input whose factors may have cancelled during the computation.
+    coefficient expression can therefore be defined where the literal input
+    or its derivation is undefined. This does not justify specialization of a
+    quotient-algebra statement; the proof may invert additional factors.
     At most ``cache_size`` parameter conversion entries are retained, with least
     recently used entries evicted first. A size of zero disables this cache.
     """

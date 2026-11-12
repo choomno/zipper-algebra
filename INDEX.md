@@ -69,6 +69,7 @@ datasets and interfaces remain available in Git history.
 - [Mathematical reference](docs/mathematical-specification/mathematical-specification.pdf): definitions, hypotheses and verification conclusions.
 - [Four-strand square-zero computation](docs/FOUR_STRAND_SQUARE_ZERO.md): generic dimension, certified basis and a nonzero square-zero ideal.
 - [Minimal polynomials](docs/MINIMAL_POLYNOMIALS.md): exact element and orbit relations with minimality witnesses.
+- [Generic production](docs/GENERIC_PRODUCTION.md): arbitrary parameter fields, fresh f4ncgb acquisition, shared proof reconstruction and certified actions.
 - [Certified reconstruction](docs/RECONSTRUCTION.md): native setup, exact matrix/kernel schemas, sampling controls and verification.
 - [Finite algebras](docs/FINITE_ALGEBRAS.md): word-basis witnesses, sparse actions, coordinates and exact products.
 - [Completed-basis verification](docs/GROEBNER_VERIFICATION.md): derivations, ideal equality, critical ambiguities and normal forms.

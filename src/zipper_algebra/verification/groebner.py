@@ -11,12 +11,12 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass
-from fractions import Fraction
 import re
 
 from ..algebra import AlgebraElement, AlgebraPresentation, FreeAlgebra, Word
 from ..fields import FieldElement
 from .derivations import DerivationGraph, DerivationTerm, VerificationLimit, _verify_graph
+from .working_field import WorkingField
 
 __all__ = ["ProofTerm", "GroebnerCertificate", "VerifiedReduction",
            "VerificationLimit", "verify_groebner"]
@@ -142,13 +142,13 @@ def _accumulate(polynomial: dict, word: Word, coefficient) -> None:
 
 
 class _Reducer:
-    """Private sparse arithmetic; Q without parameters uses Fraction directly."""
+    """Private normalized arithmetic; Q still uses Fraction directly."""
 
     def __init__(self, algebra: FreeAlgebra, basis: tuple[AlgebraElement, ...],
                  maximum: int, prune: bool) -> None:
         self.algebra = algebra
-        self.rational = not algebra.field.parameters and not algebra.field.characteristic
-        self.one = Fraction(1) if self.rational else algebra.field.one
+        self.arithmetic = WorkingField(algebra.field)
+        self.one = self.arithmetic.one
         self.maximum = maximum
         self.work = 0
         self.reductions = 0
@@ -179,9 +179,7 @@ class _Reducer:
                                            if monomial != word)))
 
     def scalar(self, coefficient: FieldElement):
-        if self.rational:
-            return Fraction(coefficient.numerator[0][1]) if coefficient.numerator else Fraction(0)
-        return coefficient
+        return self.arithmetic.from_element(coefficient)
 
     def native(self, polynomial: AlgebraElement) -> dict:
         return {word: self.scalar(coefficient) for word, coefficient in polynomial.terms}
@@ -328,7 +326,8 @@ class VerifiedReduction:
         if not isinstance(element, AlgebraElement) or element.algebra != self.algebra:
             raise TypeError("normal forms require an element of the verified free algebra")
         result = self._reducer.normal_form(self._reducer.native(element))
-        return self.algebra.element(result)
+        return self.algebra.element({word: self._reducer.arithmetic.to_element(coefficient)
+                                    for word, coefficient in result.items()})
 
 
 def verify_groebner(presentation: AlgebraPresentation, certificate: GroebnerCertificate, *,
@@ -341,6 +340,9 @@ def verify_groebner(presentation: AlgebraPresentation, certificate: GroebnerCert
     proved: exceeding it returns dimension=None, never an infinity verdict.
     Malformed or false certificates raise TypeError/ValueError. A work-budget
     limit raises VerificationLimit rather than claiming failure of membership.
+    Parameter-field arithmetic requires the symbolic extra (ImportError if
+    absent). Pruning checks ideal equality and completion of the retained rules;
+    discarded leading words contain retained ones, so standard words agree.
     """
     if not isinstance(presentation, AlgebraPresentation) or not isinstance(certificate, GroebnerCertificate):
         raise TypeError("verification requires a presentation and GroebnerCertificate")

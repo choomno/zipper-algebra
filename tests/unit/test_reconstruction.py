@@ -945,3 +945,105 @@ def test_algebraic_matrices_and_kernel_certificates_are_explicitly_unhashable():
     for value in (original, empty, proof):
         with pytest.raises(TypeError, match='unhashable'):
             hash(value)
+
+
+def test_candidate_vectors_skip_minor_and_kernel_certification(monkeypatch):
+    from types import SimpleNamespace
+    from zipper_algebra import reconstruction
+    native = NativeProtocol()
+    monkeypatch.setattr(reconstruction, 'importlib', SimpleNamespace(import_module=lambda _: native))
+    def unexpected(*args, **kwargs):
+        raise AssertionError('candidate production must not construct or check a rank certificate')
+    monkeypatch.setattr(reconstruction, '_lower_inverse', unexpected)
+    monkeypatch.setattr(reconstruction, 'verify_kernel', unexpected)
+    field = RationalFunctionField(('q',))
+    q = field.parameter('q')
+    original = matrix(field, [[1, q]])
+    candidate = reconstruction.reconstruct_kernel_candidate(original, max_primes=3,
+                  max_degree=8, threads=2, start_prime=1, shift=(3,))
+    assert candidate == matrix(field, [[-q], [1]])
+    assert native.deleted == [17]
+    assert ('shift', (3,)) in native.calls and ('learn', 1) in native.calls
+    assert next(options for kind, options in native.calls if kind == 'function') == {
+        'n_threads': 2, 'max_primes': 3, 'max_deg': 8, 'start_mod': 1}
+
+
+def test_numeric_candidate_preserves_exact_wire_coefficients(monkeypatch):
+    from types import SimpleNamespace
+    from zipper_algebra import reconstruction
+    native = NativeProtocol()
+    native.ReconstructNumeric = lambda *args, **kwargs: ['-3/2']
+    monkeypatch.setattr(reconstruction, 'importlib', SimpleNamespace(import_module=lambda _: native))
+    field = RationalFunctionField()
+    original = matrix(field, [[Fraction(2, 3), 1]])
+    candidate = reconstruction.reconstruct_kernel_candidate(original)
+    assert candidate == matrix(field, [[Fraction(-3, 2)], [1]])
+    assert native.numeric_constructor == (2, [[0, 1]], ['2/3', '1'])
+    assert native.deleted == [17]
+
+
+@pytest.mark.parametrize('parameters', [(), ('q',)])
+def test_zero_candidate_uses_no_native_graph_or_certificate_checker(monkeypatch, parameters):
+    from types import SimpleNamespace
+    from zipper_algebra import reconstruction
+    def unexpected(*args, **kwargs):
+        raise AssertionError('zero candidate is an immediate vector proposal')
+    monkeypatch.setattr(reconstruction, 'importlib', SimpleNamespace(import_module=unexpected))
+    monkeypatch.setattr(reconstruction, '_lower_inverse', unexpected)
+    monkeypatch.setattr(reconstruction, 'verify_kernel', unexpected)
+    field = RationalFunctionField(parameters)
+    original = ExactMatrix(field, 2, 3)
+    candidate = reconstruction.reconstruct_kernel_candidate(original)
+    assert candidate == ExactMatrix(field, 3, 3, tuple((i, i, field.one) for i in range(3)))
+
+
+def test_candidate_vectors_can_be_false_and_do_not_assert_an_exact_identity(monkeypatch):
+    from types import SimpleNamespace
+    from zipper_algebra import reconstruction
+    native = NativeProtocol(output=NativeOutput(terms=([('-2', (1,))], [('1', (0,))])))
+    monkeypatch.setattr(reconstruction, 'importlib', SimpleNamespace(import_module=lambda _: native))
+    field = RationalFunctionField(('q',))
+    q = field.parameter('q')
+    original = matrix(field, [[1, q]])
+    candidate = reconstruction.reconstruct_kernel_candidate(original)
+    assert candidate == matrix(field, [[-2*q], [1]])
+    # The native proposal is syntactically sound but mathematically false.
+    # Acceptance must be supplied by a separate exact identity/algebra checker.
+    values = {(row, column): value for row, column, value in candidate.entries}
+    residual = sum((value * values.get((column, 0), field.zero)
+                    for row, column, value in original.entries if row == 0), field.zero)
+    assert residual == -q and not residual.is_zero()
+    assert native.deleted == [17]
+
+
+def test_zero_column_candidate_is_not_a_full_rank_witness(monkeypatch):
+    from types import SimpleNamespace
+    from zipper_algebra import reconstruction
+    native = NativeProtocol(dependent=(0, 1), free=(), rows=(0, 1))
+    monkeypatch.setattr(reconstruction, 'importlib', SimpleNamespace(import_module=lambda _: native))
+    original = matrix(RationalFunctionField(), [[1, 2], [2, 4]])
+    candidate = reconstruction.reconstruct_kernel_candidate(original)
+    assert candidate.nrows == 2 and candidate.ncols == 0
+    # The explicit nonzero vector (-2,1) is in this matrix's true kernel.
+    witness = (-2, 1)
+    for row in range(original.nrows):
+        assert sum((value*witness[column] for i, column, value in original.entries
+                    if i == row), original.field.zero).is_zero()
+    assert native.deleted == [17]
+
+
+@pytest.mark.parametrize('options', [{'max_primes': 0}, {'max_degree': 2**16},
+                                     {'threads': 0}, {'start_prime': -1},
+                                     {'shift': (True,)}])
+def test_candidate_native_controls_use_the_same_strict_validation(options):
+    from zipper_algebra.reconstruction import reconstruct_kernel_candidate
+    with pytest.raises(ValueError):
+        reconstruct_kernel_candidate(ExactMatrix(RationalFunctionField(('q',)), 0, 0), **options)
+
+
+def test_candidate_rejects_wrong_matrix_and_coefficient_characteristic():
+    from zipper_algebra.reconstruction import reconstruct_kernel_candidate
+    with pytest.raises(TypeError):
+        reconstruct_kernel_candidate([[1]])
+    with pytest.raises(ValueError, match='characteristic zero'):
+        reconstruct_kernel_candidate(ExactMatrix(RationalFunctionField((), 5), 0, 0))
