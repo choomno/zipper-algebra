@@ -177,6 +177,16 @@ report without unverified cofactor artifacts; rejected nonempty output folders
 must retain their original contents. The original four-strand cofactor comparison
 remains a local research computation outside CI.
 
+Optional cofactor-reconstruction tests distinguish structural support from
+path-coefficient propagation, preserve noncommuting contexts through shared and
+forward references, and check last-use release of intermediate context sets.
+They reject invalid raw edges and cycles before support selection, malformed
+native layouts, false coefficients, unsupported fields and exhausted bounds.
+Small native integrations check rational affine right-hand sides, generic
+identities after JSON reload, dependent-variable ordering and bad-prime recovery.
+A same-process control confirms that this candidate route does not disable the
+separate complete-kernel API's certification.
+
 ## Runtime bounds
 
 Use `python -m pytest tests/unit -q --durations=10` for quick algebraic checks.

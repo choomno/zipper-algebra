@@ -56,6 +56,7 @@ def inspect(directory):
                        "polynomial.py", "relations.py", "msolve.py",
                        "matrices.py", "reconstruction.py", "invariants.py", "production.py", "action_production.py",
                        "linear.py", "cofactor/verify.py", "cofactor/lift.py", "cofactor/general.py",
+                       "cofactor/reconstruction.py", "cofactor/_contexts.py",
                        "cofactor/inference.py", "cofactor/univariate.py",
                        "cofactor/artifacts.py", "cofactor/discovery.py", "execution/config.py",
                        "execution/dependencies.py", "execution/general.py", "execution/production.py",

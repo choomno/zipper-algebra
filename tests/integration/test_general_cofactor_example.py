@@ -63,6 +63,9 @@ def test_saved_cofactor_proves_noncommuting_reduction(tmp_path, parameters, memb
     assert report['status'] == 'verified' and report['verified']
     assert report['in_ideal'] is membership
     assert report['presentation_hash'] == presentation.content_hash()
+    saved_presentation = AlgebraPresentation.from_json(json.loads(Path(report['artifacts']['presentation.json']).read_text()))
+    saved_target = AlgebraElement.from_json(json.loads(Path(report['artifacts']['target.json']).read_text()))
+    assert saved_presentation == presentation and saved_target == target
     representative = AlgebraElement.from_json(json.loads(Path(report['artifacts']['representative.json']).read_text()))
     identity = CofactorIdentity.from_json(json.loads(Path(report['artifacts']['cofactor.json']).read_text()))
     assert representative == expected
@@ -106,7 +109,8 @@ def test_nonempty_output_is_rejected_without_changing_existing_files(tmp_path, e
     assert {path.name: path.read_bytes() for path in output.iterdir()} == before
 
 
-@pytest.mark.parametrize('failure', ['representative', 'cofactor', 'coordinated', 'source-change'])
+@pytest.mark.parametrize('failure', ['presentation', 'target', 'representative', 'cofactor',
+                                   'coordinated', 'false-proof', 'source-change'])
 def test_failed_saved_output_binding_removes_unverified_artifacts(tmp_path, monkeypatch, capsys, failure):
     module = load_example()
     presentation, u, v, paths = inputs(tmp_path)
@@ -115,12 +119,17 @@ def test_failed_saved_output_binding_removes_unverified_artifacts(tmp_path, monk
     write = module.write_json_atomic
 
     def corrupt(path, document):
+        if failure == 'false-proof' and path.name == 'cofactor.json':
+            document = CofactorIdentity(presentation.content_hash(), v*u*v-v, ()).to_json()
         if failure == 'coordinated' and path.name in ('representative.json', 'cofactor.json'):
             # The zero proof is valid for target minus itself, but target reduces to zero.
             document = (target.to_json() if path.name == 'representative.json' else
                         CofactorIdentity(presentation.content_hash(), presentation.algebra.zero, ()).to_json())
         if path.name == failure+'.json':
-            if failure == 'representative':
+            if failure == 'presentation':
+                document = AlgebraPresentation(presentation.algebra, presentation.relations,
+                                                ('changed-u2', 'v2', 'mixed')).to_json()
+            elif failure in ('target', 'representative'):
                 document = presentation.algebra.zero.to_json()
             else:
                 # A valid identity for zero must still fail binding to the target.
@@ -141,7 +150,9 @@ def test_failed_saved_output_binding_removes_unverified_artifacts(tmp_path, monk
     assert code == 3 and report['status'] == 'inconclusive' and not report['verified']
     assert 'in_ideal' not in report and 'artifacts' not in report
     reason = ('source changed' if failure == 'source-change' else
+              'consumed problem' if failure in ('presentation', 'target') else
               'verified normal form' if failure in ('representative', 'coordinated') else
+              'exact original-input identity' if failure == 'false-proof' else
               'target minus representative')
     assert reason in report['reason']
     assert not (output/'representative.json').exists() and not (output/'cofactor.json').exists()

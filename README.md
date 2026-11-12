@@ -246,8 +246,9 @@ and 99.5% branch coverage**, measured separately with no exclusions. Each test
 has a 60-second hang guard.
 
 CI also checks wheel and source-package installation and compiles the mathematical
-reference. Its combined native integration job is configured to exercise both
-solver I/O modes on a small case once the pinned FiniteFlow revision is published. Full X₃ discovery and larger research computations run locally.
+reference. Its native integration job exercises both solver I/O modes and
+certified reconstruction on small cases using pinned dependency revisions.
+Full X₃ discovery and larger research computations run locally.
 
 [TESTING](docs/TESTING.md) explains the exact algebraic and failure-path
 regressions, coverage commands, gradual type-checking limits and optional
