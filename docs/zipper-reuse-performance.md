@@ -305,3 +305,108 @@ including exact exception type and message, large coefficients, Unicode,
 overflowing exponents, and retained versus omitted fields. An attempted optional
 AddressSanitizer/UndefinedBehaviorSanitizer supplement could not link because the
 installed GCC sanitizer runtime was missing; it is not counted as validation.
+
+## Count-only checks and compact restoration frames
+
+The next independent verifier revision replaces expression construction used
+only for a token count with a checked observer. It applies every reflection and
+context shift to scalar coordinates without materializing concatenated or
+mapped word arrays. Arithmetic operations retain their original order for each coordinate;
+a composed map could conceal an intermediate overflow. Context routes receive
+exactly the shifts from their outer contexts. On refusal, the observer calls
+the original materializer so malformed states retain the original exception
+and diagnostic precedence. Coefficient support, exact integer bit limits and
+all restored-output checks remain in place.
+
+DAG frames now own a typed restoration record containing rank, scalar, ordered
+contexts and endpoint labels. These fields move from each owned child before
+the remaining complete control state is normalized. After a frame expands,
+its unit JSON is released. Its complete continuation key, restoration data,
+children, collected output, cycle membership and cache bookkeeping remain.
+Standalone replay borrows stable frontier entries until atomic commit;
+standalone traces retain their original predecessor records and microsteps.
+
+The implementation continues to use the independent JSON controller and rule
+dispatch. A complete typed verifier would also require independent token,
+controller, boundary-factor, context and formal-output representations with
+canonical encoders. The JSON implementation supplies a differential oracle for
+such a conversion. The current measurements do not isolate the fraction of
+runtime attributable to JSON representation and do not predict a numerical
+benefit for a complete conversion.
+
+Unary transition fusion also remains a separate experiment. Each original
+microstep has a continuation key and cycle check, consumes a transition on a
+cache miss, accounts staged children against the active-term bound, validates
+restoration and scalar multiplication, and admits completed continuations in a
+specific bounded-cache order. Fusing transitions or composing nonidentity maps
+must retain these events and their intermediate refusals, or define a distinct
+schedule/resource contract. This revision reduces retained frame data without
+changing transition counts or omitting intermediate output checks.
+
+### Matched longer-word measurements
+
+The frozen baseline is `9ead70b`; the production native change is `1d7cf7d`.
+The cohort has one predeclared sample each of B3 and B4 lengths 10, 12, 16 and
+24, plus the previously documented hard B5 and B8 words. All six arms used
+fresh producer and verifier sessions per input, CPU 6, authenticated tcmalloc,
+256 MiB / 262,144-entry cache budgets, 250,000 transition evaluations, 20,000
+terms, expansion budget 1,000,000, a 60-second per-input deadline, and a 4 GiB
+virtual-address-space guard per process. The census continued on the shared
+host. Session/build setup is excluded from per-input timings.
+
+The DAG order was baseline/candidate, then candidate/baseline. DAG rows below
+are medians of the two observations for each build and input. Standalone ran
+candidate/baseline once. Checker time includes authentication, encoding,
+transfer, independent replay and exact comparison. Elapsed time additionally
+includes normalization, result/output serialization, compression and durable
+payload insertion. It is not just native execution time.
+
+| Input | DAG checker, baseline / candidate | Standalone checker, baseline / candidate | DAG elapsed, baseline / candidate |
+|---|---:|---:|---:|
+| B3 length 10 | 0.923 / 0.832 s | 0.441 / 0.425 s | 1.128 / 1.046 s |
+| B3 length 12 | 2.809 / 2.546 s | 0.986 / 0.839 s | 3.413 / 3.160 s |
+| B3 length 16 | 15.832 / 14.315 s | 8.779 / 7.698 s | 19.050 / 17.505 s |
+| B4 length 10 | 8.788 / 7.635 s | 10.158 / 8.669 s | 10.847 / 9.558 s |
+| B4 length 12 | 1.390 / 1.200 s | 0.728 / 0.664 s | 1.699 / 1.484 s |
+| B5 `[-4,-3,1,2,3,4]` | 23.713 / 21.507 s | 19.683 / 18.007 s | 29.359 / 26.756 s |
+| B8 `[4,1,6,7,2,5,6,3]` | 8.138 / 7.976 s | 23.944 / 20.215 s | 16.681 / 16.155 s |
+
+All seven completed inputs have byte-identical full canonical output payloads
+across all six arms, with independent replay checking in every completed run.
+The remaining B3 length-24, B4 length-16 and B4 length-24 inputs are incomplete
+in every arm: DAG production reaches the intrinsic transition-evaluation
+limit; standalone reaches the collected-term limit. None reaches the wall
+clock deadline or reports an allocation/address-space refusal. These are
+explicitly excluded from completed-case speed ratios and establish no longer
+exhaustive coverage.
+
+For the seven common completions, sums of the per-input DAG medians are
+61.593 / 56.011 seconds for checking (1.100 ratio), and 82.177 / 75.665 seconds
+elapsed (1.086). The unchanged producer also varies, 14.641 / 13.933 seconds
+(1.051); host/order effects account for part of the observed difference.
+Standalone checking totals 64.719 / 56.516 seconds (1.145), and elapsed totals
+91.958 / 84.472 seconds (1.089), while its unchanged producer is slower in the
+candidate arm, 21.417 / 22.088 seconds. These are small finite matched
+observations, with two DAG observations and one standalone observation per
+build/input, rather than a census-wide throughput estimate.
+
+Sampled tree RSS gives no material memory reduction. The per-input DAG median
+peaks, baseline / candidate, are 0.113 / 0.112 GiB (B3 length 10),
+0.180 / 0.179 GiB (B3 length 12), 0.593 / 0.593 GiB (B3 length 16),
+0.465 / 0.464 GiB (B4 length 10), and 0.141 / 0.140 GiB (B4 length 12).
+Hard B5 is 1.345 / 1.345 GiB, and B8 is 2.942 / 2.950 GiB. The maximum
+completed standalone samples are 1.558 / 1.575 GiB. Incomplete-case samples
+are approximately 0.66–0.71 GiB for DAG and 1.07–1.67 GiB for standalone.
+Tree RSS can count shared pages more than once and is distinct from the
+per-process virtual-address-space guard.
+
+The direct C++ observer oracle compares 12,000 deterministic randomized states
+through ranks 1–16, signed coordinate extrema, malformed fields and cancelling
+reflections/shifts against the original materializer. Full C++ replay,
+completion reuse, transition, wrapper and resource-bound tests cover standalone
+traces, atomic rollback, cache restoration/eviction and tampering. Independent
+final-source reviews found no confirmed correctness defect. Remaining measured
+work is still dominated by checking; no profile here assigns that cost to a
+particular JSON operation. Future performance work includes avoiding quadratic
+context-map setup, exposing valid-state fallback frequency, and auditing
+redundant checks before attempting their removal.
