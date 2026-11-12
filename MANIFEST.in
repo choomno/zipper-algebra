@@ -5,6 +5,10 @@ recursive-include src/zipper_algebra *.py
 recursive-include src/zipper_algebra/zipping_algorithm/data *.json
 include docs/ZIPPING_REFERENCE.md docs/ZIPPING_NATIVE.md docs/ZIPPING_NATIVE_VERIFIER.md
 include docs/ZIPPING_GPU_PROTOTYPE.md docs/ZIPPING_GPU_REWRITE.md
+include docs/essential-enumeration.md
+include docs/zipper-block-separation.md docs/TRACE_EXECUTION_COUNTEREXAMPLE.md
+include docs/zipper-catalog-equivariance.md docs/zipper-packet-contiguity.md
+include docs/zipper-output-identifications.md
 include docs/TESTING.md docs/X3_REPRODUCTION.md docs/x3-reproduction-files.json
 include docs/PROVENANCE.md
 include docs/mathematical-specification/README.md docs/mathematical-specification/main.tex
@@ -32,3 +36,11 @@ prune build
 prune dist
 
 exclude CONTRIBUTING.md CONTRIBUTING.MD
+
+include docs/zipper-descending-peeling.md
+include docs/zipper-geometric-layer-persistence.md docs/figures/geometric-layer-counterexample.svg
+include docs/zipper-census-baselines.md
+include experiments/zipper_reduced_trace_counts.py
+include experiments/zipper_artin_baseline_counts.py
+include docs/zipper-current-normal-forms.md docs/zipper-rank-two-identification.md
+include docs/zipper-inverse-cancellation.md
