@@ -64,5 +64,5 @@ warn_redundant_casts = true
 warn_unused_configs = true
 
 [[tool.mypy.overrides]]
-module = ["sympy"]
+module = ["sympy", "sympy.*"]
 ignore_missing_imports = true

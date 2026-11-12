@@ -557,6 +557,7 @@ excluded. A successful fit is a candidate; the resulting identity still needs
 exact verification.
 
 \section{Exact reconstruction of candidates}
+\subsection{Standalone coefficient fitting}
 A sample consists of a distinct parameter point in $\Q^2$ and an exact rational
 value. Repeated locations count once; conflicting values and floating-point
 coefficients are rejected. For a fixed nonzero denominator proposal and a
@@ -571,7 +572,7 @@ result. The reduced denominator must be nonzero at every supplied point, and the
 candidate must match every fitting and held-out value. This prevents a spurious
 cross-multiplied equation $0=0$ from concealing an incorrect sample at a pole.
 
-By default the factor family is proposed from fitting data, starting without
+In the standalone fitting API the factor family is proposed from fitting data, starting without
 predeclared denominator factors. Exact univariate factorization and lifting
 across parameter lines are tried before bounded polynomial enumeration.
 The current line-lifting budget allows degree at most four in the other
@@ -593,12 +594,84 @@ does not imply coprimality of the numerator and denominator; stronger assertions
 require irreducible, pairwise nonassociate factors.
 
 Failed predictions, an unavailable common reduction shape and exhaustion of the
-chosen degree or factor bounds do not show that more data cannot help. The
-experimental driver retries within its sampling cap and reports an inconclusive
-outcome when it lacks an exact certificate. In particular, reducing to a nonzero
+chosen degree or factor bounds do not show that more data cannot help. The standalone fitting routine reports an inconclusive
+outcome when it lacks a candidate in its search class. In particular, reducing to a nonzero
 remainder against an uncertified basis establishes no nonmembership conclusion,
 even at that specialization. The exception \texttt{NeedMoreSamples} reports an
 inconclusive reconstruction. Candidate reconstruction is characteristic zero.
+
+\subsection{Discovery from contextual input relations}
+The installed discovery command obtains a candidate basis and a nonexpanded
+proof graph at a rational anchor. Every numerical basis identity is checked
+against the actual specialized defining relations. Reducing the target records
+its ordered contextual uses of the candidate basis. Expanding the relevant
+proof graph propagates left and right word contexts to the original input
+relations. Numerical proof coefficients are discarded in this step: they
+supply neither the generic coefficients nor denominator proposals.
+
+Let the resulting distinct triples be $(u_j,i_j,v_j)$, for $1\le j\le c$,
+where $r_{i_j}$ is an original defining relation over $K=\Q(q,t)$. Take the
+union of all words occurring in $u_jr_{i_j}v_j$ and the target $h$, and fix an
+order on that finite set. Relative to that free-word basis, let $A$ have
+columns $u_jr_{i_j}v_j$, let $b$ be the coordinate column of $h$, and put
+\[
+ M=[A\mid -b].
+\]
+FiniteFlow reconstructs a complete right kernel $N$ of $M$, which is then
+verified independently as described below. If a column $(z,s)$ of $N$ has
+$s\ne0$, then $Az=bs$, hence
+\[
+ h=\sum_{j=1}^{c}\frac{z_j}{s}\,u_jr_{i_j}v_j
+ \quad\text{in }K\langle\mathcal G\rangle.
+\]
+A separate free-algebra checker expands the original relations with these
+coefficients and checks the complete identity before publication. Thus even
+an error in support construction or matrix assembly cannot be accepted solely
+because the matrix calculation succeeds.
+
+The anchor graph proposes a finite support; it does not prove that this support
+suffices generically. A coefficient that vanishes at the anchor can hide a
+needed context. If every kernel vector has final coordinate zero, this support
+cannot represent the target, but membership in the full defining ideal remains
+unresolved. A nonzero target remainder against an uncertified basis likewise
+establishes no nonmembership result. Support-size, exact-product, reconstruction
+degree and prime budgets yield an inconclusive outcome upon exhaustion; they
+are computational limits rather than hypotheses of an accepted identity.
+The command continues to report \texttt{basis\_complete=False}.
+
+\subsection{Finite-field reconstruction of matrix kernels}
+Let $K=\Q(t_1,\ldots,t_s)$, let $M\in K^{m\times n}$, and fix the ordered
+parameters of $K$. FiniteFlow~\cite{finiteflow} produces a candidate kernel by
+solving specialized finite-field systems and reconstructing their rational
+coefficients. This computation is separate from generating noncommutative word
+contexts or proving that a matrix is the regular action of an algebra.
+
+A kernel certificate supplies $N\in K^{n\times(n-r)}$, a list $J$ of $n-r$
+distinct row indices, and an $r\times r$ minor $B$ of the original matrix.
+It includes a prime $p$, a parameter point $a\in\mathbb F_p^s$, and an inverse
+$C\in\operatorname{Mat}_r(\mathbb F_p)$ for $B(a)$. Every stored input
+coefficient used in $B(a)$ must be defined under this specialization: rational
+constant denominators and evaluated polynomial denominators must be nonzero.
+The independent verifier checks
+\[
+ MN=0,\qquad N_{J,*}=I_{n-r}\quad\text{over }K,
+ \qquad C B(a)=I_r\quad\text{over }\mathbb F_p.
+\]
+The first two identities imply $\operatorname{rank}_K M\le r$, since the
+columns of $N$ are independent. The last identity implies that the determinant
+of $B$ is a nonzero rational function and hence
+$\operatorname{rank}_K M\ge r$. Together they prove the exact generic rank
+and a basis of the right kernel. Empty identity blocks have their usual
+meaning for ranks zero and $n$.
+
+The matrix identity binds the witness to the supplied input. It does not by
+itself establish how that matrix was obtained from a presentation; that source
+requires its own finite-basis, action or cofactor checks. Sample agreement,
+a library success status, and a chosen reconstruction degree bound do not
+replace these identities. Unlucky primes, points, or learned pivot choices can
+cause failure or an incorrect candidate; a candidate is accepted only after
+all exact checks pass. Coefficient bounds, prime budgets and thread counts are
+computation settings rather than hypotheses of the conclusion.
 
 \section{A four-strand square-zero quotient over \texorpdfstring{$\Q(q,t)$}{Q(q,t)}}
 Let $A$ be the four-strand zipper quotient over $k=\Q(q,t)$ with polynomial
@@ -728,7 +801,7 @@ The maintained implementation is under \path{src/zipper_algebra/}:
 \item Coefficient reconstruction: \path{cofactor/lift.py}.
 \end{itemize}
 The installed discovery command uses \path{execution/pipeline.py}. Its explicit configuration, proof validation, versioned artifacts and atomic output records are documented in \path{WORKFLOW.md}.
-\begin{thebibliography}{9}
+\begin{thebibliography}{99}
 \bibitem{bigelow}
 Stephen Bigelow, \emph{Braid groups and Iwahori--Hecke algebras},
 in \emph{Problems on Mapping Class Groups and Related Topics},
@@ -774,6 +847,16 @@ Wolfram Decker, Gert-Martin Greuel, Gerhard Pfister and Hans Sch\"onemann,
 \emph{Singular}, version 4.4.1, computer algebra system.
 \href{https://www.singular.uni-kl.de/}{Official project site};
 \href{https://www.singular.uni-kl.de/index.php/how-to-cite-singular}{Citation information}.
+
+\bibitem{finiteflow}
+Tiziano Peraro, \emph{FiniteFlow: multivariate functional reconstruction using
+finite fields and dataflow graphs}, Journal of High Energy Physics
+\textbf{2019} (2019), no.~7, article~031.
+\href{https://doi.org/10.1007/JHEP07(2019)031}{doi:10.1007/JHEP07(2019)031};
+\href{https://arxiv.org/abs/1905.08019}{arXiv:1905.08019}.
+The maintained reconstruction interface uses the
+\href{https://github.com/Choomno/finiteflow}{FiniteFlow fork}; the original
+framework is \href{https://github.com/peraro/finiteflow}{upstream FiniteFlow}.
 
 \bibitem{sympy}
 Aaron Meurer et al., \emph{SymPy: symbolic computing in Python},
