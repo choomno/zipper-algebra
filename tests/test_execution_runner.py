@@ -23,6 +23,9 @@ from zipper_algebra.execution.artifacts import (
 from zipper_algebra.execution.config import DEFAULT_FLAGS
 from zipper_algebra.execution import store
 from zipper_algebra.cofactor.proof import Basis, Proof
+from zipper_algebra.cofactor.artifacts import target_identity
+from zipper_algebra.execution.runner import run_basis_point
+from zipper_algebra.provenance import capture_provenance
 
 
 # This writes a known subset of the input relations with tautological input
@@ -284,7 +287,8 @@ class TestSolverExecution(RunnerFixture):
         assert (run.record["request"]["presentation"]["legacy_hash"]) == (self.pres.content_hash())
         assert (run.record["request"]["presentation"]["coefficient_domain"]) == ("Q[q,t]")
         assert (run.record["request"]["point"]) == ([5, 7, 0])
-        assert (run.record["request"]["target"]) == ("X_2")
+        assert run.record["request"]["schema"] == "zipper-solver-request-v3"
+        assert {"target", "target_polynomial"}.isdisjoint(run.record["request"])
         assert (run.record["request"]["monomial_order"]) == ("degree-lex")
         names = self.pres.var_names()
         assert (len(Basis.from_text(run.files["basis.txt"].decode(), 0, names))) == (run.record["basis_entries"])
@@ -460,6 +464,15 @@ class TestCompletedRunRecords(RunnerFixture):
         with pytest.raises(ArtifactError, match="fails its input-ideal identity"):
             self.run_solver()
 
+    def test_another_target_cannot_reuse_a_rehashed_false_proof(self):
+        presentation = Presentation(3)
+        config = self.config()
+        first = run_point(presentation, "X_2", self.point, config)
+        self._replace_generation(first, "proof.txt", b"[i1]\n")
+        with pytest.raises(ArtifactError, match="fails its input-ideal identity"):
+            run_point(presentation, "X_3", self.point, config)
+        assert self.counter.read_text() == "1"
+
     def test_a_rehashed_different_input_is_not_the_requested_input(self):
         run = self.run_solver()
         self._replace_generation(run, "input.ms", b"x1,y1\n0\nx1*y1-2\n")
@@ -497,3 +510,104 @@ class TestCompletedRunRecords(RunnerFixture):
         content = b"proof output" * 20000
         path.write_bytes(content)
         assert (file_identity(path)) == ({"bytes": len(content), "sha256": hashlib.sha256(content).hexdigest()})
+
+
+class TestTargetIndependentSolverReuse(RunnerFixture):
+    def test_v3_storage_rejects_target_fields_or_missing_computation_data(self, subtests):
+        sample = run_basis_point(self.pres, self.point, self.config())
+        request = sample.record['request']
+        without_point = {key: value for key, value in request.items() if key != 'point'}
+        for malformed in (without_point, {**request, 'target': 'X_2'},
+                          {**request, 'target_polynomial': target_identity(self.pres, 'X_2')},
+                          {**request, 'unrecognized': 'data'}):
+            key = digest_bytes(canonical_json(malformed))
+            with subtests.test(fields=set(malformed)), pytest.raises(ArtifactError, match='request-v3'):
+                store.publish(sample.store, key, sample.files, malformed, sample.record['basis_entries'])
+
+    def test_different_targets_and_target_free_call_share_one_calculation(self):
+        presentation = Presentation(3)
+        config = self.config("all", cache_root=self.root / "cache")
+        first = run_point(presentation, "X_2", self.point, config)
+        another = run_point(presentation, "X_3", self.point, config)
+        direct = run_basis_point(presentation, self.point, config)
+        assert target_identity(presentation, "X_2") != target_identity(presentation, "X_3")
+        assert not first.hit and another.hit and direct.hit
+        assert first.key == another.key == direct.key
+        assert first.files == another.files == direct.files
+        assert first.record == another.record == direct.record
+        assert first.record["request"]["schema"] == "zipper-solver-request-v3"
+        assert {"target", "target_polynomial"}.isdisjoint(first.record["request"])
+        assert not first.record["basis_complete"]
+        assert self.counter.read_text() == "1"
+        with closing(sqlite3.connect(first.store)) as connection:
+            assert connection.execute("SELECT count(*) FROM selections").fetchone() == (1,)
+
+    def test_different_target_in_a_new_output_reuses_the_shared_cache(self):
+        presentation = Presentation(3)
+        config = self.config(cache_root=self.root / "cache")
+        first = run_point(presentation, "X_2", self.point, config)
+        other_config = replace(config, output_root=self.root / "another-target")
+        other = run_point(presentation, "X_3", self.point, other_config)
+        assert not first.hit and other.hit
+        assert first.key == other.key
+        assert first.record["generation"] == other.record["generation"]
+        assert first.store != other.store
+        assert store.read(first.store, first.key) == store.read(other.store, other.key)
+        assert self.counter.read_text() == "1"
+
+    def test_invalid_targets_fail_before_any_cache_lookup(self, subtests):
+        presentation = Presentation(3)
+        config = self.config()
+        run_point(presentation, "X_2", self.point, config)
+        with patch("zipper_algebra.execution.runner.load") as lookup:
+            for target in (None, (2, 1), "unknown", "X_4"):
+                with subtests.test(target=target), pytest.raises(ValueError):
+                    run_point(presentation, target, self.point, config)
+        lookup.assert_not_called()
+        assert self.counter.read_text() == "1"
+
+    def test_new_requests_preserve_executable_bytes_and_captured_source_identity(self):
+        executable = self.root / "solver-launcher"
+        executable.write_text(
+            f"#!{sys.executable}\nimport os, sys\n"
+            "os.execv(sys.executable, [sys.executable, *sys.argv[1:]])\n")
+        executable.chmod(0o755)
+        config = self.config(binary=executable)
+        producer = capture_provenance()
+        first = run_basis_point(self.pres, self.point, config, producer=producer)
+        # The executable's actual identity must change even though its path
+        # and behaviour do not.
+        with executable.open("ab") as stream:
+            stream.write(b"\n# changed executable bytes\n")
+        changed_binary = run_basis_point(self.pres, self.point, config, producer=producer)
+        recipe = Path(__file__).resolve().parents[1] / "experiments" / "output.py"
+        with_recipe = capture_provenance(extra_sources=(recipe,))
+        changed_sources = run_basis_point(self.pres, self.point, config, producer=with_recipe)
+        assert len({run.key for run in (first, changed_binary, changed_sources)}) == 3
+        assert all(not run.hit for run in (first, changed_binary, changed_sources))
+        assert first.record["request"]["solver"]["identity"] != changed_binary.record["request"]["solver"]["identity"]
+        assert changed_binary.record["request"]["producer"] != changed_sources.record["request"]["producer"]
+        assert self.counter.read_text() == "3"
+
+    def test_old_target_bound_requests_remain_readable_without_becoming_v3_hits(self):
+        config = self.config()
+        seed = run_basis_point(self.pres, self.point, config)
+        legacy_config = replace(config, output_root=self.root / "legacy-output")
+        legacy_store = legacy_config.output_root / "samples.sqlite3"
+        legacy_request = {**seed.record["request"], "schema": "zipper-solver-request-v2",
+                          "target": "X_2", "target_polynomial": target_identity(self.pres, "X_2")}
+        legacy_key = digest_bytes(canonical_json(legacy_request))
+        legacy_record = store.publish(legacy_store, legacy_key, seed.files, legacy_request,
+                                      seed.record["basis_entries"])
+        before = store.read(legacy_store, legacy_key)
+        fresh = run_point(self.pres, "X_2", self.point, legacy_config)
+        assert not fresh.hit
+        assert fresh.key != legacy_key and fresh.key == seed.key
+        assert self.counter.read_text() == "2"
+        assert store.read(legacy_store, legacy_key) == before == (seed.files, legacy_record)
+        exported = self.root / "old-generation-export"
+        assert store.export(legacy_store, legacy_key, exported) == legacy_record
+        assert json.loads((exported / "record.json").read_text()) == legacy_record
+        assert (exported / "proof.txt").read_bytes() == seed.files["proof.txt"]
+        with closing(sqlite3.connect(legacy_store)) as connection:
+            assert connection.execute("SELECT count(*) FROM selections").fetchone() == (2,)

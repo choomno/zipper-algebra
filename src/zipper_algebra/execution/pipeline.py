@@ -20,6 +20,7 @@ from ..presentation import Presentation
 from .artifacts import ArtifactError, canonical_json, digest_bytes, file_identity, prepare_output_root
 from .runner import ExecutionError, validate_source_snapshot
 from .sampling import Point, SampleSet
+from .store import read as read_solver_run
 from .config import RunConfig
 from ..provenance import capture_provenance, write_bundle_provenance
 
@@ -51,11 +52,62 @@ def multiplier_samples(skeleton: Skeleton, samples: SampleSet,
     return result
 
 
+def _solver_runs(samples: SampleSet) -> list[dict]:
+    """Identify all validated runs of this discovery, including unstable samples."""
+    return [{"point": list(point), "key": result.key, "store": str(result.store),
+             "generation": result.record["generation"], "files": result.record["files"],
+             "request": result.record["request"]}
+            for point, result in samples._runs.items()]
+
+
+def _solver_links(root, pres, target, solver_runs, producer):
+    """Bind supplied run records to retained output-root-relative solver data.
+
+    Reading a stored generation checks its identities and bytes; it does not
+    establish basis completeness or which samples contributed to a fitted slot.
+    """
+    presentation = presentation_identity(pres)
+    records: list[dict] = []
+    links = {"schema": "zipper-solver-links-v1", "presentation": presentation,
+             "target": target_identity(pres, target), "recorded": solver_runs is not None,
+             "store_path_base": "output-root", "runs": records}
+    if solver_runs is None:
+        return links
+    seen = set()
+    try:
+        for run in solver_runs:
+            point = run["point"]
+            if (not isinstance(point, list) or len(point) != 2
+                    or any(type(value) is not int for value in point)):
+                raise ArtifactError("solver link point must be an integer q,t pair")
+            if tuple(point) in seen:
+                raise ArtifactError("solver links must contain one generation per point")
+            seen.add(tuple(point))
+            path = Path(run["store"])
+            relative = path.resolve().relative_to(Path(root).resolve()).as_posix()
+            _, saved = read_solver_run(path, run["key"], generation=run["generation"])
+            request = saved["request"]
+            if (canonical_json(request) != canonical_json(run["request"])
+                    or canonical_json(request["presentation"]) != canonical_json(presentation)
+                    or canonical_json(request["point"]) != canonical_json([*point, 0])
+                    or request["specialized_domain"] != "Q"
+                    or canonical_json(request["producer"]) != canonical_json(producer)
+                    or canonical_json(saved["files"]) != canonical_json(run["files"])):
+                raise ArtifactError("solver link metadata differ from the retained computation")
+            records.append({"point": list(point), "key": run["key"], "store": relative,
+                            "generation": run["generation"], "files": saved["files"]})
+    except (KeyError, TypeError, ValueError, OSError) as error:
+        raise ArtifactError(f"invalid solver links: {error}") from error
+    records.sort(key=lambda run: run["point"])
+    return links
+
+
 def _publish_verified(root, pres, target, skeleton, fitted, multipliers, certificate, order,
-                      producer=None):
+                      producer=None, *, solver_runs=None):
     """Publish one immutable product generation; the result record selects it later."""
     destination = root / "verified"
     producer = capture_provenance() if producer is None else producer
+    solver_links = _solver_links(root, pres, target, solver_runs, producer)
     destination.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=".publish-", dir=destination) as temporary:
         stage = Path(temporary) / "generation"
@@ -66,6 +118,7 @@ def _publish_verified(root, pres, target, skeleton, fitted, multipliers, certifi
             multipliers, skeleton, fitted.atoms, pres))
         save_artifact(stage / "certificate.json", certificate, pres, target, producer=producer)
         certificate.save(stage / "certificate.txt", provenance=False)
+        write_json_atomic(stage / "solver-runs.json", solver_links)
         write_bundle_provenance(stage, (path.name for path in stage.iterdir()), producer=producer)
         validate_source_snapshot(producer)
         files = {path.name: file_identity(path) for path in stage.iterdir()}
@@ -123,11 +176,7 @@ def run(pres: Presentation, target: str, anchor: Anchor, config: RunConfig, *,
                   "producer": producer,
                   "presentation": identity, "target": polynomial, "target_name": target,
                   "anchor": list(samples.anchor), "points": len(samples.points),
-                  "runs": [{"point": list(point), "key": result.key,
-                            "store": str(result.store),
-                            "generation": result.record["generation"],
-                            "files": result.record["files"], "request": result.record["request"]}
-                           for point, result in samples._runs.items()],
+                  "runs": _solver_runs(samples),
                   "seconds": time.monotonic() - started, **data}
         if reason is not None:
             report["reason"] = reason
@@ -183,7 +232,8 @@ def run(pres: Presentation, target: str, anchor: Anchor, config: RunConfig, *,
                 if report["pass"]:
                     validate_source_snapshot(producer)
                     products = _publish_verified(root, pres, target, skeleton, fitted,
-                                                 multipliers, candidate, order, producer)
+                                                 multipliers, candidate, order, producer,
+                                                 solver_runs=_solver_runs(samples))
                     return finish("verified", exact=report, tuples=len(candidate.terms), **products)
                 reason = "candidate failed exact verification"
             if desired >= maxpts:
