@@ -1,0 +1,73 @@
+// Exact generator actions and local ideal identities for a finite word basis.
+// The Python runner declares the proved candidate B, Standards, and baseNodes.
+// Leading words are cached once. Each new target is g*b - NF_B(g*b), proved
+// as a contextual sum of candidate rows already present in the source DAG.
+// Singular's builtin reduce independently screens every traced normal form.
+
+proc wstr(poly p)
+{
+ intvec e=leadexp(p);int d=deg(lead(p));int a;int b;string s="";
+ for(a=0;a<d;a++){for(b=1;b<=6;b++){if(e[6*a+b]!=0){s=s+string(b);}}}
+ return(s);
+}
+proc wp(string s)
+{
+ poly p=1;int a;
+ for(a=1;a<=size(s);a++){p=p*var(find("123456",s[a,1]));}
+ return(p);
+}
+proc canon(string s)
+{
+ string out="";int a;
+ for(a=1;a<=size(s);a++){out=out+string(7-find("123456",s[a,1]))+",";}
+ return(out);
+}
+proc traceAction(poly p)
+{
+ poly rem=0;int i;int pos;int hit;string w;string u;string v;number c;list terms;
+ while(p!=0)
+ {
+  w=wstr(p);hit=0;
+  for(i=1;i<=size(B);i++)
+  {
+   pos=find(w,Heads[i]);
+   if(pos>0)
+   {
+    u="";v="";
+    if(pos>1){u=w[1,pos-1];}
+    if(pos+size(Heads[i])<=size(w)){v=w[pos+size(Heads[i]),size(w)-pos-size(Heads[i])+1];}
+    c=leadcoef(p)/leadcoef(B[i]);p=p-c*wp(u)*B[i]*wp(v);
+    terms[size(terms)+1]=list(c,u,1,i,v);hit=1;break;
+   }
+  }
+  if(hit==0){rem=rem+lead(p);p=p-lead(p);}
+ }
+ return(list(rem,terms));
+}
+list Heads;int hi;for(hi=1;hi<=size(B);hi++){Heads[hi]=wstr(B[hi]);}
+
+int g;int j;int k;int a;poly p;poly target;poly f;poly screen;list result;list terms;list z;
+for(g=1;g<=6;g++)
+{
+ for(j=1;j<=size(Standards);j++)
+ {
+  p=var(7-g)*wp(Standards[j]);
+  screen=reduce(p,B);
+  result=traceAction(p);
+  if(screen!=result[1]){print("TRACE_MISMATCH|"+string(g)+"|"+string(j));quit;}
+  k=baseNodes+(g-1)*size(Standards)+j;
+  print("ACTION|"+string(g)+"|"+string(j)+"|"+string(k));
+  target=p-result[1];
+  if(target==0){print("Z|"+string(k));}
+  f=target;
+  while(f!=0){print("G|"+string(k)+"|"+string(leadcoef(f))+"|"+canon(wstr(f))+"|0|");f=f-lead(f);}
+  f=result[1];
+  while(f!=0){print("A|"+string(g)+"|"+string(j)+"|"+string(leadcoef(f))+"|"+canon(wstr(f)));f=f-lead(f);}
+  terms=result[2];
+  for(a=1;a<=size(terms);a++)
+  {
+   z=terms[a];print("D|"+string(k)+"|"+string(z[1])+"|"+canon(z[2])+"|1|"+string(z[4])+"|"+canon(z[5]));
+  }
+ }
+}
+print("ACTIONS_DONE|"+string(6*size(Standards)));quit;

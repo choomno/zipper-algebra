@@ -60,7 +60,8 @@ def inspect(directory):
                        "execution/runner.py", "execution/artifacts.py",
                        "execution/sampling.py", "execution/pipeline.py",
                        "verification/gap.py", "verification/groebner.py",
-                       "verification/f4ncgb.py"):
+                       "verification/f4ncgb.py", "verification/derivations.py",
+                       "verification/finite.py", "verification/working_field.py"):
             assert f"zipper_algebra/{needed}" in names, needed
         assert metadata + "licenses/LICENSE" in names, "the wheel must include the license"
         assert b"License-Expression: MIT" in archive.read(metadata + "METADATA")
@@ -76,7 +77,8 @@ def inspect(directory):
                        ".github/workflows/ci.yml", "singular_run/x3-membership-Q.sing",
                        "singular_run/README.md",
                        "docs/TESTING.md", "docs/GROEBNER_VERIFICATION.md",
-                       "docs/FOUR_STRAND_SQUARE_ZERO.md", "docs/PARAMETER_FIELDS.md",
+                       "docs/FOUR_STRAND_SQUARE_ZERO.md", "docs/FINITE_ALGEBRAS.md",
+                       "docs/PARAMETER_FIELDS.md",
                        "docs/POLYNOMIAL_UNTWISTINGS.md", "examples/polynomial_quotients.py",
                        "docs/X3_REPRODUCTION.md", "docs/PROVENANCE.md", "docs/x3-reproduction-files.json",
                        "patches/f4ncgb/msolve-parser-fix.patch", "patches/f4ncgb/LICENSE",
@@ -85,6 +87,8 @@ def inspect(directory):
                        "tests/test_proof_graphs.py", "examples/infer_denominators.py",
                        "examples/four_strand_square_zero.py",
                        "examples/four_strand_square_zero.sing",
+                       "examples/four_strand_finite_basis.py",
+                       "examples/four_strand_finite_basis.sing",
                        "examples/verify_four_strand_square_zero.g",
                        "examples/x3/certificate.txt", "examples/x3/README.md",
                        "experiments/survey/pointalg.py",
