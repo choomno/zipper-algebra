@@ -12,6 +12,9 @@ The maintained implementation is installed from `src/zipper_algebra/`.
 | `cofactor/inference.py`, `cofactor/univariate.py`, `cofactor/lift.py` | Denominator inference and exact coefficient reconstruction. |
 | `cofactor/compose.py`, `cofactor/cofactor_io.py`, `cofactor/artifacts.py` | Certificate composition, text interchange and validated mathematical records. |
 | `cofactor/ncpoly.py`, `cofactor/verify.py` | Symbolic and degree-bounded grid checks of free-algebra identities. |
+| `verification/finite.py` | Finite word-basis certificates, verified sparse regular actions, coordinates and products. |
+| `verification/derivations.py` | Shared local acyclic proofs of exact two-sided ideal identities. |
+| `verification/working_field.py` | Internal normalized arithmetic for repeated exact parameter-field calculations. |
 | `verification/groebner.py` | Exact derivation checks, both ideal inclusions, complete critical-ambiguity checks and certified normal forms. |
 | `verification/f4ncgb.py` | Decode numeric solver basis/proof text into a candidate domain-bound certificate. |
 | `verification/gap.py` | Export standalone generic cofactor identities for independent expansion in GAP. |
@@ -62,6 +65,7 @@ datasets and interfaces remain available in Git history.
 - [README](README.md): mathematical purpose, installation and principal commands.
 - [Mathematical reference](docs/mathematical-specification/mathematical-specification.pdf): definitions, hypotheses and verification conclusions.
 - [Four-strand square-zero computation](docs/FOUR_STRAND_SQUARE_ZERO.md): generic dimension, certified basis and a nonzero square-zero ideal.
+- [Finite algebras](docs/FINITE_ALGEBRAS.md): word-basis witnesses, sparse actions, coordinates and exact products.
 - [Completed-basis verification](docs/GROEBNER_VERIFICATION.md): derivations, ideal equality, critical ambiguities and normal forms.
 - [Reproduction guide](docs/X3_REPRODUCTION.md): fresh production and certificate checks.
 - [Workflow](WORKFLOW.md): supported operations and result statuses.
