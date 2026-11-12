@@ -35,6 +35,9 @@ EXACT = {
     "patches/f4ncgb/msolve-parser-fix.patch": "Pinned external-solver parser correction",
     "patches/f4ncgb/LICENSE": "License accompanying the solver correction",
     "singular_run/x3-membership-Q.sing": "Independent rational-specialization membership cross-check in Singular",
+    "examples/x3_singular_cofactor.py": "Generic original X3 cofactor discovery, explicit expansion and exact checking with Singular",
+    "examples/four_strand_square_zero.py": "Shared Singular serialization, trace parsing and native resource limits",
+    "examples/four_strand_square_zero.sing": "Shared native noncommutative proof tracing engine",
 }
 
 REQUIRED = (

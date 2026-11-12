@@ -5,6 +5,7 @@ The main routes are:
 | Route | Starting data | What it establishes |
 | --- | --- | --- |
 | Fresh production | Presentation, target, solver executable and computation limits | A newly computed cofactor identity, if exact verification succeeds. |
+| Generic Singular production | Original presentation and target, Singular and the maintained tracer | A newly computed cofactor over `Q(q,t)`, checked exactly after expansion. |
 | Python certificate checks | Installed package and one certificate | The stated free-algebra identity holds, by symbolic accumulation and an exact product grid. |
 | Independent GAP check | Exported standalone script | GAP verifies the generic identity over `Q(q,t)` using its own arithmetic and noncommutative expansion. |
 
@@ -151,6 +152,59 @@ The canonical four-strand input has 31 relations in six free generators and
 presentation hash `091bbb92271ab870`. Discovery never automatically appends its target.
 Explicit zeroing and extra relations are part of the selected presentation and
 can make membership immediate; the resulting certificate concerns that presentation.
+
+## Generic Singular alternative and local comparison
+
+The maintained [Singular example](../examples/x3_singular_cofactor.py) also
+produces an explicit original-input cofactor for the original four-strand X₃:
+
+```sh
+python examples/x3_singular_cofactor.py --singular /absolute/path/to/Singular \
+  --output runs/x3-singular --timeout 120 --memory-mib 4096
+```
+
+Install the symbolic extra and Singular 4.4 with `freegb.lib`. The example uses
+all 31 original relations over `Q(q,t)`, with X₃ supplied as a separate target.
+It requires no prior basis, cofactor or support. A maintained interpreted
+completion and tracing algorithm, using Singular's free-polynomial arithmetic,
+stops at target reducibility, expands the recorded derivation, and reloads the
+saved explicit cofactor for an exact free-algebra check. It writes the literal
+presentation, target, proof graph, cofactor, report and provenance into an ignored
+run folder. Resource exhaustion is inconclusive.
+
+The following local comparison starts from that same generic presentation,
+whose full digest is
+`c155b61e62039db7d7aa7b710c5bbc38e35495067b472dd08efcc6acabf8b7df`.
+Both routes collect coefficients into the same compact JSON representation,
+save and reload it, and pass the same normalized exact free-algebra checker.
+Wall time includes process startup, provenance, proof production, publication
+and all retained certification costs.
+
+| Route | Median wall time (range), seconds | Median sampled peak aggregate RSS, MiB | Collected cofactor terms | Compact cofactor JSON, bytes |
+| --- | --- | --- | --- | --- |
+| f4ncgb + FiniteFlow | 1.304 (1.232–1.339) | 76.12 | 120 | 97,991 |
+| Interpreted completion/tracer in Singular | 10.797 (10.686–10.883) | 69.46 | 723 | 607,854 |
+| Stock Singular letterplace `lift` | Inconclusive: 60.01-second timeout | 2,824.91 in this single bounded trial | No cofactor returned | — |
+
+The successful comparison uses five fresh trials per route after one discarded
+warmup each, run serially in alternating order with one reconstruction thread
+and BLAS/OMP threads set to one. The machine has an Intel Core Ultra 7 265H,
+32 GB RAM and Linux; workers use Python 3.12.14. Native versions are Singular
+4.4.1p5, f4ncgb `cb37d6570a42cf2f786cc96180b18456ae6d1bcf`, and FiniteFlow
+`a2a5abb9bf90d15416116c0a36a8821e04cbdb7b`.
+
+RSS is sampled across live descendant processes, with a 5 ms sleep plus scan
+time between samples. Shared pages can be counted more than once and short
+peaks can be missed; these are estimates. The native `lift` trial has a
+60-second time limit and 4 GiB sampled aggregate-RSS limit. Its timeout gives
+no impossibility or nonmembership conclusion.
+
+For these two successful implementations, f4ncgb + FiniteFlow is about 8.28
+times faster and produces JSON about 6.20 times smaller. This compares the
+maintained interpreted tracer with the native f4ncgb discovery route; it does
+not measure an optimized native Singular completion/tracing implementation.
+Cofactors are nonunique, and neither proof is asserted to be minimal.
+These full calculations remain local research checks outside CI.
 
 ## Check the curated example
 
