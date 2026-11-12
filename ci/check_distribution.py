@@ -54,14 +54,17 @@ def inspect(directory):
         for needed in ("__init__.py", "cli.py", "presentation.py", "provenance.py", "core.py",
                        "coefficients.py", "fields.py", "algebra.py", "untwisting.py",
                        "polynomial.py", "relations.py", "msolve.py",
+                       "matrices.py", "reconstruction.py", "invariants.py",
                        "linear.py", "cofactor/verify.py", "cofactor/lift.py",
                        "cofactor/inference.py", "cofactor/univariate.py",
-                       "cofactor/artifacts.py", "execution/config.py",
+                       "cofactor/artifacts.py", "cofactor/discovery.py", "execution/config.py",
+                       "execution/dependencies.py",
                        "execution/runner.py", "execution/artifacts.py",
                        "execution/sampling.py", "execution/pipeline.py",
                        "verification/gap.py", "verification/groebner.py",
                        "verification/f4ncgb.py", "verification/derivations.py",
-                       "verification/finite.py", "verification/working_field.py"):
+                       "verification/finite.py", "verification/working_field.py",
+                       "verification/linear.py", "verification/krylov.py"):
             assert f"zipper_algebra/{needed}" in names, needed
         assert metadata + "licenses/LICENSE" in names, "the wheel must include the license"
         assert b"License-Expression: MIT" in archive.read(metadata + "METADATA")
@@ -78,7 +81,8 @@ def inspect(directory):
                        "singular_run/README.md",
                        "docs/TESTING.md", "docs/GROEBNER_VERIFICATION.md",
                        "docs/FOUR_STRAND_SQUARE_ZERO.md", "docs/FINITE_ALGEBRAS.md",
-                       "docs/PARAMETER_FIELDS.md",
+                       "docs/PARAMETER_FIELDS.md", "docs/RECONSTRUCTION.md",
+                       "docs/MINIMAL_POLYNOMIALS.md",
                        "docs/POLYNOMIAL_UNTWISTINGS.md", "examples/polynomial_quotients.py",
                        "docs/X3_REPRODUCTION.md", "docs/PROVENANCE.md", "docs/x3-reproduction-files.json",
                        "patches/f4ncgb/msolve-parser-fix.patch", "patches/f4ncgb/LICENSE",

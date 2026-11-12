@@ -33,6 +33,11 @@ also give certified coordinates and products from sparse generator actions and
 explicit spanning and independence proofs. Parameter-field verification on this
 route uses the optional symbolic arithmetic dependency.
 
+[Certified minimal polynomials](docs/MINIMAL_POLYNOMIALS.md) compute exact element
+and relative slider-orbit polynomials on a verified finite algebra. Each result
+includes a checkable annihilation and minimality witness. The generic four-strand
+example distinguishes the full polynomial of `x1` from its polynomial on `X2`.
+
 The [FiniteFlow reconstruction interface](docs/RECONSTRUCTION.md) constructs
 right kernels over rational-function fields and independently verifies both
 rank bounds and the complete generic kernel identity. Its native dependency

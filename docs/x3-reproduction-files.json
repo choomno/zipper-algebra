@@ -17,8 +17,8 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "bytes": 9182,
-      "sha256": "c7501bfc062bb427a8a46a46bf30322d2d03d0a8c408d52d701884a17824ffea",
+      "bytes": 9254,
+      "sha256": "041193ac05da9c11971394450b9039993195e36929d31fa6a17620f07adb54be",
       "role": "Hosted software tests, small solver integration and documentation checks"
     },
     {
@@ -29,8 +29,8 @@
     },
     {
       "path": "MANIFEST.in",
-      "bytes": 1395,
-      "sha256": "eff9daf0779a7514a12e6ae87cb2725236a405479926be86da04ca80f6d8a915",
+      "bytes": 1423,
+      "sha256": "5c7571ec10fc41646c5d8144106439710958e1f9a1f8637071b8bb477e239744",
       "role": "Source-distribution inclusion rules"
     },
     {
@@ -53,8 +53,8 @@
     },
     {
       "path": "ci/check_distribution.py",
-      "bytes": 7986,
-      "sha256": "35a9ae3dd52218a59c168a3316eb3ad5a9bd8d4c42b2d566bebfc4a61f4a8c52",
+      "bytes": 8294,
+      "sha256": "40b31cb914b870ac7b40960da1d63fddff2c000fe5261ee7e4e292ee63554c2a",
       "role": "Installation, test, coverage, documentation or inventory support"
     },
     {
@@ -65,8 +65,8 @@
     },
     {
       "path": "ci/check_installed.py",
-      "bytes": 2326,
-      "sha256": "b4921cc5d0aa908244300d73a73b35ac31570e4da2378ef09c60087e2662fea1",
+      "bytes": 2509,
+      "sha256": "f87f84211107fa7ca35d107a7b63bcd549c0f77bf6212f89e5cfbce49b6d6156",
       "role": "Installation, test, coverage, documentation or inventory support"
     },
     {
@@ -322,6 +322,12 @@
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
+      "path": "src/zipper_algebra/invariants.py",
+      "bytes": 7394,
+      "sha256": "9332c429f7293f9c86a0db4c025b588179c1fae88892b1378356569654b4c4e9",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
       "path": "src/zipper_algebra/linear.py",
       "bytes": 2642,
       "sha256": "19344373c631853eb30d5eedc99143f72bcbdd86228ad1d52a4519b0412c36ca",
@@ -329,8 +335,8 @@
     },
     {
       "path": "src/zipper_algebra/matrices.py",
-      "bytes": 3622,
-      "sha256": "b7b49261dc81cc439769cf9e1e1ada3830e32f84373b2ce94953806098a4c375",
+      "bytes": 3755,
+      "sha256": "03add885d9932fa50fe25d807d787a0b2642f9efc639d0c0e77d04e60bb64920",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
@@ -412,15 +418,21 @@
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
+      "path": "src/zipper_algebra/verification/krylov.py",
+      "bytes": 9431,
+      "sha256": "d60be2be28dd6258391aa609ba892731d8529c554bb41a21a82bdc817844f838",
+      "role": "Maintained implementation used by presentation, production or verification"
+    },
+    {
       "path": "src/zipper_algebra/verification/linear.py",
-      "bytes": 10284,
-      "sha256": "fa2b06abe754ac6b628f2ab12499ab3281a4ecbd3d66a1efa86724746fb0be57",
+      "bytes": 10649,
+      "sha256": "8af3b9a02a3cbf8fac1fa5d5cc10c37121ff825d5b7a742f621d6d2951e7f6af",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
       "path": "src/zipper_algebra/verification/working_field.py",
-      "bytes": 5204,
-      "sha256": "21da4a4b1877c144d98ca935196f4abcb49dcd434545df5b6b874268f6e18195",
+      "bytes": 5288,
+      "sha256": "16f01505be206bcd5e3ad85011a0847ca75d77341376ccdca794449f26dd553d",
       "role": "Maintained implementation used by presentation, production or verification"
     },
     {
@@ -481,6 +493,12 @@
       "path": "tests/integration/test_four_strand_square_zero_example.py",
       "bytes": 17149,
       "sha256": "57c396f26da20668ba2b9a25c0b238ccee81db62545bc191a9db7454ce1e35c0",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/integration/test_minimal_polynomial_native.py",
+      "bytes": 4403,
+      "sha256": "8c6bc2af20fb8c862587d86b1f39b0fbd9dcce0a0c1f9133c1a4b29f50c68b11",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
@@ -736,9 +754,21 @@
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
+      "path": "tests/unit/test_krylov_certificates.py",
+      "bytes": 21920,
+      "sha256": "9f179c6ef9c5771f789a4d2edd63942410d70e3abf7cbb8a0fb56f9e5f087395",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
       "path": "tests/unit/test_lifting.py",
       "bytes": 17282,
       "sha256": "c6b33412704a6446d341eee9ef406f146c940664c48a19166ecf938269be7fe4",
+      "role": "Mathematical regression, installation or independent implementation comparison"
+    },
+    {
+      "path": "tests/unit/test_minimal_polynomial_producer.py",
+      "bytes": 13723,
+      "sha256": "a4d4a65791958e7c9349de75a8dbb70d5948854cdbae5734cc01b6348d76cfd7",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {
@@ -767,8 +797,8 @@
     },
     {
       "path": "tests/unit/test_reconstruction.py",
-      "bytes": 39657,
-      "sha256": "c1df4912fef90541e6acc97042749d92db1c7d6fc7f17dbd8bb3c2deabd935d2",
+      "bytes": 40621,
+      "sha256": "ce56b85fa95717ac80a895eabf33741a1f8ce0d08ad19c1cdaf9b4896a0dff80",
       "role": "Mathematical regression, installation or independent implementation comparison"
     },
     {

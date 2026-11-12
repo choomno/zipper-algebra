@@ -16,6 +16,7 @@ from ..matrices import ExactMatrix
 from ..fields import FieldElement
 from ..linear import validate_field_characteristic
 from .working_field import WorkingField
+from .derivations import VerificationLimit
 
 
 def _prime(prime):
@@ -72,6 +73,9 @@ def _evaluate(value: FieldElement, point, prime):
 class KernelCertificate:
     """A complete kernel basis and a denominator-safe modular minor witness."""
 
+    # Coefficient equality is algebraic; literal encodings are not equality hashes.
+    __hash__ = None  # type: ignore[assignment]
+
     matrix_hash: str
     kernel: ExactMatrix
     identity_rows: tuple[int, ...]
@@ -118,10 +122,14 @@ class KernelCertificate:
                        for x in value["point"])
                 or any(not isinstance(row, list) for row in value["minor_inverse"])):
             raise ValueError("invalid kernel certificate schema")
+        try:
+            point = tuple(Fraction(x) for x in value["point"])
+        except ZeroDivisionError as error:
+            raise ValueError("the minor witness point contains a zero scalar denominator") from error
         return cls(value["matrix_hash"], ExactMatrix.from_json(value["kernel"]),
                    tuple(value["identity_rows"]), tuple(value["pivot_rows"]),
                    tuple(value["pivot_columns"]), value["prime"],
-                   tuple(Fraction(x) for x in value["point"]),
+                   point,
                    tuple(tuple(row) for row in value["minor_inverse"]))
 
 
@@ -163,7 +171,7 @@ def verify_kernel(matrix: ExactMatrix, certificate: KernelCertificate, *, max_pr
         nonlocal used
         used += 1
         if used > max_products:
-            raise RuntimeError("kernel verification exceeded its scalar-product budget")
+            raise VerificationLimit("kernel verification exceeded its scalar-product budget")
 
     # Evaluate every stored coefficient, including those outside the selected
     # minor. This certifies a well-defined specialization of the input matrix.

@@ -920,3 +920,28 @@ def test_documented_native_failures_are_normalized_and_graph_released(monkeypatc
         invoke_protocol(monkeypatch, native)
     assert isinstance(caught.value.__cause__, NativeFailure)
     assert native.deleted == [17]
+
+
+def test_zero_denominator_in_serialized_witness_point_is_invalid_input():
+    original, proof = rank_two()
+    data = proof.to_json()
+    data['point'] = ['1/0']
+    with pytest.raises(ValueError, match='zero scalar denominator'):
+        KernelCertificate.from_json(data)
+
+
+def test_kernel_product_exhaustion_is_a_typed_verification_limit():
+    from zipper_algebra.verification.derivations import VerificationLimit
+    original, proof = rank_two()
+    with pytest.raises(VerificationLimit, match='scalar-product budget'):
+        verify_kernel(original, proof, max_products=0)
+
+
+def test_algebraic_matrices_and_kernel_certificates_are_explicitly_unhashable():
+    original, proof = rank_two()
+    empty = ExactMatrix(RationalFunctionField(), 0, 0)
+    assert ExactMatrix.__hash__ is None
+    assert KernelCertificate.__hash__ is None
+    for value in (original, empty, proof):
+        with pytest.raises(TypeError, match='unhashable'):
+            hash(value)
