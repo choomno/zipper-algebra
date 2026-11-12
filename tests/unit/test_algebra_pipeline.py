@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import shutil
 import sys
+import weakref
 
 import pytest
 
@@ -191,6 +192,103 @@ def test_changed_serialized_document_is_rejected_before_selection(setup, monkeyp
     assert_inconclusive(report, 'publication')
     assert 'serialized algebra production differs' in report['reason']
     assert not any((config.output_root/'algebras').iterdir())
+
+
+def test_mutating_writer_cannot_change_verified_metadata(setup, monkeypatch):
+    presentation, config, _ = setup
+    actual_write = pipeline.write_json_atomic
+
+    def corrupt(path, document):
+        if Path(path).name == 'production.json':
+            document['dimension'] = 999
+        actual_write(path, document)
+
+    monkeypatch.setattr(pipeline, 'write_json_atomic', corrupt)
+    report = pipeline.produce_algebra(presentation, {}, config)
+    assert_inconclusive(report, 'publication')
+    assert 'serialized algebra production differs' in report['reason']
+    assert not any((config.output_root/'algebras').iterdir())
+
+
+def test_live_exporters_release_outer_and_nested_json_before_saved_load(setup, monkeypatch):
+    presentation, config, _ = setup
+    nested_keys = {'presentation.json': 'relations', 'rewrite-candidate.json': 'derivations',
+                   'word-basis-certificate.json': 'proof'}
+    exported = []
+    loaded = []
+    publish, load = pipeline._publish, pipeline.json.load
+
+    class Document(dict):
+        pass
+
+    class Rows(list):
+        pass
+
+    def factory(name, source):
+        def export():
+            # Use the actual bound exporter from the live production run. Track
+            # both its outer mapping and a container owning its nested payload.
+            document = Document(source())
+            key = nested_keys[name]
+            payload = document[key]
+            document[key] = Document(payload) if isinstance(payload, dict) else Rows(payload)
+            exported.append(weakref.ref(document))
+            exported.append(weakref.ref(document[key]))
+            return document
+        return export
+
+    def tracked_publish(root, documents, producer):
+        assert all(callable(documents[name]) for name in nested_keys)
+        return publish(root, {name: factory(name, source) if name in nested_keys else source
+                              for name, source in documents.items()}, producer)
+
+    def check_before_load(stream, *args, **kwargs):
+        if Path(stream.name).name in nested_keys:
+            # Checking at the load boundary catches retaining the original tree
+            # until after parsing, even if it dies before the next exporter.
+            assert exported and all(reference() is None for reference in exported)
+            loaded.append(Path(stream.name).name)
+        return load(stream, *args, **kwargs)
+
+    monkeypatch.setattr(pipeline, '_publish', tracked_publish)
+    monkeypatch.setattr(pipeline.json, 'load', check_before_load)
+    report = pipeline.produce_algebra(presentation, {}, config)
+    assert report['verified'] and report['dimension'] == 4
+    assert len(exported) == 6 and all(reference() is None for reference in exported)
+    assert loaded == list(nested_keys)
+    restored = WordBasisCertificate.from_json(read(report['artifacts']['word-basis-certificate.json']))
+    assert verify_word_basis(presentation, restored).dimension == 4
+
+
+def test_canonical_document_hash_uses_the_existing_encoding():
+    value = {'unicode': 'π𝛼', 'zero': -0.0, 'nested': [(), {'rational': '3/7'}],
+             'empty': {}, 'large': 10**40, 'bool': True, 'none': None}
+    assert pipeline._document_hash(value) == digest_bytes(canonical_json(value))
+
+
+def test_saved_finite_certificate_parent_must_match_presentation(setup):
+    presentation, config, _ = setup
+    report = pipeline.produce_algebra(presentation, {}, config)
+    documents = documents_from_report(report)
+    changed = AlgebraPresentation(presentation.algebra, presentation.relations,
+                                   ('new-label', 'vv', 'vu')).content_hash()
+    documents['word-basis-certificate.json']['presentation_hash'] = changed
+    documents['word-basis-certificate.json']['proof']['presentation_hash'] = changed
+    with pytest.raises(ArtifactError, match='saved presentation'):
+        pipeline._publish(config.output_root, documents, report['producer'])
+
+
+def test_saved_finite_certificate_nested_proof_parent_cannot_disagree(setup):
+    presentation, config, _ = setup
+    report = pipeline.produce_algebra(presentation, {}, config)
+    documents = documents_from_report(report)
+    changed = AlgebraPresentation(presentation.algebra, presentation.relations,
+                                   ('new-label', 'vv', 'vu')).content_hash()
+    # Keep the correct outer parent: the public decoder must reject a foreign
+    # proof even before publication compares the decoded outer hash.
+    documents['word-basis-certificate.json']['proof']['presentation_hash'] = changed
+    with pytest.raises(ValueError, match='word-basis and derivation presentation hashes differ'):
+        pipeline._publish(config.output_root, documents, report['producer'])
 
 
 @pytest.mark.parametrize('winner', [False, True])

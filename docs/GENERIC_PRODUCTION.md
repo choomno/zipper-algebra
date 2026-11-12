@@ -75,13 +75,24 @@ pivot choices can produce different valid certificates and generation hashes.
    enumerates all words irreducible under the proposed leading words. Degree-lex
    orientation guarantees terminating reductions; confluence is not assumed.
    Shared identities express each rewritten word minus its selected reduction
-   as an element of the original ideal. The independent finite-basis checker
-   checks the complete generic proof graph once, every generator-column identity,
+   as an element of the original ideal. Before pruning, every raw proposal
+   reference and cycle is checked structurally, including unused nodes and
+   zero-coefficient edges. The finite certificate retains the raw dependency
+   closure of its generator-action identities, or of its unit-ideal identity in
+   dimension zero. The independent finite-basis checker checks every retained
+   local proof identity once, every generator-column identity,
    every original relation on the full coordinate space, and cyclic independence.
    These checks prove both spanning and independence of the actual presented
    algebra. A bounded enumeration that does not finish gives no infinity verdict.
    The certified actions feed the existing exact operations and
    [minimal-polynomial computations](MINIMAL_POLYNOMIALS.md).
+
+An unused proposal node discarded by this pruning receives no arithmetic
+correctness claim. The separate rewrite proposal remains unchanged; requesting
+Gröbner completion checks that proposal separately. Pruning concerns the size
+of shared derivations, while the verified word basis describes the quotient
+algebra. It does not seek shortest basis words or a smallest proof, and it does
+not claim a sparsest cofactor representation.
 
 The default route omits local rank witnesses and kernel certification: only the
 resulting local ideal identities are needed, and the final finite-basis checker
@@ -130,12 +141,23 @@ A = verify_word_basis(P, W)
 assert A.dimension == result["dimension"]
 ```
 
-The finite-basis certificate includes its entire ideal derivation graph, so the
+The finite-basis certificate includes its entire retained ideal derivation graph, so the
 independent audit above needs only the literal presentation and that certificate.
 To audit the additional Gröbner claim separately, decode `rewrite-candidate.json`
 with `GroebnerCertificate.from_json` and call `verify_groebner(P, candidate)`.
 That separate operation checks completion even when the production run did not
 request it.
+
+Publication exports and checks the bundle one document at a time. Each JSON
+tree has its expected canonical-content hash computed before the writer runs;
+the atomic writer streams its encoded text instead of allocating a complete
+encoded string. The exported tree is released before the saved document is
+loaded, its canonical content is compared with that pre-write hash, and its
+presentation or certificate is decoded. Saved certificate parents must match
+the saved presentation. This preserves the binding to checked data without
+retaining serialized copies of every document and decoder object at once.
+The original mathematical objects remain in memory. Output byte hashes,
+immutable generations and source provenance remain part of publication.
 
 The source path consists of `execution/general.py` and the common
 `execution/runner.py`, `native_io.py`, `store.py`, `artifacts.py` for acquisition;
@@ -148,7 +170,7 @@ data. `verification/f4ncgb.py`, `derivations.py`, `groebner.py`, `finite.py` and
 
 ## Explicit cofactors for elements
 
-The finite-basis output retains the original-input proof graph and all generator
+The finite-basis output retains the required original-input proof closure and all generator
 closure identities. These data support explicit cofactor production for every
 free-polynomial target over the declared coefficient field, independently of the
 number or names of parameters and the chosen untwisting polynomials.
@@ -215,7 +237,10 @@ cofactor support or a denominator family.
 The solver has a subprocess timeout and explicit iteration/degree limits.
 `max_operations` separately bounds numerical graph checking, generic matrix
 formation, action construction and finite-basis verification. The final finite
-check includes the generic proof graph; it is not an additional preliminary pass. `max_nodes` bounds retained proof nodes; `max_words` bounds word
+check includes every retained proof identity; it is not an additional preliminary pass.
+`max_nodes` bounds the full temporary working graph before pruning as well as
+the retained certificate; pruning cannot bypass that construction bound.
+`max_words` bounds word
 basis enumeration. Native prime/degree/thread controls apply per solve. Final
 generic identity and representation products are covered by `max_operations`;
 local candidate reconstruction has no kernel-verification product budget. These operation/search bounds do not impose an operating-system
