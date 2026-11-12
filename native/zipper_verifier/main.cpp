@@ -20,6 +20,26 @@ std::size_t budget(const J &request,const char *name,I fallback) {
     if (value<0) throw ReplayError("cache budgets must be nonnegative integers");
     return static_cast<std::size_t>(value);
 }
+J collected_output(const J &terms) {
+    if (!terms.is_array()) throw ReplayError("completed output must be an array");
+    std::map<std::string,Laurent> collected;
+    for (const J &term:terms) {
+        if (!term.is_object() || term.size()!=3 || !term.contains("coefficient") ||
+            !term.contains("word") || !term.contains("components") ||
+            !term.at("word").is_array() || !term.at("components").is_array())
+            throw ReplayError("completed output term has an invalid shape");
+        J identity=term;
+        identity.erase("coefficient");
+        auto &sum=collected[canonical_json(identity)];
+        for (const auto &[q,c]:coefficient(term.at("coefficient"))) sum[q]+=c;
+    }
+    J result=J::object();
+    for (const auto &[key,sum]:collected) {
+        J scalar=encoded_coefficient(sum);
+        if (!scalar.empty()) result[key]=std::move(scalar);
+    }
+    return result;
+}
 class Protocol {
     std::unique_ptr<Catalog> catalog_;
     std::unique_ptr<ReplaySession> session_;
@@ -65,11 +85,48 @@ public:
         if (op=="cache_info") return session_->cache_info();
         if (op=="clear_cache") { session_->clear_cache(); return {{"cleared",true}}; }
         if (op=="replay") return reconstruct(request);
+        if (op=="replay_reused")
+            return session_->replay_reused(as_i(request.at("n")),request.at("input_word"),Limits(request.at("limits")));
         if (op=="transition") {
             bool trace=request.contains("trace_enabled")?bool_field(request,"trace_enabled"):
                        request.contains("trace")?bool_field(request,"trace"):false;
             return algorithm_transition(normalize_coefficients(request.at("work")),*catalog_,
                                         Limits(request.at("limits")),trace);
+        }
+        if (op=="verify_reused") {
+            const auto started=std::chrono::steady_clock::now();
+            const J &certificate=request.at("certificate");
+            if (!certificate.is_object()) throw ReplayError("reused result must be an object");
+            if (certificate.size()!=17 || !certificate.contains("metrics") || !certificate.at("metrics").is_object())
+                throw ReplayError("reused result has an invalid shape");
+            for (auto key:identity_fields) {
+                if (std::string(key)=="schema" || std::string(key)=="scope") continue;
+                if (!certificate.contains(key) || !strict_equal(certificate.at(key),identity_.at(key)))
+                    throw ReplayError(std::string("reused result identity differs: ")+key);
+            }
+            const J execution={{"schedule","intrinsic-completion-dag-v1"},
+                {"collection","full-output-except-scalar-v1"},{"local_term_floor",4},{"local_support_floor",2}};
+            if (certificate.at("schema")!="zipper-native-reuse-v1" ||
+                certificate.at("scope")!="literal_word_native_reused_spanning_procedure" ||
+                bool_field(certificate,"trace_enabled") || certificate.at("status")!="complete" ||
+                !certificate.at("diagnostic").is_null() ||
+                !strict_equal(certificate.at("pending"),J::array()) ||
+                !strict_equal(certificate.at("execution"),execution))
+                throw ReplayError("complete reused-result contract differs");
+            // Producer telemetry is deliberately not trusted or replayed.
+            J actual=collected_output(certificate.at("output"));
+            J expected=session_->replay_reused(as_i(certificate.at("n")),certificate.at("input_word"),Limits(certificate.at("limits")));
+            const bool complete=expected.at("status")=="complete";
+            J normal=complete?collected_output(expected.at("output")):J::object();
+            const bool valid=complete && strict_equal(normal,actual);
+            J result={{"ok",valid},{"metrics",expected.at("metrics")},{"cache",session_->cache_info()},
+                {"verification_seconds",std::chrono::duration<double>(std::chrono::steady_clock::now()-started).count()},
+                {"verification_mode","independent-intrinsic-completion-v1"},
+                {"replay_status",expected.at("status")},{"replay_diagnostic",expected.at("diagnostic")}};
+            if (valid) result["output_sha256"]=digest(normal);
+            else result["error"]=complete?"reused result differs from independent C++ completion":
+                "independent C++ completion did not finish: "+expected.at("status").get<std::string>();
+            return result;
         }
         if (op=="verify") {
             const auto started=std::chrono::steady_clock::now();
@@ -110,6 +167,12 @@ int main() {
         try {
             auto response=protocol.dispatch(J::parse(line));
             std::cout<<response.dump(-1,' ',true)<<'\n'<<std::flush;
+        } catch (const std::bad_alloc &) {
+            // Fixed literals avoid allocating another JSON tree while reporting
+            // resource exhaustion. No equality decision was completed.
+            std::cout<<"{\"ok\":false,\"error\":\"verifier allocation failed\",\"replay_status\":\"incomplete\",\"replay_diagnostic\":{\"message\":\"verifier allocation failed\"}}\n"<<std::flush;
+        } catch (const std::length_error &) {
+            std::cout<<"{\"ok\":false,\"error\":\"verifier container size limit exceeded\",\"replay_status\":\"incomplete\",\"replay_diagnostic\":{\"message\":\"verifier container size limit exceeded\"}}\n"<<std::flush;
         } catch (const std::exception &error) {
             std::cout<<J({{"ok",false},{"error",error.what()}}).dump(-1,' ',true)<<'\n'<<std::flush;
         }

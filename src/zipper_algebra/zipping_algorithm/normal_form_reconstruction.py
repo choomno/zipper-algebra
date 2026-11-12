@@ -60,6 +60,25 @@ def _identity(identity: Any) -> dict[str, Any]:
     return deepcopy(identity)
 
 
+def completed_output(result: Any) -> dict[str, Any]:
+    """Structurally import a standalone certificate or native completed DAG result.
+
+    DAG results keep their own schema and cannot be used as standalone traces.
+    Neither adapter independently verifies mathematical correctness.
+    """
+    if type(result) is dict and result.get("schema") == "zipper-native-reuse-v1":
+        if (result.get("scope") != "literal_word_native_reused_spanning_procedure"
+                or result.get("status") != "complete"
+                or result.get("coefficient_ring") != "Z[q,q^-1]"
+                or result.get("trace_enabled") is not False
+                or result.get("pending", []) != []
+                or type(result.get("execution")) is not dict
+                or result["execution"].get("schedule") != "intrinsic-completion-dag-v1"):
+            raise ValueError("invalid completed native reuse result")
+        return canonical_output(result.get("output"), n=result["n"], complete=True)
+    return from_certificate(result)
+
+
 def execution_identity(certificate: Any) -> dict[str, Any]:
     """Extract strict source/catalog/configuration binding, without replaying.
 
@@ -67,7 +86,7 @@ def execution_identity(certificate: Any) -> dict[str, Any]:
     retained conservatively, including batch size; this does not claim it changes
     completed mathematical outputs. It prevents implicit cross-policy reuse.
     """
-    from_certificate(certificate)
+    completed_output(certificate)
     return _identity({"schema": certificate["schema"],
                       "source_sha256": certificate.get("source_sha256"),
                       "catalog_sha256": certificate.get("catalog_sha256"),
@@ -168,7 +187,7 @@ def reconstruct_output(form: Any, leaf_results: Mapping[str, Any], *,
     decoded: dict[str, list[dict[str, Any]]] = {}
     for request in requests:
         certificate = leaf_results[request["key"]]
-        normal = from_certificate(certificate)
+        normal = completed_output(certificate)
         if normal["completion"] != "complete":
             raise ValueError("reconstruction requires completed primitive runs")
         literal = certificate.get("input_word")

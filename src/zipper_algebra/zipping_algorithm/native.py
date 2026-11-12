@@ -246,6 +246,19 @@ def _decode_coefficients(value: Any) -> Any:
     return value
 
 
+def _decode_coefficient_object(value: dict[str, Any]) -> dict[str, Any]:
+    """Decode coefficient fields in a fresh dictionary made by ``json.loads``.
+
+    Nested objects have already passed through the hook. Ordinary callers with
+    existing mutable values use the nonmutating ``_decode_coefficients`` above.
+    Malformed discarded duplicate-key subtrees can also be rejected while JSON
+    is parsed; native and stored canonical payloads have unique object keys.
+    """
+    if _coefficient_pairs(value.get("coefficient")):
+        value["coefficient"] = [[int(q), _decimal_integer(c)] for q, c in value["coefficient"]]
+    return value
+
+
 def _json_arrays(value: Any) -> Any:
     """Normalize Python witness tuples as JSON arrays without encoding integers."""
     if isinstance(value, (list, tuple)):
@@ -332,7 +345,7 @@ class NativeSession:
     def pid(self) -> int | None:
         return None if self._process is None else self._process.pid
 
-    def _request(self, value: dict[str, Any]) -> dict[str, Any]:
+    def _request(self, value: dict[str, Any], *, decode_coefficients: bool = False) -> dict[str, Any]:
         process = self._process
         if process is None or process.stdin is None or process.stdout is None:
             raise NativeError("Native session is closed")
@@ -350,7 +363,7 @@ class NativeSession:
                 else:
                     detail = ""
                 raise NativeError("Native engine terminated without a response: " + detail)
-            result = json.loads(line)
+            result = json.loads(line, object_hook=_decode_coefficient_object if decode_coefficients else None)
             if not isinstance(result, dict):
                 raise NativeError("Native engine returned a non-object response")
             if "protocol_error" in result:
@@ -384,13 +397,53 @@ class NativeSession:
         with self._lock:
             body = self._request({"op": "reduce", "n": n, "word": list(word),
                                   "limits": asdict(bounds), "trace": trace,
-                                  "batch_size": batch_size})
+                                  "batch_size": batch_size}, decode_coefficients=True)
         self.last_runtime_info = body.pop("native_runtime", {})
-        result = _decode_coefficients(body)
+        result = body
         result.update(n=n, input_word=list(word), coefficient_ring="Z[q,q^-1]",
                       trace_enabled=trace, limits=asdict(bounds),
                       schema="zipper-native-run-v1",
                       scope="literal_word_native_collected_spanning_procedure",
+                      source_sha256=deepcopy(self.metadata["source_sha256"]),
+                      python_reference_source_sha256=deepcopy(self._reference_source),
+                      catalog_sha256=self._catalog_sha256,
+                      native_build={k: deepcopy(self.metadata[k]) for k in
+                                    ("abi", "binary_sha256", "compiler", "compiler_version", "flags",
+                                     "wrapper_source_sha256", "link_libraries")})
+        self.last_call_seconds = perf_counter() - started
+        return result
+
+    def reduce_reused(self, word: Iterable[int], *, n: int,
+                      limits: Limits | None = None) -> dict[str, Any]:
+        """Complete a literal input using memoized intrinsic continuations.
+
+        The separate result schema contains mathematical output and actual DAG
+        work metrics, never a standalone execution trace. ``max_steps`` bounds
+        expansions performed in this call; warm complete hits do not consume
+        that budget. Complete and transition caches each receive the configured
+        cache budget. The independent verifier must use ``check_reused``.
+        """
+        if type(n) is not int or n < 1:
+            raise NativeError("Positive rank required")
+        if not isinstance(word, (list, tuple)) or any(
+                type(x) is not int or not 1 <= abs(x) < n for x in word):
+            raise NativeError("A literal signed-generator list or tuple in the stated rank is required")
+        bounds = Limits() if limits is None else limits
+        if not isinstance(bounds, Limits):
+            raise NativeError("limits must be a Limits instance")
+        if max(n, *asdict(bounds).values()) > 2**63 - 1:
+            raise NativeError("Rank and limits must fit signed 64-bit coordinates")
+        started = perf_counter()
+        with self._lock:
+            body = self._request({"op": "reduce_reused", "n": n, "word": list(word),
+                                  "limits": asdict(bounds), "trace": False, "batch_size": 1},
+                                 decode_coefficients=True)
+        self.last_runtime_info = body.pop("native_runtime", {})
+        result = body
+        result.update(n=n, input_word=list(word), coefficient_ring="Z[q,q^-1]",
+                      trace_enabled=False, limits=asdict(bounds),
+                      schema="zipper-native-reuse-v1",
+                      scope="literal_word_native_reused_spanning_procedure",
                       source_sha256=deepcopy(self.metadata["source_sha256"]),
                       python_reference_source_sha256=deepcopy(self._reference_source),
                       catalog_sha256=self._catalog_sha256,

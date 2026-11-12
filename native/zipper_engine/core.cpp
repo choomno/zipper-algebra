@@ -405,14 +405,104 @@ Catalog::Catalog(const Json &source) {
     for (const auto &j : derived)
         add(j);
 }
+Catalog::Catalog(const Catalog &other)
+    : rules_(other.rules_), ordered_ids_(other.ordered_ids_),
+      selection_max_entries_(other.selection_max_entries_),
+      selection_max_bytes_(other.selection_max_bytes_) {}
+Catalog &Catalog::operator=(const Catalog &other) {
+    if (this != &other) {
+        // If allocation fails while copying rules, leave both the old
+        // mathematical catalog and its memo/accounting unchanged.
+        Catalog replacement(other);
+        swap(replacement);
+    }
+    return *this;
+}
+Catalog::Catalog(Catalog &&other) noexcept
+    : rules_(std::move(other.rules_)), ordered_ids_(std::move(other.ordered_ids_)),
+      selection_max_entries_(other.selection_max_entries_),
+      selection_max_bytes_(other.selection_max_bytes_) {
+    other.rules_.clear();
+    other.ordered_ids_.clear();
+    other.clear_selection_cache();
+}
+Catalog &Catalog::operator=(Catalog &&other) noexcept {
+    if (this != &other) {
+        Catalog replacement(std::move(other));
+        swap(replacement);
+    }
+    return *this;
+}
+void Catalog::swap(Catalog &other) noexcept {
+    rules_.swap(other.rules_);
+    ordered_ids_.swap(other.ordered_ids_);
+    using std::swap;
+    swap(selection_cache_, other.selection_cache_);
+    swap(selection_max_entries_, other.selection_max_entries_);
+    swap(selection_max_bytes_, other.selection_max_bytes_);
+    swap(selection_bytes_, other.selection_bytes_);
+    swap(selection_peak_bytes_, other.selection_peak_bytes_);
+    swap(selection_hits_, other.selection_hits_);
+    swap(selection_misses_, other.selection_misses_);
+    swap(selection_evictions_, other.selection_evictions_);
+    swap(selection_oversized_, other.selection_oversized_);
+}
 const Rule &Catalog::get(const std::string &id) const {
     auto it = rules_.find(id);
     if (it == rules_.end())
         throw CatalogError("unknown rule: " + id);
     return it->second;
 }
+void Catalog::configure_selection_cache(size_t entries, size_t bytes) {
+    clear_selection_cache();
+    selection_max_entries_ = entries;
+    selection_max_bytes_ = bytes;
+}
+void Catalog::clear_selection_cache() noexcept {
+    selection_cache_.clear();
+    selection_bytes_ = selection_peak_bytes_ = 0;
+    selection_hits_ = selection_misses_ = selection_evictions_ = selection_oversized_ = 0;
+}
+Json Catalog::selection_cache_info() const {
+    return {{"entries", selection_cache_.size()}, {"bytes", selection_bytes_},
+            {"peak_bytes", selection_peak_bytes_}, {"hits", selection_hits_},
+            {"misses", selection_misses_}, {"evictions", selection_evictions_},
+            {"oversized", selection_oversized_}, {"max_entries", selection_max_entries_},
+            {"max_bytes", selection_max_bytes_},
+            {"key_scope", "full-environment-prefix-suffix-and-exclude-flype"},
+            {"byte_measure", "key-and-selection-payload-estimate-not-RSS"}};
+}
 std::vector<const Rule *> Catalog::select(const Env &env, const std::string &prefix,
                                           const std::string &suffix, bool exclude_flype) const {
+    std::string key;
+    const bool cache = selection_max_entries_ && selection_max_bytes_;
+    if (cache) {
+        auto number = [&](uint64_t value) {
+            for (unsigned k = 0; k < 8; ++k)
+                key.push_back(static_cast<char>((value >> (8 * k)) & 255));
+        };
+        auto text = [&](const std::string &value) {
+            number(value.size());
+            key += value;
+        };
+        text(prefix);
+        text(suffix);
+        key.push_back(exclude_flype);
+        number(env.size());
+        for (const auto &[name, value] : env) {
+            text(name);
+            number(static_cast<uint64_t>(value));
+        }
+        if (auto *entry = selection_cache_.touch(key)) {
+            ++selection_hits_;
+            std::vector<const Rule *> result;
+            result.reserve(entry->ids.size());
+            for (const auto &id : entry->ids)
+                result.push_back(&rules_.at(id));
+            return result;
+        }
+    }
+    ++selection_misses_;
     std::vector<const Rule *> result;
     for (const auto &id : ordered_ids_) {
         if (id.rfind(prefix, 0) != 0 || id.size() < suffix.size() ||
@@ -422,6 +512,42 @@ std::vector<const Rule *> Catalog::select(const Env &env, const std::string &pre
         const auto &r = rules_.at(id);
         if (condition(r.guard, env))
             result.push_back(&r);
+    }
+    if (cache) {
+        std::vector<std::string> ids;
+        size_t bytes = sizeof(SelectionEntry);
+        bool fits = bytes <= selection_max_bytes_;
+        auto charge = [&](size_t amount) {
+            if (fits && amount <= selection_max_bytes_ - bytes)
+                bytes += amount;
+            else
+                fits = false;
+        };
+        // OrderedMap stores the full key in both the list and its exact index.
+        charge(key.size());
+        charge(key.size());
+        for (const auto *rule : result) {
+            ids.push_back(rule->id);
+            charge(sizeof(std::string));
+            charge(rule->id.size());
+        }
+        if (!fits)
+            ++selection_oversized_;
+        else {
+            while (!selection_cache_.empty() &&
+                   (selection_cache_.size() >= selection_max_entries_ ||
+                    bytes > selection_max_bytes_ - selection_bytes_)) {
+                const auto &old = *selection_cache_.begin();
+                const auto old_key = old.first;
+                const auto old_bytes = old.second.bytes;
+                selection_cache_.erase(old_key);
+                selection_bytes_ -= old_bytes;
+                ++selection_evictions_;
+            }
+            selection_cache_.set(std::move(key), SelectionEntry{std::move(ids), bytes});
+            selection_bytes_ += bytes;
+            selection_peak_bytes_ = std::max(selection_peak_bytes_, selection_bytes_);
+        }
     }
     return result;
 }
