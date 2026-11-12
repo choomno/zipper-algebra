@@ -83,9 +83,54 @@ Path(a.p).write_text(proof+'\n', newline='\n')
 '''
 
 
+def exact_kernel(matrix, **_options):
+    """Independent tiny-fixture oracle; the production path uses native FiniteFlow."""
+    import sympy as sp
+    from zipper_algebra.fields import FieldElement
+    from zipper_algebra.matrices import ExactMatrix
+    from zipper_algebra.verification.linear import KernelCertificate, _evaluate, verify_kernel
+    parameters = sp.symbols(matrix.field.parameters)
+    def expression(value):
+        def polynomial(terms):
+            return sum(sp.Rational(coefficient.numerator, coefficient.denominator) *
+                       sp.prod(variable**power for variable, power in zip(parameters, monomial))
+                       for monomial, coefficient in terms)
+        return polynomial(value.numerator) / polynomial(value.denominator)
+    def element(value):
+        numerator, denominator = sp.cancel(value).as_numer_denom()
+        def terms(polynomial):
+            return {monomial: Fraction(coefficient) for monomial, coefficient
+                    in sp.Poly(polynomial, *parameters).terms()}
+        return FieldElement(matrix.field, terms(numerator), terms(denominator))
+    original = sp.zeros(matrix.nrows, matrix.ncols)
+    for row, column, value in matrix.entries:
+        original[row, column] = expression(value)
+    reduced, pivots = original.rref()
+    free = tuple(index for index in range(matrix.ncols) if index not in pivots)
+    entries = [(row, column, element(-reduced[index, free_column]))
+               for index, row in enumerate(pivots) for column, free_column in enumerate(free)]
+    entries.extend((row, column, matrix.field.one) for column, row in enumerate(free))
+    kernel = ExactMatrix(matrix.field, matrix.ncols, len(free), tuple(entries))
+    rows = original[:, list(pivots)].T.rref()[1] if pivots else ()
+    prime, point = 101, (11, 13)
+    values = {(i,j):_evaluate(value, point, prime) for i,j,value in matrix.entries}
+    minor = sp.Matrix([[values.get((i,j),0) for j in pivots] for i in rows])
+    inverse = tuple(tuple(int(value) for value in row) for row in minor.inv_mod(prime).tolist()) if pivots else ()
+    result = KernelCertificate(matrix.content_hash(), kernel, free, rows, pivots,
+                               prime, point, inverse)
+    return verify_kernel(matrix, result)
+
+
+TEST_RECONSTRUCTION = {"schema": "zipper-reconstruction-dependencies-v1", "test_fixture": True}
+
+
 class DiscoveryFixture:
     @pytest.fixture(autouse=True)
-    def _setup(self, tmp_path):
+    def _setup(self, tmp_path, monkeypatch):
+        pytest.importorskip("sympy")
+        from zipper_algebra.cofactor import discovery
+        monkeypatch.setattr(discovery, "reconstruct_kernel", exact_kernel)
+        monkeypatch.setattr(pipeline, "reconstruction_provenance", lambda: TEST_RECONSTRUCTION)
         self.root = tmp_path
         script = self.root / 'producer.py'
         script.write_text(PRODUCER)
@@ -100,9 +145,25 @@ class DiscoveryFixture:
 
     def discover(self, **kwargs):
         return pipeline.run(self.pres, self.target, (5, 7, 0),
-                            kwargs.pop('config', self.config), start=kwargs.pop('start', 7),
-                            step=kwargs.pop('step', 2), maxpts=kwargs.pop('maxpts', 9),
-                            atoms=kwargs.pop('atoms', self.atoms), verbose=False, **kwargs)
+                            kwargs.pop('config', self.config), verbose=False, **kwargs)
+
+    def material(self):
+        from zipper_algebra.cofactor.discovery import ContextSystem, Discovery
+        from zipper_algebra.matrices import ExactMatrix
+        from zipper_algebra.verification.linear import KernelCertificate
+        prior = self.discover()
+        paths = {name: Path(path) for name, path in prior['artifacts'].items()}
+        order = {'solver':'degree-lex','reduction':pipeline.REDUCTION_ORDER}
+        skeleton = load_artifact(paths['skeleton.json'],self.pres,self.target,kind='skeleton',order=order)
+        certificate = load_artifact(paths['certificate.json'],self.pres,self.target,kind='cofactor')
+        matrix = ExactMatrix.from_json(json.loads(paths['matrix.json'].read_text()))
+        metadata = json.loads(paths['support.json'].read_text())
+        system = ContextSystem(self.pres.content_hash(), self.target,
+                   tuple((tuple(left),index,tuple(right)) for left,index,right in metadata['contexts']),
+                   tuple(tuple(word) for word in metadata['word_rows']),matrix,metadata['statistics'])
+        kernel = KernelCertificate.from_json(json.loads(paths['kernel.json'].read_text()))
+        discovery = Discovery(system,kernel,certificate,prior['exact'])
+        return prior,(self.pres,self.target,skeleton,discovery,order)
 
 
 class TestPortableSamples(DiscoveryFixture):
@@ -159,66 +220,41 @@ class TestPortableSamples(DiscoveryFixture):
 
 
 class TestFreshDiscovery(DiscoveryFixture):
-    def test_process_to_bound_artifacts_and_exact_recomposition(self):
+    def test_process_to_certified_contextual_matrix_and_generic_identity(self):
+        from zipper_algebra.matrices import ExactMatrix
+        from zipper_algebra.verification.linear import KernelCertificate, verify_kernel
         report = self.discover()
-        assert (report['status']) == ('verified')
-        assert (report['verified'])
-        assert (report['in_ideal'])
-        assert not (report['basis_complete'])
+        assert report['status'] == 'verified' and report['in_ideal'] is True
+        assert report['schema'] == 'zipper-discovery-result-v2'
+        assert report['basis_complete'] is False
+        assert report['method'] == 'proof-contexts-finiteflow'
+        assert report['points'] == len(report['runs']) == 1
+        assert report['reconstruction']['dependencies'] == TEST_RECONSTRUCTION
+        assert report['reconstruction']['options']['max_primes'] == 5
         output = Path(report['certificate']).parent
-        assert (json.loads((self.config.output_root/'result.json').read_text())['status']) == ('verified')
-        assert (len(report['runs'])) == (7)
-        for run in report['runs']:
-            assert (Path(run['store']).is_file())
-        assert (len({run['store'] for run in report['runs']})) == (1)
-        order = {'solver': 'degree-lex', 'reduction': pipeline.REDUCTION_ORDER}
-        skeleton = load_artifact(output/'skeleton.json', self.pres, self.target,
-                                 kind='skeleton', order=order)
-        fitted = load_artifact(output/'lift.json', self.pres, self.target, kind='lift', order=order)
-        assert (len(skeleton.steps)) == (1)
-        assert (fitted.samples_used) == (7)
-        certificate = Cofactor.load(output/'certificate.txt', pres=self.pres)
-        assert (certificate.terms[0][1]) == ('ZERO_2_1')
-        recomposed = self.root/'recomposed.txt'
-        with redirect_stdout(io.StringIO()):
-            code = compose_command(['--n','2','--zero-from','2','--target','X_2',
-                                    '--lift',str(output/'lift.json'), '--skeleton',str(output/'skeleton.json'),
-                                    '--multipliers',str(output/'multipliers.json'),'--out',str(recomposed)])
-        assert (code) == (0)
-        assert (Cofactor.load(recomposed, pres=self.pres).terms) == (certificate.terms)
-        assert (self.discover()['status']) == ('verified')  # Validated cache reuse.
+        matrix = ExactMatrix.from_json(json.loads((output/'matrix.json').read_text()))
+        kernel = KernelCertificate.from_json(json.loads((output/'kernel.json').read_text()))
+        verify_kernel(matrix,kernel)
+        assert matrix.ncols == 2 and kernel.nullity == 1
+        assert Cofactor.load(output/'certificate.txt',pres=self.pres).terms[0][1] == 'ZERO_2_1'
+        assert not {'lift.json','multipliers.json'} & set(report['files'])
+        assert self.discover()['generation'] == report['generation']
 
-    def test_symbolic_multiplier_is_reconstructed_instead_of_using_the_anchor(self):
-        atoms = AtomSet([Atom('q', {(1,0): 1})], [1])
-        report = self.discover(config=self.configuration('scaled'), atoms=atoms,
-                               start=9, step=10, maxpts=49)
-        assert (report['verified']), (report)
-        multipliers = json.loads(Path(report['artifacts']['multipliers.json']).read_text())
-        # X2 = (1/q)*(q X2). Its coefficient is not the anchor constant 1/5.
-        assert (multipliers['steps'][0]['num']) == ([[[0,0], '1']])
-        assert (multipliers['steps'][0]['denom']) == ([1])
-
-    def test_high_order_coefficient_pole_uses_lines_and_composes_exactly(self):
-        atoms = AtomSet([Atom('q', {(1,0): 1})], [6])
-        report = self.discover(config=self.configuration('pole'), atoms=atoms,
-                               start=100, maxpts=100)
-        assert (report['verified']), (report)
-        order = {'solver': 'degree-lex', 'reduction': pipeline.REDUCTION_ORDER}
-        fitted = load_artifact(report['artifacts']['lift.json'], self.pres, self.target,
-                               kind='lift', order=order)
-        coefficient, = next(iter(fitted.entries.values()))
-        assert (coefficient[0]) == ((5,))
-        assert (coefficient[1]) == ({(0,0): Fraction(1)})
-        assert (fitted.timing['routes']) == ({'known': 1, 'enum': 0})
-        # The multiplier q^5 cancels the reconstructed basis coefficient 1/q^5.
-        multipliers = json.loads(Path(report['artifacts']['multipliers.json']).read_text())
-        numerator = {tuple(m): Fraction(c) for m, c in multipliers['steps'][0]['num']
-                     if Fraction(c)}
-        assert (numerator) == ({(5,0): Fraction(1)})
-        assert (multipliers['steps'][0]['denom']) == ([0])
+    @pytest.mark.parametrize('mode',['scaled','pole','shape','closure'])
+    def test_numeric_proof_coefficients_do_not_prime_the_generic_answer(self, mode):
+        report = self.discover(config=self.configuration(mode))
+        assert report['verified'], report
+        assert report['points'] == 1
+        # The only necessary input relation is X2 itself; symbolic coefficient1
+        # is obtained from its generic word equations, regardless of proof scale.
+        certificate = Cofactor.load(report['certificate'],pres=self.pres)
+        assert certificate.terms == Cofactor.from_presentation(
+            self.pres,self.target,AtomSet([]),[((),'ZERO_2_1',(),{(0,0):Fraction(1)},())],
+            'expected',anchor=(5,7,0)).terms
 
     def test_truncated_output_cannot_establish_nonmembership(self):
         report = self.discover(config=self.configuration('omit'))
+        assert report['schema'] == 'zipper-discovery-result-v2'
         assert (report['status']) == ('inconclusive')
         assert (report['in_ideal']) is None
         assert (report['remainder_terms']) > (0)
@@ -229,40 +265,6 @@ class TestFreshDiscovery(DiscoveryFixture):
         assert (report['execution_status']) == ('failed')
         assert not (report['verified'])
         assert ('code 9') in (report['reason'])
-
-    def test_sampling_caps_grow_and_remain_inconclusive_without_enough_data(self):
-        report = self.discover(start=3, step=2, maxpts=5)
-        assert (report['points']) == (5)
-        assert (report['status']) == ('inconclusive')
-        assert ('held-out') in (report['reason'])
-        assert not ((self.config.output_root/'certificate.json').exists())
-
-    def test_degenerate_anchor_is_replaced_using_valid_equivalent_proof_shapes(self):
-        report = self.discover(config=self.configuration('shape'), start=7, maxpts=11)
-        assert (report['verified']), (report)
-        assert (report['anchor']) == ([3,2,0])
-        assert (report['points']) > (7)
-
-    def test_false_symbolic_fit_at_the_cap_remains_inconclusive(self):
-        atoms = AtomSet([Atom('q', {(1,0):1})],[1])
-        report = self.discover(config=self.configuration('scaled'), atoms=atoms,
-                               start=9, maxpts=11)
-        assert not (report['verified'])
-        assert ('failed exact verification') in (report['reason'])
-        assert not ((self.config.output_root/'certificate.txt').exists())
-
-    def test_replacement_anchor_is_checked_against_its_new_proof_closure(self):
-        result = self.discover(config=self.configuration('closure'), start=11, maxpts=11)
-        assert (result['status']) == ('inconclusive')
-        assert ('new closure') in (result['reason'])
-        assert (result['anchor']) == ([3,2,0])
-        assert not ((self.config.output_root/'certificate.txt').exists())
-
-    def test_changed_closure_can_grow_and_reanchor_without_dropping_slots(self):
-        result = self.discover(config=self.configuration('closure'), start=11, step=5, maxpts=26)
-        assert (result['verified']), (result)
-        assert (result['anchor'][:2]) != ([3,2])
-        assert (result['points']) > (11)
 
     def test_interrupted_final_record_preserves_prior_verified_generation(self):
         from zipper_algebra.execution.artifacts import file_identity
@@ -278,8 +280,7 @@ class TestFreshDiscovery(DiscoveryFixture):
         other = Presentation(2, 'square-zero', zero_from=2)
         with patch.object(pipeline,'write_json_atomic',side_effect=interrupted), \
              pytest.raises(OSError, match='interrupted'):
-            pipeline.run(other,self.target,(5,7,0),self.config,start=7,step=2,maxpts=9,
-                         atoms=self.atoms,verbose=False)
+            pipeline.run(other,self.target,(5,7,0),self.config,verbose=False)
         assert (marker.read_bytes()) == (prior_record)
         for name,path in prior['artifacts'].items():
             assert (Path(path).read_bytes()) == (prior_files[name])
@@ -289,8 +290,7 @@ class TestFreshDiscovery(DiscoveryFixture):
         prior = self.discover()
         old_bytes = Path(prior['certificate']).read_bytes()
         other = Presentation(2,'square-zero',zero_from=2)
-        result = pipeline.run(other,self.target,(5,7,0),self.configuration('omit'),
-                              start=7,maxpts=9,atoms=self.atoms,verbose=False)
+        result = pipeline.run(other,self.target,(5,7,0),self.configuration('omit'),verbose=False)
         assert (result['status']) == ('inconclusive')
         assert ('certificate') not in (result)
         assert (result['presentation']['sha256']) != (prior['presentation']['sha256'])
@@ -353,7 +353,7 @@ Path(a.p).write_text('\\n'.join('[i%d]' % index for index in indices) + '\\n')
 
         def discover(target):
             return pipeline.run(presentation, target, (5, 7, 0), self.config,
-                                start=7, step=6, maxpts=19, atoms=self.atoms, verbose=False)
+                                verbose=False)
 
         first = discover('X_2')
         assert first['verified'], first
@@ -389,45 +389,27 @@ Path(a.p).write_text('\\n'.join('[i%d]' % index for index in indices) + '\\n')
 
     def test_existing_verified_generation_is_checked_before_reuse(self):
         from zipper_algebra.execution.artifacts import ArtifactError
-        from zipper_algebra.cofactor.compose import load_multipliers
-        report = self.discover()
-        paths = {name:Path(path) for name,path in report['artifacts'].items()}
-        order={'solver':'degree-lex','reduction':pipeline.REDUCTION_ORDER}
-        skeleton=load_artifact(paths['skeleton.json'],self.pres,self.target,kind='skeleton',order=order)
-        fitted=load_artifact(paths['lift.json'],self.pres,self.target,kind='lift',order=order)
-        certificate=load_artifact(paths['certificate.json'],self.pres,self.target,kind='cofactor')
-        multipliers=load_multipliers(paths['multipliers.json'],skeleton,fitted.atoms,self.pres)
-        repeated=pipeline._publish_verified(self.config.output_root,self.pres,self.target,skeleton,
-                                           fitted,multipliers,certificate,order,
-                                           solver_runs=list(reversed(report['runs'])))
-        assert (repeated['generation']) == (report['generation'])
-        paths['certificate.txt'].write_text('corrupt')
-        with pytest.raises(ArtifactError, match='different content'):
-            pipeline._publish_verified(self.config.output_root,self.pres,self.target,skeleton,
-                                       fitted,multipliers,certificate,order,
-                                       solver_runs=report['runs'])
-
-    def test_nonzero_remainder_at_new_anchor_is_inconclusive(self):
-        # G(q)=X3+(q-5)*INV_1_p belongs to the defining ideal and equals X3
-        # at the original anchor. At q=3, reducing X3 by this truncated output
-        # leaves 2*INV_1_p; its absence from the supplied basis proves nothing.
-        pres=Presentation(3,zero_from=3)
-        assert (pres.labels()[11]) == ('T_2')
-        report=pipeline.run(pres,'X_3',(5,7,0),self.configuration('reanchor-remainder'),
-                            start=7,maxpts=9,atoms=self.atoms,verbose=False)
-        assert (report['status']) == ('inconclusive')
-        assert ('replacement anchor') in (report['reason'])
-        assert (report['remainder_terms']) > (0)
-        assert (report['in_ideal']) is None
+        report, arguments = self.material()
+        repeated = pipeline._publish_verified(self.config.output_root,*arguments,
+                    solver_runs=list(reversed(report['runs'])),reconstruction=report['reconstruction'])
+        assert repeated['generation'] == report['generation']
+        Path(report['certificate']).write_text('corrupt')
+        with pytest.raises(ArtifactError,match='different content'):
+            pipeline._publish_verified(self.config.output_root,*arguments,
+                         solver_runs=report['runs'],reconstruction=report['reconstruction'])
 
     def test_invalid_limits_and_anchor_fail_before_creating_outputs(self, subtests):
-        for arguments in ({'start':0}, {'step':0}, {'jobs':0}, {'maxpts':0}, {'start':10,'maxpts':9}):
+        for arguments in ({'threads':0},{'max_primes':0},{'reconstruction_degree':0},
+                          {'max_contexts':0},{'max_products':0},{'start_prime':-1},
+                          {'threads':True},{'max_primes':2048},{'start_prime':2047},
+                          {'reconstruction_degree':2**16},{'threads':2**32},
+                          {'shift':(1,)},{'shift':(-1,2)},{'shift':(True,2)}):
             with subtests.test(arguments=arguments), pytest.raises(ValueError):
                 self.discover(**arguments)
-        for anchor in ((1,2,5), (True,2,0), (1,2), [1,2,0]):
+        for anchor in ((1,2,5),(True,2,0),(1,2),[1,2,0]):
             with subtests.test(anchor=anchor), pytest.raises(ValueError):
                 pipeline.run(self.pres,self.target,anchor,self.config)
-        assert not (self.config.output_root.exists())
+        assert not self.config.output_root.exists()
 
 
 class TestInstalledDiscoveryCommands(DiscoveryFixture):
@@ -467,8 +449,7 @@ class TestInstalledDiscoveryCommands(DiscoveryFixture):
                     (directory/'.gitignore').write_text('existing output policy\n')
                 arguments = ['discover', '--n', '2', '--zero-from', '2', '--target', 'X_2',
                              '--solver', sys.executable, '--output', str(output), '--cache', str(cache),
-                             '--atoms', str(atoms_path), '--start', '7', '--step', '2',
-                             '--max', '9', '--json']
+                             '--json']
                 code, text, errors = self.invoke_with_producer(arguments)
                 assert (code) == (0), (errors or text)
                 prior = json.loads(text)
@@ -526,8 +507,7 @@ class TestInstalledDiscoveryCommands(DiscoveryFixture):
         self.atoms.save(atoms_path)
         arguments = ['discover', '--n', '2', '--zero-from', '2', '--target', 'X_2',
                      '--solver', sys.executable,
-                     '--output', str(self.config.output_root), '--atoms', str(atoms_path),
-                     '--start', '10', '--max', '9', '--json']
+                     '--output', str(self.config.output_root), '--max-primes', '2048', '--json']
         code, text, errors = self.invoke_with_producer(arguments)
         assert (code) == (2), (errors)
         assert (json.loads(text)['status']) == ('invalid-input')
@@ -538,33 +518,32 @@ class TestInstalledDiscoveryCommands(DiscoveryFixture):
         args=['discover','--n','2','--zero-from','2','--target','X_2',
               '--solver',sys.executable,'--output',str(self.root/'discovery'),
               '--cache',str(self.root/'shared-cache'),'--anchor','3,7',
-              '--start','7','--step','2','--max','9','--jobs','2','--refresh','--json']
+              '--threads','2','--max-primes','3','--reconstruction-degree','18',
+              '--max-contexts','120','--max-products','900','--start-prime','1',
+              '--shift','3,11','--refresh','--json']
         atoms_path=self.root/'atoms.json'
         self.atoms.save(atoms_path)
         for verified in (True,False):
             with subtests.test(verified=verified), patch.object(pipeline,'run',return_value={
                     'verified':verified,'status':'verified' if verified else 'inconclusive'}) as producer:
-                code, output, errors=self.invoke(args+['--atoms',str(atoms_path)])
+                code, output, errors=self.invoke(args)
                 assert (code) == (0 if verified else 3), (errors)
                 assert (json.loads(output)['verified']) == (verified)
                 assert (producer.call_args.args[2]) == ((3,7,0))
-                assert (producer.call_args.kwargs['jobs']) == (2)
+                assert (producer.call_args.kwargs['threads']) == (2)
         with patch.object(pipeline,'run',return_value={'verified':True,'status':'verified'}):
             assert (self.invoke(args[:-1])[1].strip()) == ('verified')
         for value in ('bad','1,2,3','x,2'):
             with subtests.test(value=value),redirect_stderr(io.StringIO()),pytest.raises(SystemExit):
                 cli.main(args+['--anchor',value])
 
-    def test_installed_compose_has_the_shared_exact_verification_entrypoint(self):
-        report=self.discover()
-        output=Path(report['certificate']).parent
-        code, text, errors=self.invoke(['compose','--n','2','--zero-from','2',
-             '--target','X_2','--skeleton',str(output/'skeleton.json'),
-             '--lift',str(output/'lift.json'),'--multipliers',str(output/'multipliers.json'),
-             '--out',str(self.root/'installed.txt'),'--json'])
-        assert (code) == (0), (errors)
-        assert (json.loads(text)['pass'])
-        assert (report['verified'])
+    def test_installed_verify_checks_the_generated_free_algebra_certificate(self):
+        report = self.discover()
+        code,text,errors = self.invoke(['verify',report['certificate'],'--n','2',
+                          '--zero-from','2','--target','X_2','--json'])
+        assert code == 0, errors
+        assert json.loads(text)['exact']['pass']
+
 
 class TestCompositionArtifactBoundaries(DiscoveryFixture):
     def test_default_sampling_factors_are_local_to_each_run(self):
@@ -579,8 +558,15 @@ class TestCompositionArtifactBoundaries(DiscoveryFixture):
         assert (right.atoms.to_json()) == (old)
 
     def test_bound_composition_requires_explicit_target_and_rejects_bad_documents(self):
-        report=self.discover()
-        output=Path(report['certificate']).parent
+        from zipper_algebra.cofactor.skeleton import Skeleton
+        from zipper_algebra.cofactor.lift import Lift
+        output=self.root
+        skeleton=Skeleton(self.pres.slug(),self.pres.content_hash(),self.target,(5,7,0))
+        fitted=Lift(self.atoms,{},0,0,(5,7,0),{})
+        mathematical_order={'solver':'degree-lex','reduction':pipeline.REDUCTION_ORDER}
+        from zipper_algebra.cofactor.artifacts import save_artifact
+        save_artifact(output/'skeleton.json',skeleton,self.pres,self.target,order=mathematical_order)
+        save_artifact(output/'lift.json',fitted,self.pres,self.target,order=mathematical_order)
         destination=self.root/'protected.txt'
         destination.write_text('prior valid result\n')
         arguments=['--n','2','--zero-from','2','--lift',str(output/'lift.json'),
@@ -611,17 +597,6 @@ class TestCompositionArtifactBoundaries(DiscoveryFixture):
 
 
 class TestConcurrentVerifiedPublication(DiscoveryFixture):
-    def material(self):
-        from zipper_algebra.cofactor.compose import load_multipliers
-        prior = self.discover()
-        paths = {name:Path(path) for name,path in prior['artifacts'].items()}
-        order = {'solver':'degree-lex','reduction':pipeline.REDUCTION_ORDER}
-        skeleton = load_artifact(paths['skeleton.json'],self.pres,self.target,kind='skeleton',order=order)
-        fitted = load_artifact(paths['lift.json'],self.pres,self.target,kind='lift',order=order)
-        certificate = load_artifact(paths['certificate.json'],self.pres,self.target,kind='cofactor')
-        multipliers = load_multipliers(paths['multipliers.json'],skeleton,fitted.atoms,self.pres)
-        return prior, (self.pres,self.target,skeleton,fitted,multipliers,certificate,order)
-
     def test_identical_generation_publishers_reuse_the_complete_winner(self):
         from concurrent.futures import ThreadPoolExecutor
         import os
@@ -679,7 +654,7 @@ class TestConcurrentVerifiedPublication(DiscoveryFixture):
         marker = self.config.output_root/'result.json'
         prior_record = marker.read_bytes()
         replace = os.replace
-        for mode in ('corrupt','incomplete'):
+        for mode in ('corrupt','incomplete','extra'):
             error = OSError('raced generation rename')
             def raced(source,destination):
                 if Path(source).name == 'generation' and Path(destination).parent.name == 'verified':
@@ -687,6 +662,8 @@ class TestConcurrentVerifiedPublication(DiscoveryFixture):
                     product = Path(destination)/'certificate.txt'
                     if mode == 'corrupt':
                         product.write_text('corrupted concurrent product')
+                    elif mode == 'extra':
+                        (Path(destination)/'unexpected.txt').write_text('not in generation')
                     else:
                         product.unlink()
                     raise error
@@ -697,3 +674,27 @@ class TestConcurrentVerifiedPublication(DiscoveryFixture):
             assert (raised.value) is (error)
             assert (marker.read_bytes()) == (prior_record)
             assert (Path(prior['certificate']).is_file())
+
+    def test_winner_disappearing_during_hashing_preserves_original_rename_error(self):
+        prior, arguments = self.material()
+        rename = pipeline.os.replace
+        identity = pipeline.file_identity
+        error = OSError('raced generation rename')
+        removed = []
+        def raced(source, destination):
+            rename(source, destination)
+            if Path(source).name == 'generation' and Path(destination).parent.name == 'verified':
+                raise error
+        def disappearing(path):
+            path = Path(path)
+            if path.name == 'certificate.txt' and path.parent.parent.name == 'verified':
+                path.unlink()
+                removed.append(path)
+            return identity(path)
+        with patch.object(pipeline.os, 'replace', side_effect=raced), \
+             patch.object(pipeline, 'file_identity', side_effect=disappearing), \
+             pytest.raises(OSError) as raised:
+            pipeline._publish_verified(self.root/'vanishing', *arguments)
+        assert raised.value is error
+        assert len(removed) == 1
+        assert Path(prior['certificate']).is_file()

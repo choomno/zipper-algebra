@@ -1,25 +1,26 @@
 """Produce and exactly verify a cofactor from a presentation and solver proofs."""
 from __future__ import annotations
 
-from fractions import Fraction
 from pathlib import Path
+import json
 import os
 import tempfile
 import time
 
-from ..cofactor.artifacts import (presentation_identity, save_artifact, target_identity,
+from ..cofactor.artifacts import (presentation_identity, load_artifact, save_artifact, target_identity,
                                  write_json_atomic)
-from ..cofactor import compose as composition
-from ..cofactor.atoms import AtomSet
-from ..cofactor.cofactor_io import resolve_target
-from ..cofactor.lift import NeedMoreSamples, lift
+from ..cofactor.cofactor_io import Cofactor, resolve_target
+from ..cofactor.discovery import build_system, reconstruct_cofactor
 from ..cofactor.skeleton import Anchor, Skeleton, reduce
 from ..cofactor.verify import check
 from ..coefficients import NumericRing
 from ..presentation import Presentation
+from ..matrices import ExactMatrix
+from ..verification.linear import KernelCertificate
 from .artifacts import ArtifactError, canonical_json, digest_bytes, file_identity, prepare_output_root
 from .runner import ExecutionError, validate_source_snapshot
-from .sampling import Point, SampleSet
+from .sampling import SampleSet
+from .dependencies import reconstruction_provenance
 from .store import read as read_solver_run
 from .config import RunConfig
 from ..provenance import capture_provenance, write_bundle_provenance
@@ -35,22 +36,6 @@ def _skeleton(pres: Presentation, target: str, samples: SampleSet) -> Skeleton:
     return Skeleton.from_reduction(pres, target, samples.anchor, steps, remainder, basis, proof)
 
 
-def multiplier_samples(skeleton: Skeleton, samples: SampleSet,
-                       pres: Presentation) -> dict[Point, list[Fraction]]:
-    """Exact multipliers for matching contextual occurrences, including repeated uses."""
-    signatures = [(tuple(step["left"]), step["basis_key"], tuple(step["right"]))
-                  for step in skeleton.steps]
-    result: dict[Point, list[Fraction]] = {}
-    for point in samples.stable(skeleton):
-        basis = samples.basis(*point)
-        target = resolve_target(pres, skeleton.target, NumericRing(*point, 0))
-        steps, remainder = reduce(target, basis)
-        observed = [(tuple(left), basis.key[index], tuple(right))
-                    for left, index, right, _ in steps]
-        if not remainder.terms and observed == signatures:
-            result[point] = [Fraction(coef.v) for _, _, _, coef in steps]
-    return result
-
 
 def _solver_runs(samples: SampleSet) -> list[dict]:
     """Identify all validated runs of this discovery, including unstable samples."""
@@ -64,7 +49,7 @@ def _solver_links(root, pres, target, solver_runs, producer):
     """Bind supplied run records to retained output-root-relative solver data.
 
     Reading a stored generation checks its identities and bytes; it does not
-    establish basis completeness or which samples contributed to a fitted slot.
+    establish basis completeness or completeness of the chosen context family.
     """
     presentation = presentation_identity(pres)
     records: list[dict] = []
@@ -102,8 +87,14 @@ def _solver_links(root, pres, target, solver_runs, producer):
     return links
 
 
-def _publish_verified(root, pres, target, skeleton, fitted, multipliers, certificate, order,
-                      producer=None, *, solver_runs=None):
+def _generation_matches(directory, files):
+    """An immutable generation contains exactly its declared file names and bytes."""
+    return (directory.is_dir() and {path.name for path in directory.iterdir()} == set(files)
+            and all(file_identity(directory / name) == identity for name, identity in files.items()))
+
+
+def _publish_verified(root, pres, target, skeleton, discovery, order,
+                      producer=None, *, solver_runs=None, reconstruction=None):
     """Publish one immutable product generation; the result record selects it later."""
     destination = root / "verified"
     producer = capture_provenance() if producer is None else producer
@@ -113,19 +104,43 @@ def _publish_verified(root, pres, target, skeleton, fitted, multipliers, certifi
         stage = Path(temporary) / "generation"
         stage.mkdir()
         save_artifact(stage / "skeleton.json", skeleton, pres, target, order=order, producer=producer)
-        save_artifact(stage / "lift.json", fitted, pres, target, order=order, producer=producer)
-        write_json_atomic(stage / "multipliers.json", composition.multipliers_to_json(
-            multipliers, skeleton, fitted.atoms, pres))
-        save_artifact(stage / "certificate.json", certificate, pres, target, producer=producer)
-        certificate.save(stage / "certificate.txt", provenance=False)
-        write_json_atomic(stage / "solver-runs.json", solver_links)
+        documents = {"support.json": discovery.system.to_json(),
+                     "matrix.json": discovery.system.matrix.to_json(),
+                     "kernel.json": discovery.kernel.to_json(),
+                     "reconstruction.json": reconstruction, "solver-runs.json": solver_links}
+        for name, document in documents.items():
+            write_json_atomic(stage / name, document)
+        save_artifact(stage / "certificate.json", discovery.cofactor, pres, target, producer=producer)
+        discovery.cofactor.save(stage / "certificate.txt", provenance=False)
+        # Reparse published encodings and bind them to the objects whose exact
+        # identities were checked. Equality avoids repeating large AN products.
+        try:
+            if any(json.loads((stage / name).read_text()) != document
+                   for name, document in documents.items()):
+                raise ValueError("saved reconstruction metadata differ from checked objects")
+            bound_skeleton = load_artifact(stage / "skeleton.json", pres, target,
+                                           kind="skeleton", order=order)
+            bound_certificate = load_artifact(stage / "certificate.json", pres, target, kind="cofactor")
+            matrix = ExactMatrix.from_json(json.loads((stage / "matrix.json").read_text()))
+            kernel = KernelCertificate.from_json(json.loads((stage / "kernel.json").read_text()))
+            certificate = Cofactor.load(str(stage / "certificate.txt"), pres=pres)
+            if (bound_skeleton.to_json() != skeleton.to_json()
+                    or bound_certificate.header != discovery.cofactor.header
+                    or bound_certificate.terms != discovery.cofactor.terms
+                    or matrix.to_json() != discovery.system.matrix.to_json()
+                    or kernel.to_json() != discovery.kernel.to_json()
+                    or certificate.header != discovery.cofactor.header
+                    or certificate.terms != discovery.cofactor.terms):
+                raise ValueError("saved reconstruction objects differ from checked objects")
+        except (ValueError, TypeError, KeyError) as error:
+            raise ArtifactError(f"invalid serialized reconstruction: {error}") from error
         write_bundle_provenance(stage, (path.name for path in stage.iterdir()), producer=producer)
         validate_source_snapshot(producer)
         files = {path.name: file_identity(path) for path in stage.iterdir()}
         generation = digest_bytes(canonical_json(files))
         final = destination / generation
         if final.exists():
-            if any(file_identity(final / name) != identity for name, identity in files.items()):
+            if not _generation_matches(final, files):
                 raise ArtifactError("existing verified generation has different content")
         else:
             try:
@@ -135,8 +150,7 @@ def _publish_verified(root, pres, target, skeleton, fitted, multipliers, certifi
                 # bytes after the existence check. Only that complete winner
                 # permits us to treat a failed rename as successful reuse.
                 try:
-                    winner_matches = final.is_dir() and all(
-                        file_identity(final / name) == identity for name, identity in files.items())
+                    winner_matches = _generation_matches(final, files)
                 except OSError:
                     raise error
                 if not winner_matches:
@@ -147,17 +161,30 @@ def _publish_verified(root, pres, target, skeleton, fitted, multipliers, certifi
 
 
 def run(pres: Presentation, target: str, anchor: Anchor, config: RunConfig, *,
-        start: int = 100, step: int = 40, maxpts: int = 260, jobs: int = 1,
-        atoms: AtomSet | None = None, refresh: bool = False, verbose: bool = True) -> dict:
-    """Run bounded discovery; success means an exact identity, not a complete basis.
+        threads: int = 1, max_primes: int = 5, reconstruction_degree: int = 24,
+        max_contexts: int = 100000, max_products: int = 10000000,
+        start_prime: int = 0, shift=None, refresh: bool = False,
+        verbose: bool = True) -> dict:
+    """Discover an exact generic cofactor using one fresh solver proof graph.
 
-    Sampling and proof data are produced from the presentation. Saved lifts or
-    historical cofactor expressions are not inputs to this procedure.
+    FiniteFlow solves the contextual word equations over Q(q,t). The reconstructed
+    kernel and the resulting free-algebra identity are checked independently.
+    An insufficient proof support or exhausted search establishes no nonmembership.
     """
-    if any(type(value) is not int or value < 1 for value in (start, step, maxpts, jobs)):
-        raise ValueError("start, step, maxpts and jobs must be positive integers")
-    if start > maxpts:
-        raise ValueError("start must not exceed maxpts")
+    for name, value, minimum in (("threads", threads, 1), ("max_primes", max_primes, 1),
+                                 ("reconstruction_degree", reconstruction_degree, 1),
+                                 ("max_contexts", max_contexts, 1),
+                                 ("max_products", max_products, 1),
+                                 ("start_prime", start_prime, 0)):
+        if type(value) is not int or value < minimum:
+            raise ValueError(f"{name} must be an integer at least {minimum}")
+    if (max_primes > 2047 or start_prime + max_primes >= 2048
+            or reconstruction_degree >= 2**16 or threads >= 2**32):
+        raise ValueError("reconstruction options exceed FiniteFlow native limits")
+    if shift is not None:
+        shift = tuple(shift)
+        if len(shift) != 2 or any(type(x) is not int or not 0 <= x < 2**64 for x in shift):
+            raise ValueError("shift must have two unsigned exact integer coordinates")
     if (not isinstance(anchor, tuple) or len(anchor) != 3
             or any(type(value) is not int for value in anchor) or anchor[2] != 0):
         raise ValueError("anchor must be an integer (q,t,0) tuple")
@@ -166,13 +193,14 @@ def run(pres: Presentation, target: str, anchor: Anchor, config: RunConfig, *,
     root = Path(config.output_root)
     prepare_output_root(root)
     order = {"solver": config.monomial_order, "reduction": REDUCTION_ORDER}
-    samples = SampleSet(pres, target, anchor, config, atoms, producer=producer)
+    samples = SampleSet(pres, target, anchor, config, producer=producer)
     started = time.monotonic()
+    stage = "solver"
 
     def finish(status, reason=None, **data):
-        report = {"schema": "zipper-discovery-result-v1", "status": status,
+        report = {"schema": "zipper-discovery-result-v2", "status": status,
                   "verified": status == "verified", "in_ideal": True if status == "verified" else None,
-                  "basis_complete": False,
+                  "basis_complete": False, "method": "proof-contexts-finiteflow",
                   "producer": producer,
                   "presentation": identity, "target": polynomial, "target_name": target,
                   "anchor": list(samples.anchor), "points": len(samples.points),
@@ -191,53 +219,38 @@ def run(pres: Presentation, target: str, anchor: Anchor, config: RunConfig, *,
         if not skeleton.in_ideal:
             return finish("inconclusive", "nonzero remainder against an uncertified basis",
                           remainder_terms=skeleton.remainder_terms)
-        desired = start
-        while True:
-            samples.grow(max(0, desired - len(samples.points)), jobs=jobs, refresh=refresh)
-            modal, off = samples.modal_shapes(skeleton)
-            if off:
-                candidates = samples.stable(skeleton)
-                if candidates:
-                    samples.reanchor(candidates[0])
-                    skeleton = _skeleton(pres, target, samples)
-                    save_artifact(root / "candidate-skeleton.json", skeleton, pres, target, order=order,
-                                  producer=producer)
-                    if not skeleton.in_ideal:
-                        return finish("inconclusive", "nonzero remainder at replacement anchor",
-                                      remainder_terms=skeleton.remainder_terms)
-                    # Rebuilding the reduction can introduce new dependencies. Its
-                    # anchor must carry the modal shape for that new closure too.
-                    if samples.modal_shapes(skeleton)[1]:
-                        reason = "replacement anchor has incompatible proof shapes for its new closure"
-                        if desired >= maxpts:
-                            return finish("inconclusive", reason)
-                        desired = min(desired + step, maxpts)
-                        continue
-                else:
-                    reason = "no sample carries all modal proof shapes"
-                    if desired >= maxpts:
-                        return finish("inconclusive", reason)
-                    desired = min(desired + step, maxpts)
-                    continue
-            try:
-                fitted = lift(skeleton, samples, atoms=atoms, known="lines", verbose=verbose)
-                values = multiplier_samples(skeleton, samples, pres)
-                multipliers = composition.lift_multipliers(skeleton, values, fitted.atoms)
-                candidate = composition.compose(fitted, skeleton, pres,
-                                                multipliers=multipliers, verbose=verbose)
-            except NeedMoreSamples as error:
-                reason = str(error)
-            else:
-                report = check(candidate, pres, target, verbose=verbose)
-                if report["pass"]:
-                    validate_source_snapshot(producer)
-                    products = _publish_verified(root, pres, target, skeleton, fitted,
-                                                 multipliers, candidate, order, producer,
-                                                 solver_runs=_solver_runs(samples))
-                    return finish("verified", exact=report, tuples=len(candidate.terms), **products)
-                reason = "candidate failed exact verification"
-            if desired >= maxpts:
-                return finish("inconclusive", reason)
-            desired = min(desired + step, maxpts)
+        stage = "support"
+        system = build_system(pres, target, skeleton, samples.anchor_basis(),
+                              samples.anchor_proof(), max_contexts=max_contexts,
+                              max_products=max_products)
+        stage = "reconstruction"
+        dependencies = reconstruction_provenance()
+        reconstruction = {"schema": "zipper-reconstruction-run-v1", "dependencies": dependencies,
+                          "options": {"threads": threads, "max_primes": max_primes,
+                                      "max_degree": reconstruction_degree, "start_prime": start_prime,
+                                      "shift": None if shift is None else list(shift),
+                                      "max_contexts": max_contexts, "max_products": max_products}}
+        discovery = reconstruct_cofactor(pres, target, system, anchor=samples.anchor,
+                         max_primes=max_primes, max_degree=reconstruction_degree,
+                         threads=threads, max_products=max_products, start_prime=start_prime,
+                         shift=shift)
+        # This independent free-algebra check also protects the publication boundary.
+        report = check(discovery.cofactor, pres, target, verbose=verbose)
+        if not report["pass"]:
+            return finish("inconclusive", "candidate failed exact verification")
+        stage = "publication"
+        if reconstruction_provenance() != dependencies:
+            raise ArtifactError("reconstruction dependencies changed during discovery")
+        validate_source_snapshot(producer)
+        try:
+            products = _publish_verified(root, pres, target, skeleton, discovery, order, producer,
+                                         solver_runs=_solver_runs(samples),
+                                         reconstruction=reconstruction)
+        except OSError as error:
+            raise ArtifactError(f"could not publish verified generation: {error}") from error
+        return finish("verified", exact=report, tuples=len(discovery.cofactor.terms),
+                      reconstruction=reconstruction, support=system.statistics, **products)
     except (ExecutionError, ArtifactError) as error:
-        return finish("inconclusive", str(error), execution_status="failed")
+        return finish("inconclusive", str(error), execution_status="failed", stage=stage)
+    except (RuntimeError, ImportError) as error:
+        return finish("inconclusive", str(error), stage=stage)
